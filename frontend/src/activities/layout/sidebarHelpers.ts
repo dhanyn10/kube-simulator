@@ -173,6 +173,16 @@ export function executeSidebarAddNode(
     return;
   }
 
+  if (type === 'HPA') {
+    context.setActiveOverviewModal?.('HPA');
+    return;
+  }
+
+  if (type === 'ResourceLimit') {
+    context.setActiveOverviewModal?.('ResourceLimit');
+    return;
+  }
+
   onAddNode(type);
 }
 

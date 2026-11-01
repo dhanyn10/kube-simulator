@@ -98,7 +98,7 @@ export const extractAllOverviewItems = (
     }
   });
 
-  if ((resourceType === 'ConfigMap' || resourceType === 'Secret') && Array.isArray(savedResources)) {
+  if (Array.isArray(savedResources)) {
     savedResources.forEach((savedItem: any) => {
       if (!foundIds.has(savedItem.id) && !foundIds.has(savedItem.name)) {
         const isAttached = Boolean(savedItem.resourceName);

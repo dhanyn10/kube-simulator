@@ -354,6 +354,12 @@ export function useAttachmentHandlers() {
 
   const handleHpaSave = (hpaItem: K8sHpaItem) => {
     if (!hpaModalTargetNode) return;
+    if (hpaModalTargetNode.id === 'cluster-storage') {
+      useFlowStore.getState().addOrUpdateSavedHpa(hpaItem);
+      useFlowStore.getState().addLog('info', `[HPA Saved] Saved cluster HPA profile "${hpaItem.name}"`, 'UI');
+      setHpaModalTargetNode(null);
+      return;
+    }
     const target = nodes.find((n) => n.id === hpaModalTargetNode.id);
     if (!target) return;
 
@@ -391,6 +397,12 @@ export function useAttachmentHandlers() {
 
   const handleResourceLimitSave = (resItem: K8sResourceLimitItem) => {
     if (!resourceLimitModalTargetNode) return;
+    if (resourceLimitModalTargetNode.id === 'cluster-storage') {
+      useFlowStore.getState().addOrUpdateSavedResourceLimit(resItem);
+      useFlowStore.getState().addLog('info', `[Resource Limit Saved] Saved cluster Resource Limit profile "${resItem.name}"`, 'UI');
+      setResourceLimitModalTargetNode(null);
+      return;
+    }
     const target = nodes.find((n) => n.id === resourceLimitModalTargetNode.id);
     if (!target) return;
 

@@ -2,7 +2,7 @@ import { logger } from '@/lib/logger';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import type { FlowState, SimulationMetricPoint } from '@/store/types';
-import { K8sResourceType, KubeIAMUser, K8sConfigMapItem, K8sSecretItem } from '@/types';
+import { K8sResourceType, KubeIAMUser, K8sConfigMapItem, K8sSecretItem, K8sHpaItem, K8sResourceLimitItem } from '@/types';
 import { loadConfigMapsFromLocal } from '@/activities/modals/configMapStorageHelpers';
 import { loadSecretsFromLocal } from '@/activities/modals/secretStorageHelpers';
 import { safeRandom } from '@/lib/utils';
@@ -56,6 +56,14 @@ export interface UiSlice {
   setSavedSecrets: (secrets: K8sSecretItem[]) => void;
   addOrUpdateSavedSecret: (sec: K8sSecretItem) => void;
   deleteSavedSecret: (secId: string) => void;
+  savedHpas: K8sHpaItem[];
+  setSavedHpas: (hpas: K8sHpaItem[]) => void;
+  addOrUpdateSavedHpa: (hpa: K8sHpaItem) => void;
+  deleteSavedHpa: (hpaId: string) => void;
+  savedResourceLimits: K8sResourceLimitItem[];
+  setSavedResourceLimits: (limits: K8sResourceLimitItem[]) => void;
+  addOrUpdateSavedResourceLimit: (limit: K8sResourceLimitItem) => void;
+  deleteSavedResourceLimit: (limitId: string) => void;
 
   // Active K8s Identity state & actions
   activeIdentity: string;
@@ -683,6 +691,48 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   deleteSavedSecret: (secId) => {
     set((state) => ({
       savedSecrets: (state.savedSecrets || []).filter((s) => s.id !== secId && s.name !== secId),
+    }));
+  },
+  savedHpas: [],
+  setSavedHpas: (hpas) => set({ savedHpas: hpas }),
+  addOrUpdateSavedHpa: (hpa) => {
+    set((state) => {
+      const existing = state.savedHpas || [];
+      const idx = existing.findIndex((h) => h.id === hpa.id || h.name === hpa.name);
+      let updated: K8sHpaItem[];
+      if (idx >= 0) {
+        updated = [...existing];
+        updated[idx] = hpa;
+      } else {
+        updated = [...existing, hpa];
+      }
+      return { savedHpas: updated };
+    });
+  },
+  deleteSavedHpa: (hpaId) => {
+    set((state) => ({
+      savedHpas: (state.savedHpas || []).filter((h) => h.id !== hpaId && h.name !== hpaId),
+    }));
+  },
+  savedResourceLimits: [],
+  setSavedResourceLimits: (limits) => set({ savedResourceLimits: limits }),
+  addOrUpdateSavedResourceLimit: (limit) => {
+    set((state) => {
+      const existing = state.savedResourceLimits || [];
+      const idx = existing.findIndex((r) => r.id === limit.id || r.name === limit.name);
+      let updated: K8sResourceLimitItem[];
+      if (idx >= 0) {
+        updated = [...existing];
+        updated[idx] = limit;
+      } else {
+        updated = [...existing, limit];
+      }
+      return { savedResourceLimits: updated };
+    });
+  },
+  deleteSavedResourceLimit: (limitId) => {
+    set((state) => ({
+      savedResourceLimits: (state.savedResourceLimits || []).filter((r) => r.id !== limitId && r.name !== limitId),
     }));
   },
 

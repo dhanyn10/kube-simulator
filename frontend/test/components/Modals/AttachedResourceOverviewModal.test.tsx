@@ -475,4 +475,29 @@ describe('AttachedResourceOverviewModal', () => {
     expect(deleteSavedConfigMap).not.toHaveBeenCalled();
     expect(deleteSavedSecret).not.toHaveBeenCalled();
   });
+
+  it('handles + Add HPA and + Add Resource Limit buttons in footer', () => {
+    const onClose = vi.fn();
+    const setHpaModalTargetNode = vi.fn();
+    const setResourceLimitModalTargetNode = vi.fn();
+    useFlowStore.setState({ setHpaModalTargetNode, setResourceLimitModalTargetNode });
+
+    const { unmount } = render(<AttachedResourceOverviewModal type="HPA" onClose={onClose} />);
+    const addHpaBtn = screen.getByTestId('overview-add-hpa-btn');
+    fireEvent.click(addHpaBtn);
+    expect(onClose).toHaveBeenCalled();
+    expect(setHpaModalTargetNode).toHaveBeenCalledWith({
+      id: 'cluster-storage',
+      label: 'Cluster HPA Profile',
+    });
+    unmount();
+
+    render(<AttachedResourceOverviewModal type="ResourceLimit" onClose={onClose} />);
+    const addResBtn = screen.getByTestId('overview-add-resource-limit-btn');
+    fireEvent.click(addResBtn);
+    expect(setResourceLimitModalTargetNode).toHaveBeenCalledWith({
+      id: 'cluster-storage',
+      label: 'Cluster Resource Limit',
+    });
+  });
 });

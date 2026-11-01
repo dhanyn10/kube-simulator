@@ -130,10 +130,12 @@ describe('sidebarHelpers', () => {
     expect(onAddNode).not.toHaveBeenCalled();
 
     executeSidebarAddNode('HPA', onAddNode, mockContext);
-    expect(onAddNode).toHaveBeenCalledWith('HPA');
+    expect(setActiveOverviewModal).toHaveBeenCalledWith('HPA');
+    expect(onAddNode).not.toHaveBeenCalled();
 
     executeSidebarAddNode('ResourceLimit', onAddNode, mockContext);
-    expect(onAddNode).toHaveBeenCalledWith('ResourceLimit');
+    expect(setActiveOverviewModal).toHaveBeenCalledWith('ResourceLimit');
+    expect(onAddNode).not.toHaveBeenCalled();
   });
 
   it('executes executeSidebarAddNode with setConfigMapModalTargetNode and setSecretModalTargetNode opening list mode', () => {
