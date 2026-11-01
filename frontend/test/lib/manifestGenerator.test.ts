@@ -162,17 +162,20 @@ describe('manifestGenerator test suite', () => {
     expect(disabledPod?.spec?.containers?.[0]?.resources).toBeUndefined();
   });
 
-  it('generates Service manifests with custom serviceType and nodePort', () => {
+  it('generates Service manifests with custom serviceType, nodePort, and externalTrafficPolicy', () => {
     const nodes = [
-      { id: 'svc1', type: 'Service', data: { label: 'NodePort Service', serviceType: 'NodePort', port: '80', targetPort: '8080', nodePort: '30080' } },
-      { id: 'svc2', type: 'Service', data: { label: 'LoadBalancer Service', serviceType: 'LoadBalancer', port: '443', targetPort: '8443', nodePort: '30443' } },
+      { id: 'svc1', type: 'Service', data: { label: 'NodePort Service', serviceType: 'NodePort', port: '80', targetPort: '8080', nodePort: '30080', externalTrafficPolicy: 'Local' } },
+      { id: 'svc2', type: 'Service', data: { label: 'LoadBalancer Service', serviceType: 'LoadBalancer', port: '443', targetPort: '8443', nodePort: '30443', externalTrafficPolicy: 'Cluster' } },
+      { id: 'svc3', type: 'Service', data: { label: 'ClusterIP Service', serviceType: 'ClusterIP', port: '80', externalTrafficPolicy: 'Local' } },
     ];
 
     const yamlOutput = generateYamlClientSide(nodes, []);
     expect(yamlOutput).toContain('type: NodePort');
     expect(yamlOutput).toContain('nodePort: 30080');
+    expect(yamlOutput).toContain('externalTrafficPolicy: Local');
     expect(yamlOutput).toContain('type: LoadBalancer');
     expect(yamlOutput).toContain('nodePort: 30443');
+    expect(yamlOutput).toContain('externalTrafficPolicy: Cluster');
   });
 
   it('sanitizes labels with special characters, consecutive dashes, and truncates long labels', () => {

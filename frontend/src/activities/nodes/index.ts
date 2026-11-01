@@ -8,3 +8,4 @@ export * from './deploymentNodeHelpers';
 export * from './useCanvasNodes';
 export * from './useResourceLimitNode';
 export * from './resourceLimitHelpers';
+export * from './podSelfLayoutHelpers';

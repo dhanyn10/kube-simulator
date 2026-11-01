@@ -9,7 +9,7 @@ import {
   resolveGlobalCollisions,
   ejectLoadBalancersFromNamespaces
 } from '@/store/helpers';
-import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
+import { syncDeployment, syncContainerSize, isChildPodOf } from '@/store/nodeHelpers';
 import { calculateCardLayoutWithYoga } from '@/store/deploymentYogaLayout';
 import {
   getInitialData,
@@ -491,7 +491,7 @@ const handleAdditionSync = (newNode: Node, nodes: Node[], get: () => FlowState) 
     const parent = nodes.find(n => n.id === newNode.parentId);
     if (parent?.type === 'Deployment' || parent?.type === 'StatefulSet' || parent?.type === 'ReplicaSet') {
       const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, 1, get, newNode);
-      const others = nodes.filter(n => (n.parentId !== newNode.parentId || n.type !== 'Pod') && n.id !== newNode.id);
+      const others = nodes.filter(n => !isChildPodOf(n, newNode.parentId!) && n.id !== newNode.id);
       return sortNodes([...others.map(n => n.id === newNode.parentId ? updatedDeployment : n), ...laidOut]);
     }
   }

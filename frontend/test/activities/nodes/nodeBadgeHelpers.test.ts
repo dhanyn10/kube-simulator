@@ -7,6 +7,7 @@ describe('nodeBadgeHelpers', () => {
       showRuntime: false,
       showWebserver: false,
       showImage: false,
+      showNodeBadge: false,
       hasAnyBadge: false,
     });
 
@@ -14,6 +15,7 @@ describe('nodeBadgeHelpers', () => {
       showRuntime: false,
       showWebserver: false,
       showImage: false,
+      showNodeBadge: false,
       hasAnyBadge: false,
     });
   });
@@ -24,13 +26,24 @@ describe('nodeBadgeHelpers', () => {
       runtime: 'nodejs',
       webserver: 'nginx',
       image: 'nginx:alpine',
-      displaySettings: { runtime: true, webserver: true, image: true },
+      displaySettings: { runtime: true, webserver: true, image: true, assignedNode: true },
     };
 
     const result = getPodBadgeVisibility(podData);
     expect(result.showRuntime).toBe(true);
     expect(result.showWebserver).toBe(true);
     expect(result.showImage).toBe(false);
+    expect(result.showNodeBadge).toBe(true);
     expect(result.hasAnyBadge).toBe(true);
+  });
+
+  it('hides node badge when displaySettings.assignedNode is false', () => {
+    const podData = {
+      type: 'Pod',
+      displaySettings: { runtime: false, webserver: false, assignedNode: false },
+    };
+    const result = getPodBadgeVisibility(podData);
+    expect(result.showNodeBadge).toBe(false);
+    expect(result.hasAnyBadge).toBe(false);
   });
 });

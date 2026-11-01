@@ -304,4 +304,49 @@ describe('simulationReachability', () => {
     const isRed = isInternetConnectionRed(internetNode, ctx);
     expect(isRed).toBe(false);
   });
+  it('respects externalTrafficPolicy Local vs Cluster when calculating reachability for NodePort/LoadBalancer', () => {
+    const localSvc: Node = {
+      id: 'svc-local',
+      type: 'Service',
+      data: {
+        serviceType: 'NodePort',
+        selector: 'my-app',
+        externalTrafficPolicy: 'Local',
+        entryNode: 'worker-1',
+      },
+      position: { x: 0, y: 0 },
+    };
+
+    const podOnWorker1: Node = {
+      id: 'pod-w1',
+      type: 'Pod',
+      data: { label: 'my-app', assignedNode: 'worker-1' },
+      position: { x: 0, y: 0 },
+    };
+
+    const podOnWorker2: Node = {
+      id: 'pod-w2',
+      type: 'Pod',
+      data: { label: 'my-app', assignedNode: 'worker-2' },
+      position: { x: 0, y: 0 },
+    };
+
+    const edgeMap = new Map<string, Edge[]>();
+
+    // 1. Local policy with target on worker-1 -> Reachable!
+    const reachLocal1 = calculateReachability([localSvc], edgeMap, [], [localSvc, podOnWorker1]);
+    expect(reachLocal1.has('pod-w1')).toBe(true);
+
+    // 2. Local policy with target on worker-2 (no endpoints on worker-1) -> Blocked!
+    const reachLocal2 = calculateReachability([localSvc], edgeMap, [], [localSvc, podOnWorker2]);
+    expect(reachLocal2.has('pod-w2')).toBe(false);
+
+    // 3. Cluster policy with target on worker-2 -> Reachable via extra hop!
+    const clusterSvc: Node = {
+      ...localSvc,
+      data: { ...localSvc.data, externalTrafficPolicy: 'Cluster' },
+    };
+    const reachCluster = calculateReachability([clusterSvc], edgeMap, [], [clusterSvc, podOnWorker2]);
+    expect(reachCluster.has('pod-w2')).toBe(true);
+  });
 });

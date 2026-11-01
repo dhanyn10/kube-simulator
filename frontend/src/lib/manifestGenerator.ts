@@ -310,6 +310,10 @@ const buildServiceManifest = (
         node.data.yamlSettings?.selector !== false
           ? { app: selectorLabel }
           : undefined,
+      externalTrafficPolicy:
+        (serviceType === 'LoadBalancer' || serviceType === 'NodePort') && node.data.externalTrafficPolicy
+          ? node.data.externalTrafficPolicy
+          : undefined,
     },
   };
 };

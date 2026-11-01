@@ -54,6 +54,7 @@ describe('ServiceConfig', () => {
         data: {
           serviceType: 'NodePort',
           nodePort: 30080,
+          externalTrafficPolicy: 'Local',
           port: 80,
           targetPort: 8080,
           selector: 'web-app'
@@ -172,6 +173,7 @@ describe('ServiceConfig', () => {
         data: {
           serviceType: 'NodePort',
           nodePort: 30080,
+          externalTrafficPolicy: 'Local',
           port: 80,
           targetPort: 8080,
           selector: 'web-app'
@@ -181,29 +183,35 @@ describe('ServiceConfig', () => {
     render(<ServiceConfig {...nodePortProps} />);
 
     const toggleBtns = screen.getAllByTitle('Show/Hide on Card');
-    // Toggles for: serviceType, nodePort, port, targetPort, selector
-    expect(toggleBtns).toHaveLength(5);
+    // Toggles for: serviceType, nodePort, externalTrafficPolicy, entryNode, port, targetPort, selector
+    expect(toggleBtns).toHaveLength(7);
     fireEvent.click(toggleBtns[0]);
     expect(mockProps.toggleVisibility).toHaveBeenCalledWith('serviceType');
     fireEvent.click(toggleBtns[1]);
     expect(mockProps.toggleVisibility).toHaveBeenCalledWith('nodePort');
     fireEvent.click(toggleBtns[2]);
-    expect(mockProps.toggleVisibility).toHaveBeenCalledWith('port');
+    expect(mockProps.toggleVisibility).toHaveBeenCalledWith('externalTrafficPolicy');
     fireEvent.click(toggleBtns[3]);
-    expect(mockProps.toggleVisibility).toHaveBeenCalledWith('targetPort');
+    expect(mockProps.toggleVisibility).toHaveBeenCalledWith('entryNode');
     fireEvent.click(toggleBtns[4]);
+    expect(mockProps.toggleVisibility).toHaveBeenCalledWith('port');
+    fireEvent.click(toggleBtns[5]);
+    expect(mockProps.toggleVisibility).toHaveBeenCalledWith('targetPort');
+    fireEvent.click(toggleBtns[6]);
     expect(mockProps.toggleVisibility).toHaveBeenCalledWith('selector');
 
     const yamlBtns = screen.getAllByTitle('Include in YAML');
-    // Yaml toggles for: serviceType, nodePort, targetPort, selector
-    expect(yamlBtns).toHaveLength(4);
+    // Yaml toggles for: serviceType, nodePort, externalTrafficPolicy, targetPort, selector
+    expect(yamlBtns).toHaveLength(5);
     fireEvent.click(yamlBtns[0]);
     expect(mockProps.toggleYaml).toHaveBeenCalledWith('serviceType');
     fireEvent.click(yamlBtns[1]);
     expect(mockProps.toggleYaml).toHaveBeenCalledWith('nodePort');
     fireEvent.click(yamlBtns[2]);
-    expect(mockProps.toggleYaml).toHaveBeenCalledWith('targetPort');
+    expect(mockProps.toggleYaml).toHaveBeenCalledWith('externalTrafficPolicy');
     fireEvent.click(yamlBtns[3]);
+    expect(mockProps.toggleYaml).toHaveBeenCalledWith('targetPort');
+    fireEvent.click(yamlBtns[4]);
     expect(mockProps.toggleYaml).toHaveBeenCalledWith('selector');
   });
 
@@ -544,5 +552,31 @@ describe('ServiceConfig', () => {
 
     expect(screen.getAllByText('labeled-app').length).toBeGreaterThan(0);
     expect(screen.getAllByText('DEPLOYMENT')).toHaveLength(2);
+  });
+
+  it('allows configuring externalTrafficPolicy and simulated entry node', () => {
+    const nodePortProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's1',
+        data: {
+          serviceType: 'NodePort',
+          nodePort: 30080,
+          externalTrafficPolicy: 'Cluster',
+          entryNode: 'worker-1',
+        }
+      }
+    };
+    render(<ServiceConfig {...nodePortProps} />);
+
+    // Click Local option
+    const localOption = screen.getByText('Local');
+    fireEvent.click(localOption);
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ externalTrafficPolicy: 'Local' });
+
+    // Click worker-2 option
+    const worker2Option = screen.getByText('worker-2 (192.168.1.102)');
+    fireEvent.click(worker2Option);
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ entryNode: 'worker-2' });
   });
 });

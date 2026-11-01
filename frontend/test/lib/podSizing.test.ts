@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculatePodWidth, calculatePodHeight, getPodMinimumSize, calculatePodConfigMapVarsHeight, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
+import { calculatePodWidth, calculatePodHeight, getPodMinimumSize, getPodVisibleBadges, calculatePodConfigMapVarsHeight, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
 
 describe('podSizing utils', () => {
   describe('calculatePodWidth', () => {
@@ -176,7 +176,7 @@ describe('podSizing utils', () => {
         parentReplicas: 2,
         replicas: 1,
         cpuLimit: '100m',
-        displaySettings: { resources: false, restartPolicy: false },
+        displaySettings: { resources: false, restartPolicy: false, assignedNode: false },
       };
       const h = calculatePodHeight(childPodSmallReplicas, 168, [], false);
       expect(h).toBe(POD_MIN_DIMENSIONS.height);
@@ -186,7 +186,7 @@ describe('podSizing utils', () => {
         type: 'Pod' as any,
         parentId: undefined,
         replicas: 0,
-        displaySettings: { restartPolicy: false },
+        displaySettings: { restartPolicy: false, assignedNode: false },
       };
       const hSingle = calculatePodHeight(standaloneSingleReplica, 168, [], false);
       expect(hSingle).toBe(POD_MIN_DIMENSIONS.height);
@@ -196,7 +196,7 @@ describe('podSizing utils', () => {
         type: 'Pod' as any,
         parentId: undefined,
         replicas: undefined,
-        displaySettings: { restartPolicy: false },
+        displaySettings: { restartPolicy: false, assignedNode: false },
       };
       const hUndef = calculatePodHeight(standaloneUndefinedReplicas, 168, [], false);
       expect(hUndef).toBe(POD_MIN_DIMENSIONS.height);
@@ -219,7 +219,7 @@ describe('podSizing utils', () => {
         parentId: 'dep-2',
         replicas: 3,
         parentReplicas: 1,
-        displaySettings: { restartPolicy: false },
+        displaySettings: { restartPolicy: false, assignedNode: false },
       };
       const h1 = calculatePodHeight(childPodWithParent, 168, [], false);
       expect(h1).toBe(POD_MIN_DIMENSIONS.height);
@@ -250,7 +250,7 @@ describe('podSizing utils', () => {
         type: 'Pod' as any,
         replicas: 2,
         parentId: undefined,
-        displaySettings: { restartPolicy: false },
+        displaySettings: { restartPolicy: false, assignedNode: false },
       };
       const hTwo = calculatePodHeight(standaloneTwoReplicas, 168, [], false);
       expect(hTwo).toBe(POD_MIN_DIMENSIONS.height);
@@ -333,7 +333,7 @@ describe('podSizing utils', () => {
     const megaDashedPod = {
       type: 'Pod' as any,
       parentReplicas: 100,
-      displaySettings: { restartPolicy: false },
+      displaySettings: { restartPolicy: false, assignedNode: false },
     };
     const heightMegaDashed = calculatePodHeight(megaDashedPod, 336, [], true);
     expect(heightMegaDashed).toBe(200); // 80 + 120 = 200
@@ -354,7 +354,7 @@ describe('podSizing utils', () => {
       parentReplicas: 2,
       replicas: 4,
       parentId: 'dep-123',
-      displaySettings: { restartPolicy: false },
+      displaySettings: { restartPolicy: false, assignedNode: false },
     };
     const hParentMulti = calculatePodHeight(podWithParentAndMultiReplicas, 168, [], false);
     expect(hParentMulti).toBe(POD_MIN_DIMENSIONS.height);
@@ -376,13 +376,13 @@ describe('podSizing utils', () => {
       parentReplicas: 2,
       replicas: 3,
       parentId: undefined,
-      displaySettings: { restartPolicy: false },
+      displaySettings: { restartPolicy: false, assignedNode: false },
     };
     const hStandaloneLow = calculatePodHeight(standaloneLowReplica, 168, [], false);
     expect(hStandaloneLow).toBe(POD_MIN_DIMENSIONS.height);
 
     // 3. Each individual resource limit/request field evaluated when others are absent
-    const basePod = { type: 'Pod' as const, displaySettings: { restartPolicy: false } };
+    const basePod = { type: 'Pod' as const, displaySettings: { restartPolicy: false, assignedNode: false } };
     const hBase = calculatePodHeight(basePod, 168, [], false);
 
     const hCpuLimit = calculatePodHeight({ ...basePod, cpuLimit: '500m' }, 168, [], false);
@@ -439,4 +439,25 @@ describe('podSizing utils', () => {
       expect(calculatePodConfigMapVarsHeight(podData, parentHidden)).toBe(0);
     });
   });
+
+  describe('worker node sizing and badges', () => {
+    it('returns worker badge in getPodVisibleBadges and increases base height for assignedNode row', () => {
+      const podData = {
+        type: 'Pod' as const,
+        assignedNode: 'worker-2' as const,
+        displaySettings: { assignedNode: true, restartPolicy: false },
+      };
+      const badges = getPodVisibleBadges(podData);
+      expect(badges).toContain('WORKER-2');
+
+      const sizeWithWorker = getPodMinimumSize(podData);
+      const sizeWithoutWorker = getPodMinimumSize({
+        ...podData,
+        displaySettings: { assignedNode: false, restartPolicy: false },
+      });
+      // Worker adds both badge row (+20) and key-value node row (+20)
+      expect(sizeWithWorker.height).toBeGreaterThan(sizeWithoutWorker.height);
+    });
+  });
+
 });

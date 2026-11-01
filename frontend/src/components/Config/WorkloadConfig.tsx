@@ -5,6 +5,7 @@ import { ConfigSection, NumberStepper } from '@/components/UI/ConfigUI';
 import { ImageDropdown } from '@/components/UI/ImageDropdown';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { useWorkloadConfigHandler } from '@/activities/config';
+import { getAssignedWorker } from '@/lib/workerNodeHelpers';
 
 interface WorkloadConfigProps {
   selectedNode: any;
@@ -144,6 +145,25 @@ export const WorkloadConfig = ({
               options={RESTART_POLICIES}
               currentValue={data.restartPolicy || 'Always'}
               onSelect={(val) => performUpdate({ restartPolicy: val })}
+              colorMode={colorMode}
+            />
+          </ConfigSection>
+
+          {/* Assigned Worker Node */}
+          <ConfigSection
+            title="Worker Node"
+            icon={Server}
+            isVisible={data.displaySettings?.assignedNode}
+            onToggle={() => toggleVisibility('assignedNode')}
+          >
+            <SelectorGroup
+              options={[
+                { id: 'worker-1', label: 'worker-1' },
+                { id: 'worker-2', label: 'worker-2' },
+                { id: 'worker-3', label: 'worker-3' },
+              ]}
+              currentValue={getAssignedWorker(data, selectedNode.id)}
+              onSelect={(val) => performUpdate({ assignedNode: val })}
               colorMode={colorMode}
             />
           </ConfigSection>
