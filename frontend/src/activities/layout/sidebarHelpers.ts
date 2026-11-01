@@ -17,7 +17,8 @@ export const ITEM_STYLES: Record<string, { border: string; text: string }> = {
   ConfigMap: { border: 'border-l-teal-500 hover:border-teal-500', text: 'text-teal-400' },
   Secret: { border: 'border-l-rose-400 hover:border-rose-400', text: 'text-rose-400' },
   Role: { border: 'border-l-indigo-500 hover:border-indigo-500', text: 'text-indigo-400' },
-  IAM: { border: 'border-l-emerald-400 hover:border-emerald-400', text: 'text-emerald-400' }
+  IAM: { border: 'border-l-emerald-400 hover:border-emerald-400', text: 'text-emerald-400' },
+  Worker: { border: 'border-l-sky-500 hover:border-sky-500', text: 'text-sky-400' }
 };
 
 /** Definition interface for sidebar accordion section categories. */
@@ -29,7 +30,7 @@ export interface SidebarSectionDef {
 
 /** Predefined category sections displayed in the left sidebar accordion. */
 export const SIDEBAR_SECTIONS: SidebarSectionDef[] = [
-  { id: 'useful-resources', title: 'Useful Resources', filter: (type: string) => type === 'IAM' },
+  { id: 'useful-resources', title: 'Useful Resources', filter: (type: string) => type === 'IAM' || type === 'Worker' },
   { id: 'workloads', title: 'Workloads', filter: (type: string) => type === 'Deployment' || type === 'StatefulSet' || type === 'Pod' },
   { id: 'networking', title: 'Networking', filter: (type: string) => type === 'Service' || type === 'Namespace' || type === 'Ingress' },
   { id: 'security', title: 'Security & Access', filter: (type: string) => type === 'Role' },
@@ -81,6 +82,7 @@ export interface SidebarAddNodeContext {
   nodes?: any[];
   configuringNodeId?: string | null;
   setKubeIamModalOpen?: (open: boolean) => void;
+  setWorkerBudgetModalOpen?: (open: boolean) => void;
   setActiveOverviewModal?: (type: K8sResourceType | null) => void;
   setRoleModalTargetNode?: (target: { id: string; label: string } | null) => void;
   setConfigMapModalTargetNode?: (target: { id: string; label: string; initialViewMode?: 'form' | 'list' } | null) => void;
@@ -146,6 +148,11 @@ export function executeSidebarAddNode(
 ): void {
   if (type === 'IAM') {
     context.setKubeIamModalOpen?.(true);
+    return;
+  }
+
+  if (type === 'Worker') {
+    context.setWorkerBudgetModalOpen?.(true);
     return;
   }
 

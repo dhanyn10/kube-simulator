@@ -22,6 +22,7 @@ export function isAnyModalOverlayOpen(modalStates: {
   isLogModalOpen: boolean;
   isKubeIamWizardOpen: boolean;
   isTerminalCommandTreeModalOpen: boolean;
+  isWorkerBudgetModalOpen?: boolean;
 }): boolean {
   return (
     modalStates.isFileBackstageOpen ||
@@ -40,6 +41,7 @@ export function isAnyModalOverlayOpen(modalStates: {
     modalStates.isMonitoringDashboardOpen ||
     modalStates.isLogModalOpen ||
     modalStates.isKubeIamWizardOpen ||
-    modalStates.isTerminalCommandTreeModalOpen
+    modalStates.isTerminalCommandTreeModalOpen ||
+    Boolean(modalStates.isWorkerBudgetModalOpen)
   );
 }

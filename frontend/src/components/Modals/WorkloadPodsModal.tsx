@@ -547,6 +547,7 @@ export const WorkloadPodsModal: React.FC<WorkloadPodsModalProps> = ({
 }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const nodes = useFlowStore((state) => state.nodes);
+  const clusterWorkerCount = useFlowStore((state) => state.clusterWorkerCount ?? 3);
 
   const [activeTab, setActiveTab] = useState<ModalTabType>('pods');
   const [searchQuery, setSearchQuery] = useState('');
@@ -558,8 +559,8 @@ export const WorkloadPodsModal: React.FC<WorkloadPodsModalProps> = ({
   );
 
   const podList = useMemo(
-    () => buildWorkloadPodList(selectedNode, nodes),
-    [selectedNode, nodes]
+    () => buildWorkloadPodList(selectedNode, nodes, {}, clusterWorkerCount),
+    [selectedNode, nodes, clusterWorkerCount]
   );
 
   const handleCopy = useCallback(async (text: string) => {

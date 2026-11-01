@@ -69,6 +69,12 @@ export interface UiSlice {
   updateIamUser: (id: string, updated: Partial<Omit<KubeIAMUser, 'id' | 'createdAt'>>) => void;
   deleteIamUser: (id: string) => void;
 
+  // Cluster Worker Nodes configuration state
+  clusterWorkerCount: number;
+  setClusterWorkerCount: (count: number) => void;
+  isWorkerBudgetModalOpen: boolean;
+  setWorkerBudgetModalOpen: (open: boolean) => void;
+
   isHistoryViewOpen: boolean;
   setHistoryViewOpen: (open: boolean) => void;
   historyLogs: any[];
@@ -690,6 +696,16 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   },
 
   // Kube IAM initial state & actions
+  clusterWorkerCount: 3,
+  setClusterWorkerCount: (count) => {
+    const validCount = Math.max(1, Math.min(100, Math.round(count) || 1));
+    set({ clusterWorkerCount: validCount });
+    if (globalThis.go?.main?.App?.SaveSetting) {
+      void globalThis.go.main.App.SaveSetting('cluster_worker_count', String(validCount));
+    }
+  },
+  isWorkerBudgetModalOpen: false,
+  setWorkerBudgetModalOpen: (open) => set({ isWorkerBudgetModalOpen: open }),
   isKubeIamModalOpen: false,
   setKubeIamModalOpen: (open) => set({ isKubeIamModalOpen: open }),
   iamUsers: [],
