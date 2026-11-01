@@ -5,6 +5,9 @@ import {
   getAssignedWorker,
   getTrafficHopInfo,
   getWorkerForIndex,
+  getWorkerNodeInfo,
+  getWorkerNodes,
+  getWorkerNodeOptions,
   resolveServiceEndpointPods,
   pickKubeProxyRoute,
 } from '@/lib/workerNodeHelpers';
@@ -17,6 +20,47 @@ describe('workerNodeHelpers', () => {
       expect(WORKER_NODES['worker-2'].ip).toBe('192.168.1.102');
       expect(WORKER_NODES['worker-3'].ip).toBe('192.168.1.103');
       expect(WORKER_NODE_OPTIONS).toHaveLength(3);
+    });
+
+    it('dynamically resolves worker nodes beyond worker-3 via proxy', () => {
+      const worker10 = WORKER_NODES['worker-10'];
+      expect(worker10).toBeDefined();
+      expect(worker10.id).toBe('worker-10');
+      expect(worker10.ip).toBe('192.168.1.110');
+
+      // Accessing non-worker string returns undefined
+      expect(WORKER_NODES['invalid-property']).toBeUndefined();
+    });
+
+    it('supports getWorkerNodeInfo with numbers and string fallback', () => {
+      const infoNum = getWorkerNodeInfo(5);
+      expect(infoNum.id).toBe('worker-5');
+      expect(infoNum.ip).toBe('192.168.1.105');
+
+      const infoFloat = getWorkerNodeInfo(2.8);
+      expect(infoFloat.id).toBe('worker-2');
+
+      const infoFallback = getWorkerNodeInfo('non-matching-id');
+      expect(infoFallback.id).toBe('worker-1');
+    });
+
+    it('supports getWorkerNodes with default count and clamped boundaries', () => {
+      const defaultNodes = getWorkerNodes();
+      expect(defaultNodes).toHaveLength(3);
+
+      const clampedLow = getWorkerNodes(-5);
+      expect(clampedLow).toHaveLength(1);
+
+      const clampedHigh = getWorkerNodes(200);
+      expect(clampedHigh).toHaveLength(100);
+      expect(clampedHigh[99].id).toBe('worker-100');
+    });
+
+    it('supports getWorkerNodeOptions for dynamic worker count', () => {
+      const options = getWorkerNodeOptions(5);
+      expect(options).toHaveLength(5);
+      expect(options[4].id).toBe('worker-5');
+      expect(options[4].label).toContain('worker-5');
     });
   });
 

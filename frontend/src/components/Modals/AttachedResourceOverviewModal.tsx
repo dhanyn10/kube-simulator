@@ -142,6 +142,10 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
   const deleteSavedConfigMap = useFlowStore((state) => state.deleteSavedConfigMap);
   const savedSecrets = useFlowStore((state) => state.savedSecrets);
   const deleteSavedSecret = useFlowStore((state) => state.deleteSavedSecret);
+  const savedHpas = useFlowStore((state) => state.savedHpas);
+  const deleteSavedHpa = useFlowStore((state) => state.deleteSavedHpa);
+  const savedResourceLimits = useFlowStore((state) => state.savedResourceLimits);
+  const deleteSavedResourceLimit = useFlowStore((state) => state.deleteSavedResourceLimit);
 
   const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
   const setSecretModalTargetNode = useFlowStore((state) => state.setSecretModalTargetNode);
@@ -149,7 +153,13 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
   const setHpaModalTargetNode = useFlowStore((state) => state.setHpaModalTargetNode);
   const setResourceLimitModalTargetNode = useFlowStore((state) => state.setResourceLimitModalTargetNode);
 
-  const savedResources = type === 'Secret' ? savedSecrets : savedConfigMaps;
+  const savedResources = useMemo(() => {
+    if (type === 'Secret') return savedSecrets;
+    if (type === 'ConfigMap') return savedConfigMaps;
+    if (type === 'HPA') return savedHpas;
+    if (type === 'ResourceLimit') return savedResourceLimits;
+    return [];
+  }, [type, savedSecrets, savedConfigMaps, savedHpas, savedResourceLimits]);
   const allItems = useMemo(() => (type ? extractAllOverviewItems(nodes, type, savedResources) : []), [nodes, type, savedResources]);
   const filteredItems = useMemo(
     () => (type ? filterOverviewItems(allItems, search, type) : []),
@@ -195,6 +205,10 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
     } else if (type === 'Secret') {
       void removeSecretFromLocal(item.rawItem.id);
       deleteSavedSecret(item.rawItem.id);
+    } else if (type === 'HPA') {
+      deleteSavedHpa(item.rawItem.id);
+    } else if (type === 'ResourceLimit') {
+      deleteSavedResourceLimit(item.rawItem.id);
     }
   };
 
@@ -232,6 +246,38 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
             className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-rose-600 hover:bg-rose-500 text-white cursor-pointer"
           >
             + Add Secret
+          </button>
+        )}
+        {type === 'HPA' && (
+          <button
+            type="button"
+            data-testid="overview-add-hpa-btn"
+            onClick={() => {
+              onClose();
+              setHpaModalTargetNode({
+                id: 'cluster-storage',
+                label: 'Cluster HPA Profile',
+              });
+            }}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-purple-600 hover:bg-purple-500 text-white cursor-pointer"
+          >
+            + Add HPA
+          </button>
+        )}
+        {type === 'ResourceLimit' && (
+          <button
+            type="button"
+            data-testid="overview-add-resource-limit-btn"
+            onClick={() => {
+              onClose();
+              setResourceLimitModalTargetNode({
+                id: 'cluster-storage',
+                label: 'Cluster Resource Limit',
+              });
+            }}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-blue-600 hover:bg-blue-500 text-white cursor-pointer"
+          >
+            + Add Resource Limit
           </button>
         )}
         <button

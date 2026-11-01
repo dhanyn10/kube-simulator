@@ -30,3 +30,4 @@ export * from './TerminalCommandTreeModal';
 export * from './resource-manager';
 export * from './AttachedResourceOverviewModal';
 export * from './WorkloadPodsModal';
+export * from './WorkerBudgetModal';

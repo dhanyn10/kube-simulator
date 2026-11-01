@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock, ShieldCheck, UserCheck } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock, ShieldCheck, UserCheck, Cpu } from 'lucide-react';
 import { K8sResourceType } from '@/types';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
@@ -58,7 +58,7 @@ const SidebarSection = ({
       )}>
         {items.map(({ type, icon: Icon, label, desc }) => {
           const style = ITEM_STYLES[type] || ITEM_STYLES.Namespace;
-          const isNonDraggable = type === 'IAM';
+          const isNonDraggable = type === 'IAM' || type === 'Worker';
 
           return (
             <button
@@ -129,6 +129,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
 
   const items: { type: K8sResourceType; icon: any; label: string; desc: string }[] = [
     { type: 'IAM', icon: UserCheck, label: 'Kube IAM', desc: 'IAM User Management' },
+    { type: 'Worker', icon: Cpu, label: 'Worker Nodes', desc: 'Hardware & Scaling' },
     { type: 'Pod', icon: Box, label: 'Pod', desc: 'Atomic unit of K8s' },
     { type: 'Service', icon: Network, label: 'Service', desc: 'Network endpoint' },
     { type: 'Deployment', icon: Layers, label: 'Deployment', desc: 'Pod controller' },
@@ -149,6 +150,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
 
   const nodes = useFlowStore((state) => state.nodes);
   const configuringNodeId = useFlowStore((state) => state.configuringNodeId);
+  const setWorkerBudgetModalOpen = useFlowStore((state) => state.setWorkerBudgetModalOpen);
   const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
   const setActiveOverviewModal = useFlowStore((state) => state.setActiveOverviewModal);
   const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
@@ -160,6 +162,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
       nodes,
       configuringNodeId,
       setKubeIamModalOpen,
+      setWorkerBudgetModalOpen,
       setActiveOverviewModal,
       setConfigMapModalTargetNode,
       setSecretModalTargetNode,

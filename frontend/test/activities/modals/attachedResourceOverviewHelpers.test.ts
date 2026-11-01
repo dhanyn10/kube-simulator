@@ -336,4 +336,29 @@ describe('attachedResourceOverviewHelpers', () => {
     expect(items[0].ownerNode.label).toBe('web-abc12');
     expect(items[0].ownerNode.id).toBe('pod-grouped');
   });
+  it('deduplicates items with identical composite keys across node items and saved resources', () => {
+    // 1. Duplicate within node items
+    const dupNode: Node = {
+      id: 'pod-dup',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'web-pod',
+        configMaps: [
+          { id: 'cm-dup', name: 'app-config', profileName: 'prod' },
+          { id: 'cm-dup', name: 'app-config', profileName: 'prod' },
+        ],
+      },
+    };
+    const nodeItems = extractAllOverviewItems([dupNode], 'ConfigMap');
+    expect(nodeItems).toHaveLength(1);
+
+    // 2. Duplicate within saved resources
+    const savedDuplicates = [
+      { id: 'saved-dup', name: 'shared-config', profileName: 'default' },
+      { id: 'saved-dup', name: 'shared-config', profileName: 'default' },
+    ];
+    const savedItems = extractAllOverviewItems([], 'ConfigMap', savedDuplicates);
+    expect(savedItems).toHaveLength(1);
+  });
 });

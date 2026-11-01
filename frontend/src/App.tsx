@@ -24,6 +24,7 @@ import {
   HPAModal,
   ResourceLimitModal,
   KubeIAMModal,
+  WorkerBudgetModal,
   SaveModal,
   TerminalCommandTreeModal,
   AttachedResourceOverviewModal,
@@ -136,6 +137,7 @@ export default function App() {
   const isMonitoringDashboardOpen = useFlowStore((state) => state.isMonitoringDashboardOpen);
   const isLogModalOpen = useFlowStore((state) => state.isLogModalOpen);
   const isKubeIamWizardOpen = useFlowStore((state) => state.isKubeIamWizardOpen);
+  const isWorkerBudgetModalOpen = useFlowStore((state) => state.isWorkerBudgetModalOpen);
   const isTerminalCommandTreeModalOpen = useFlowStore((state) => state.isTerminalCommandTreeModalOpen);
   const isResourceManagerOpen = useFlowStore((state) => state.isResourceManagerOpen);
   const resourceManagerTargetImage = useFlowStore((state) => state.resourceManagerTargetImage);
@@ -200,6 +202,7 @@ export default function App() {
     isLogModalOpen,
     isKubeIamWizardOpen,
     isTerminalCommandTreeModalOpen,
+    isWorkerBudgetModalOpen,
   });
 
   useCanvasNavigation({ disabled: isModalOverlayActive });
@@ -386,6 +389,7 @@ export default function App() {
           />
 
           <KubeIAMModal />
+          <WorkerBudgetModal />
 
           <AttachedResourceOverviewModal
             type={activeOverviewModal}

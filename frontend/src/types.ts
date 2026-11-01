@@ -1,4 +1,4 @@
-export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'StatefulSet' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'ResourceLimit' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role' | 'IAM';
+export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'StatefulSet' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'ResourceLimit' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role' | 'IAM' | 'Worker';
 
 export interface IngressPathRule {
   id: string;
@@ -112,8 +112,8 @@ export interface K8sNodeData {
   image?: string;
   serviceType?: 'ClusterIP' | 'NodePort' | 'LoadBalancer';
   externalTrafficPolicy?: 'Cluster' | 'Local';
-  entryNode?: 'worker-1' | 'worker-2' | 'worker-3';
-  assignedNode?: 'worker-1' | 'worker-2' | 'worker-3';
+  entryNode?: string;
+  assignedNode?: string;
   port?: number;
   targetPort?: number;
   nodePort?: number;

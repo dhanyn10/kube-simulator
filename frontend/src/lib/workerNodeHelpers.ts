@@ -1,6 +1,6 @@
 import { K8sNodeData } from '@/types';
 
-export type WorkerNodeId = 'worker-1' | 'worker-2' | 'worker-3';
+export type WorkerNodeId = string;
 
 export interface WorkerNodeInfo {
   id: WorkerNodeId;
@@ -19,38 +19,76 @@ const MOCK_WORKER_IP_OCTETS = ['192', '168', '1'] as const;
 export const getMockWorkerIp = (index: number): string =>
   [...MOCK_WORKER_IP_OCTETS, String(100 + index)].join('.');
 
-export const WORKER_NODES: Record<WorkerNodeId, WorkerNodeInfo> = {
-  'worker-1': {
-    id: 'worker-1',
-    name: 'worker-1',
-    ip: getMockWorkerIp(1),
-    badgeBg: 'bg-cyan-500/10',
-    badgeText: 'text-cyan-400',
-    badgeBorder: 'border-cyan-500/20',
-  },
-  'worker-2': {
-    id: 'worker-2',
-    name: 'worker-2',
-    ip: getMockWorkerIp(2),
-    badgeBg: 'bg-purple-500/10',
-    badgeText: 'text-purple-400',
-    badgeBorder: 'border-purple-500/20',
-  },
-  'worker-3': {
-    id: 'worker-3',
-    name: 'worker-3',
-    ip: getMockWorkerIp(3),
-    badgeBg: 'bg-amber-500/10',
-    badgeText: 'text-amber-400',
-    badgeBorder: 'border-amber-500/20',
-  },
+export const WORKER_COLOR_PALETTES = [
+  { badgeBg: 'bg-cyan-500/10', badgeText: 'text-cyan-400', badgeBorder: 'border-cyan-500/20' },
+  { badgeBg: 'bg-purple-500/10', badgeText: 'text-purple-400', badgeBorder: 'border-purple-500/20' },
+  { badgeBg: 'bg-amber-500/10', badgeText: 'text-amber-400', badgeBorder: 'border-amber-500/20' },
+  { badgeBg: 'bg-emerald-500/10', badgeText: 'text-emerald-400', badgeBorder: 'border-emerald-500/20' },
+  { badgeBg: 'bg-rose-500/10', badgeText: 'text-rose-400', badgeBorder: 'border-rose-500/20' },
+  { badgeBg: 'bg-indigo-500/10', badgeText: 'text-indigo-400', badgeBorder: 'border-indigo-500/20' },
+  { badgeBg: 'bg-teal-500/10', badgeText: 'text-teal-400', badgeBorder: 'border-teal-500/20' },
+  { badgeBg: 'bg-sky-500/10', badgeText: 'text-sky-400', badgeBorder: 'border-sky-500/20' },
+] as const;
+
+/**
+ * Generates info for any worker node index or ID dynamically.
+ */
+export const getWorkerNodeInfo = (workerIdOrIndex: string | number): WorkerNodeInfo => {
+  let index: number;
+  if (typeof workerIdOrIndex === 'number') {
+    index = Math.max(1, Math.floor(workerIdOrIndex));
+  } else {
+    const match = /^worker-(\d+)$/.exec(workerIdOrIndex);
+    index = match ? Number.parseInt(match[1], 10) : 1;
+  }
+  const id = `worker-${index}`;
+  const palette = WORKER_COLOR_PALETTES[(index - 1) % WORKER_COLOR_PALETTES.length];
+  return {
+    id,
+    name: id,
+    ip: getMockWorkerIp(index),
+    badgeBg: palette.badgeBg,
+    badgeText: palette.badgeText,
+    badgeBorder: palette.badgeBorder,
+  };
 };
 
-export const WORKER_NODE_OPTIONS: { id: WorkerNodeId; label: string; ip: string }[] = [
-  { id: 'worker-1', label: `worker-1 (${WORKER_NODES['worker-1'].ip})`, ip: WORKER_NODES['worker-1'].ip },
-  { id: 'worker-2', label: `worker-2 (${WORKER_NODES['worker-2'].ip})`, ip: WORKER_NODES['worker-2'].ip },
-  { id: 'worker-3', label: `worker-3 (${WORKER_NODES['worker-3'].ip})`, ip: WORKER_NODES['worker-3'].ip },
-];
+/**
+ * Generates an array of WorkerNodeInfo up to total count (1-100).
+ */
+export const getWorkerNodes = (count = 3): WorkerNodeInfo[] => {
+  const safeCount = Math.max(1, Math.min(100, Math.floor(count) || 3));
+  return Array.from({ length: safeCount }, (_, i) => getWorkerNodeInfo(i + 1));
+};
+
+const BASE_WORKER_NODES: Record<string, WorkerNodeInfo> = {
+  'worker-1': getWorkerNodeInfo(1),
+  'worker-2': getWorkerNodeInfo(2),
+  'worker-3': getWorkerNodeInfo(3),
+};
+
+export const WORKER_NODES: Record<string, WorkerNodeInfo> = new Proxy(BASE_WORKER_NODES, {
+  get(target, prop: string) {
+    if (typeof prop === 'string' && prop in target) {
+      return target[prop];
+    }
+    if (typeof prop === 'string' && /^worker-\d+$/.test(prop)) {
+      return getWorkerNodeInfo(prop);
+    }
+    return target[prop];
+  },
+});
+
+export const getWorkerNodeOptions = (count = 3): { id: WorkerNodeId; label: string; ip: string }[] => {
+  return getWorkerNodes(count).map((w) => ({
+    id: w.id,
+    label: `${w.name} (${w.ip})`,
+    ip: w.ip,
+  }));
+};
+
+export const WORKER_NODE_OPTIONS: { id: WorkerNodeId; label: string; ip: string }[] =
+  getWorkerNodeOptions(3);
 
 /**
  * Resolves the assigned worker node for a Pod.
@@ -59,19 +97,18 @@ export const WORKER_NODE_OPTIONS: { id: WorkerNodeId; label: string; ip: string 
  */
 export const getAssignedWorker = (
   nodeData?: Partial<K8sNodeData> | null,
-  nodeId?: string
+  nodeId?: string,
+  totalWorkers = 3
 ): WorkerNodeId => {
-  if (
-    nodeData?.assignedNode === 'worker-1' ||
-    nodeData?.assignedNode === 'worker-2' ||
-    nodeData?.assignedNode === 'worker-3'
-  ) {
-    return nodeData.assignedNode;
+  const safeTotal = Math.max(1, totalWorkers);
+  const assigned = nodeData?.assignedNode;
+  if (typeof assigned === 'string' && /^worker-\d+$/.test(assigned)) {
+    return assigned;
   }
 
   if (typeof nodeData?.replicaIndex === 'number') {
-    const idx = (Math.abs(nodeData.replicaIndex) % 3) + 1;
-    return `worker-${idx}` as WorkerNodeId;
+    const idx = (Math.abs(nodeData.replicaIndex) % safeTotal) + 1;
+    return `worker-${idx}`;
   }
 
   const rawKey = nodeId || nodeData?.label || '';
@@ -81,8 +118,8 @@ export const getAssignedWorker = (
   for (let i = 0; i < rawKey.length; i++) {
     sum += rawKey.codePointAt(i) || 0;
   }
-  const workerIdx = (sum % 3) + 1;
-  return `worker-${workerIdx}` as WorkerNodeId;
+  const workerIdx = (sum % safeTotal) + 1;
+  return `worker-${workerIdx}`;
 };
 
 export interface TrafficHopResult {
@@ -120,17 +157,25 @@ export const getTrafficHopInfo = (
   };
 };
 
-const WORKER_IDS: WorkerNodeId[] = ['worker-1', 'worker-2', 'worker-3'];
-
 /**
  * Returns a round-robin worker assignment for a replica index (simulates kube-scheduler spreading).
+ * Supports optional dynamic totalWorkers count while safely tolerating Array#map invocation.
  */
-export const getWorkerForIndex = (index: number): WorkerNodeId => {
-  const safeIndex = Math.abs(Math.trunc(index)) % WORKER_IDS.length;
-  return WORKER_IDS[safeIndex];
+export const getWorkerForIndex = (
+  index: number,
+  totalWorkers?: number,
+  ...rest: unknown[]
+): WorkerNodeId => {
+  const isMapInvocation = rest.length > 0 && Array.isArray(rest[0]);
+  const count =
+    isMapInvocation || typeof totalWorkers !== 'number' || totalWorkers < 1
+      ? 3
+      : Math.floor(totalWorkers);
+  const safeIndex = (Math.abs(Math.trunc(index)) % count) + 1;
+  return `worker-${safeIndex}`;
 };
 
-interface EndpointCandidate {
+export interface EndpointCandidate {
   id: string;
   type?: string;
   parentId?: string;

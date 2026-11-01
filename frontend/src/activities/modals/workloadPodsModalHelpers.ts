@@ -5,6 +5,7 @@ import {
   WorkerNodeInfo,
   WORKER_NODES,
   getWorkerForIndex,
+  getWorkerNodeInfo,
 } from '@/lib/workerNodeHelpers';
 
 export interface WorkloadPodItem {
@@ -69,13 +70,13 @@ const computeSinglePodName = (params: PodNameResolutionParams): string => {
   return formatPodName(baseName, groupPodHash, replicaSuffix, totalReplicas);
 };
 
-const resolvePodWorker = (index: number, childPods: any[]): WorkerNodeId => {
+const resolvePodWorker = (index: number, childPods: any[], workerCount = 3): WorkerNodeId => {
   const directPod = childPods[index];
   const assigned = directPod?.data?.assignedNode;
-  if (assigned === 'worker-1' || assigned === 'worker-2' || assigned === 'worker-3') {
+  if (typeof assigned === 'string' && /^worker-\d+$/.test(assigned)) {
     return assigned;
   }
-  return getWorkerForIndex(index);
+  return getWorkerForIndex(index, workerCount);
 };
 
 /**
@@ -84,7 +85,8 @@ const resolvePodWorker = (index: number, childPods: any[]): WorkerNodeId => {
 export const buildWorkloadPodList = (
   selectedNode: any,
   allNodes: any[],
-  cachedSuffixes: Record<number, string> = {}
+  cachedSuffixes: Record<number, string> = {},
+  workerCount = 3
 ): WorkloadPodItem[] => {
   const controller = resolveWorkloadController(selectedNode, allNodes);
   if (!controller) return [];
@@ -118,8 +120,8 @@ export const buildWorkloadPodList = (
       totalReplicas,
     });
 
-    const workerId = resolvePodWorker(i, childPods);
-    const workerInfo = WORKER_NODES[workerId];
+    const workerId = resolvePodWorker(i, childPods, workerCount);
+    const workerInfo = WORKER_NODES[workerId] || getWorkerNodeInfo(workerId);
     const isReady = data.status === 'ready' || Boolean(data.image);
 
     result.push({
@@ -139,25 +141,31 @@ export const buildWorkloadPodList = (
 /**
  * Computes distribution summary of pods across worker nodes.
  */
-export const getWorkerDistribution = (pods: WorkloadPodItem[]): WorkerDistributionCount[] => {
-  const counts: Record<WorkerNodeId, number> = {
-    'worker-1': 0,
-    'worker-2': 0,
-    'worker-3': 0,
-  };
+export const getWorkerDistribution = (
+  pods: WorkloadPodItem[],
+  totalWorkers?: number
+): WorkerDistributionCount[] => {
+  const counts: Record<string, number> = {};
+  let maxIdx = Math.max(3, totalWorkers || 3);
 
   for (const pod of pods) {
-    if (counts[pod.workerId] !== undefined) {
-      counts[pod.workerId] += 1;
+    counts[pod.workerId] = (counts[pod.workerId] || 0) + 1;
+    const match = /^worker-(\d+)$/.exec(pod.workerId);
+    if (match) {
+      maxIdx = Math.max(maxIdx, Number.parseInt(match[1], 10));
     }
   }
 
-  const workerIds: WorkerNodeId[] = ['worker-1', 'worker-2', 'worker-3'];
-  return workerIds.map((id) => ({
-    workerId: id,
-    workerInfo: WORKER_NODES[id],
-    count: counts[id],
-  }));
+  const result: WorkerDistributionCount[] = [];
+  for (let i = 1; i <= maxIdx; i++) {
+    const id = `worker-${i}`;
+    result.push({
+      workerId: id,
+      workerInfo: WORKER_NODES[id] || getWorkerNodeInfo(i),
+      count: counts[id] || 0,
+    });
+  }
+  return result;
 };
 
 /**
