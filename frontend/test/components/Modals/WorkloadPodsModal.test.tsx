@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { WorkloadPodsModal } from '@/components/Modals/WorkloadPodsModal';
 import { useFlowStore } from '@/store';
 
@@ -157,7 +157,9 @@ describe('WorkloadPodsModal', () => {
     );
 
     const copyBtn = screen.getByTestId('copy-pod-name-1');
-    fireEvent.click(copyBtn);
+    await act(async () => {
+      fireEvent.click(copyBtn);
+    });
 
     expect(writeTextMock).toHaveBeenCalledWith('web-app-1pd4l-ktdhh');
   });

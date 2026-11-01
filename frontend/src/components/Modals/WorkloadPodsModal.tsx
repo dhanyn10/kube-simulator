@@ -562,20 +562,16 @@ export const WorkloadPodsModal: React.FC<WorkloadPodsModalProps> = ({
     [selectedNode, nodes]
   );
 
-  const handleCopy = useCallback((text: string) => {
+  const handleCopy = useCallback(async (text: string) => {
     if (globalThis.navigator?.clipboard?.writeText) {
       try {
-        const result = globalThis.navigator.clipboard.writeText(text);
-        if (result && typeof result.catch === 'function') {
-          void result.catch(() => {});
-        }
+        await globalThis.navigator.clipboard.writeText(text);
       } catch {
         // Ignore clipboard failure in mock or unsupported environment
       }
     }
     setCopiedName(text);
-    const timer = setTimeout(() => setCopiedName(null), 2000);
-    return () => clearTimeout(timer);
+    setTimeout(() => setCopiedName(null), 2000);
   }, []);
 
   const handleOpenLogs = useCallback(() => {

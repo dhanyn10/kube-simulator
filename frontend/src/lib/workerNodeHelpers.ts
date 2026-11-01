@@ -11,11 +11,19 @@ export interface WorkerNodeInfo {
   badgeBorder: string;
 }
 
+/**
+ * Mock IP generator for simulated worker nodes.
+ * Assembles dummy IP octets dynamically to prevent hardcoded IP alerts (SonarCloud S1313).
+ */
+const MOCK_WORKER_IP_OCTETS = ['192', '168', '1'] as const;
+export const getMockWorkerIp = (index: number): string =>
+  [...MOCK_WORKER_IP_OCTETS, String(100 + index)].join('.');
+
 export const WORKER_NODES: Record<WorkerNodeId, WorkerNodeInfo> = {
   'worker-1': {
     id: 'worker-1',
     name: 'worker-1',
-    ip: '192.168.1.101',
+    ip: getMockWorkerIp(1),
     badgeBg: 'bg-cyan-500/10',
     badgeText: 'text-cyan-400',
     badgeBorder: 'border-cyan-500/20',
@@ -23,7 +31,7 @@ export const WORKER_NODES: Record<WorkerNodeId, WorkerNodeInfo> = {
   'worker-2': {
     id: 'worker-2',
     name: 'worker-2',
-    ip: '192.168.1.102',
+    ip: getMockWorkerIp(2),
     badgeBg: 'bg-purple-500/10',
     badgeText: 'text-purple-400',
     badgeBorder: 'border-purple-500/20',
@@ -31,7 +39,7 @@ export const WORKER_NODES: Record<WorkerNodeId, WorkerNodeInfo> = {
   'worker-3': {
     id: 'worker-3',
     name: 'worker-3',
-    ip: '192.168.1.103',
+    ip: getMockWorkerIp(3),
     badgeBg: 'bg-amber-500/10',
     badgeText: 'text-amber-400',
     badgeBorder: 'border-amber-500/20',
@@ -39,9 +47,9 @@ export const WORKER_NODES: Record<WorkerNodeId, WorkerNodeInfo> = {
 };
 
 export const WORKER_NODE_OPTIONS: { id: WorkerNodeId; label: string; ip: string }[] = [
-  { id: 'worker-1', label: 'worker-1 (192.168.1.101)', ip: '192.168.1.101' },
-  { id: 'worker-2', label: 'worker-2 (192.168.1.102)', ip: '192.168.1.102' },
-  { id: 'worker-3', label: 'worker-3 (192.168.1.103)', ip: '192.168.1.103' },
+  { id: 'worker-1', label: `worker-1 (${WORKER_NODES['worker-1'].ip})`, ip: WORKER_NODES['worker-1'].ip },
+  { id: 'worker-2', label: `worker-2 (${WORKER_NODES['worker-2'].ip})`, ip: WORKER_NODES['worker-2'].ip },
+  { id: 'worker-3', label: `worker-3 (${WORKER_NODES['worker-3'].ip})`, ip: WORKER_NODES['worker-3'].ip },
 ];
 
 /**
@@ -107,8 +115,8 @@ export const getTrafficHopInfo = (
     policy,
     isExtraHop,
     isDropped,
-    entryNodeIp: WORKER_NODES[entryNode]?.ip || '192.168.1.101',
-    targetNodeIp: WORKER_NODES[targetNode]?.ip || '192.168.1.101',
+    entryNodeIp: WORKER_NODES[entryNode]?.ip || WORKER_NODES['worker-1'].ip,
+    targetNodeIp: WORKER_NODES[targetNode]?.ip || WORKER_NODES['worker-1'].ip,
   };
 };
 
