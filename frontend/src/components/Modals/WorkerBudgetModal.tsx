@@ -110,11 +110,21 @@ interface PresetSelectorProps {
   readonly onSelect: (preset: WorkerNodePreset) => void;
 }
 
+const getPresetButtonClasses = (isSelected: boolean, isDark: boolean): string => {
+  if (isSelected) {
+    return "border-sky-500 bg-sky-500/10 text-sky-400 ring-1 ring-sky-500/30";
+  }
+  if (isDark) {
+    return "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700";
+  }
+  return "bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50";
+};
+
 const WorkerPresetSelector: React.FC<PresetSelectorProps> = ({ isDark, selectedPreset, onSelect }) => (
   <div>
-    <label className={cn("block text-xs font-bold mb-1.5", isDark ? "text-slate-300" : "text-slate-700")}>
+    <div className={cn("block text-xs font-bold mb-1.5", isDark ? "text-slate-300" : "text-slate-700")}>
       Worker Node Size Preset
-    </label>
+    </div>
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
       {WORKER_PRESETS.map((preset) => {
         const isSelected = selectedPreset === preset.id;
@@ -126,11 +136,7 @@ const WorkerPresetSelector: React.FC<PresetSelectorProps> = ({ isDark, selectedP
             onClick={() => onSelect(preset)}
             className={cn(
               "p-2.5 rounded-xl border text-left transition-all",
-              isSelected
-                ? "border-sky-500 bg-sky-500/10 text-sky-400 ring-1 ring-sky-500/30"
-                : isDark
-                ? "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700"
-                : "bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+              getPresetButtonClasses(isSelected, isDark)
             )}
           >
             <div className="font-bold text-xs">{preset.name}</div>
@@ -161,7 +167,7 @@ const WorkerScaleSlider: React.FC<ScaleSliderProps> = ({ isDark, workerCount, on
         <div>
           <span className={cn("text-xs font-bold", isDark ? "text-slate-200" : "text-slate-800")}>
             Total Worker Nodes:
-          </span>
+          </span>{' '}
           <span className="ml-2 font-mono text-sm font-extrabold text-sky-400" data-testid="worker-count-display">
             {workerCount} {workerCount === 1 ? 'Node' : 'Nodes'}
           </span>
@@ -290,7 +296,7 @@ const WorkerBudgetNoticeBanner: React.FC<NoticeBannerProps> = ({
       <div className="p-3 rounded-xl border bg-rose-500/10 border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5">
         <AlertTriangle size={16} className="text-rose-400 shrink-0 mt-0.5" />
         <div>
-          <span className="font-bold">Local Hardware Budget Exceeded: </span>
+          <span className="font-bold">Local Hardware Budget Exceeded:</span>{' '}
           Cluster demands ({totalCpu} vCPUs / {totalMem} GB RAM) exceed your local machine specs ({hostCpu} vCPUs / {hostMem} GB RAM). This setup works visually in the simulator, but would throttle or fail on a physical local KinD/Minikube environment.
         </div>
       </div>
@@ -302,7 +308,7 @@ const WorkerBudgetNoticeBanner: React.FC<NoticeBannerProps> = ({
       <div className="p-3 rounded-xl border bg-amber-500/10 border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5">
         <Info size={16} className="text-amber-400 shrink-0 mt-0.5" />
         <div>
-          <span className="font-bold">Workload Capacity Warning: </span>
+          <span className="font-bold">Workload Capacity Warning:</span>{' '}
           The allocated worker capacity is less than the active resource requests from Pods on the canvas. Some pods will fail scheduling or stay in Pending state.
         </div>
       </div>
@@ -313,7 +319,7 @@ const WorkerBudgetNoticeBanner: React.FC<NoticeBannerProps> = ({
     <div className="p-3 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2.5">
       <CheckCircle size={16} className="text-emerald-400 shrink-0" />
       <div>
-        <span className="font-bold">Optimal Configuration: </span>
+        <span className="font-bold">Optimal Configuration:</span>{' '}
         Cluster worker resources are well within local hardware budget and fully satisfy active canvas workload demands.
       </div>
     </div>

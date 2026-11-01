@@ -1,6 +1,6 @@
 import { K8sNodeData } from '@/types';
 
-export type WorkerNodeId = 'worker-1' | 'worker-2' | 'worker-3' | string;
+export type WorkerNodeId = string;
 
 export interface WorkerNodeInfo {
   id: WorkerNodeId;

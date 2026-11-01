@@ -141,7 +141,7 @@ describe('workerBudgetHelpers', () => {
   });
 
   it('has valid presets array', () => {
-    expect(WORKER_PRESETS.length).toBe(3);
+    expect(WORKER_PRESETS).toHaveLength(3);
     expect(WORKER_PRESETS[0].id).toBe('small');
     expect(WORKER_PRESETS[1].id).toBe('standard');
     expect(WORKER_PRESETS[2].id).toBe('large');

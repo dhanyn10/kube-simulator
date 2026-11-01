@@ -38,6 +38,8 @@ export interface ClusterBudgetCalculationParams {
   readonly localHardware?: LocalHardwareSpecs;
 }
 
+export type BudgetStatusLevel = 'safe' | 'warning' | 'danger';
+
 export interface ClusterBudgetResult {
   readonly workerCount: number;
   readonly vCpuPerWorker: number;
@@ -55,14 +57,14 @@ export interface ClusterBudgetResult {
     readonly hasMissingLimits: boolean;
   };
   readonly isWorkloadDeficit: boolean;
-  readonly statusLevel: 'safe' | 'warning' | 'danger';
+  readonly statusLevel: BudgetStatusLevel;
 }
 
 const determineStatusLevel = (
   isLocalOverloaded: boolean,
   isWorkloadDeficit: boolean,
   workerCount: number
-): 'safe' | 'warning' | 'danger' => {
+): BudgetStatusLevel => {
   if (isLocalOverloaded) {
     return 'danger';
   }
@@ -122,7 +124,7 @@ export const calculateClusterBudget = ({
   };
 };
 
-export const getBudgetStatusBadgeClass = (status: 'safe' | 'warning' | 'danger'): string => {
+export const getBudgetStatusBadgeClass = (status: BudgetStatusLevel): string => {
   if (status === 'danger') {
     return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
   }
