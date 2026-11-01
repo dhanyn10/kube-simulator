@@ -46,4 +46,14 @@ describe('nodeBadgeHelpers', () => {
     expect(result.showNodeBadge).toBe(false);
     expect(result.hasAnyBadge).toBe(false);
   });
+
+  it('hides node badge for stacked pods when replicas > 3', () => {
+    const stackedPodData = {
+      type: 'Pod',
+      parentReplicas: 4,
+      displaySettings: { assignedNode: true },
+    };
+    const result = getPodBadgeVisibility(stackedPodData);
+    expect(result.showNodeBadge).toBe(false);
+  });
 });

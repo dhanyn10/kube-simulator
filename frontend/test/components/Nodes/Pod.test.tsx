@@ -229,4 +229,26 @@ describe('PodNode', () => {
 
     expect(screen.queryByText('node:')).toBeNull();
   });
+
+  it('hides worker node row on stacked pod when parentReplicas > 3', () => {
+    const props = {
+      id: 'pod-stacked-test',
+      type: 'Pod',
+      parentId: 'dep-1',
+      data: {
+        label: 'My Stacked Pod',
+        parentReplicas: 4,
+        replicas: 4,
+        assignedNode: 'worker-1',
+      },
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <PodNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.queryByText('node:')).toBeNull();
+  });
 });

@@ -602,4 +602,94 @@ describe('WorkloadConfig', () => {
     expect(screen.getByTestId('hpa-replica-overlay')).toBeDefined();
     expect(screen.getByText('Managed by HPA')).toBeDefined();
   });
+
+  it('renders "Pod List & Setup" button only when replicas > 3 and opens modal on click', () => {
+    const dep3 = {
+      id: 'dep-3',
+      type: 'Deployment',
+      data: { label: 'dep-3', replicas: 3 }
+    };
+    useFlowStore.setState({ nodes: [dep3] as any });
+
+    const { rerender } = render(
+      <WorkloadConfig
+        selectedNode={dep3}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.queryByTestId('open-workload-pods-modal-btn')).toBeNull();
+
+    const dep4 = {
+      id: 'dep-4',
+      type: 'Deployment',
+      data: { label: 'dep-4', replicas: 4 }
+    };
+    useFlowStore.setState({ nodes: [dep4] as any });
+
+    rerender(
+      <WorkloadConfig
+        selectedNode={dep4}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    const openBtn = screen.getByTestId('open-workload-pods-modal-btn');
+    expect(openBtn).toBeDefined();
+    expect(screen.getByText('Pod List & Setup')).toBeDefined();
+    expect(screen.getByText('4 Pods')).toBeDefined();
+
+    fireEvent.click(openBtn);
+    expect(screen.getByText(/dep-4 Workload Manager/i)).toBeDefined();
+  });
+
+  it('renders Worker Node selector when replicas <= 3 and hides it when replicas > 3', () => {
+    const pod3 = {
+      id: 'p3',
+      type: 'Pod',
+      parentId: 'dep-p3',
+      data: { label: 'pod-3', assignedNode: 'worker-1' }
+    };
+    const dep3 = {
+      id: 'dep-p3',
+      type: 'Deployment',
+      data: { label: 'dep-p3', replicas: 3 }
+    };
+    useFlowStore.setState({ nodes: [dep3, pod3] as any });
+
+    const { rerender } = render(
+      <WorkloadConfig
+        selectedNode={pod3}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    // replicas = 3: Worker Node selector is visible
+    expect(screen.getByText('Worker Node')).toBeDefined();
+
+    // Now update replicas to 4: Worker Node selector must be hidden
+    const dep4 = {
+      id: 'dep-p3',
+      type: 'Deployment',
+      data: { label: 'dep-p3', replicas: 4 }
+    };
+    useFlowStore.setState({ nodes: [dep4, pod3] as any });
+
+    rerender(
+      <WorkloadConfig
+        selectedNode={pod3}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.queryByText('Worker Node')).toBeNull();
+  });
 });

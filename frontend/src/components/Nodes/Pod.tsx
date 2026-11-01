@@ -6,6 +6,7 @@ import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
 import { PodConfigMapVars } from './PodConfigMapVars';
 import { getAssignedWorker, WORKER_NODES } from '@/lib/workerNodeHelpers';
+import { getPodReplicaInfo } from '@/lib/podReplicaHelpers';
 import { cn } from '@/lib/utils';
 import { usePodOverlapAutoCorrection } from '@/activities/nodes';
 
@@ -14,12 +15,17 @@ export const PodNode = memo((props: NodeProps) => {
 
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
+  const { isStackedPod } = getPodReplicaInfo({
+    ...data,
+    type: data?.type || (props.type as any) || 'Pod',
+    parentId: (props as any).parentId || data?.parentId,
+  });
 
   const showImage = Boolean(data.displaySettings?.image !== false && data.image);
   const showRestart = Boolean(data.displaySettings?.restartPolicy !== false);
   const restartPolicy = data.restartPolicy || 'Always';
   const showResources = Boolean(data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit));
-  const showNode = Boolean(data.displaySettings?.assignedNode !== false);
+  const showNode = Boolean(!isStackedPod && data.displaySettings?.assignedNode !== false);
   const assignedWorker = getAssignedWorker(data, props.id);
   const workerInfo = WORKER_NODES[assignedWorker];
 

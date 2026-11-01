@@ -458,6 +458,18 @@ describe('podSizing utils', () => {
       // Worker adds both badge row (+20) and key-value node row (+20)
       expect(sizeWithWorker.height).toBeGreaterThan(sizeWithoutWorker.height);
     });
+
+    it('excludes worker badge and height addition for stacked pods when replicas > 3', () => {
+      const stackedPodData = {
+        type: 'Pod' as const,
+        parentReplicas: 4,
+        replicas: 4,
+        assignedNode: 'worker-2' as const,
+        displaySettings: { assignedNode: true },
+      };
+      const badges = getPodVisibleBadges(stackedPodData);
+      expect(badges).not.toContain('WORKER-2');
+    });
   });
 
 });

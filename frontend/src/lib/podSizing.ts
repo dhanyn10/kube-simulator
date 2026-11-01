@@ -45,11 +45,11 @@ export const calculatePodWidth = (
 };
 
 export const calculatePodBaseHeight = (data: Partial<K8sNodeData>, _width: number, badges: string[], isMegaPod: boolean) => {
-  const { showDashedProgress } = getPodReplicaInfo(data);
+  const { showDashedProgress, isStackedPod } = getPodReplicaInfo(data);
   let height = 80;
   if (showDashedProgress) height += isMegaPod ? 120 : 16;
   const isPod = !data.type || data.type === 'Pod';
-  if (isPod && data.displaySettings?.assignedNode !== false) height += 20;
+  if (isPod && !isStackedPod && data.displaySettings?.assignedNode !== false) height += 20;
   if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit || data.cpuRequest || data.memoryRequest)) height += 38;
   if (data.displaySettings?.restartPolicy !== false) height += 24;
   if (badges.length > 0) height += 20;
@@ -110,9 +110,10 @@ export const calculatePodHeight = (
 
 export const getPodVisibleBadges = (data: Partial<K8sNodeData> = {}): string[] => {
   const isPod = !data.type || data.type === 'Pod';
+  const { isStackedPod } = getPodReplicaInfo(data);
   const showRuntime = Boolean(data.displaySettings?.runtime !== false && data.runtime && data.runtime !== 'none');
   const showWebserver = Boolean(data.displaySettings?.webserver !== false && data.webserver && data.webserver !== 'none');
-  const showNodeBadge = Boolean(isPod && data.displaySettings?.assignedNode !== false);
+  const showNodeBadge = Boolean(isPod && !isStackedPod && data.displaySettings?.assignedNode !== false);
   const badges: string[] = [];
   if (showNodeBadge) badges.push(String(data.assignedNode || 'worker-1').toUpperCase());
   if (showRuntime && data.runtime) badges.push(String(data.runtime));
