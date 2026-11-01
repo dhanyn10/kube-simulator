@@ -14,6 +14,17 @@ interface YamlSearchBarProps {
   colorMode: 'dark' | 'light';
 }
 
+const getSearchCountBadgeClass = (totalMatches: number, isDark: boolean): string => {
+  if (totalMatches > 0) {
+    return isDark
+      ? 'bg-amber-950/40 text-amber-300 border-amber-800/40'
+      : 'bg-amber-50 text-amber-800 border-amber-200';
+  }
+  return isDark
+    ? 'bg-rose-950/40 text-rose-400 border-rose-800/40'
+    : 'bg-rose-50 text-rose-700 border-rose-200';
+};
+
 export const YamlSearchBar: React.FC<YamlSearchBarProps> = ({
   query,
   onQueryChange,
@@ -65,13 +76,7 @@ export const YamlSearchBar: React.FC<YamlSearchBarProps> = ({
             data-testid="yaml-search-count"
             className={cn(
               'text-[9px] font-mono px-1.5 py-0.5 rounded border font-semibold',
-              totalMatches > 0
-                ? isDark
-                  ? 'bg-amber-950/40 text-amber-300 border-amber-800/40'
-                  : 'bg-amber-50 text-amber-800 border-amber-200'
-                : isDark
-                  ? 'bg-rose-950/40 text-rose-400 border-rose-800/40'
-                  : 'bg-rose-50 text-rose-700 border-rose-200'
+              getSearchCountBadgeClass(totalMatches, isDark)
             )}
           >
             {matchDisplay}

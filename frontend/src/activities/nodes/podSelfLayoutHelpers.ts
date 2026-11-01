@@ -67,7 +67,7 @@ export const checkPodOverlapWithSiblings = (
   allNodes: Node[]
 ): { hasOverlap: boolean; parentNode: Node | null } => {
   const currentPod = allNodes.find((n) => n.id === podId);
-  if (!currentPod || currentPod.type !== 'Pod') {
+  if (currentPod?.type !== 'Pod') {
     return { hasOverlap: false, parentNode: null };
   }
 
@@ -77,7 +77,7 @@ export const checkPodOverlapWithSiblings = (
   }
 
   const parentNode = allNodes.find((n) => n.id === parentId);
-  if (!parentNode || !WORKLOAD_CONTROLLERS.has(parentNode.type || '')) {
+  if (!WORKLOAD_CONTROLLERS.has(parentNode?.type ?? '')) {
     return { hasOverlap: false, parentNode: null };
   }
 

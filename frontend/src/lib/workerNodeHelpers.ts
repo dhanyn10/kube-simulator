@@ -71,7 +71,7 @@ export const getAssignedWorker = (
 
   let sum = 0;
   for (let i = 0; i < rawKey.length; i++) {
-    sum += rawKey.charCodeAt(i);
+    sum += rawKey.codePointAt(i) || 0;
   }
   const workerIdx = (sum % 3) + 1;
   return `worker-${workerIdx}` as WorkerNodeId;

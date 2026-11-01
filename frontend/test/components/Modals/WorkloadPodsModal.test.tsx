@@ -141,7 +141,7 @@ describe('WorkloadPodsModal', () => {
 
   it('handles copying pod name to clipboard', async () => {
     const { deployment } = setupTestNodes();
-    const writeTextMock = vi.fn();
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {
       clipboard: {
         writeText: writeTextMock,

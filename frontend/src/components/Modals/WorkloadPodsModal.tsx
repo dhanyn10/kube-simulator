@@ -48,6 +48,103 @@ const RESTART_POLICIES = [
   { id: 'Never', label: 'Never' },
 ] as const;
 
+export const getWorkloadTabClass = (isActive: boolean, isDark: boolean): string => {
+  if (isActive) {
+    return 'bg-blue-600 text-white shadow-sm';
+  }
+  if (isDark) {
+    return 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60';
+  }
+  return 'text-slate-600 hover:text-slate-900 hover:bg-slate-100';
+};
+
+export const getPodBadgeCountClass = (isActive: boolean, isDark: boolean): string => {
+  if (isActive) {
+    return 'bg-white/20 text-white';
+  }
+  return isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700';
+};
+
+interface WorkloadPodHashBadgesProps {
+  readonly podHash: string;
+  readonly replicaSuffix: string;
+  readonly index: number;
+  readonly isDark: boolean;
+}
+
+const WorkloadPodHashBadges: React.FC<WorkloadPodHashBadgesProps> = ({
+  podHash,
+  replicaSuffix,
+  index,
+  isDark,
+}) => {
+  if (!podHash) {
+    return (
+      <span
+        className={cn(
+          "px-1.5 py-0.5 rounded text-[9px] font-mono font-medium border",
+          isDark
+            ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
+            : "bg-purple-50 text-purple-700 border-purple-200"
+        )}
+      >
+        ordinal: <strong className="font-bold">{replicaSuffix}</strong>
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <span
+        data-testid={`pod-hash-badge-${index}`}
+        className={cn(
+          "px-1.5 py-0.5 rounded text-[9px] font-mono font-medium border",
+          isDark
+            ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+            : "bg-sky-50 text-sky-700 border-sky-200"
+        )}
+      >
+        hash: <strong className="font-bold">{podHash}</strong>
+      </span>
+      <span
+        data-testid={`pod-suffix-badge-${index}`}
+        className={cn(
+          "px-1.5 py-0.5 rounded text-[9px] font-mono font-medium border",
+          isDark
+            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+            : "bg-emerald-50 text-emerald-700 border-emerald-200"
+        )}
+      >
+        random: <strong className="font-bold">{replicaSuffix}</strong>
+      </span>
+    </>
+  );
+};
+
+interface WorkloadPodStatusBadgeProps {
+  readonly status: 'Running' | 'Ready' | 'Pending';
+}
+
+const WorkloadPodStatusBadge: React.FC<WorkloadPodStatusBadgeProps> = ({ status }) => {
+  const isRunning = status === 'Running';
+  return (
+    <div
+      className={cn(
+        "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-1",
+        isRunning ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+      )}
+    >
+      <span
+        className={cn(
+          "w-1.5 h-1.5 rounded-full",
+          isRunning ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+        )}
+      />
+      {status}
+    </div>
+  );
+};
+
 interface WorkloadPodRowProps {
   readonly pod: WorkloadPodItem;
   readonly colorMode: 'dark' | 'light';
@@ -108,44 +205,12 @@ const WorkloadPodRow: React.FC<WorkloadPodRowProps> = ({
 
           {/* Suffix Hash & Random Char badges */}
           <div className="flex items-center gap-1.5 mt-1">
-            {pod.podHash ? (
-              <span
-                data-testid={`pod-hash-badge-${pod.index}`}
-                className={cn(
-                  "px-1.5 py-0.5 rounded text-[9px] font-mono font-medium border",
-                  isDark
-                    ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
-                    : "bg-sky-50 text-sky-700 border-sky-200"
-                )}
-              >
-                hash: <strong className="font-bold">{pod.podHash}</strong>
-              </span>
-            ) : (
-              <span
-                className={cn(
-                  "px-1.5 py-0.5 rounded text-[9px] font-mono font-medium border",
-                  isDark
-                    ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
-                    : "bg-purple-50 text-purple-700 border-purple-200"
-                )}
-              >
-                ordinal: <strong className="font-bold">{pod.replicaSuffix}</strong>
-              </span>
-            )}
-
-            {pod.podHash && (
-              <span
-                data-testid={`pod-suffix-badge-${pod.index}`}
-                className={cn(
-                  "px-1.5 py-0.5 rounded text-[9px] font-mono font-medium border",
-                  isDark
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                )}
-              >
-                random: <strong className="font-bold">{pod.replicaSuffix}</strong>
-              </span>
-            )}
+            <WorkloadPodHashBadges
+              podHash={pod.podHash}
+              replicaSuffix={pod.replicaSuffix}
+              index={pod.index}
+              isDark={isDark}
+            />
           </div>
         </div>
       </div>
@@ -168,22 +233,7 @@ const WorkloadPodRow: React.FC<WorkloadPodRowProps> = ({
           </span>
         </div>
 
-        <div
-          className={cn(
-            "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-1",
-            pod.status === 'Running'
-              ? "bg-emerald-500/10 text-emerald-400"
-              : "bg-amber-500/10 text-amber-400"
-          )}
-        >
-          <span
-            className={cn(
-              "w-1.5 h-1.5 rounded-full",
-              pod.status === 'Running' ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
-            )}
-          />
-          {pod.status}
-        </div>
+        <WorkloadPodStatusBadge status={pod.status} />
       </div>
     </div>
   );
@@ -394,6 +444,102 @@ const WorkloadSetupTab: React.FC<WorkloadSetupTabProps> = ({
   );
 };
 
+interface WorkloadSidebarMenuProps {
+  readonly activeTab: ModalTabType;
+  readonly onTabChange: (tab: ModalTabType) => void;
+  readonly totalPods: number;
+  readonly controllerLabel: string;
+  readonly controllerType: string;
+  readonly colorMode: 'dark' | 'light';
+}
+
+const WorkloadSidebarMenu: React.FC<WorkloadSidebarMenuProps> = ({
+  activeTab,
+  onTabChange,
+  totalPods,
+  controllerLabel,
+  controllerType,
+  colorMode,
+}) => {
+  const isDark = colorMode === 'dark';
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Workload Management Tabs"
+      className={cn(
+        "w-48 sm:w-52 border-r p-3 space-y-1.5 shrink-0 flex flex-col h-full justify-between select-none",
+        isDark ? "bg-slate-950/50 border-slate-800" : "bg-slate-50 border-slate-200"
+      )}
+    >
+      <div className="space-y-1.5">
+        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          Workload Menu
+        </div>
+
+        {/* Tab: Setup */}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'setup'}
+          data-testid="tab-setup"
+          onClick={() => onTabChange('setup')}
+          className={cn(
+            "w-full px-3 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-bold transition-all text-left",
+            getWorkloadTabClass(activeTab === 'setup', isDark)
+          )}
+        >
+          <Settings size={15} />
+          <span>Setup</span>
+        </button>
+
+        {/* Tab: List Pods */}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'pods'}
+          data-testid="tab-pods"
+          onClick={() => onTabChange('pods')}
+          className={cn(
+            "w-full px-3 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all text-left",
+            getWorkloadTabClass(activeTab === 'pods', isDark)
+          )}
+        >
+          <div className="flex items-center gap-2.5">
+            <Boxes size={15} />
+            <span>List Pods</span>
+          </div>
+          <span
+            className={cn(
+              "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold",
+              getPodBadgeCountClass(activeTab === 'pods', isDark)
+            )}
+          >
+            {totalPods}
+          </span>
+        </button>
+      </div>
+
+      {/* Quick info footer in left sidebar */}
+      <div
+        className={cn(
+          "p-2.5 rounded-lg border text-[10px] space-y-1 font-mono",
+          isDark
+            ? "bg-slate-900/40 border-slate-800 text-slate-400"
+            : "bg-white border-slate-200 text-slate-600"
+        )}
+      >
+        <div className="font-bold text-[9px] uppercase tracking-wider text-slate-500">
+          Workload Info
+        </div>
+        <div className="truncate">Name: <strong className="text-slate-200">{controllerLabel}</strong></div>
+        <div>Replicas: <strong className="text-slate-200">{totalPods}</strong></div>
+        <div>Type: <strong className="text-slate-200">{controllerType}</strong></div>
+      </div>
+    </div>
+  );
+};
+
 export const WorkloadPodsModal: React.FC<WorkloadPodsModalProps> = ({
   isOpen,
   onClose,
@@ -418,7 +564,14 @@ export const WorkloadPodsModal: React.FC<WorkloadPodsModalProps> = ({
 
   const handleCopy = useCallback((text: string) => {
     if (globalThis.navigator?.clipboard?.writeText) {
-      globalThis.navigator.clipboard.writeText(text);
+      try {
+        const result = globalThis.navigator.clipboard.writeText(text);
+        if (result && typeof result.catch === 'function') {
+          void result.catch(() => {});
+        }
+      } catch {
+        // Ignore clipboard failure in mock or unsupported environment
+      }
     }
     setCopiedName(text);
     const timer = setTimeout(() => setCopiedName(null), 2000);
@@ -454,96 +607,14 @@ export const WorkloadPodsModal: React.FC<WorkloadPodsModalProps> = ({
       compactHeader
     >
       <div className="flex h-[calc(100%+2rem)] -mx-4 -my-4 overflow-hidden">
-        {/* Left Sidebar Menu */}
-        <div
-          role="tablist"
-          aria-label="Workload Management Tabs"
-          className={cn(
-            "w-48 sm:w-52 border-r p-3 space-y-1.5 shrink-0 flex flex-col h-full justify-between select-none",
-            colorMode === 'dark' ? "bg-slate-950/50 border-slate-800" : "bg-slate-50 border-slate-200"
-          )}
-        >
-          <div className="space-y-1.5">
-            <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Workload Menu
-            </div>
-
-            {/* Tab: Setup */}
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'setup'}
-              data-testid="tab-setup"
-              onClick={() => setActiveTab('setup')}
-              className={cn(
-                "w-full px-3 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-bold transition-all text-left",
-                activeTab === 'setup'
-                  ? colorMode === 'dark'
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-blue-600 text-white shadow-sm"
-                  : colorMode === 'dark'
-                    ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              )}
-            >
-              <Settings size={15} />
-              <span>Setup</span>
-            </button>
-
-            {/* Tab: List Pods */}
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'pods'}
-              data-testid="tab-pods"
-              onClick={() => setActiveTab('pods')}
-              className={cn(
-                "w-full px-3 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all text-left",
-                activeTab === 'pods'
-                  ? colorMode === 'dark'
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-blue-600 text-white shadow-sm"
-                  : colorMode === 'dark'
-                    ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              )}
-            >
-              <div className="flex items-center gap-2.5">
-                <Boxes size={15} />
-                <span>List Pods</span>
-              </div>
-              <span
-                className={cn(
-                  "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold",
-                  activeTab === 'pods'
-                    ? "bg-white/20 text-white"
-                    : colorMode === 'dark'
-                      ? "bg-slate-800 text-slate-300"
-                      : "bg-slate-200 text-slate-700"
-                )}
-              >
-                {totalPods}
-              </span>
-            </button>
-          </div>
-
-          {/* Quick info footer in left sidebar */}
-          <div
-            className={cn(
-              "p-2.5 rounded-lg border text-[10px] space-y-1 font-mono",
-              colorMode === 'dark'
-                ? "bg-slate-900/40 border-slate-800 text-slate-400"
-                : "bg-white border-slate-200 text-slate-600"
-            )}
-          >
-            <div className="font-bold text-[9px] uppercase tracking-wider text-slate-500">
-              Workload Info
-            </div>
-            <div className="truncate">Name: <strong className="text-slate-200">{controllerLabel}</strong></div>
-            <div>Replicas: <strong className="text-slate-200">{totalPods}</strong></div>
-            <div>Type: <strong className="text-slate-200">{controller.type}</strong></div>
-          </div>
-        </div>
+        <WorkloadSidebarMenu
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          totalPods={totalPods}
+          controllerLabel={controllerLabel}
+          controllerType={controller.type}
+          colorMode={colorMode}
+        />
 
         {/* Right Active Panel */}
         <div className="flex-1 p-5 overflow-y-auto h-full custom-scrollbar">

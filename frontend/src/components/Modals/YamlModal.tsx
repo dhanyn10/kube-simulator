@@ -6,6 +6,17 @@ import { cn, beautifyYaml } from '@/lib/utils';
 import { parseYamlSearchLines, getNextMatchIndex } from '@/activities/modals/yamlSearchHelpers';
 import { YamlSearchBar } from './YamlSearchBar';
 
+const getMatchHighlightClass = (isActive: boolean, isDark: boolean): string => {
+  if (isActive) {
+    return isDark
+      ? 'bg-amber-400 text-slate-950 font-bold ring-1 ring-amber-300 shadow-sm'
+      : 'bg-amber-500 text-white font-bold ring-1 ring-amber-600 shadow-sm';
+  }
+  return isDark
+    ? 'bg-amber-400/25 text-amber-300'
+    : 'bg-amber-200 text-amber-900';
+};
+
 interface YamlModalProps {
   content: string;
   colorMode: 'dark' | 'light';
@@ -145,13 +156,7 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
                           data-active-match={isActive ? 'true' : undefined}
                           className={cn(
                             'rounded px-0.5 transition-all font-mono',
-                            isActive
-                              ? isDark
-                                ? 'bg-amber-400 text-slate-950 font-bold ring-1 ring-amber-300 shadow-sm'
-                                : 'bg-amber-500 text-white font-bold ring-1 ring-amber-600 shadow-sm'
-                              : isDark
-                                ? 'bg-amber-400/25 text-amber-300'
-                                : 'bg-amber-200 text-amber-900'
+                            getMatchHighlightClass(isActive, isDark)
                           )}
                         >
                           {seg.text}
