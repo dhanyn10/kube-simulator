@@ -1,4 +1,5 @@
 import { Node } from '@xyflow/react';
+import { getWorkerForIndex } from '@/lib/workerNodeHelpers';
 import { K8sNodeData } from '@/types';
 import { getReplicaThresholds } from './layoutHelpers';
 import { getPodMinimumSize } from '@/lib/podSizing';
@@ -297,9 +298,14 @@ export const syncPodsInDeployment = (
     };
 
     const parentData = deployment.data as unknown as K8sNodeData;
-    return existingPod 
+    const syncedPod = existingPod
       ? updatePodNode(existingPod, podDataWithWorkloadType, params, parentData)
       : createPodNode(podDataWithWorkloadType, params, parentData);
+    // Spread replicas across simulated worker nodes (round-robin) unless explicitly pinned
+    if (!syncedPod.data.assignedNode) {
+      syncedPod.data = { ...syncedPod.data, assignedNode: getWorkerForIndex(index) };
+    }
+    return syncedPod;
   });
 };
 

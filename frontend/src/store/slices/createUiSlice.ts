@@ -494,6 +494,14 @@ const buildInitialTerminalLogs = (nodes: Node[]) => {
         `Server is now listening on port 80/tcp`,
         `[INFO] Application instance is healthy and ready to accept traffic.`,
       ];
+    } else if (n.type === 'Service') {
+      const name = n.data.label || n.id;
+      const sType = n.data.serviceType || 'ClusterIP';
+      initialTerminalLogs[n.id] = [
+        `$ kubectl logs svc/${name} [kube-proxy]`,
+        `[kube-proxy] Watching service ${name} (${sType})...`,
+        `[kube-proxy] Initialized proxy iptables / ipvs rules.`,
+      ];
     }
   });
   return initialTerminalLogs;

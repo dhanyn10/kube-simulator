@@ -44,7 +44,7 @@ const getRelationshipStatus = (node: Node, container: Node, intersects: boolean,
  * @returns Object containing `hoveredId` and `detachingId`
  */
 const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nodes: Node[]) => {
-  const containers = nodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'Namespace')
+  const containers = nodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || n.type === 'Namespace')
     .sort((a, b) => ((a.width || 320) * (a.height || 160)) - ((b.width || 320) * (b.height || 160)));
 
   let hoveredId: string | null = null;

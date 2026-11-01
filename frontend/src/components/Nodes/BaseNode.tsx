@@ -204,7 +204,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           />
 
           <ReplicaProgress id={id} replicas={replicas} parentReplicas={data.parentReplicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} hoveredPodIndex={hoveredPodIndex} isPending={isPending} isCrashing={isCrashing} isReady={isReady} />
-          <NodePodBadges data={data} />
+          <NodePodBadges data={data} nodeId={id} />
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>
 

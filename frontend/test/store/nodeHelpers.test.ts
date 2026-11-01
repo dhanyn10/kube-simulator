@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { hydrateNodes, syncDeployment, syncContainerSize, attachHandlers, calculateDeploymentDimensions } from '@/store/nodeHelpers';
+import { isPodOverlappingWithSibling } from '@/activities/nodes/podSelfLayoutHelpers';
 import { useFlowStore } from '@/store';
 
 describe('nodeHelpers', () => {
@@ -165,6 +166,80 @@ describe('nodeHelpers', () => {
       expect(hydrated.find(n => n.id === 'd-role-only')).toBeDefined();
       expect(hydrated.find(n => n.id === 'd-cm-only')).toBeDefined();
     });
+
+    it('auto-corrects stacked overlapping child Pods inside Deployment using React Yoga layout', () => {
+      const nodes = [
+        { id: 'dep-stack', type: 'Deployment', position: { x: 50, y: 50 }, data: { label: 'app-dep', replicas: 2 } },
+        // Two pods initially saved at exact same stacked position
+        { id: 'pod-d1', type: 'Pod', parentId: 'dep-stack', position: { x: 24, y: 48 }, data: { label: 'app-dep-pod-1' } },
+        { id: 'pod-d2', type: 'Pod', parentId: 'dep-stack', position: { x: 24, y: 48 }, data: { label: 'app-dep-pod-2' } },
+      ];
+      const get = () => useFlowStore.getState();
+
+      const hydrated = hydrateNodes(nodes, get);
+      const pods = hydrated.filter(n => n.parentId === 'dep-stack' && n.type === 'Pod');
+      expect(pods).toHaveLength(2);
+
+      // Yoga auto-correction must ensure child pods do NOT overlap and are vertically separated
+      const [firstPod, secondPod] = pods;
+      expect(secondPod.position.y).toBeGreaterThan(firstPod.position.y);
+      const gap = secondPod.position.y - (firstPod.position.y + (firstPod.height || 0));
+      expect(gap).toBeGreaterThanOrEqual(10);
+    });
+
+    it('auto-corrects stacked overlapping child Pods inside ReplicaSet using React Yoga layout', () => {
+      const nodes = [
+        { id: 'rs-stack', type: 'ReplicaSet', position: { x: 50, y: 50 }, data: { label: 'app-rs', replicas: 2 } },
+        // Stacked pods
+        { id: 'pod-rs1', type: 'Pod', parentId: 'rs-stack', position: { x: 24, y: 30 }, data: { label: 'app-rs-pod-1' } },
+        { id: 'pod-rs2', type: 'Pod', parentId: 'rs-stack', position: { x: 24, y: 30 }, data: { label: 'app-rs-pod-2' } },
+      ];
+      const get = () => useFlowStore.getState();
+
+      const hydrated = hydrateNodes(nodes, get);
+      const pods = hydrated.filter(n => n.parentId === 'rs-stack' && n.type === 'Pod');
+      expect(pods).toHaveLength(2);
+
+      const [firstPod, secondPod] = pods;
+      expect(secondPod.position.y).toBeGreaterThan(firstPod.position.y);
+      const gap = secondPod.position.y - (firstPod.position.y + (firstPod.height || 0));
+      expect(gap).toBeGreaterThanOrEqual(10);
+    });
+
+    it('auto-corrects stacked overlapping child Pods inside StatefulSet using React Yoga layout', () => {
+      const nodes = [
+        { id: 'ss-stack', type: 'StatefulSet', position: { x: 50, y: 50 }, data: { label: 'app-ss', replicas: 2 } },
+        // Stacked pods with parentId in data
+        { id: 'pod-ss1', type: 'Pod', data: { parentId: 'ss-stack', label: 'app-ss-0' }, position: { x: 24, y: 48 } },
+        { id: 'pod-ss2', type: 'Pod', data: { parentId: 'ss-stack', label: 'app-ss-1' }, position: { x: 24, y: 48 } },
+      ];
+      const get = () => useFlowStore.getState();
+
+      const hydrated = hydrateNodes(nodes, get);
+      const pods = hydrated.filter(n => n.parentId === 'ss-stack' && n.type === 'Pod');
+      expect(pods).toHaveLength(2);
+
+      const [firstPod, secondPod] = pods;
+      expect(secondPod.position.y).toBeGreaterThan(firstPod.position.y);
+      const gap = secondPod.position.y - (firstPod.position.y + (firstPod.height || 0));
+      expect(gap).toBeGreaterThanOrEqual(10);
+    });
+
+    it('retains child pods and auto-corrects layout when workload replicas is undefined in JSON', () => {
+      const nodes = [
+        { id: 'dep-undef-rep', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'undef-dep' } },
+        { id: 'pod-u1', type: 'Pod', parentId: 'dep-undef-rep', position: { x: 0, y: 0 }, data: { label: 'u1' } },
+        { id: 'pod-u2', type: 'Pod', parentId: 'dep-undef-rep', position: { x: 0, y: 0 }, data: { label: 'u2' } },
+      ];
+      const get = () => useFlowStore.getState();
+
+      const hydrated = hydrateNodes(nodes, get);
+      const dep = hydrated.find(n => n.id === 'dep-undef-rep');
+      expect(dep.data.replicas).toBe(2);
+      const pods = hydrated.filter(n => n.parentId === 'dep-undef-rep');
+      expect(pods).toHaveLength(2);
+      expect(pods[1].position.y).toBeGreaterThan(pods[0].position.y);
+    });
   });
 
   describe('calculateDeploymentDimensions', () => {
@@ -318,7 +393,7 @@ describe('nodeHelpers', () => {
     it('covers syncContainerSize early return when isSizeChanged is false and getChildMinSize default width/height fallbacks', () => {
       // Container dimensions match computeChildrenBounds (maxX=320, maxY=164, shiftX=0, shiftY=0)
       // Line 177: isSizeChanged is false, returns exact currentNodes reference
-      const container = { id: 'c1', type: 'Namespace', position: { x: 0, y: 0 }, width: 320, height: 164 } as any;
+      const container = { id: 'c1', type: 'Namespace', position: { x: 0, y: 0 }, width: 320, height: 204 } as any;
       const child = { id: 'p1', type: 'Pod', parentId: 'c1', position: { x: 20, y: 20 }, width: 100, height: 100 } as any;
       const nodesList = [container, child];
 
@@ -336,6 +411,21 @@ describe('nodeHelpers', () => {
     });
 
 
+
+    it('properly hydrates pvc-intermediate scenario with non-overlapping child pods', async () => {
+      const { scenarios } = await import('@/scenarios');
+      const intermediate = scenarios.find((s: any) => s.id === 'pvc-intermediate');
+      expect(intermediate).toBeDefined();
+      const get = () => useFlowStore.getState();
+      const hydrated = hydrateNodes(intermediate!.data.nodes, get);
+      const pods = hydrated.filter((n: any) => n.parentId === 'dep-pvc');
+      expect(pods).toHaveLength(3);
+      for (let i = 0; i < pods.length; i++) {
+        for (let j = i + 1; j < pods.length; j++) {
+          expect(isPodOverlappingWithSibling(pods[i], pods[j])).toBe(false);
+        }
+      }
+    });
   });
 });
 

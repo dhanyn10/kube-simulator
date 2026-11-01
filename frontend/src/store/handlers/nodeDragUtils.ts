@@ -1,6 +1,6 @@
 import { Node } from '@xyflow/react';
 import { getAbsPos, getNodeData, getEffectiveSize } from '@/store/helpers';
-import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
+import { syncDeployment, syncContainerSize, isChildPodOf } from '@/store/nodeHelpers';
 import type { FlowState } from '@/store/types';
 
 /**
@@ -42,7 +42,7 @@ const syncOldParentDeployment = (parentId: string, currentNodes: Node[], movingR
   const oldParent = currentNodes.find(n => n.id === parentId);
   if (oldParent?.type === 'Deployment' || oldParent?.type === 'StatefulSet' || oldParent?.type === 'ReplicaSet') {
     const { updatedDeployment, laidOut } = syncDeployment(oldParent, currentNodes, -movingReplicas, get);
-    const result = currentNodes.filter(n => n.parentId !== parentId || n.type !== 'Pod');
+    const result = currentNodes.filter(n => !isChildPodOf(n, parentId));
     return [...result.map(n => n.id === parentId ? updatedDeployment : n), ...laidOut];
   }
   return currentNodes;

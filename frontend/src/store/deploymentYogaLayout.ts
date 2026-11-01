@@ -3,6 +3,7 @@ import { loadYoga } from 'yoga-layout/load';
 import { K8sNodeData } from '@/types';
 import {
   getPodMinimumSize,
+  getPodVisibleBadges,
   calculatePodBaseHeight,
   calculatePodContentHeight,
   calculatePodAttachedHeight,
@@ -234,11 +235,7 @@ const buildPodYogaSubTree = (
 ) => {
   const podData = (pod.data as unknown as K8sNodeData) || ({} as K8sNodeData);
   const parentData = deployment ? (deployment.data as unknown as K8sNodeData) : undefined;
-  const showRuntime = Boolean(podData.displaySettings?.runtime !== false && podData.runtime && podData.runtime !== 'none');
-  const showWebserver = Boolean(podData.displaySettings?.webserver !== false && podData.webserver && podData.webserver !== 'none');
-  const visibleBadges: string[] = [];
-  if (showRuntime && podData.runtime) visibleBadges.push(String(podData.runtime));
-  if (showWebserver && podData.webserver) visibleBadges.push(String(podData.webserver));
+  const visibleBadges = getPodVisibleBadges(podData);
 
   const { isMegaPod } = getPodReplicaInfo(podData);
   const minSize = getPodMinimumSize(podData, parentData);

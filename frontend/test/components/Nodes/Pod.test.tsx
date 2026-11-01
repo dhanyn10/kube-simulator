@@ -200,4 +200,55 @@ describe('PodNode', () => {
     expect(screen.getByText('APP_ENV:')).toBeInTheDocument();
     expect(screen.getByText('production')).toBeInTheDocument();
   });
+
+  it('renders worker node assignment row and hides when displaySettings.assignedNode is false', () => {
+    const props = {
+      id: 'pod-worker-test',
+      type: 'Pod',
+      data: {
+        label: 'My Pod',
+        assignedNode: 'worker-2',
+      },
+    } as any;
+
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <PodNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('node:')).toBeInTheDocument();
+    expect(screen.getByText('worker-2')).toBeInTheDocument();
+
+    // Rerender with displaySettings.assignedNode = false
+    rerender(
+      <ReactFlowProvider>
+        <PodNode {...props} data={{ ...props.data, displaySettings: { assignedNode: false } }} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.queryByText('node:')).toBeNull();
+  });
+
+  it('hides worker node row on stacked pod when parentReplicas > 3', () => {
+    const props = {
+      id: 'pod-stacked-test',
+      type: 'Pod',
+      parentId: 'dep-1',
+      data: {
+        label: 'My Stacked Pod',
+        parentReplicas: 4,
+        replicas: 4,
+        assignedNode: 'worker-1',
+      },
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <PodNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.queryByText('node:')).toBeNull();
+  });
 });

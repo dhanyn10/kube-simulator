@@ -5,19 +5,44 @@ import { BaseNode } from './BaseNode';
 import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
 import { PodConfigMapVars } from './PodConfigMapVars';
+import { getAssignedWorker, WORKER_NODES } from '@/lib/workerNodeHelpers';
+import { getPodReplicaInfo } from '@/lib/podReplicaHelpers';
+import { cn } from '@/lib/utils';
+import { usePodOverlapAutoCorrection } from '@/activities/nodes';
 
 export const PodNode = memo((props: NodeProps) => {
+  usePodOverlapAutoCorrection(props.id);
+
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
+  const { isStackedPod } = getPodReplicaInfo({
+    ...data,
+    type: data?.type || (props.type as any) || 'Pod',
+    parentId: (props as any).parentId || data?.parentId,
+  });
 
   const showImage = Boolean(data.displaySettings?.image !== false && data.image);
   const showRestart = Boolean(data.displaySettings?.restartPolicy !== false);
   const restartPolicy = data.restartPolicy || 'Always';
   const showResources = Boolean(data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit));
+  const showNode = Boolean(!isStackedPod && data.displaySettings?.assignedNode !== false);
+  const assignedWorker = getAssignedWorker(data, props.id);
+  const workerInfo = WORKER_NODES[assignedWorker];
 
   return (
     <BaseNode {...props} data={data} title="Pod" icon={Box} color="cyan" id={props.id} type={props.type}>
       <div className="space-y-1 mt-1">
+        {showNode && (
+          <div className="flex justify-between items-center text-[9px] font-mono gap-1">
+            <span className={colorMode === 'dark' ? "text-slate-500 shrink-0" : "text-slate-400 shrink-0"}>node:</span>
+            <span
+              className={cn("font-bold truncate text-right min-w-0 font-mono", workerInfo.badgeText)}
+              title={`Worker Node: ${workerInfo.name} (${workerInfo.ip})`}
+            >
+              {workerInfo.name}
+            </span>
+          </div>
+        )}
         {showImage && (
           <div className="flex justify-between items-center text-[9px] font-mono gap-1">
             <span className={colorMode === 'dark' ? "text-slate-500 shrink-0" : "text-slate-400 shrink-0"}>image:</span>

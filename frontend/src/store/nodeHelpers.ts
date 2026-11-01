@@ -11,13 +11,17 @@ import { calculateDeploymentLayoutWithYoga } from './deploymentYogaLayout';
 
 export const attachHandlers = createNodeHandlers;
 
-export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
-  // Pre-pass Migration Converter: Convert legacy standalone Secret cards into attached secret items on target nodes
-  const preparedNodes = nodes.map(n => ({ ...n, data: { ...n.data } }));
-  preparedNodes.forEach((node) => {
+export const isChildPodOf = (node: Node, containerId: string): boolean => {
+  if (node.type !== 'Pod') return false;
+  const parentId = node.parentId ?? (node.data as any)?.parentId;
+  return parentId !== undefined && String(parentId) === String(containerId);
+};
+
+const migrateLegacySecrets = (nodes: any[]) => {
+  nodes.forEach((node) => {
     if (node.type === 'Secret' && node.data?.configData && Array.isArray(node.data.configData)) {
       const parentId = node.parentId;
-      const targetNode = parentId ? preparedNodes.find(n => n.id === parentId) : null;
+      const targetNode = parentId ? nodes.find(n => n.id === parentId) : null;
       if (targetNode) {
         const legacySecretItem = {
           id: node.id,
@@ -32,8 +36,32 @@ export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
       }
     }
   });
+};
 
-  let nextNodes = preparedNodes.map(node => {
+const layoutWorkloadContainers = (nodes: any[], get: () => FlowState): any[] => {
+  let nextNodes = nodes;
+  const workloads = nextNodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet');
+  workloads.forEach(dept => {
+    const childPods = nextNodes.filter(n => isChildPodOf(n, dept.id));
+    const deptWithReplicas = {
+      ...dept,
+      data: {
+        ...dept.data,
+        replicas: childPods.length > 0 ? Math.max(dept.data?.replicas || 0, childPods.length) : (dept.data?.replicas || 0)
+      }
+    };
+    const { updatedDeployment, laidOut } = syncDeployment(deptWithReplicas, nextNodes, 0, get);
+    nextNodes = nextNodes.filter(n => !isChildPodOf(n, dept.id));
+    nextNodes = [...nextNodes.map(n => n.id === dept.id ? updatedDeployment : n), ...laidOut];
+  });
+  return nextNodes;
+};
+
+export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
+  const preparedNodes = nodes.map(n => ({ ...n, data: { ...n.data } }));
+  migrateLegacySecrets(preparedNodes);
+
+  const hydrated = preparedNodes.map(node => {
     const handlers = attachHandlers(node.id, get);
     
     const defaultInitialData = getInitialData(node.type, node.id, get);
@@ -63,13 +91,7 @@ export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
     };
   });
 
-  const workloads = nextNodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet');
-  workloads.forEach(dept => {
-    const { updatedDeployment, laidOut } = syncDeployment(dept, nextNodes, 0, get);
-    nextNodes = nextNodes.filter(n => n.parentId !== dept.id || n.type !== 'Pod');
-    nextNodes = [...nextNodes.map(n => n.id === dept.id ? updatedDeployment : n), ...laidOut];
-  });
-
+  const nextNodes = layoutWorkloadContainers(hydrated, get);
   return resolveGlobalCollisions(nextNodes);
 };
 
@@ -82,15 +104,15 @@ export const syncDeployment = (
   forceRandomize = false
 ) => {
   const data = getNodeData(deployment);
+  let pods = currentNodes.filter(n => isChildPodOf(n, deployment.id));
+  if (podToInclude) {
+    pods = [podToInclude, ...pods.filter(p => p.id !== podToInclude.id)];
+  }
+
   const updatedDeployment = {
     ...deployment,
     data: { ...data, replicas: Math.max(0, Math.min(1000, (data.replicas || 0) + replicasChange)) }
   };
-  
-  let pods = currentNodes.filter(n => n.parentId === deployment.id && n.type === 'Pod');
-  if (podToInclude) {
-      pods = [podToInclude, ...pods.filter(p => p.id !== podToInclude.id)];
-  }
 
   const syncedPods = syncPodsInDeployment(updatedDeployment, pods, pods[0], forceRandomize);
 
@@ -107,8 +129,10 @@ export const syncDeployment = (
 
   const withHandlers = syncedPods.map(p => ({ 
     ...p, 
+    parentId: deployment.id,
     data: {
       ...p.data,
+      parentId: deployment.id,
       ...attachHandlers(p.id, get)
     }
   }));

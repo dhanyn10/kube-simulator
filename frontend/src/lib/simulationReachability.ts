@@ -1,5 +1,6 @@
 import { Node, Edge } from '@xyflow/react';
 import { SimulationContext } from './simulationTypes';
+import { getAssignedWorker } from './workerNodeHelpers';
 
 /**
  * Helper to check if a Service's selector matches a target workload's label.
@@ -80,6 +81,38 @@ const isServiceValidForProcessing = (
   return hasWorkloadTarget || hasIngressTarget;
 };
 
+const isTargetOnEntryNode = (
+  node: Node,
+  nodes: Node[],
+  entryNode: string
+): boolean => {
+  if (node.type === 'Pod') {
+    return getAssignedWorker(node.data, node.id) === entryNode;
+  }
+  const childPods = nodes.filter(
+    child =>
+      child.type === 'Pod' &&
+      (String(child.parentId) === String(node.id) || String(child.data?.parentId) === String(node.id))
+  );
+  if (childPods.length > 0) {
+    return childPods.some(child => getAssignedWorker(child.data, child.id) === entryNode);
+  }
+  return getAssignedWorker(node.data, node.id) === entryNode;
+};
+
+const isLocalPolicyBlocked = (
+  currentNode: Node,
+  target: Node,
+  nodes: Node[]
+): boolean => {
+  const serviceType = currentNode.data?.serviceType || 'ClusterIP';
+  if (serviceType !== 'NodePort' && serviceType !== 'LoadBalancer') return false;
+  if (currentNode.data?.externalTrafficPolicy !== 'Local') return false;
+
+  const entryNode = currentNode.data?.entryNode || 'worker-1';
+  return !isTargetOnEntryNode(target, nodes, entryNode);
+};
+
 const enqueueDynamicServiceTargets = (
   currentNode: Node,
   nodes: Node[] | undefined,
@@ -88,7 +121,8 @@ const enqueueDynamicServiceTargets = (
   if (currentNode.type !== 'Service' || !nodes) return;
   const selectorTargets = nodes.filter(node =>
     (node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet') &&
-    isServiceSelectorMatching(currentNode, node)
+    isServiceSelectorMatching(currentNode, node) &&
+    !isLocalPolicyBlocked(currentNode, node, nodes)
   );
   for (const target of selectorTargets) {
     queue.push(String(target.id));

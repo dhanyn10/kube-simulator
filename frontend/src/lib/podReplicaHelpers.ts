@@ -23,8 +23,9 @@ export const getPodReplicaInfo = (data?: Partial<K8sNodeData>): PodReplicaInfo =
   const replicas = (data?.replicas as number) || 1;
   const parentReplicas = (data?.parentReplicas as number) || 0;
   const totalReplicas = parentReplicas > 0 ? parentReplicas : replicas;
+  const isPod = !data?.type || data.type === 'Pod';
   const isStackedPod =
-    data?.type === 'Pod' &&
+    isPod &&
     (parentReplicas > POD_SEPARATED_THRESHOLD || (replicas > POD_SEPARATED_THRESHOLD && !data?.parentId));
   const isStackedCard = isStackedPod && replicas > 1;
   const isMegaPod = replicas >= POD_MEGA_THRESHOLD || parentReplicas >= POD_MEGA_THRESHOLD;

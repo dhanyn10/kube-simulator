@@ -21,7 +21,7 @@ import {
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 import { hasResourceLimitAttachedOrConnected } from '@/activities/nodes/resourceLimitHelpers';
 import { evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
-import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
+import { syncDeployment, syncContainerSize, isChildPodOf } from '@/store/nodeHelpers';
 
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';
@@ -502,7 +502,7 @@ const syncParentContainersOnDimensionChange = (
     const isController = Boolean(parent?.type && WORKLOAD_CONTROLLERS.has(parent.type));
     if (isController && parent) {
       const { updatedDeployment, laidOut } = syncDeployment(parent, containerSyncedNodes, 0, get);
-      const others = containerSyncedNodes.filter((n) => n.id !== parent.id && n.parentId !== parent.id);
+      const others = containerSyncedNodes.filter((n) => n.id !== parent.id && !isChildPodOf(n, parent.id));
       containerSyncedNodes = [...others, updatedDeployment, ...laidOut];
     } else if (parentId) {
       containerSyncedNodes = syncContainerSize(parentId, containerSyncedNodes);

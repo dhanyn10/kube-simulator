@@ -1,10 +1,13 @@
+import React, { useState } from 'react';
 import { useFlowStore } from '@/store';
-import { AlertTriangle, Box, Layers, RotateCcw, Server, Activity } from 'lucide-react';
+import { AlertTriangle, Box, Layers, RotateCcw, Server, Activity, Boxes } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ConfigSection, NumberStepper } from '@/components/UI/ConfigUI';
 import { ImageDropdown } from '@/components/UI/ImageDropdown';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { useWorkloadConfigHandler } from '@/activities/config';
+import { getAssignedWorker } from '@/lib/workerNodeHelpers';
+import { WorkloadPodsModal } from '@/components/Modals';
 
 interface WorkloadConfigProps {
   selectedNode: any;
@@ -26,6 +29,7 @@ export const WorkloadConfig = ({
 }: WorkloadConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const { replicaValue, updateReplicas, pvcInfo, hpaInfo } = useWorkloadConfigHandler(selectedNode);
+  const [isPodsModalOpen, setIsPodsModalOpen] = useState(false);
 
   const data = selectedNode.data;
 
@@ -110,6 +114,37 @@ export const WorkloadConfig = ({
         </div>
       </ConfigSection>
 
+      {/* Button for Replicas > 3 to open Pod List & Setup Modal */}
+      {replicaValue > 3 && (
+        <button
+          type="button"
+          data-testid="open-workload-pods-modal-btn"
+          onClick={() => setIsPodsModalOpen(true)}
+          className={cn(
+            "w-full flex items-center justify-between p-2.5 rounded-lg border text-xs font-semibold transition-all shadow-sm group",
+            colorMode === 'dark'
+              ? "bg-slate-900/90 border-blue-500/40 text-blue-300 hover:border-blue-400 hover:bg-slate-800/90 hover:text-blue-200"
+              : "bg-blue-50/80 border-blue-200 text-blue-700 hover:border-blue-400 hover:bg-blue-100/70 hover:text-blue-900"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <Boxes size={15} className="text-blue-400 shrink-0 group-hover:scale-110 transition-transform" />
+            <div className="text-left">
+              <div className="font-bold leading-tight">Pod List & Setup</div>
+              <div className="text-[10px] opacity-75 font-mono">{replicaValue} replicas breakdown</div>
+            </div>
+          </div>
+          <span
+            className={cn(
+              "px-1.5 py-0.5 rounded text-[10px] font-mono font-bold shrink-0",
+              colorMode === 'dark' ? "bg-blue-500/20 text-blue-300" : "bg-blue-200/60 text-blue-800"
+            )}
+          >
+            {replicaValue} Pods
+          </span>
+        </button>
+      )}
+
       {/* Pod Specific Main Settings */}
       {selectedNode.type === 'Pod' && (
         <>
@@ -147,7 +182,37 @@ export const WorkloadConfig = ({
               colorMode={colorMode}
             />
           </ConfigSection>
+
+          {/* Assigned Worker Node - hidden when replicas > 3 */}
+          {replicaValue <= 3 && (
+            <ConfigSection
+              title="Worker Node"
+              icon={Server}
+              isVisible={data.displaySettings?.assignedNode}
+              onToggle={() => toggleVisibility('assignedNode')}
+            >
+              <SelectorGroup
+                options={[
+                  { id: 'worker-1', label: 'worker-1' },
+                  { id: 'worker-2', label: 'worker-2' },
+                  { id: 'worker-3', label: 'worker-3' },
+                ]}
+                currentValue={getAssignedWorker(data, selectedNode.id)}
+                onSelect={(val) => performUpdate({ assignedNode: val })}
+                colorMode={colorMode}
+              />
+            </ConfigSection>
+          )}
         </>
+      )}
+
+      {/* Workload Pods Modal */}
+      {isPodsModalOpen && (
+        <WorkloadPodsModal
+          isOpen={isPodsModalOpen}
+          onClose={() => setIsPodsModalOpen(false)}
+          selectedNode={selectedNode}
+        />
       )}
     </div>
   );

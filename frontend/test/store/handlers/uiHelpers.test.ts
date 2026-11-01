@@ -5,6 +5,7 @@ import {
   classifyNodes,
   createLogLineForResource,
   simulateAllResourceLogs,
+  createServiceKubeProxyLog,
   removeUserFromRole,
   purgeUserFromNodes,
   renameUserInNodeRoles,
@@ -154,6 +155,74 @@ describe('uiHelpers', () => {
       const log = createLogLineForResource(node, dynamicPoint);
       expect(log).toContain('503');
       expect(log).toContain('web-pod');
+    });
+  });
+
+  describe('createServiceKubeProxyLog', () => {
+    it('returns null for ClusterIP service or service without selector', () => {
+      const clusterSvc: Node = { id: 's1', type: 'Service', position: { x: 0, y: 0 }, data: { serviceType: 'ClusterIP', selector: 'app' } };
+      expect(createServiceKubeProxyLog(clusterSvc, [])).toBeNull();
+
+      const noSelSvc: Node = { id: 's2', type: 'Service', position: { x: 0, y: 0 }, data: { serviceType: 'NodePort' } };
+      expect(createServiceKubeProxyLog(noSelSvc, [])).toBeNull();
+    });
+
+    it('returns null when no matching workload target exists', () => {
+      const svc: Node = { id: 's1', type: 'Service', position: { x: 0, y: 0 }, data: { serviceType: 'NodePort', selector: 'backend' } };
+      expect(createServiceKubeProxyLog(svc, [{ id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'frontend' } }])).toBeNull();
+    });
+
+    it('generates dropped log when externalTrafficPolicy is Local and target pod is on another worker', () => {
+      const svc: Node = {
+        id: 's1',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { serviceType: 'NodePort', selector: 'app', entryNode: 'worker-1', externalTrafficPolicy: 'Local' },
+      };
+      const pod: Node = {
+        id: 'p1',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: { label: 'app', assignedNode: 'worker-2' },
+      };
+      const log = createServiceKubeProxyLog(svc, [pod]);
+      expect(log).toContain('externalTrafficPolicy=Local');
+      expect(log).toContain('Packet dropped');
+    });
+
+    it('generates extra hop log when externalTrafficPolicy is Cluster and target pod is on another worker', () => {
+      const svc: Node = {
+        id: 's1',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { serviceType: 'NodePort', selector: 'app', entryNode: 'worker-1', externalTrafficPolicy: 'Cluster' },
+      };
+      const pod: Node = {
+        id: 'p1',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: { label: 'app', assignedNode: 'worker-3' },
+      };
+      const log = createServiceKubeProxyLog(svc, [pod]);
+      expect(log).toContain('[Node Hop]');
+      expect(log).toContain('SNAT');
+    });
+
+    it('generates direct local routing log when target pod is on same entry node', () => {
+      const svc: Node = {
+        id: 's1',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { serviceType: 'NodePort', selector: 'app', entryNode: 'worker-1', externalTrafficPolicy: 'Cluster' },
+      };
+      const pod: Node = {
+        id: 'p1',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: { label: 'app', assignedNode: 'worker-1' },
+      };
+      const log = createServiceKubeProxyLog(svc, [pod]);
+      expect(log).toContain('Direct local routing');
     });
   });
 

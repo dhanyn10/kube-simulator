@@ -1,6 +1,7 @@
 import type { FlowState } from '@/store/types';
 import { Node } from '@xyflow/react';
 import { safeRandom } from '@/lib/utils';
+import { pickKubeProxyRoute, resolveServiceEndpointPods } from '@/lib/workerNodeHelpers';
 
 /**
  * Parses settings JSON string and applies valid fields to state.
@@ -84,13 +85,42 @@ export const classifyNodes = (currentNodes: Node[]) => {
 };
 
 /**
+ * Formats a live kube-proxy log line for NodePort or LoadBalancer services.
+ */
+export const createServiceKubeProxyLog = (node: Node, allNodes: Node[]): string | null => {
+  const serviceType = node.data?.serviceType || 'ClusterIP';
+  if (serviceType !== 'NodePort' && serviceType !== 'LoadBalancer') return null;
+
+  const endpoints = resolveServiceEndpointPods(node.data?.selector as string | undefined, allNodes);
+  const route = pickKubeProxyRoute(node.data, endpoints, safeRandom());
+  if (!route) return null;
+
+  const timestamp = new Date().toISOString();
+  const svcName = node.data?.label || node.id;
+  const prefix = `[${timestamp}] [kube-proxy] svc/${svcName}`;
+
+  if (route.isDropped) {
+    return `${prefix} externalTrafficPolicy=Local: No local endpoints on ${route.entryNode} (0/${route.endpointCount}). Packet dropped (client IP preserved).`;
+  }
+  if (route.isExtraHop) {
+    return `${prefix} [Node Hop] Ingress on ${route.entryNode} (${route.entryNodeIp}) -> Extra hop to ${route.targetNode} (${route.targetNodeIp}) via SNAT.`;
+  }
+  return `${prefix} Ingress on ${route.entryNode} -> Direct local routing to ${route.targetNode} (${route.localEndpointCount}/${route.endpointCount} local endpoints, client IP preserved).`;
+};
+
+/**
  * Generates continuous background log lines for a specific resource node.
  *
  * @param node Target resource node
  * @param point Optional simulation metric point
+ * @param allNodes Optional list of all canvas nodes
  * @returns Log line string or null
  */
-export const createLogLineForResource = (node: Node, point?: any): string | null => {
+export const createLogLineForResource = (node: Node, point?: any, allNodes?: Node[]): string | null => {
+  if (node.type === 'Service') {
+    return allNodes ? createServiceKubeProxyLog(node, allNodes) : null;
+  }
+
   const timestamp = new Date().toISOString();
   const name = node.data.label || node.id;
 
@@ -124,30 +154,39 @@ export const simulateAllResourceLogs = (
   metrics: Record<string, any[]>,
   set: (partial: Partial<FlowState> | ((state: FlowState) => Partial<FlowState>)) => void
 ) => {
-  const loggableNodes = nodes.filter(n => ['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(n.type));
+  const loggableNodes = nodes.filter(n => ['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet', 'Service'].includes(n.type));
   if (loggableNodes.length === 0) return;
 
   const newLogEntries: Record<string, string[]> = {};
+  const newActivityLines: string[] = [];
 
   for (const node of loggableNodes) {
     const metricKey = node.parentId || node.id;
     const points = metrics[metricKey] || [];
     const lastPoint = points.at(-1);
 
-    const logLine = createLogLineForResource(node, lastPoint);
+    const logLine = createLogLineForResource(node, lastPoint, nodes);
     if (logLine) {
       newLogEntries[node.id] = [logLine];
+      if (node.type === 'Service') {
+        newActivityLines.push(logLine);
+      }
     }
   }
 
-  if (Object.keys(newLogEntries).length > 0) {
+  if (Object.keys(newLogEntries).length > 0 || newActivityLines.length > 0) {
     set((state) => {
       const updatedTerminalLogs = { ...state.terminalLogs };
       for (const [id, lines] of Object.entries(newLogEntries)) {
         const existing = updatedTerminalLogs[id] || [];
         updatedTerminalLogs[id] = [...existing, ...lines].slice(-150);
       }
-      return { terminalLogs: updatedTerminalLogs };
+      return {
+        terminalLogs: updatedTerminalLogs,
+        ...(newActivityLines.length > 0
+          ? { activityLogs: [...state.activityLogs, ...newActivityLines].slice(-200) }
+          : {}),
+      };
     });
   }
 };

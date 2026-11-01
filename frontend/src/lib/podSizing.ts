@@ -45,9 +45,11 @@ export const calculatePodWidth = (
 };
 
 export const calculatePodBaseHeight = (data: Partial<K8sNodeData>, _width: number, badges: string[], isMegaPod: boolean) => {
-  const { showDashedProgress } = getPodReplicaInfo(data);
+  const { showDashedProgress, isStackedPod } = getPodReplicaInfo(data);
   let height = 80;
   if (showDashedProgress) height += isMegaPod ? 120 : 16;
+  const isPod = !data.type || data.type === 'Pod';
+  if (isPod && !isStackedPod && data.displaySettings?.assignedNode !== false) height += 20;
   if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit || data.cpuRequest || data.memoryRequest)) height += 38;
   if (data.displaySettings?.restartPolicy !== false) height += 24;
   if (badges.length > 0) height += 20;
@@ -106,16 +108,24 @@ export const calculatePodHeight = (
   return baseHeight + contentHeight + attachedHeight + configMapVarsHeight;
 };
 
+export const getPodVisibleBadges = (data: Partial<K8sNodeData> = {}): string[] => {
+  const isPod = !data.type || data.type === 'Pod';
+  const { isStackedPod } = getPodReplicaInfo(data);
+  const showRuntime = Boolean(data.displaySettings?.runtime !== false && data.runtime && data.runtime !== 'none');
+  const showWebserver = Boolean(data.displaySettings?.webserver !== false && data.webserver && data.webserver !== 'none');
+  const showNodeBadge = Boolean(isPod && !isStackedPod && data.displaySettings?.assignedNode !== false);
+  const badges: string[] = [];
+  if (showNodeBadge) badges.push(String(data.assignedNode || 'worker-1').toUpperCase());
+  if (showRuntime && data.runtime) badges.push(String(data.runtime));
+  if (showWebserver && data.webserver) badges.push(String(data.webserver));
+  return badges;
+};
+
 export const getPodMinimumSize = (
   data: Partial<K8sNodeData> = {},
   parentData?: Partial<K8sNodeData>
 ) => {
-  const showRuntime = Boolean(data.displaySettings?.runtime !== false && data.runtime && data.runtime !== 'none');
-  const showWebserver = Boolean(data.displaySettings?.webserver !== false && data.webserver && data.webserver !== 'none');
-  const visibleBadges: string[] = [];
-  if (showRuntime && data.runtime) visibleBadges.push(String(data.runtime));
-  if (showWebserver && data.webserver) visibleBadges.push(String(data.webserver));
-
+  const visibleBadges = getPodVisibleBadges(data);
   const { isMegaPod } = getPodReplicaInfo(data);
   const width = calculatePodWidth(data, visibleBadges, parentData);
   const height = calculatePodHeight(data, width, visibleBadges, isMegaPod, parentData);

@@ -107,10 +107,13 @@ export interface K8sNodeData {
   [key: string]: any;
   label: string;
   type: K8sResourceType;
-  workloadType?: 'Deployment' | 'StatefulSet';
+  workloadType?: 'Deployment' | 'StatefulSet' | 'ReplicaSet';
   replicas?: number;
   image?: string;
   serviceType?: 'ClusterIP' | 'NodePort' | 'LoadBalancer';
+  externalTrafficPolicy?: 'Cluster' | 'Local';
+  entryNode?: 'worker-1' | 'worker-2' | 'worker-3';
+  assignedNode?: 'worker-1' | 'worker-2' | 'worker-3';
   port?: number;
   targetPort?: number;
   nodePort?: number;

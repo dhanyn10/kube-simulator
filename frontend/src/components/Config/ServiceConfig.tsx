@@ -3,6 +3,7 @@ import { useFlowStore } from '@/store';
 import { Network, Box, Server, ChevronDown, Check, Lock } from 'lucide-react';
 import { ConfigSection } from '@/components/UI/ConfigUI';
 import { cn } from '@/lib/utils';
+import { ExternalTrafficPolicySection, EntryNodeSection } from './ServiceWorkerConfigSections';
 
 interface ServiceConfigProps {
   selectedNode: any;
@@ -505,25 +506,42 @@ export const ServiceConfig = ({
 
       {/* NodePort Configuration (Only for NodePort or LoadBalancer) */}
       {showNodePort && (
-        <ConfigSection
-          title="NodePort"
-          icon={Network}
-          isVisible={data.displaySettings?.nodePort}
-          onToggle={() => toggleVisibility('nodePort')}
-          isYamlEnabled={data.yamlSettings?.nodePort}
-          onYamlToggle={() => toggleYaml('nodePort')}
-          disableYamlToggle={Boolean(data.nodePort) === false}
-        >
-          <input
-            type="number"
-            min={30000}
-            max={32767}
-            value={data.nodePort ?? ''}
-            onChange={(e: any) => performUpdate({ nodePort: e.target.value ? Number.parseInt(e.target.value, 10) : undefined })}
-            placeholder="30000-32767 (Optional)"
-            className={cn('w-full text-[10px] p-2 rounded border outline-none font-mono', inputFieldClasses)}
+        <>
+          <ConfigSection
+            title="NodePort"
+            icon={Network}
+            isVisible={data.displaySettings?.nodePort}
+            onToggle={() => toggleVisibility('nodePort')}
+            isYamlEnabled={data.yamlSettings?.nodePort}
+            onYamlToggle={() => toggleYaml('nodePort')}
+            disableYamlToggle={Boolean(data.nodePort) === false}
+          >
+            <input
+              type="number"
+              min={30000}
+              max={32767}
+              value={data.nodePort ?? ''}
+              onChange={(e: any) => performUpdate({ nodePort: e.target.value ? Number.parseInt(e.target.value, 10) : undefined })}
+              placeholder="30000-32767 (Optional)"
+              className={cn('w-full text-[10px] p-2 rounded border outline-none font-mono', inputFieldClasses)}
+            />
+          </ConfigSection>
+
+          <ExternalTrafficPolicySection
+            data={data}
+            colorMode={colorMode}
+            performUpdate={performUpdate}
+            toggleVisibility={toggleVisibility}
+            toggleYaml={toggleYaml}
           />
-        </ConfigSection>
+
+          <EntryNodeSection
+            data={data}
+            colorMode={colorMode}
+            performUpdate={performUpdate}
+            toggleVisibility={toggleVisibility}
+          />
+        </>
       )}
 
       {/* Primary Port Configuration */}

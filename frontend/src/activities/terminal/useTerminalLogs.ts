@@ -37,7 +37,7 @@ export const useTerminalLogs = ({
 
   // Filter workloads that can produce logs
   const loggableResources = useMemo(() => {
-    return nodes.filter(n => ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type));
+    return nodes.filter(n => ['Pod', 'Deployment', 'ReplicaSet', 'Service'].includes(n.type));
   }, [nodes]);
 
   // Automatically select a resource if none is selected and one is available
