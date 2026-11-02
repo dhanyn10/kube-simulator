@@ -1,4 +1,4 @@
-import { calculateResourceTotals } from './resourceBudgetHelpers';
+import { calculateResourceTotals, calculateWorkloadLimitMetrics } from './resourceBudgetHelpers';
 
 export interface LocalHardwareSpecs {
   readonly cpuCores: number;
@@ -58,6 +58,9 @@ export interface ClusterBudgetResult {
   };
   readonly isWorkloadDeficit: boolean;
   readonly statusLevel: BudgetStatusLevel;
+  readonly realHardwarePodCapacity: number;
+  readonly isPodCapacityExceeded: boolean;
+  readonly capacitySubtitle: string;
 }
 
 const determineStatusLevel = (
@@ -72,6 +75,41 @@ const determineStatusLevel = (
     return 'warning';
   }
   return 'safe';
+};
+
+interface HardwareCapacityEvaluation {
+  realCapacity: number;
+  subtitle: string;
+}
+
+const evaluateHardwarePodCapacity = (
+  totalClusterCpu: number,
+  totalClusterMemoryGb: number,
+  limitMetrics: ReturnType<typeof calculateWorkloadLimitMetrics>,
+  kubeletLimit: number
+): HardwareCapacityEvaluation => {
+  if (limitMetrics.constrainedPodCount > 0) {
+    const avgCpuLimMilli = limitMetrics.totalCpuLimMilli / limitMetrics.constrainedPodCount;
+    const avgMemLimMiB = limitMetrics.totalMemLimMiB / limitMetrics.constrainedPodCount;
+    const clusterCpuMilli = totalClusterCpu * 1000;
+    const clusterMemMiB = totalClusterMemoryGb * 1024;
+
+    const cpuCapacity = avgCpuLimMilli > 0 ? Math.floor(clusterCpuMilli / avgCpuLimMilli) : Number.POSITIVE_INFINITY;
+    const memCapacity = avgMemLimMiB > 0 ? Math.floor(clusterMemMiB / avgMemLimMiB) : Number.POSITIVE_INFINITY;
+    const limitCapacity = Math.min(cpuCapacity, memCapacity);
+    const realCapacity = Math.max(1, limitCapacity);
+    const bottleneck = cpuCapacity <= memCapacity ? 'CPU limit' : 'Memory limit';
+
+    return {
+      realCapacity,
+      subtitle: `Hardware capacity: ~${realCapacity} pods (${bottleneck})`,
+    };
+  }
+
+  return {
+    realCapacity: kubeletLimit,
+    subtitle: '110 pods/node limit (unbounded limits)',
+  };
 };
 
 /**
@@ -103,6 +141,15 @@ export const calculateClusterBudget = ({
 
   const statusLevel = determineStatusLevel(isLocalOverloaded, isWorkloadDeficit, safeWorkerCount);
 
+  const limitMetrics = calculateWorkloadLimitMetrics(nodes as any[]);
+  const { realCapacity, subtitle } = evaluateHardwarePodCapacity(
+    totalClusterCpu,
+    totalClusterMemoryGb,
+    limitMetrics,
+    maxPodsCapacity
+  );
+  const isPodCapacityExceeded = maxPodsCapacity > realCapacity;
+
   return {
     workerCount: safeWorkerCount,
     vCpuPerWorker: safeCpu,
@@ -121,6 +168,9 @@ export const calculateClusterBudget = ({
     },
     isWorkloadDeficit,
     statusLevel,
+    realHardwarePodCapacity: realCapacity,
+    isPodCapacityExceeded,
+    capacitySubtitle: subtitle,
   };
 };
 

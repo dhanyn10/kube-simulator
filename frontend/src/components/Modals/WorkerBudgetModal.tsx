@@ -236,6 +236,8 @@ interface CapacityCardsProps {
   readonly cpuPercent: number;
   readonly memPercent: number;
   readonly isOverloaded: boolean;
+  readonly isPodCapacityExceeded?: boolean;
+  readonly capacitySubtitle?: string;
 }
 
 const WorkerCapacityCards: React.FC<CapacityCardsProps> = ({
@@ -246,6 +248,8 @@ const WorkerCapacityCards: React.FC<CapacityCardsProps> = ({
   cpuPercent,
   memPercent,
   isOverloaded,
+  isPodCapacityExceeded = false,
+  capacitySubtitle = '110 pods/node limit',
 }) => (
   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
     <div className={cn("p-3 rounded-xl border", isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200")}>
@@ -265,11 +269,30 @@ const WorkerCapacityCards: React.FC<CapacityCardsProps> = ({
     </div>
 
     <div className={cn("p-3 rounded-xl border", isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200")}>
-      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Max Pods Capacity</div>
-      <div className={cn("text-lg font-mono font-extrabold text-emerald-400 mt-0.5")}>
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Max Pods Capacity</div>
+        {isPodCapacityExceeded ? (
+          <span
+            data-testid="pod-capacity-warning-badge"
+            className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30"
+          >
+            Exceeds Limits
+          </span>
+        ) : (
+          <span
+            data-testid="pod-capacity-normal-badge"
+            className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+          >
+            Normal
+          </span>
+        )}
+      </div>
+      <div className={cn("text-lg font-mono font-extrabold mt-0.5", isPodCapacityExceeded ? "text-amber-400" : "text-emerald-400")}>
         {maxPods} Pods
       </div>
-      <div className="text-[10px] text-slate-500 mt-1">110 pods/node limit</div>
+      <div data-testid="pod-capacity-subtitle" className="text-[10px] text-slate-500 mt-1 truncate" title={capacitySubtitle}>
+        {capacitySubtitle}
+      </div>
     </div>
   </div>
 );
@@ -418,6 +441,8 @@ export const WorkerBudgetModal: React.FC<WorkerBudgetModalProps> = ({
             cpuPercent={budget.cpuUsagePercentOfLocal}
             memPercent={budget.memUsagePercentOfLocal}
             isOverloaded={budget.isLocalOverloaded}
+            isPodCapacityExceeded={budget.isPodCapacityExceeded}
+            capacitySubtitle={budget.capacitySubtitle}
           />
 
           <WorkerBudgetNoticeBanner

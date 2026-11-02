@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateResourceTotals } from '@/activities/monitoring/resourceBudgetHelpers';
+import { calculateResourceTotals, calculateWorkloadLimitMetrics } from '@/activities/monitoring/resourceBudgetHelpers';
 
 describe('resourceBudgetHelpers', () => {
   it('returns default zero values for empty nodes array or non-workload nodes', () => {
@@ -40,5 +40,19 @@ describe('resourceBudgetHelpers', () => {
     const unconstrainedNodes = [{ id: 'pod-no-limit', type: 'Pod', data: { cpuRequest: '250m', memoryRequest: '256Mi' } }];
     const unconstrainedResult = calculateResourceTotals(unconstrainedNodes);
     expect(unconstrainedResult.hasMissingLimits).toBe(true);
+  });
+
+  it('calculates workload limit metrics correctly for constrained and unconstrained workloads', () => {
+    const nodes = [
+      { id: 'dep-1', type: 'Deployment', data: { replicas: 3, cpuLimit: '500m', memoryLimit: '512Mi' } },
+      { id: 'pod-free', type: 'Pod', data: { replicas: 1 } },
+      { id: 'child-pod', type: 'Pod', parentId: 'dep-1', data: { replicas: 1, cpuLimit: '500m' } },
+      { id: 'svc', type: 'Service', data: {} },
+    ];
+    const metrics = calculateWorkloadLimitMetrics(nodes);
+    expect(metrics.totalPodCount).toBe(4);
+    expect(metrics.constrainedPodCount).toBe(3);
+    expect(metrics.totalCpuLimMilli).toBe(1500);
+    expect(metrics.totalMemLimMiB).toBe(1536);
   });
 });

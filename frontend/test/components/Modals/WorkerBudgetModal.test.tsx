@@ -24,6 +24,30 @@ describe('WorkerBudgetModal', () => {
     expect(screen.getByText('Cluster Worker Nodes & Hardware Budget')).toBeDefined();
     expect(screen.getByTestId('worker-count-display')).toBeDefined();
     expect(screen.getByTestId('cluster-budget-status-badge')).toBeDefined();
+    expect(screen.getByTestId('pod-capacity-normal-badge')).toBeDefined();
+    expect(screen.getByTestId('pod-capacity-subtitle')).toBeDefined();
+  });
+
+  it('renders Exceeds Limits badge and dynamic hardware capacity subtitle when workloads define resource limits', () => {
+    const limitedPod = {
+      id: 'limited-pod',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'limited-pod',
+        replicas: 1,
+        cpuLimit: '2000m',
+        memoryLimit: '4096Mi',
+      },
+    };
+    useFlowStore.setState({ nodes: [limitedPod as any] });
+
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+
+    expect(screen.getByTestId('pod-capacity-warning-badge')).toBeDefined();
+    expect(screen.getByText('Exceeds Limits')).toBeDefined();
+    const subtitle = screen.getByTestId('pod-capacity-subtitle');
+    expect(subtitle.textContent).toContain('Hardware capacity:');
   });
 
   it('does not render when closed', () => {
