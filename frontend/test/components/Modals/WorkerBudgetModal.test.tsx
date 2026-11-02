@@ -201,4 +201,35 @@ describe('WorkerBudgetModal', () => {
     expect(useFlowStore.getState().isWorkerBudgetModalOpen).toBe(false);
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('supports right-click context menu with Change Theme and Close options in dark and light modes', () => {
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+
+    const modalBackdrop = screen.getByTestId('worker-budget-modal').parentElement!;
+    fireEvent.contextMenu(modalBackdrop, { clientX: 200, clientY: 300 });
+
+    expect(screen.getByTestId('worker-budget-context-menu')).toBeInTheDocument();
+    expect(screen.getByText('Change Theme')).toBeInTheDocument();
+    expect(screen.getByText('Close')).toBeInTheDocument();
+
+    // Test toggle theme
+    const themeBtn = screen.getByTestId('worker-budget-menu-theme');
+    fireEvent.click(themeBtn);
+    expect(useFlowStore.getState().colorMode).toBe('light');
+
+    // Reopen context menu in light mode
+    fireEvent.contextMenu(modalBackdrop, { clientX: 220, clientY: 320 });
+    const closeBtn = screen.getByTestId('worker-budget-menu-close');
+    fireEvent.click(closeBtn);
+
+    expect(useFlowStore.getState().isWorkerBudgetModalOpen).toBe(false);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('closes modal on Escape key press', () => {
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+    fireEvent.keyDown(globalThis, { key: 'Escape' });
+    expect(useFlowStore.getState().isWorkerBudgetModalOpen).toBe(false);
+    expect(onClose).toHaveBeenCalled();
+  });
 });

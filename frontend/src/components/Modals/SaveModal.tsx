@@ -129,7 +129,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
             <h4 className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
               Recent Files & Auto-Saved Profiles
             </h4>
-            <span className="text-[10px] text-slate-500 font-mono">Right-click profile for menu (Change Theme, Restore, Exit)</span>
+            <span className="text-[10px] text-slate-500 font-mono">Right-click profile for menu (Change Theme, Restore, Close)</span>
           </div>
 
           <div className="overflow-x-auto max-h-56 overflow-y-auto rounded-xl border custom-scrollbar">
@@ -219,7 +219,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
           </div>
         </div>
 
-        {/* Dedicated Context Menu for Profile Items (3 Options: Change Theme, Restore, Exit) */}
+        {/* Dedicated Context Menu for Profile Items (3 Options: Change Theme, Restore, Close) */}
         {contextMenu && (
           <div
             ref={contextMenuRef}
@@ -313,7 +313,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
               )}
             >
               <X size={14} />
-              <span>Exit</span>
+              <span>Close</span>
             </button>
           </div>
         )}
