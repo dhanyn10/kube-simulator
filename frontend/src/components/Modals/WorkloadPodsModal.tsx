@@ -65,81 +65,33 @@ export const getPodBadgeCountClass = (isActive: boolean, isDark: boolean): strin
   return isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700';
 };
 
-interface WorkloadPodHashBadgesProps {
-  readonly podHash: string;
-  readonly replicaSuffix: string;
-  readonly index: number;
-  readonly isDark: boolean;
-}
-
-const WorkloadPodHashBadges: React.FC<WorkloadPodHashBadgesProps> = ({
-  podHash,
-  replicaSuffix,
-  index,
-  isDark,
-}) => {
-  if (!podHash) {
-    return (
-      <span
-        className={cn(
-          "px-1.5 py-0.5 rounded text-[9px] font-mono font-medium border",
-          isDark
-            ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
-            : "bg-purple-50 text-purple-700 border-purple-200"
-        )}
-      >
-        ordinal: <strong className="font-bold">{replicaSuffix}</strong>
-      </span>
-    );
-  }
-
-  return (
-    <>
-      <span
-        data-testid={`pod-hash-badge-${index}`}
-        className={cn(
-          "px-1.5 py-0.5 rounded text-[9px] font-mono font-medium border",
-          isDark
-            ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
-            : "bg-sky-50 text-sky-700 border-sky-200"
-        )}
-      >
-        hash: <strong className="font-bold">{podHash}</strong>
-      </span>
-      <span
-        data-testid={`pod-suffix-badge-${index}`}
-        className={cn(
-          "px-1.5 py-0.5 rounded text-[9px] font-mono font-medium border",
-          isDark
-            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-            : "bg-emerald-50 text-emerald-700 border-emerald-200"
-        )}
-      >
-        random: <strong className="font-bold">{replicaSuffix}</strong>
-      </span>
-    </>
-  );
-};
-
 interface WorkloadPodStatusBadgeProps {
   readonly status: 'Running' | 'Ready' | 'Pending';
 }
 
 const WorkloadPodStatusBadge: React.FC<WorkloadPodStatusBadgeProps> = ({ status }) => {
   const isRunning = status === 'Running';
+  const isReady = status === 'Ready';
+
+  let badgeColorClass = "bg-amber-500/10 text-amber-400";
+  let dotColorClass = "bg-amber-400";
+
+  if (isRunning) {
+    badgeColorClass = "bg-emerald-500/10 text-emerald-400";
+    dotColorClass = "bg-emerald-400 animate-pulse";
+  } else if (isReady) {
+    badgeColorClass = "bg-sky-500/10 text-sky-400";
+    dotColorClass = "bg-sky-400";
+  }
+
   return (
     <div
       className={cn(
         "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-1",
-        isRunning ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+        badgeColorClass
       )}
     >
-      <span
-        className={cn(
-          "w-1.5 h-1.5 rounded-full",
-          isRunning ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
-        )}
-      />
+      <span className={cn("w-1.5 h-1.5 rounded-full", dotColorClass)} />
       {status}
     </div>
   );
@@ -171,48 +123,26 @@ const WorkloadPodRow: React.FC<WorkloadPodRowProps> = ({
           : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/80"
       )}
     >
-      {/* Left: Index & Pod Name */}
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-        <span
+      {/* Left: Pod Name */}
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <span className="font-mono text-xs font-bold truncate text-slate-200">
+          {pod.podName}
+        </span>
+        <button
+          type="button"
+          title="Copy Pod Name"
+          data-testid={`copy-pod-name-${pod.index}`}
+          onClick={() => onCopy(pod.podName)}
           className={cn(
-            "w-6 h-6 rounded flex items-center justify-center text-[10px] font-mono font-bold shrink-0",
-            isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-600"
+            "p-1 rounded transition-colors text-[10px] flex items-center gap-1",
+            isDark
+              ? "hover:bg-slate-800 text-slate-400 hover:text-slate-200"
+              : "hover:bg-slate-100 text-slate-500 hover:text-slate-700"
           )}
         >
-          #{pod.index}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-mono text-xs font-bold truncate text-slate-200">
-              {pod.podName}
-            </span>
-            <button
-              type="button"
-              title="Copy Pod Name"
-              data-testid={`copy-pod-name-${pod.index}`}
-              onClick={() => onCopy(pod.podName)}
-              className={cn(
-                "p-1 rounded transition-colors text-[10px] flex items-center gap-1",
-                isDark
-                  ? "hover:bg-slate-800 text-slate-400 hover:text-slate-200"
-                  : "hover:bg-slate-100 text-slate-500 hover:text-slate-700"
-              )}
-            >
-              {isCopied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
-              <span className="sr-only">Copy name</span>
-            </button>
-          </div>
-
-          {/* Suffix Hash & Random Char badges */}
-          <div className="flex items-center gap-1.5 mt-1">
-            <WorkloadPodHashBadges
-              podHash={pod.podHash}
-              replicaSuffix={pod.replicaSuffix}
-              index={pod.index}
-              isDark={isDark}
-            />
-          </div>
-        </div>
+          {isCopied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+          <span className="sr-only">Copy name</span>
+        </button>
       </div>
 
       {/* Right: Worker Node & Status */}
@@ -548,6 +478,7 @@ export const WorkloadPodsModal: React.FC<WorkloadPodsModalProps> = ({
   const colorMode = useFlowStore((state) => state.colorMode);
   const nodes = useFlowStore((state) => state.nodes);
   const clusterWorkerCount = useFlowStore((state) => state.clusterWorkerCount ?? 3);
+  const isSimulating = useFlowStore((state) => state.isSimulating);
 
   const [activeTab, setActiveTab] = useState<ModalTabType>('pods');
   const [searchQuery, setSearchQuery] = useState('');
@@ -559,8 +490,8 @@ export const WorkloadPodsModal: React.FC<WorkloadPodsModalProps> = ({
   );
 
   const podList = useMemo(
-    () => buildWorkloadPodList(selectedNode, nodes, {}, clusterWorkerCount),
-    [selectedNode, nodes, clusterWorkerCount]
+    () => buildWorkloadPodList(selectedNode, nodes, {}, clusterWorkerCount, isSimulating),
+    [selectedNode, nodes, clusterWorkerCount, isSimulating]
   );
 
   const handleCopy = useCallback(async (text: string) => {
