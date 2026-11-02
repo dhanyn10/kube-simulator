@@ -86,7 +86,8 @@ export const buildWorkloadPodList = (
   selectedNode: any,
   allNodes: any[],
   cachedSuffixes: Record<number, string> = {},
-  workerCount = 3
+  workerCount = 3,
+  isSimulating = false
 ): WorkloadPodItem[] => {
   const controller = resolveWorkloadController(selectedNode, allNodes);
   if (!controller) return [];
@@ -124,6 +125,11 @@ export const buildWorkloadPodList = (
     const workerInfo = WORKER_NODES[workerId] || getWorkerNodeInfo(workerId);
     const isReady = data.status === 'ready' || Boolean(data.image);
 
+    let podStatus: 'Running' | 'Ready' | 'Pending' = 'Pending';
+    if (isReady) {
+      podStatus = isSimulating ? 'Running' : 'Ready';
+    }
+
     result.push({
       index: i + 1,
       podName,
@@ -131,7 +137,7 @@ export const buildWorkloadPodList = (
       replicaSuffix,
       workerId,
       workerInfo,
-      status: isReady ? 'Running' : 'Pending',
+      status: podStatus,
     });
   }
 

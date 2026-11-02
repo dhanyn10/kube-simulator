@@ -171,7 +171,7 @@ export const Modal = ({
             )}
           >
             <X size={14} />
-            <span>Exit</span>
+            <span>Close</span>
           </button>
         </div>
       )}

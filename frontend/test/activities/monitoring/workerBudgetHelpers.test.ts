@@ -146,4 +146,72 @@ describe('workerBudgetHelpers', () => {
     expect(WORKER_PRESETS[1].id).toBe('standard');
     expect(WORKER_PRESETS[2].id).toBe('large');
   });
+
+  it('calculates real hardware capacity based on pod resource limits and flags over-capacity when kubelet maxPods exceeds it', () => {
+    const nodes = [
+      {
+        id: 'deploy-1',
+        type: 'Deployment',
+        data: { replicas: 1, cpuLimit: '2000m', memoryLimit: '2048Mi' },
+      },
+    ];
+
+    // 2 workers * 1 vCPU = 2 vCPU (2000m), 2 workers * 2 GB = 4096 MiB
+    // CPU capacity = 2000 / 2000 = 1 pod. Memory capacity = 4096 / 2048 = 2 pods.
+    // realCapacity = 1 pod (CPU limit). maxPods = 2 * 110 = 220 pods.
+    const result = calculateClusterBudget({
+      workerCount: 2,
+      vCpuPerWorker: 1,
+      memoryGbPerWorker: 2,
+      nodes,
+    });
+
+    expect(result.realHardwarePodCapacity).toBe(1);
+    expect(result.isPodCapacityExceeded).toBe(true);
+    expect(result.capacitySubtitle).toContain('Hardware capacity: ~1 pods (CPU limit)');
+  });
+
+  it('uses memory limit bottleneck when memory is more constrained than CPU', () => {
+    const nodes = [
+      {
+        id: 'mem-heavy-deploy',
+        type: 'Deployment',
+        data: { replicas: 1, cpuLimit: '100m', memoryLimit: '4096Mi' },
+      },
+    ];
+
+    // 2 workers * 2 vCPU = 4 vCPU, 2 workers * 2 GB = 4096 MiB
+    // CPU capacity = 4000 / 100 = 40 pods. Memory capacity = 4096 / 4096 = 1 pod.
+    const result = calculateClusterBudget({
+      workerCount: 2,
+      vCpuPerWorker: 2,
+      memoryGbPerWorker: 2,
+      nodes,
+    });
+
+    expect(result.realHardwarePodCapacity).toBe(1);
+    expect(result.isPodCapacityExceeded).toBe(true);
+    expect(result.capacitySubtitle).toContain('Hardware capacity: ~1 pods (Memory limit)');
+  });
+
+  it('falls back to standard Kubelet limit subtitle when workloads have no limits defined', () => {
+    const nodes = [
+      {
+        id: 'unbounded-pod',
+        type: 'Pod',
+        data: { replicas: 1 },
+      },
+    ];
+
+    const result = calculateClusterBudget({
+      workerCount: 2,
+      vCpuPerWorker: 2,
+      memoryGbPerWorker: 4,
+      nodes,
+    });
+
+    expect(result.realHardwarePodCapacity).toBe(220);
+    expect(result.isPodCapacityExceeded).toBe(false);
+    expect(result.capacitySubtitle).toBe('110 pods/node limit (unbounded limits)');
+  });
 });

@@ -69,6 +69,28 @@ describe('WorkloadPodsModal', () => {
     expect(screen.getByTestId('worker-summary-worker-1')).toBeDefined();
     expect(screen.getByTestId('worker-summary-worker-2')).toBeDefined();
     expect(screen.getByTestId('worker-summary-worker-3')).toBeDefined();
+
+    // Verify Ready status badge when simulation is not running
+    expect(screen.getAllByText('Ready')).toHaveLength(4);
+
+    // Verify numbering (#1) and hash badges are not rendered
+    expect(screen.queryByText('#1')).toBeNull();
+    expect(screen.queryByTestId('pod-hash-badge-1')).toBeNull();
+  });
+
+  it('renders Running status for pods when simulation is running', () => {
+    const { deployment } = setupTestNodes();
+    useFlowStore.setState({ isSimulating: true });
+
+    render(
+      <WorkloadPodsModal
+        isOpen={true}
+        onClose={onClose}
+        selectedNode={deployment}
+      />
+    );
+
+    expect(screen.getAllByText('Running')).toHaveLength(4);
   });
 
   it('returns null when isOpen is false', () => {

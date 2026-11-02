@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
-import { Cpu, Server, X, AlertTriangle, CheckCircle, Info, Zap } from 'lucide-react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
+import { Cpu, Server, X, AlertTriangle, CheckCircle, Info, Zap, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
+import { useOutsideContextMenu } from '@/hooks/useOutsideContextMenu';
+import { useContextMenuPosition } from '@/lib/contextMenuUtils';
 import {
   WORKER_PRESETS,
   WorkerNodePreset,
@@ -236,6 +238,8 @@ interface CapacityCardsProps {
   readonly cpuPercent: number;
   readonly memPercent: number;
   readonly isOverloaded: boolean;
+  readonly isPodCapacityExceeded?: boolean;
+  readonly capacitySubtitle?: string;
 }
 
 const WorkerCapacityCards: React.FC<CapacityCardsProps> = ({
@@ -246,6 +250,8 @@ const WorkerCapacityCards: React.FC<CapacityCardsProps> = ({
   cpuPercent,
   memPercent,
   isOverloaded,
+  isPodCapacityExceeded = false,
+  capacitySubtitle = '110 pods/node limit',
 }) => (
   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
     <div className={cn("p-3 rounded-xl border", isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200")}>
@@ -265,11 +271,30 @@ const WorkerCapacityCards: React.FC<CapacityCardsProps> = ({
     </div>
 
     <div className={cn("p-3 rounded-xl border", isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200")}>
-      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Max Pods Capacity</div>
-      <div className={cn("text-lg font-mono font-extrabold text-emerald-400 mt-0.5")}>
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Max Pods Capacity</div>
+        {isPodCapacityExceeded ? (
+          <span
+            data-testid="pod-capacity-warning-badge"
+            className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30"
+          >
+            Exceeds Limits
+          </span>
+        ) : (
+          <span
+            data-testid="pod-capacity-normal-badge"
+            className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+          >
+            Normal
+          </span>
+        )}
+      </div>
+      <div className={cn("text-lg font-mono font-extrabold mt-0.5", isPodCapacityExceeded ? "text-amber-400" : "text-emerald-400")}>
         {maxPods} Pods
       </div>
-      <div className="text-[10px] text-slate-500 mt-1">110 pods/node limit</div>
+      <div data-testid="pod-capacity-subtitle" className="text-[10px] text-slate-500 mt-1 truncate" title={capacitySubtitle}>
+        {capacitySubtitle}
+      </div>
     </div>
   </div>
 );
@@ -335,11 +360,19 @@ export const WorkerBudgetModal: React.FC<WorkerBudgetModalProps> = ({
   const clusterWorkerCount = useFlowStore((state) => state.clusterWorkerCount ?? 3);
   const setClusterWorkerCount = useFlowStore((state) => state.setClusterWorkerCount);
   const colorMode = useFlowStore((state) => state.colorMode);
+  const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const nodes = useFlowStore((state) => state.nodes);
   const addLog = useFlowStore((state) => state.addLog);
 
   const isOpen = propIsOpen ?? storeIsOpen;
   const isDark = colorMode === 'dark';
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+  const position = useContextMenuPosition(contextMenu?.x ?? 0, contextMenu?.y ?? 0, contextMenuRef);
+
+  useOutsideContextMenu(contextMenuRef, Boolean(contextMenu), closeContextMenu);
 
   const [workerCount, setWorkerCount] = useState<number>(clusterWorkerCount);
   const [selectedPreset, setSelectedPreset] = useState<WorkerNodePreset>(WORKER_PRESETS[1]);
@@ -360,9 +393,26 @@ export const WorkerBudgetModal: React.FC<WorkerBudgetModalProps> = ({
     });
   }, [workerCount, selectedPreset, nodes]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
+    setContextMenu(null);
     if (propOnClose) propOnClose();
     setStoreIsOpen(false);
+  }, [propOnClose, setStoreIsOpen]);
+
+  React.useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    if (isOpen) {
+      globalThis.addEventListener('keydown', handleEsc);
+    }
+    return () => globalThis.removeEventListener('keydown', handleEsc);
+  }, [isOpen, handleClose]);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
   const handleApply = () => {
@@ -378,11 +428,14 @@ export const WorkerBudgetModal: React.FC<WorkerBudgetModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      onContextMenu={handleContextMenu}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200"
+    >
       <div
         data-testid="worker-budget-modal"
         className={cn(
-          "w-full max-w-2xl rounded-2xl shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden",
+          "w-full max-w-2xl rounded-2xl shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden relative",
           isDark ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"
         )}
       >
@@ -418,6 +471,8 @@ export const WorkerBudgetModal: React.FC<WorkerBudgetModalProps> = ({
             cpuPercent={budget.cpuUsagePercentOfLocal}
             memPercent={budget.memUsagePercentOfLocal}
             isOverloaded={budget.isLocalOverloaded}
+            isPodCapacityExceeded={budget.isPodCapacityExceeded}
+            capacitySubtitle={budget.capacitySubtitle}
           />
 
           <WorkerBudgetNoticeBanner
@@ -450,6 +505,59 @@ export const WorkerBudgetModal: React.FC<WorkerBudgetModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Right-click Context Menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          data-testid="worker-budget-context-menu"
+          style={{ top: position.top, left: position.left }}
+          className={cn(
+            "modal-context-menu",
+            isDark
+              ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
+              : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"
+          )}
+        >
+          <button
+            type="button"
+            data-testid="worker-budget-menu-theme"
+            onClick={() => {
+              toggleColorMode();
+              setContextMenu(null);
+            }}
+            className={cn(
+              "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors",
+              isDark
+                ? "hover:bg-slate-800 text-slate-200"
+                : "hover:bg-slate-100 text-slate-700"
+            )}
+          >
+            {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-slate-600" />}
+            <span>Change Theme</span>
+          </button>
+
+          <div className={cn("my-1 border-t", isDark ? "border-slate-800" : "border-slate-100")} />
+
+          <button
+            type="button"
+            data-testid="worker-budget-menu-close"
+            onClick={() => {
+              setContextMenu(null);
+              handleClose();
+            }}
+            className={cn(
+              "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-rose-400 hover:text-rose-300",
+              isDark
+                ? "hover:bg-slate-800"
+                : "hover:bg-slate-100"
+            )}
+          >
+            <X size={14} />
+            <span>Close</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -176,7 +176,7 @@ describe('SaveModal', () => {
     });
   });
 
-  it('supports row right-click context menu options (Change Theme, Load Profile, Open Folder, Delete, Exit) in dark/light mode', async () => {
+  it('supports row right-click context menu options (Change Theme, Load Profile, Open Folder, Delete, Close) in dark/light mode', async () => {
     render(<SaveModal {...defaultProps} />);
 
     await waitFor(() => {
@@ -193,7 +193,7 @@ describe('SaveModal', () => {
       expect(screen.getByText('Load Profile')).toBeInTheDocument();
       expect(screen.getByText('Open Folder Location')).toBeInTheDocument();
       expect(screen.getByText('Delete Document')).toBeInTheDocument();
-      expect(screen.getByText('Exit')).toBeInTheDocument();
+      expect(screen.getByText('Close')).toBeInTheDocument();
     });
 
     // Check dark mode context menu row highlight
@@ -240,7 +240,7 @@ describe('SaveModal', () => {
     });
   });
 
-  it('supports context menu Exit button and light mode rendering', async () => {
+  it('supports context menu Close button and light mode rendering', async () => {
     useFlowStore.setState({ colorMode: 'light' });
     render(<SaveModal {...defaultProps} />);
 
@@ -258,7 +258,7 @@ describe('SaveModal', () => {
       expect(screen.getByText('Load Profile')).toBeInTheDocument();
       expect(screen.getByText('Open Folder Location')).toBeInTheDocument();
       expect(screen.getByText('Delete Document')).toBeInTheDocument();
-      expect(screen.getByText('Exit')).toBeInTheDocument();
+      expect(screen.getByText('Close')).toBeInTheDocument();
     });
 
     expect(itemRow).toHaveClass('bg-blue-100/80');
@@ -268,7 +268,7 @@ describe('SaveModal', () => {
     expect(changeThemeBtn).toHaveClass('hover:bg-slate-100');
 
     act(() => {
-      fireEvent.click(screen.getByText('Exit'));
+      fireEvent.click(screen.getByText('Close'));
     });
 
     expect(defaultProps.onClose).toHaveBeenCalled();
@@ -337,11 +337,11 @@ describe('SaveModal', () => {
     await waitFor(() => {
       expect(screen.getByText('Change Theme')).toBeInTheDocument();
       expect(screen.queryByText('Load Profile')).not.toBeInTheDocument();
-      expect(screen.getByText('Exit')).toBeInTheDocument();
+      expect(screen.getByText('Close')).toBeInTheDocument();
     });
 
     act(() => {
-      fireEvent.click(screen.getByText('Exit'));
+      fireEvent.click(screen.getByText('Close'));
     });
 
     expect(defaultProps.onClose).toHaveBeenCalled();

@@ -45,7 +45,7 @@ describe('workloadPodsModalHelpers', () => {
   });
 
   describe('buildWorkloadPodList', () => {
-    it('builds full pod list for Deployment with replicas > 3', () => {
+    it('builds full pod list for Deployment with Ready status when simulation is not running', () => {
       const deployment = {
         id: 'deploy-1',
         type: 'Deployment',
@@ -70,7 +70,7 @@ describe('workloadPodsModalHelpers', () => {
       ];
       const allNodes = [deployment, ...childPods];
 
-      const pods = buildWorkloadPodList(deployment, allNodes);
+      const pods = buildWorkloadPodList(deployment, allNodes, {}, 3, false);
       expect(pods).toHaveLength(4);
 
       expect(pods[0]).toEqual({
@@ -80,7 +80,7 @@ describe('workloadPodsModalHelpers', () => {
         replicaSuffix: 'ktdhh',
         workerId: 'worker-1',
         workerInfo: expect.objectContaining({ id: 'worker-1' }),
-        status: 'Running',
+        status: 'Ready',
       });
 
       expect(pods[1]).toEqual({
@@ -90,7 +90,7 @@ describe('workloadPodsModalHelpers', () => {
         replicaSuffix: 'e4u71',
         workerId: 'worker-2',
         workerInfo: expect.objectContaining({ id: 'worker-2' }),
-        status: 'Running',
+        status: 'Ready',
       });
 
       expect(pods[2]).toEqual({
@@ -100,7 +100,7 @@ describe('workloadPodsModalHelpers', () => {
         replicaSuffix: 'tns6q',
         workerId: 'worker-3',
         workerInfo: expect.objectContaining({ id: 'worker-3' }),
-        status: 'Running',
+        status: 'Ready',
       });
 
       expect(pods[3]).toEqual({
@@ -108,10 +108,26 @@ describe('workloadPodsModalHelpers', () => {
         podName: 'web-app-1pd4l-9a2bc',
         podHash: '1pd4l',
         replicaSuffix: '9a2bc',
-        workerId: 'worker-1', // round robin back to worker-1
+        workerId: 'worker-1',
         workerInfo: expect.objectContaining({ id: 'worker-1' }),
-        status: 'Running',
+        status: 'Ready',
       });
+    });
+
+    it('builds full pod list with Running status when simulation is actively running', () => {
+      const deployment = {
+        id: 'deploy-1',
+        type: 'Deployment',
+        data: {
+          label: 'web-app',
+          replicas: 1,
+          podHash: '1pd4l',
+          image: 'nginx:latest',
+          status: 'ready',
+        },
+      };
+      const pods = buildWorkloadPodList(deployment, [deployment], {}, 3, true);
+      expect(pods[0].status).toBe('Running');
     });
 
     it('builds ordinal pod list for StatefulSet with replicas > 3', () => {
@@ -134,6 +150,7 @@ describe('workloadPodsModalHelpers', () => {
       expect(pods[0].podHash).toBe('');
       expect(pods[0].replicaSuffix).toBe('0');
       expect(pods[0].workerId).toBe('worker-1');
+      expect(pods[0].status).toBe('Ready');
 
       expect(pods[1].podName).toBe('db-cluster-1');
       expect(pods[1].replicaSuffix).toBe('1');

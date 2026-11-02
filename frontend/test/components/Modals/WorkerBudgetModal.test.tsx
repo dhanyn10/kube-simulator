@@ -24,6 +24,30 @@ describe('WorkerBudgetModal', () => {
     expect(screen.getByText('Cluster Worker Nodes & Hardware Budget')).toBeDefined();
     expect(screen.getByTestId('worker-count-display')).toBeDefined();
     expect(screen.getByTestId('cluster-budget-status-badge')).toBeDefined();
+    expect(screen.getByTestId('pod-capacity-normal-badge')).toBeDefined();
+    expect(screen.getByTestId('pod-capacity-subtitle')).toBeDefined();
+  });
+
+  it('renders Exceeds Limits badge and dynamic hardware capacity subtitle when workloads define resource limits', () => {
+    const limitedPod = {
+      id: 'limited-pod',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'limited-pod',
+        replicas: 1,
+        cpuLimit: '2000m',
+        memoryLimit: '4096Mi',
+      },
+    };
+    useFlowStore.setState({ nodes: [limitedPod as any] });
+
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+
+    expect(screen.getByTestId('pod-capacity-warning-badge')).toBeDefined();
+    expect(screen.getByText('Exceeds Limits')).toBeDefined();
+    const subtitle = screen.getByTestId('pod-capacity-subtitle');
+    expect(subtitle.textContent).toContain('Hardware capacity:');
   });
 
   it('does not render when closed', () => {
@@ -174,6 +198,37 @@ describe('WorkerBudgetModal', () => {
     const closeBtn = screen.getByTestId('worker-budget-modal-close');
     fireEvent.click(closeBtn);
 
+    expect(useFlowStore.getState().isWorkerBudgetModalOpen).toBe(false);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('supports right-click context menu with Change Theme and Close options in dark and light modes', () => {
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+
+    const modalBackdrop = screen.getByTestId('worker-budget-modal').parentElement!;
+    fireEvent.contextMenu(modalBackdrop, { clientX: 200, clientY: 300 });
+
+    expect(screen.getByTestId('worker-budget-context-menu')).toBeInTheDocument();
+    expect(screen.getByText('Change Theme')).toBeInTheDocument();
+    expect(screen.getByText('Close')).toBeInTheDocument();
+
+    // Test toggle theme
+    const themeBtn = screen.getByTestId('worker-budget-menu-theme');
+    fireEvent.click(themeBtn);
+    expect(useFlowStore.getState().colorMode).toBe('light');
+
+    // Reopen context menu in light mode
+    fireEvent.contextMenu(modalBackdrop, { clientX: 220, clientY: 320 });
+    const closeBtn = screen.getByTestId('worker-budget-menu-close');
+    fireEvent.click(closeBtn);
+
+    expect(useFlowStore.getState().isWorkerBudgetModalOpen).toBe(false);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('closes modal on Escape key press', () => {
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+    fireEvent.keyDown(globalThis, { key: 'Escape' });
     expect(useFlowStore.getState().isWorkerBudgetModalOpen).toBe(false);
     expect(onClose).toHaveBeenCalled();
   });
