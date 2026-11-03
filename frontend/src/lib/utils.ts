@@ -99,6 +99,58 @@ export const cleanProjectName = (projectName: string): string => {
   return sanitizeSlug(lower);
 };
 
+const extractRawHost = (input: string): string => {
+  const str = input.trim().toLowerCase();
+  const schemeIdx = str.indexOf('://');
+  if (schemeIdx !== -1) {
+    const withoutScheme = str.slice(schemeIdx + 3);
+    const end = withoutScheme.search(/[/?:#]/);
+    return end !== -1 ? withoutScheme.slice(0, end) : withoutScheme;
+  }
+  const end = str.search(/[/?:]/);
+  return end !== -1 ? str.slice(0, end) : str;
+};
+
+const normalizeHostChars = (str: string): string => {
+  let result = '';
+  let lastWasDot = false;
+  let lastWasDash = false;
+
+  for (const ch of str) {
+    const code = ch.codePointAt(0) ?? 0;
+    const isAlphaNum = (code >= 97 && code <= 122) || (code >= 48 && code <= 57);
+
+    if (isAlphaNum) {
+      result += ch;
+      lastWasDot = false;
+      lastWasDash = false;
+    } else if (ch === '.' && result.length > 0 && !lastWasDot) {
+      result += '.';
+      lastWasDot = true;
+      lastWasDash = false;
+    } else if ((ch === '-' || ch === '_' || ch === ' ') && result.length > 0 && !lastWasDash && !lastWasDot) {
+      result += '-';
+      lastWasDash = true;
+    }
+  }
+
+  return result;
+};
+
+const trimHostBoundaries = (str: string, preserveTrailingDot: boolean): string => {
+  let cleaned = str.replace(/^[.-]+/, '');
+  if (!preserveTrailingDot) {
+    cleaned = cleaned.replace(/[.-]+$/, '');
+  }
+  if (cleaned.length > 253) {
+    cleaned = cleaned.slice(0, 253);
+    if (!preserveTrailingDot) {
+      cleaned = cleaned.replace(/[.-]+$/, '');
+    }
+  }
+  return cleaned;
+};
+
 /**
  * Sanitizes an Ingress host according to Kubernetes RFC 1123 DNS subdomain standards.
  * Strips URL schemes (http://, https://), ports (:8080), paths (/v1), query parameters,
@@ -110,81 +162,9 @@ export const cleanProjectName = (projectName: string): string => {
  */
 export const sanitizeIngressHost = (input: string, preserveTrailingDot = false): string => {
   if (!input) return '';
-
-  let str = input.trim().toLowerCase();
-
-  const schemeIdx = str.indexOf('://');
-  if (schemeIdx !== -1) {
-    str = str.slice(schemeIdx + 3);
-    const slashIdx = str.indexOf('/');
-    if (slashIdx !== -1) str = str.slice(0, slashIdx);
-    const queryIdx = str.indexOf('?');
-    if (queryIdx !== -1) str = str.slice(0, queryIdx);
-    const hashIdx = str.indexOf('#');
-    if (hashIdx !== -1) str = str.slice(0, hashIdx);
-  } else {
-    const slashIdx = str.indexOf('/');
-    if (slashIdx !== -1) str = str.slice(0, slashIdx);
-    const queryIdx = str.indexOf('?');
-    if (queryIdx !== -1) str = str.slice(0, queryIdx);
-  }
-
-  const portIdx = str.indexOf(':');
-  if (portIdx !== -1) {
-    str = str.slice(0, portIdx);
-  }
-
-  let result = '';
-  let lastWasDot = false;
-  let lastWasDash = false;
-
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
-    const code = ch.codePointAt(0);
-    const isAlphaNum = code !== undefined && ((code >= 97 && code <= 122) || (code >= 48 && code <= 57));
-
-    if (isAlphaNum) {
-      result += ch;
-      lastWasDot = false;
-      lastWasDash = false;
-    } else if (ch === '.') {
-      if (result.length > 0 && !lastWasDot) {
-        result += '.';
-        lastWasDot = true;
-        lastWasDash = false;
-      }
-    } else if (ch === '-' || ch === '_' || ch === ' ') {
-      if (result.length > 0 && !lastWasDash && !lastWasDot) {
-        result += '-';
-        lastWasDash = true;
-      }
-    }
-  }
-
-  let start = 0;
-  let end = result.length;
-
-  while (start < end && (result[start] === '.' || result[start] === '-')) {
-    start++;
-  }
-
-  if (!preserveTrailingDot) {
-    while (end > start && (result[end - 1] === '.' || result[end - 1] === '-')) {
-      end--;
-    }
-  }
-
-  let cleaned = result.slice(start, end);
-  if (cleaned.length > 253) {
-    cleaned = cleaned.slice(0, 253);
-    if (!preserveTrailingDot) {
-      while (cleaned.length > 0 && (cleaned.endsWith('.') || cleaned.endsWith('-'))) {
-        cleaned = cleaned.slice(0, -1);
-      }
-    }
-  }
-
-  return cleaned;
+  const raw = extractRawHost(input);
+  const normalized = normalizeHostChars(raw);
+  return trimHostBoundaries(normalized, preserveTrailingDot);
 };
 
 /**
