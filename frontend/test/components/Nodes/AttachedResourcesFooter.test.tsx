@@ -71,6 +71,23 @@ describe('AttachedResourcesFooter', () => {
     expect(secretBtn).toHaveClass('node-attached-badge-secret');
   });
 
+  it('handles Secret badges fallback titles and aria-labels when name or id are omitted', () => {
+    const data: K8sNodeData = {
+      secrets: [
+        { id: 'secret-id-only' },
+        {},
+      ],
+    };
+
+    render(<AttachedResourcesFooter data={data} />);
+
+    expect(screen.getByTitle('Secret: secret-id-only')).toBeInTheDocument();
+    expect(screen.getByLabelText('Inspect Secret secret-id-only')).toBeInTheDocument();
+
+    expect(screen.getByTitle('Secret: Unnamed')).toBeInTheDocument();
+    expect(screen.getByLabelText('Inspect Secret Unnamed')).toBeInTheDocument();
+  });
+
   it('renders when only hpas are present', () => {
     const data: K8sNodeData = {
       hpas: [{ id: 'h1', name: 'standalone-hpa' }],

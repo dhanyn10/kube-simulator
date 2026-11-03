@@ -178,6 +178,23 @@ spec:
       expect(screen.getByTestId('yaml-search-prev')).toBeDisabled();
     });
 
+    it('renders "No matches" badge in light colorMode and handles key events when input is empty', () => {
+      render(<YamlModal content={yamlSample} colorMode="light" onClose={mockOnClose} />);
+
+      const searchInput = screen.getByTestId('yaml-search-input');
+
+      // 1. Press Escape when query is empty (hasQuery is false)
+      fireEvent.keyDown(searchInput, { key: 'Escape' });
+      // Press other key like ArrowDown
+      fireEvent.keyDown(searchInput, { key: 'ArrowDown' });
+
+      // 2. Query with no matches in light mode to cover line 23 light mode branch
+      fireEvent.change(searchInput, { target: { value: 'not-found-keyword' } });
+      const badge = screen.getByTestId('yaml-search-count');
+      expect(badge).toHaveTextContent('No matches');
+      expect(badge.className).toContain('bg-rose-50');
+    });
+
     it('clears search query using clear button and Escape key inside search input', () => {
       render(<YamlModal content={yamlSample} colorMode="dark" onClose={mockOnClose} />);
 

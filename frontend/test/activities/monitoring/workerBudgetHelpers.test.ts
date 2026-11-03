@@ -214,4 +214,44 @@ describe('workerBudgetHelpers', () => {
     expect(result.isPodCapacityExceeded).toBe(false);
     expect(result.capacitySubtitle).toBe('110 pods/node limit (unbounded limits)');
   });
+
+  it('handles workload with memory limit only (evaluates cpuCapacity as POSITIVE_INFINITY)', () => {
+    const nodes = [
+      {
+        id: 'mem-only-pod',
+        type: 'Pod',
+        data: { replicas: 1, memoryLimit: '2048Mi' },
+      },
+    ];
+
+    const result = calculateClusterBudget({
+      workerCount: 2,
+      vCpuPerWorker: 1,
+      memoryGbPerWorker: 2,
+      nodes,
+    });
+
+    expect(result.realHardwarePodCapacity).toBe(2);
+    expect(result.capacitySubtitle).toContain('(Memory limit)');
+  });
+
+  it('handles workload with CPU limit only (evaluates memCapacity as POSITIVE_INFINITY)', () => {
+    const nodes = [
+      {
+        id: 'cpu-only-pod',
+        type: 'Pod',
+        data: { replicas: 1, cpuLimit: '1000m' },
+      },
+    ];
+
+    const result = calculateClusterBudget({
+      workerCount: 2,
+      vCpuPerWorker: 2,
+      memoryGbPerWorker: 4,
+      nodes,
+    });
+
+    expect(result.realHardwarePodCapacity).toBe(4);
+    expect(result.capacitySubtitle).toContain('(CPU limit)');
+  });
 });
