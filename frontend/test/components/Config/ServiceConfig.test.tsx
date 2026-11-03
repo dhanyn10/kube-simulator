@@ -596,4 +596,162 @@ describe('ServiceConfig', () => {
 
     expect(screen.queryByText(/Simulated Entry Node/i)).not.toBeInTheDocument();
   });
+  it('includes Headless in SERVICE_TYPE_OPTIONS with English description', () => {
+    const headlessOption = SERVICE_TYPE_OPTIONS.find((opt) => opt.value === 'Headless');
+    expect(headlessOption).toBeDefined();
+    expect(headlessOption?.label).toBe('Headless');
+    expect(headlessOption?.description).toBe('No virtual IP allocated (clusterIP: None). Required for StatefulSet ordinal pod DNS.');
+  });
+
+  it('allows selecting Headless serviceType from dropdown and hides NodePort sections', () => {
+    render(<ServiceConfig {...mockProps} />);
+
+    // Open service type dropdown
+    const dropdownButton = screen.getByRole('button', { name: /ClusterIP/i });
+    fireEvent.click(dropdownButton);
+
+    // Select Headless
+    const headlessOption = screen.getByText('Headless');
+    fireEvent.click(headlessOption);
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ serviceType: 'Headless' });
+  });
+
+  it('auto-corrects serviceType to Headless when selecting a StatefulSet in selector dropdown', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'ss-1', type: 'StatefulSet', data: { label: 'stateful-db' } }
+      ] as any
+    });
+
+    render(
+      <ServiceConfig
+        {...mockProps}
+        selectedNode={{
+          id: 's1',
+          data: {
+            serviceType: 'ClusterIP',
+            port: 80,
+            targetPort: 80,
+            selector: ''
+          }
+        }}
+      />
+    );
+
+    // Open selector dropdown
+    const selectorButton = screen.getByRole('button', { name: /---/i });
+    fireEvent.click(selectorButton);
+
+    // Click the StatefulSet option
+    const statefulSetOption = screen.getByText('stateful-db');
+    fireEvent.click(statefulSetOption);
+
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({
+      selector: 'stateful-db',
+      serviceType: 'Headless'
+    });
+  });
+
+  it('does not re-apply serviceType if already Headless when selecting StatefulSet', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'ss-1', type: 'StatefulSet', data: { label: 'stateful-db' } }
+      ] as any
+    });
+
+    render(
+      <ServiceConfig
+        {...mockProps}
+        selectedNode={{
+          id: 's1',
+          data: {
+            serviceType: 'Headless',
+            port: 80,
+            targetPort: 80,
+            selector: ''
+          }
+        }}
+      />
+    );
+
+    const selectorButton = screen.getByRole('button', { name: /---/i });
+    fireEvent.click(selectorButton);
+
+    const statefulSetOption = screen.getByText('stateful-db');
+    fireEvent.click(statefulSetOption);
+
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({
+      selector: 'stateful-db'
+    });
+  });
+
+  it('renders Headless recommendation banner when targeting StatefulSet with non-Headless serviceType', () => {
+    useFlowStore.setState({
+      colorMode: 'dark',
+      nodes: [
+        { id: 'ss-1', type: 'StatefulSet', data: { label: 'redis-cluster' } }
+      ] as any
+    });
+
+    const { rerender } = render(
+      <ServiceConfig
+        {...mockProps}
+        selectedNode={{
+          id: 's1',
+          data: {
+            serviceType: 'ClusterIP',
+            selector: 'redis-cluster'
+          }
+        }}
+      />
+    );
+
+    // Banner is rendered
+    expect(screen.getByTestId('headless-recommendation-banner')).toBeInTheDocument();
+    expect(screen.getByText('Headless Service Recommendation')).toBeInTheDocument();
+    expect(screen.getByText(/Targeting StatefulSet "redis-cluster"/i)).toBeInTheDocument();
+
+    // Click Switch to Headless Mode
+    const switchBtn = screen.getByTestId('switch-to-headless-btn');
+    fireEvent.click(switchBtn);
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ serviceType: 'Headless' });
+
+    // When serviceType is Headless, banner disappears
+    rerender(
+      <ServiceConfig
+        {...mockProps}
+        selectedNode={{
+          id: 's1',
+          data: {
+            serviceType: 'Headless',
+            selector: 'redis-cluster'
+          }
+        }}
+      />
+    );
+    expect(screen.queryByTestId('headless-recommendation-banner')).not.toBeInTheDocument();
+  });
+
+  it('does not render Headless recommendation banner when targeting regular Deployment', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'dep-1', type: 'Deployment', data: { label: 'web-deploy' } }
+      ] as any
+    });
+
+    render(
+      <ServiceConfig
+        {...mockProps}
+        selectedNode={{
+          id: 's1',
+          data: {
+            serviceType: 'ClusterIP',
+            selector: 'web-deploy'
+          }
+        }}
+      />
+    );
+
+    expect(screen.queryByTestId('headless-recommendation-banner')).not.toBeInTheDocument();
+  });
 });

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useFlowStore } from '@/store';
-import { Network, Box, Server, ChevronDown, Check, Lock } from 'lucide-react';
+import { Network, Box, Server, ChevronDown, Check, Lock, AlertTriangle } from 'lucide-react';
 import { ConfigSection } from '@/components/UI/ConfigUI';
 import { cn } from '@/lib/utils';
 import { ExternalTrafficPolicySection, EntryNodeSection } from './ServiceWorkerConfigSections';
@@ -13,7 +13,7 @@ interface ServiceConfigProps {
 }
 
 interface ServiceTypeOption {
-  value: 'ClusterIP' | 'NodePort' | 'LoadBalancer';
+  value: 'ClusterIP' | 'NodePort' | 'LoadBalancer' | 'Headless';
   label: string;
   description: string;
   disabled?: boolean;
@@ -28,7 +28,8 @@ interface SelectorDropdownOption {
 export const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
   { value: 'ClusterIP', label: 'ClusterIP', description: 'Exposes service on an internal IP in the cluster (Default).' },
   { value: 'NodePort', label: 'NodePort', description: 'Exposes service on each Node’s IP at a static port.' },
-  { value: 'LoadBalancer', label: 'LoadBalancer', description: 'Exposes service externally using cloud provider’s load balancer.' }
+  { value: 'LoadBalancer', label: 'LoadBalancer', description: 'Exposes service externally using cloud provider’s load balancer.' },
+  { value: 'Headless', label: 'Headless', description: 'No virtual IP allocated (clusterIP: None). Required for StatefulSet ordinal pod DNS.' }
 ];
 
 const WORKLOAD_TYPES = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
@@ -111,7 +112,8 @@ const toSelectorOption = (n: any, currentServiceType: string): SelectorDropdownO
   }
 
   if (!isSelectableWorkloadNode(n)) return null;
-  const cat = n.type.toUpperCase() as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
+  const isStateful = n.type === 'StatefulSet' || n.data?.workloadType === 'StatefulSet';
+  const cat = (isStateful ? 'STATEFULSET' : n.type.toUpperCase()) as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
   const port = Number(n.data?.port) || undefined;
   return { label, category: cat, port };
 };
@@ -168,10 +170,14 @@ const buildSelectorUpdatePatch = (
       ingressTargets: nextIngressTargets.length > 0 ? nextIngressTargets : undefined,
     };
   }
+  const isStateful = opt.category === 'STATEFULSET';
+  const shouldAutoHeadless = isStateful && (!data.serviceType || data.serviceType === 'ClusterIP');
+
   return {
     selector: opt.label,
     ...(data.ingressTargets !== undefined ? { ingressTargets: undefined } : {}),
     ...(opt.port ? { targetPort: opt.port } : {}),
+    ...(shouldAutoHeadless ? { serviceType: 'Headless' } : {}),
   };
 };
 
@@ -445,6 +451,66 @@ const ServiceSelectorDropdown = ({
  *
  * @param props - Component properties including update and toggle handlers.
  */
+interface HeadlessRecommendationBannerProps {
+  colorMode: string;
+  targetSelector: string;
+  onSwitchToHeadless: () => void;
+}
+
+const HeadlessRecommendationBanner = ({
+  colorMode,
+  targetSelector,
+  onSwitchToHeadless,
+}: HeadlessRecommendationBannerProps) => (
+  <div
+    data-testid="headless-recommendation-banner"
+    className={cn(
+      "p-2.5 rounded-lg border text-xs leading-tight flex flex-col gap-2",
+      colorMode === 'dark'
+        ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+        : "bg-amber-50 border-amber-200 text-amber-800"
+    )}
+  >
+    <div className="flex items-start gap-2">
+      <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
+      <div className="space-y-1">
+        <div className="font-semibold text-xs">Headless Service Recommendation</div>
+        <p className="text-[11px] opacity-90 leading-relaxed font-sans">
+          Targeting StatefulSet &quot;{targetSelector}&quot;. StatefulSets require a Headless Service (clusterIP: None) for pod ordinal DNS resolution.
+        </p>
+      </div>
+    </div>
+    <button
+      type="button"
+      data-testid="switch-to-headless-btn"
+      onClick={onSwitchToHeadless}
+      className={cn(
+        "self-start px-2.5 py-1 rounded text-[11px] font-semibold transition-colors border shadow-sm",
+        colorMode === 'dark'
+          ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-500/40"
+          : "bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300"
+      )}
+    >
+      Switch to Headless Mode
+    </button>
+  </div>
+);
+
+const isTargetStatefulSet = (
+  currentSelector: string,
+  availableOptions: SelectorDropdownOption[],
+  nodes: any[]
+): boolean => {
+  if (!currentSelector) return false;
+  const targetOption = availableOptions.find((opt) => opt.label === currentSelector);
+  if (targetOption?.category === 'STATEFULSET') return true;
+  return nodes.some(
+    (n) =>
+      ((n.data?.label as string) === currentSelector || n.id === currentSelector || (n.data?.baseName as string) === currentSelector) &&
+      (n.type === 'StatefulSet' || n.data?.workloadType === 'StatefulSet')
+  );
+};
+
 export const ServiceConfig = ({
   selectedNode,
   performUpdate,
@@ -480,6 +546,7 @@ export const ServiceConfig = ({
   const availableOptions = buildServiceSelectorOptions(selectedNode, nodes, currentServiceType);
   const activeIngressTargets = resolveActiveIngressTargets(data, currentServiceType, availableOptions);
   const currentSelector = data.selector || '';
+  const isTargetingStatefulSet = isTargetStatefulSet(currentSelector, availableOptions, nodes);
   const inputFieldClasses = getInputFieldClasses(colorMode);
 
   return (
@@ -503,6 +570,15 @@ export const ServiceConfig = ({
           performUpdate={performUpdate}
         />
       </ConfigSection>
+
+      {/* Headless Recommendation Banner when targeting a StatefulSet with non-Headless serviceType */}
+      {isTargetingStatefulSet && currentServiceType !== 'Headless' && (
+        <HeadlessRecommendationBanner
+          colorMode={colorMode}
+          targetSelector={currentSelector}
+          onSwitchToHeadless={() => performUpdate({ serviceType: 'Headless' })}
+        />
+      )}
 
       {/* NodePort Configuration (Only for NodePort or LoadBalancer) */}
       {showNodePort && (

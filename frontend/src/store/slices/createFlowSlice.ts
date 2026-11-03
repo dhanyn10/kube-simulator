@@ -602,11 +602,18 @@ const buildConnectedServiceData = (
   }
 
   const workloadPort = Number(targetNodeInStore?.data?.port);
+  const isStateful =
+    targetType === 'statefulset' ||
+    targetNodeInStore?.type === 'StatefulSet' ||
+    targetNodeInStore?.data?.workloadType === 'StatefulSet';
+  const shouldAutoHeadless = isStateful && (!data.serviceType || data.serviceType === 'ClusterIP');
+
   return {
     ...data,
     selector: targetLabel,
     ...(data.ingressTargets !== undefined ? { ingressTargets: undefined } : {}),
     ...(workloadPort ? { targetPort: workloadPort } : {}),
+    ...(shouldAutoHeadless ? { serviceType: 'Headless' } : {}),
   };
 };
 

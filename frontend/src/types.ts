@@ -110,7 +110,7 @@ export interface K8sNodeData {
   workloadType?: 'Deployment' | 'StatefulSet' | 'ReplicaSet';
   replicas?: number;
   image?: string;
-  serviceType?: 'ClusterIP' | 'NodePort' | 'LoadBalancer';
+  serviceType?: 'ClusterIP' | 'NodePort' | 'LoadBalancer' | 'Headless';
   externalTrafficPolicy?: 'Cluster' | 'Local';
   entryNode?: string;
   assignedNode?: string;
