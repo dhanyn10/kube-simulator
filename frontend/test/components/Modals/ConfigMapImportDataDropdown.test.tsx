@@ -97,4 +97,22 @@ describe('ConfigMapImportDataDropdown', () => {
     fireEvent.click(option);
     expect(onImport).toHaveBeenCalledWith(sampleConfigMaps[0]);
   });
+  it('falls back to id when name is missing and handles undefined configData', () => {
+    const configMapsWithFallback = [
+      { id: 'cm-fallback-1', name: '', configData: undefined as any },
+    ];
+    render(
+      <ConfigMapImportDataDropdown
+        isOpen={true}
+        onToggleOpen={vi.fn()}
+        existingConfigMaps={configMapsWithFallback}
+        onImport={vi.fn()}
+        isDark={true}
+        dropdownRef={dummyRef}
+      />
+    );
+    expect(screen.getByTestId('import-option-cm-fallback-1')).toBeInTheDocument();
+    expect(screen.getByTestId('import-option-cm-fallback-1')).toHaveTextContent('cm-fallback-1');
+    expect(screen.getByTestId('import-option-cm-fallback-1')).toHaveTextContent('0 keys');
+  });
 });

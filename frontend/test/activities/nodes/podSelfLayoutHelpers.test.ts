@@ -48,6 +48,20 @@ describe('podSelfLayoutHelpers', () => {
       expect(bounds.width).toBe(160);
       expect(bounds.height).toBe(90);
     });
+
+    it('handles undefined pod.data gracefully by falling back to empty object', () => {
+      const pod = {
+        id: 'p1',
+        type: 'Pod',
+        position: { x: 30, y: 40 },
+        data: undefined as any,
+      } as Node;
+      const bounds = getPodEffectiveBounds(pod);
+      expect(bounds.x).toBe(30);
+      expect(bounds.y).toBe(40);
+      expect(bounds.width).toBeGreaterThan(0);
+      expect(bounds.height).toBeGreaterThan(0);
+    });
   });
 
   describe('isPodOverlappingWithSibling', () => {
@@ -117,6 +131,17 @@ describe('podSelfLayoutHelpers', () => {
       const ns: Node = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
       const nsPod: Node = { id: 'p2', type: 'Pod', parentId: 'ns1', position: { x: 0, y: 0 }, data: {} };
       expect(checkPodOverlapWithSiblings('p2', [ns, nsPod])).toEqual({ hasOverlap: false, parentNode: null });
+    });
+
+    it('returns false when parentId does not exist in allNodes', () => {
+      const orphanPod: Node = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'non-existent-parent',
+        position: { x: 0, y: 0 },
+        data: {},
+      };
+      expect(checkPodOverlapWithSiblings('p1', [orphanPod])).toEqual({ hasOverlap: false, parentNode: null });
     });
 
     it('detects overlap for a Pod inside Deployment and returns parentNode', () => {
@@ -250,6 +275,84 @@ describe('podSelfLayoutHelpers', () => {
       expect(updatedP2).toBeDefined();
       expect(updatedP2!.position.y).toBeGreaterThan(updatedP1!.position.y);
     });
+
+    it('debounces rapid repeated layout adjustments on the same parent node', async () => {
+      const deployment: Node = {
+        id: 'dep-debounce',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        data: { replicas: 2, label: 'debounce-app' },
+      };
+      const pod1: Node = { id: 'p1', type: 'Pod', parentId: 'dep-debounce', position: { x: 10, y: 10 }, data: {} };
+      const pod2: Node = { id: 'p2', type: 'Pod', parentId: 'dep-debounce', position: { x: 10, y: 10 }, data: {} };
+      useFlowStore.setState({ nodes: [deployment, pod1, pod2] });
+
+      await new Promise((r) => setTimeout(r, 60));
+
+      const firstCall = autoAdjustWorkloadPodLayout(
+        deployment,
+        () => useFlowStore.getState(),
+        (patch) => useFlowStore.setState(patch)
+      );
+      expect(firstCall).toBe(true);
+
+      const secondCall = autoAdjustWorkloadPodLayout(
+        deployment,
+        () => useFlowStore.getState(),
+        (patch) => useFlowStore.setState(patch)
+      );
+      expect(secondCall).toBe(false);
+    });
+
+    it('returns false when pod positions are already optimal and unchanged', async () => {
+      const deployment: Node = {
+        id: 'dep-steady',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        data: { replicas: 2, label: 'steady-app' },
+      };
+      const pod1: Node = { id: 'p1', type: 'Pod', parentId: 'dep-steady', position: { x: 10, y: 10 }, data: {} };
+      const pod2: Node = { id: 'p2', type: 'Pod', parentId: 'dep-steady', position: { x: 10, y: 10 }, data: {} };
+      useFlowStore.setState({ nodes: [deployment, pod1, pod2] });
+
+      await new Promise((r) => setTimeout(r, 60));
+
+      const firstCall = autoAdjustWorkloadPodLayout(
+        deployment,
+        () => useFlowStore.getState(),
+        (patch) => useFlowStore.setState(patch)
+      );
+      expect(firstCall).toBe(true);
+
+      await new Promise((r) => setTimeout(r, 60));
+
+      const currentDep = useFlowStore.getState().nodes.find((n) => n.id === 'dep-steady')!;
+      const secondCall = autoAdjustWorkloadPodLayout(
+        currentDep,
+        () => useFlowStore.getState(),
+        (patch) => useFlowStore.setState(patch)
+      );
+      expect(secondCall).toBe(false);
+    });
+
+    it('treats missing existing pod in currentNodes as position changed', async () => {
+      const deployment: Node = {
+        id: 'dep-newpod',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        data: { replicas: 1, label: 'newpod-app' },
+      };
+      useFlowStore.setState({ nodes: [deployment] });
+
+      await new Promise((r) => setTimeout(r, 60));
+
+      const adjusted = autoAdjustWorkloadPodLayout(
+        deployment,
+        () => useFlowStore.getState(),
+        (patch) => useFlowStore.setState(patch)
+      );
+      expect(adjusted).toBe(true);
+    });
   });
 
   describe('usePodOverlapAutoCorrection hook', () => {
@@ -284,6 +387,13 @@ describe('podSelfLayoutHelpers', () => {
       const p1After = nodesAfter.find((n) => n.id === 'p1');
       const p2After = nodesAfter.find((n) => n.id === 'p2');
       expect(p2After!.position.y).toBeGreaterThan(p1After!.position.y);
+    });
+
+    it('bails out early when a node is actively being dragged', () => {
+      useFlowStore.setState({ draggedNodeId: 'dragging-node-id' });
+      const { unmount } = renderHook(() => usePodOverlapAutoCorrection('p1'));
+      expect(useFlowStore.getState().draggedNodeId).toBe('dragging-node-id');
+      unmount();
     });
   });
 });

@@ -71,6 +71,53 @@ describe('useSecretModal and useHpaModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('loads existing secretData from initialSecret and skips loading when isOpen is false', () => {
+    const onSave = vi.fn();
+    const onClose = vi.fn();
+
+    const populatedSecret = {
+      id: 'sec-pop-1',
+      name: 'auth-secret',
+      type: 'kubernetes.io/tls',
+      secretData: [
+        { key: 'tls.crt', value: 'cert-data' },
+        { key: 'tls.key', value: 'key-data' },
+      ],
+    };
+
+    // 1. When isOpen is false, loadSecret is skipped (initial hook default is used)
+    const { result, rerender } = renderHook(
+      ({ open, secret }) => useSecretModal(open, 'node-1', secret as any, onSave, onClose),
+      { initialProps: { open: false, secret: populatedSecret } }
+    );
+    expect(result.current.secretName).toBe('app-secret');
+
+    // 2. When isOpen becomes true, populated secretData is mapped
+    rerender({ open: true, secret: populatedSecret });
+    expect(result.current.secretName).toBe('auth-secret');
+    expect(result.current.secretType).toBe('kubernetes.io/tls');
+    expect(result.current.dataItems).toHaveLength(2);
+    expect(result.current.dataItems[0].key).toBe('tls.crt');
+    expect(result.current.dataItems[1].key).toBe('tls.key');
+
+    // 3. handleSave when secret has empty id triggers generated unique id fallback (line 76)
+    const emptyIdSecret = {
+      id: '',
+      name: 'generated-id-secret',
+      secretData: [{ key: 'k', value: 'v' }],
+    };
+    rerender({ open: true, secret: emptyIdSecret });
+    act(() => {
+      result.current.handleSave();
+    });
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.stringMatching(/^secret-\d+-/),
+        name: 'generated-id-secret',
+      })
+    );
+  });
+
   it('manages HPA modal state and invokes onSave with valid numeric bounds', () => {
     const onSave = vi.fn();
     const onClose = vi.fn();

@@ -55,4 +55,38 @@ describe('resourceBudgetHelpers', () => {
     expect(metrics.totalCpuLimMilli).toBe(1500);
     expect(metrics.totalMemLimMiB).toBe(1536);
   });
+
+  it('does not skip pods nested inside a Namespace parent or missing parent', () => {
+    const nodes = [
+      { id: 'ns-1', type: 'Namespace', data: {} },
+      { id: 'pod-in-ns', type: 'Pod', parentId: 'ns-1', data: { cpuRequest: '100m', memoryRequest: '128Mi' } },
+      { id: 'pod-orphan-parent', type: 'Pod', parentId: 'non-existent-parent', data: { cpuLimit: '200m' } },
+    ];
+
+    const totals = calculateResourceTotals(nodes);
+    expect(totals.cpuReq).toBe(100);
+    expect(totals.memReq).toBe(128);
+
+    const metrics = calculateWorkloadLimitMetrics(nodes);
+    expect(metrics.totalPodCount).toBe(2);
+    expect(metrics.constrainedPodCount).toBe(1);
+  });
+
+  it('handles nodes with missing type, replicas, and requests using default fallbacks', () => {
+    const nodes = [
+      // Missing type -> falls back to ''
+      { id: 'no-type', data: {} },
+      // Pod without replicas, cpuRequest, or memoryRequest -> falls back to 1 and '0'
+      { id: 'pod-defaults', type: 'Pod', data: {} },
+    ];
+
+    const totals = calculateResourceTotals(nodes);
+    expect(totals.cpuReq).toBe(0);
+    expect(totals.memReq).toBe(0);
+    expect(totals.hasMissingLimits).toBe(true);
+
+    const metrics = calculateWorkloadLimitMetrics(nodes);
+    expect(metrics.totalPodCount).toBe(1);
+    expect(metrics.constrainedPodCount).toBe(0);
+  });
 });

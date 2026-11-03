@@ -4,6 +4,44 @@ import '@testing-library/jest-dom';
 import { IngressConfig } from '@/components/Config/IngressConfig';
 import { useFlowStore } from '@/store';
 
+vi.mock('@/components/Modals/IngressPathsModal', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/Modals/IngressPathsModal')>();
+  return {
+    ...actual,
+    IngressPathsModal: ({ isOpen, onClose, onSave }: any) => {
+      if (!isOpen) return null;
+      return (
+        <div data-testid="mock-ingress-paths-modal">
+          <span>Manage Ingress Routing Paths</span>
+          <button
+            type="button"
+            onClick={() => onSave([{ id: 'p1', path: '/saved', serviceName: 'saved-svc', servicePort: 8080 }])}
+          >
+            Save Paths
+          </button>
+          <button
+            type="button"
+            data-testid="btn-save-empty-paths"
+            onClick={() => onSave([])}
+          >
+            Save Empty Paths
+          </button>
+          <button
+            type="button"
+            data-testid="btn-save-falsy-paths"
+            onClick={() => onSave([{ id: 'p2', path: '', serviceName: '', servicePort: 0 }])}
+          >
+            Save Falsy Paths
+          </button>
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      );
+    },
+  };
+});
+
 describe('IngressConfig', () => {
   const performUpdate = vi.fn();
   const toggleVisibility = vi.fn();
@@ -522,6 +560,125 @@ describe('IngressConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({
       backendServiceName: 'api-service',
       ingressPaths: [{ id: 'p1', path: '/api', serviceName: 'api-service', servicePort: 80 }],
+    });
+  });
+  it('handles empty value on blur for ingressHost (line 190)', () => {
+    render(
+      <IngressConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    const input = screen.getByDisplayValue('example.com');
+    fireEvent.blur(input, { target: { value: '' } });
+    expect(performUpdate).toHaveBeenCalledWith({ ingressHost: '' });
+  });
+
+  it('enables yaml toggle when ingressPath is empty but ingressPaths has items (line 242)', () => {
+    const node = {
+      ...selectedNode,
+      data: {
+        ...selectedNode.data,
+        ingressPath: '',
+        ingressPaths: [{ id: 'p1', path: '/api' }],
+      },
+    };
+    render(
+      <IngressConfig
+        selectedNode={node}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    const pathSectionHeader = screen.getByText('Path').closest('div');
+    const buttons = pathSectionHeader?.querySelectorAll('button') || [];
+    expect(buttons.length).toBeGreaterThan(1);
+    expect(buttons[1]).not.toBeDisabled();
+    fireEvent.click(buttons[1]);
+    expect(toggleYaml).toHaveBeenCalledWith('path');
+  });
+
+  it('renders path blocks without id in light mode (lines 256, 259-261)', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    const node = {
+      ...selectedNode,
+      data: {
+        ...selectedNode.data,
+        ingressPaths: [
+          { path: '/no-id-1', serviceName: 'svc-1' },
+          { path: '/no-id-2' },
+        ],
+      },
+    };
+    render(
+      <IngressConfig
+        selectedNode={node}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    expect(screen.getByText('/no-id-1')).toBeInTheDocument();
+    expect(screen.getByText('→ svc-1')).toBeInTheDocument();
+    expect(screen.getByText('/no-id-2')).toBeInTheDocument();
+  });
+
+  it('handles saving empty paths falling back to default values (lines 303-305)', () => {
+    const node = {
+      ...selectedNode,
+      data: {
+        ...selectedNode.data,
+        ingressPath: '',
+        servicePort: 0,
+        backendServiceName: undefined,
+      },
+    };
+    render(
+      <IngressConfig
+        selectedNode={node}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Add more paths.../i }));
+    fireEvent.click(screen.getByTestId('btn-save-empty-paths'));
+    expect(performUpdate).toHaveBeenCalledWith({
+      ingressPaths: [],
+      ingressPath: '/',
+      backendServiceName: undefined,
+      servicePort: 80,
+    });
+  });
+
+  it('handles saving paths with falsy properties falling back to existing data values (lines 303-305)', () => {
+    const node = {
+      ...selectedNode,
+      data: {
+        ...selectedNode.data,
+        ingressPath: '/fallback-path',
+        backendServiceName: 'fallback-svc',
+        servicePort: 9090,
+      },
+    };
+    render(
+      <IngressConfig
+        selectedNode={node}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Add more paths.../i }));
+    fireEvent.click(screen.getByTestId('btn-save-falsy-paths'));
+    expect(performUpdate).toHaveBeenCalledWith({
+      ingressPaths: [{ id: 'p2', path: '', serviceName: '', servicePort: 0 }],
+      ingressPath: '/fallback-path',
+      backendServiceName: 'fallback-svc',
+      servicePort: 9090,
     });
   });
 });
