@@ -535,12 +535,14 @@ export const ServiceConfig = ({
             toggleYaml={toggleYaml}
           />
 
-          <EntryNodeSection
-            data={data}
-            colorMode={colorMode}
-            performUpdate={performUpdate}
-            toggleVisibility={toggleVisibility}
-          />
+          {currentServiceType === 'NodePort' && (
+            <EntryNodeSection
+              data={data}
+              colorMode={colorMode}
+              performUpdate={performUpdate}
+              toggleVisibility={toggleVisibility}
+            />
+          )}
         </>
       )}
 

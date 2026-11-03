@@ -90,7 +90,7 @@ export const EntryNodeSection: React.FC<EntryNodeSectionProps> = ({
           colorMode={colorMode}
         />
         <p className="text-[9px] text-slate-400 leading-tight">
-          Simulates which worker node receives incoming external NodePort/LoadBalancer traffic.
+          Simulates which worker node receives incoming external NodePort traffic.
         </p>
       </div>
     </ConfigSection>
