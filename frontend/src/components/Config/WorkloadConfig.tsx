@@ -165,23 +165,25 @@ export const WorkloadConfig = ({
             />
           </ConfigSection>
 
-          {/* Restart Policy */}
-          <ConfigSection
-            title="Restart Policy"
-            icon={RotateCcw}
-            isVisible={data.displaySettings?.restartPolicy}
-            onToggle={() => toggleVisibility('restartPolicy')}
-            isYamlEnabled={data.yamlSettings?.restartPolicy}
-            onYamlToggle={() => toggleYaml('restartPolicy')}
-            disableYamlToggle={Boolean(data.restartPolicy) === false}
-          >
-            <SelectorGroup
-              options={RESTART_POLICIES}
-              currentValue={data.restartPolicy || 'Always'}
-              onSelect={(val) => performUpdate({ restartPolicy: val })}
-              colorMode={colorMode}
-            />
-          </ConfigSection>
+          {/* Restart Policy (only for standalone Pods) */}
+          {selectedNode.type === 'Pod' && (
+            <ConfigSection
+              title="Restart Policy"
+              icon={RotateCcw}
+              isVisible={data.displaySettings?.restartPolicy}
+              onToggle={() => toggleVisibility('restartPolicy')}
+              isYamlEnabled={data.yamlSettings?.restartPolicy}
+              onYamlToggle={() => toggleYaml('restartPolicy')}
+              disableYamlToggle={Boolean(data.restartPolicy) === false}
+            >
+              <SelectorGroup
+                options={RESTART_POLICIES}
+                currentValue={data.restartPolicy || 'Always'}
+                onSelect={(val) => performUpdate({ restartPolicy: val })}
+                colorMode={colorMode}
+              />
+            </ConfigSection>
+          )}
 
           {/* Assigned Worker Node - hidden when replicas > 3 */}
           {replicaValue <= 3 && (

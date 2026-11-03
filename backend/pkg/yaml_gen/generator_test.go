@@ -59,6 +59,19 @@ func TestGeneratePodWithRestartPolicy(t *testing.T) {
 	}
 }
 
+func TestGenerateDeploymentWithEnforcedRestartPolicy(t *testing.T) {
+	nodesJson := `[
+		{"id":"d1","type":"Deployment","data":{"label":"My App","replicas":2,"restartPolicy":"OnFailure"}}
+	]`
+	result := Generate(nodesJson, "[]")
+	if strings.Contains(result, "OnFailure") {
+		t.Errorf("Deployment must not allow restartPolicy: OnFailure: %s", result)
+	}
+	if !strings.Contains(result, "restartPolicy") || !strings.Contains(result, "Always") {
+		t.Errorf("Deployment should enforce restartPolicy: Always: %s", result)
+	}
+}
+
 func TestGeneratePodWithReplicas(t *testing.T) {
 	// replicas=1 -> Pod
 	nodesJson1 := `[{"id":"p1","type":"Pod","data":{"label":"My Pod","replicas":1}}]`

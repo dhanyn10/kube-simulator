@@ -523,4 +523,44 @@ describe('manifestGenerator test suite', () => {
     const defaultPortDoc = yaml.load(defaultPortYaml) as any;
     expect(defaultPortDoc.spec.rules[0].http.paths[0].backend.service.port.number).toBe(80);
   });
+  it('enforces restartPolicy: Always on Deployment and StatefulSet even if data specifies OnFailure or Never', () => {
+    const nodes = [
+      {
+        id: 'dep-restart',
+        type: 'Deployment',
+        data: {
+          label: 'Enforced Deployment',
+          replicas: 2,
+          image: 'nginx:alpine',
+          restartPolicy: 'OnFailure',
+        },
+      },
+      {
+        id: 'ss-restart',
+        type: 'StatefulSet',
+        data: {
+          label: 'Enforced StatefulSet',
+          replicas: 1,
+          image: 'redis:alpine',
+          restartPolicy: 'Never',
+        },
+      },
+      {
+        id: 'pod-restart',
+        type: 'Pod',
+        data: {
+          label: 'Allowed Pod',
+          image: 'busybox:latest',
+          restartPolicy: 'Never',
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).not.toContain('restartPolicy: OnFailure');
+    // Standalone Pod preserves restartPolicy: Never
+    expect(yamlOutput).toContain('restartPolicy: Never');
+    // Deployment template should have restartPolicy: Always
+    expect(yamlOutput).toContain('restartPolicy: Always');
+  });
 });

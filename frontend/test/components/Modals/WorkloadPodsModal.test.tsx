@@ -152,7 +152,7 @@ describe('WorkloadPodsModal', () => {
     expect(screen.getByText('Workload Name')).toBeDefined();
     expect(screen.getByText('Replicas Count')).toBeDefined();
     expect(screen.getByText('Container Image')).toBeDefined();
-    expect(screen.getByText('Restart Policy')).toBeDefined();
+    expect(screen.queryByText('Restart Policy')).toBeNull();
 
     // Click Pods tab
     const podsTabBtn = screen.getByTestId('tab-pods');
@@ -228,5 +228,31 @@ describe('WorkloadPodsModal', () => {
     expect(setTerminalActiveTab).toHaveBeenCalledWith('logs');
     expect(setTerminalOpen).toHaveBeenCalledWith(true);
     expect(onClose).toHaveBeenCalled();
+  });
+  it('renders Restart Policy when controller is a standalone Pod', () => {
+    const podNode = {
+      id: 'pod-standalone',
+      type: 'Pod',
+      data: {
+        label: 'single-pod',
+        image: 'nginx:latest',
+        status: 'ready',
+        restartPolicy: 'Always',
+      },
+    };
+    useFlowStore.setState({ nodes: [podNode] as any });
+
+    render(
+      <WorkloadPodsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        selectedNode={podNode}
+      />
+    );
+
+    const setupTabBtn = screen.getByTestId('tab-setup');
+    fireEvent.click(setupTabBtn);
+
+    expect(screen.getByText('Restart Policy')).toBeDefined();
   });
 });

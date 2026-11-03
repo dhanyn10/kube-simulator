@@ -184,6 +184,12 @@ func generatePodOrDeployment(data k8s.K8sNodeData, name, namespace string, ctx *
 	}
 
 	if replicas > 1 {
+		templateSpec := podSpec
+		templateSpec.RestartPolicy = "Always"
+		if val, ok := data.YamlSettings["restartPolicy"]; ok && !val {
+			templateSpec.RestartPolicy = ""
+		}
+
 		return k8s.Deployment{
 			ApiVersion: appsApiVersion,
 			Kind:       "Deployment",
@@ -207,7 +213,7 @@ func generatePodOrDeployment(data k8s.K8sNodeData, name, namespace string, ctx *
 					Metadata: k8s.ObjectMeta{
 						Labels: map[string]string{"app": name},
 					},
-					Spec: podSpec,
+					Spec: templateSpec,
 				},
 			},
 		}
@@ -352,9 +358,6 @@ func buildPodTemplateSpec(data k8s.K8sNodeData, name string, ctx *GenContext) k8
 	}
 
 	restartPolicy := "Always"
-	if podData.RestartPolicy != "" {
-		restartPolicy = podData.RestartPolicy
-	}
 	if val, ok := podData.YamlSettings["restartPolicy"]; ok && !val {
 		restartPolicy = ""
 	}

@@ -90,7 +90,8 @@ const createPodSpec = (
   nodeID: string,
   targetEdgeMap: Map<string, any[]>,
   sourceEdgeMap: Map<string, any[]>,
-  nodeMap: Map<string, any>
+  nodeMap: Map<string, any>,
+  isController = false
 ) => {
   const targetIDs = [nodeID];
   const containerName = sanitizeName(data.label);
@@ -112,7 +113,7 @@ const createPodSpec = (
   }
 
   let restartPolicy = 'Always';
-  if (data.restartPolicy) {
+  if (!isController && data.restartPolicy) {
     restartPolicy = data.restartPolicy;
   }
   if (data.yamlSettings?.restartPolicy === false) {
@@ -138,7 +139,7 @@ const buildStatefulSetManifest = (
   nodeMap: Map<string, any>
 ) => {
   const replicas = Number(node.data.replicas || 1);
-  const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap);
+  const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap, true);
 
   const outgoing = sourceEdgeMap.get(node.id) || [];
   const pvcNodes: any[] = [];
@@ -218,9 +219,10 @@ const buildPodOrDeploymentManifest = (
     return buildStatefulSetManifest(node, metadata, name, targetEdgeMap, sourceEdgeMap, nodeMap);
   }
 
-  const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap);
+  const isController = node.type === 'Deployment' || replicas > 1;
+  const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap, isController);
 
-  if (node.type === 'Deployment' || replicas > 1) {
+  if (isController) {
     return {
       apiVersion: 'apps/v1',
       kind: 'Deployment',

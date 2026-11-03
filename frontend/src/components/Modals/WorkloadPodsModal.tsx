@@ -346,15 +346,17 @@ const WorkloadSetupTab: React.FC<WorkloadSetupTabProps> = ({
         />
       </ConfigSection>
 
-      {/* Restart Policy */}
-      <ConfigSection title="Restart Policy" icon={RotateCcw}>
-        <SelectorGroup
-          options={RESTART_POLICIES}
-          currentValue={data.restartPolicy || 'Always'}
-          onSelect={(val) => updateNodeData(controller.id, { restartPolicy: val })}
-          colorMode={colorMode}
-        />
-      </ConfigSection>
+      {/* Restart Policy (only for standalone Pods) */}
+      {controller.type === 'Pod' && (
+        <ConfigSection title="Restart Policy" icon={RotateCcw}>
+          <SelectorGroup
+            options={RESTART_POLICIES}
+            currentValue={data.restartPolicy || 'Always'}
+            onSelect={(val) => updateNodeData(controller.id, { restartPolicy: val })}
+            colorMode={colorMode}
+          />
+        </ConfigSection>
+      )}
 
       {/* View Logs button */}
       <button
