@@ -153,6 +153,15 @@ func TestProjectManager_AutosaveFiles(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	defer pm.Close()
 
+	oldHome := os.Getenv("HOME")
+	oldUserProfile := os.Getenv("USERPROFILE")
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Setenv("USERPROFILE", oldUserProfile)
+	}()
+
 	// 1. Save autosave setting (writes physical file)
 	err := pm.SaveSetting("autosave-test-proj", `{"state":"active"}`)
 	if err != nil {

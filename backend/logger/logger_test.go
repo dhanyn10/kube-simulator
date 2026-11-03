@@ -116,6 +116,9 @@ func TestAppendToLogFile_InvalidPath(t *testing.T) {
 }
 
 func TestAppendCategorizedLog_DefaultPath(t *testing.T) {
+	oldPath := GetLogFilePath()
+	defer SetLogFilePath(oldPath)
+
 	SetLogFilePath("")
 	AppendCategorizedLog("report", "info", "Report message to default path")
 }

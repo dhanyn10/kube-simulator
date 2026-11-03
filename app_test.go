@@ -1019,8 +1019,9 @@ func TestApp_WindowActionsAndUpdates(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), isTestKey, true)
 	ctx = context.WithValue(ctx, testFilePathKey, invalidLogPath)
+	oldCtx := appCtx
 	appCtx = ctx
-	defer func() { appCtx = nil }()
+	defer func() { appCtx = oldCtx }()
 	if app.OpenLogFile() {
 		t.Error("Expected OpenLogFile to return false when directory creation fails")
 	}
