@@ -213,19 +213,22 @@ const buildPodOrDeploymentManifest = (
   sourceEdgeMap: Map<string, any[]>,
   nodeMap: Map<string, any>
 ) => {
-  const replicas = Number(node.data.replicas || 1);
+  const replicas = Number(node.data?.replicas || 1);
 
   if (node.type === 'StatefulSet' || node.data?.workloadType === 'StatefulSet') {
     return buildStatefulSetManifest(node, metadata, name, targetEdgeMap, sourceEdgeMap, nodeMap);
   }
 
-  const isController = node.type === 'Deployment' || replicas > 1;
+  const isDeployment = node.type === 'Deployment' || (node.type !== 'Pod' && node.data?.workloadType === 'Deployment');
+  const isReplicaSet = node.type === 'ReplicaSet' || node.data?.workloadType === 'ReplicaSet';
+  const isController = isDeployment || isReplicaSet || replicas > 1;
   const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap, isController);
 
   if (isController) {
+    const kind = isReplicaSet ? 'ReplicaSet' : 'Deployment';
     return {
       apiVersion: 'apps/v1',
-      kind: 'Deployment',
+      kind,
       metadata,
       spec: {
         replicas,
@@ -536,6 +539,7 @@ const buildNodeManifest = (
     case 'Pod':
     case 'Deployment':
     case 'StatefulSet':
+    case 'ReplicaSet':
       return buildPodOrDeploymentManifest(
         node,
         metadata,

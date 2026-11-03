@@ -82,6 +82,26 @@ func TestResourceGenerators_StatefulSet(t *testing.T) {
 		assertStatefulSetSpec(t, res, 2, "pg-db")
 	})
 
+	t.Run("generatePodOrDeployment with WorkloadType Deployment", func(t *testing.T) {
+		rep := 1
+		data := k8s.K8sNodeData{Replicas: &rep, WorkloadType: "Deployment", Image: "nginx:latest"}
+		res := generatePodOrDeployment(data, "app-dep", "default", &GenContext{})
+		dep, ok := res.(k8s.Deployment)
+		if !ok || dep.Kind != "Deployment" || dep.Spec.Replicas != 1 {
+			t.Fatalf("Expected Deployment with replicas: 1, got %v", res)
+		}
+	})
+
+	t.Run("generatePodOrDeployment with WorkloadType ReplicaSet", func(t *testing.T) {
+		rep := 1
+		data := k8s.K8sNodeData{Replicas: &rep, WorkloadType: "ReplicaSet", Image: "nginx:latest"}
+		res := generatePodOrDeployment(data, "app-rs", "default", &GenContext{})
+		rs, ok := res.(k8s.ReplicaSet)
+		if !ok || rs.Kind != "ReplicaSet" || rs.Spec.Replicas != 1 {
+			t.Fatalf("Expected ReplicaSet with replicas: 1, got %v", res)
+		}
+	})
+
 	t.Run("Generate StatefulSet with volumeClaimTemplates and Headless Service", func(t *testing.T) {
 		rep := 3
 		ssData := k8s.K8sNodeData{ID: "ss1", Replicas: &rep, WorkloadType: "StatefulSet", Label: "redis-ss"}

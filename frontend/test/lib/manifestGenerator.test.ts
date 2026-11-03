@@ -609,4 +609,37 @@ describe('manifestGenerator test suite', () => {
     expect(yaml5).toContain('app: target-app');
     expect(yaml5).not.toContain('ingress-nginx');
   });
+  it('preserves Kind: Deployment for single-replica deployment and omits replicas for standalone Pod', () => {
+    const nodes = [
+      { id: 'single-dep', type: 'Deployment', data: { label: 'single-replica-dep', replicas: 1, image: 'app:v1' } },
+      { id: 'single-pod', type: 'Pod', data: { label: 'standalone-pod', replicas: 1, image: 'redis:alpine' } },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, []);
+
+    // Deployment with replicas: 1 remains a Deployment
+    expect(yamlOutput).toContain('kind: Deployment');
+    expect(yamlOutput).toContain('name: single-replica-dep');
+    expect(yamlOutput).toContain('replicas: 1');
+
+    // Standalone Pod remains a Pod without replicas in spec
+    expect(yamlOutput).toContain('kind: Pod');
+    expect(yamlOutput).toContain('name: standalone-pod');
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const podDoc = docs.find((d) => d?.kind === 'Pod');
+    expect(podDoc).toBeDefined();
+    expect(podDoc.spec.replicas).toBeUndefined();
+  });
+
+  it('supports Kind: ReplicaSet for ReplicaSet node type and workloadType: ReplicaSet', () => {
+    const nodes = [
+      { id: 'rs1', type: 'ReplicaSet', data: { label: 'custom-rs', replicas: 2, image: 'nginx:1.25' } },
+      { id: 'rs2', type: 'ReplicaSet', data: { label: 'single-rs', replicas: 1, workloadType: 'ReplicaSet' } },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).toContain('kind: ReplicaSet');
+    expect(yamlOutput).toContain('name: custom-rs');
+    expect(yamlOutput).toContain('replicas: 2');
+    expect(yamlOutput).toContain('name: single-rs');
+    expect(yamlOutput).toContain('replicas: 1');
+  });
 });
