@@ -348,5 +348,64 @@ describe('simulationReachability', () => {
     };
     const reachCluster = calculateReachability([clusterSvc], edgeMap, [], [clusterSvc, podOnWorker2]);
     expect(reachCluster.has('pod-w2')).toBe(true);
+
+    // 4. Local policy with Deployment target having child pods on matching worker
+    const deployNode: Node = {
+      id: 'dep-target',
+      type: 'Deployment',
+      data: { label: 'my-app' },
+      position: { x: 0, y: 0 },
+    };
+    const childOnWorker1: Node = {
+      id: 'child-w1',
+      type: 'Pod',
+      parentId: 'dep-target',
+      data: { assignedNode: 'worker-1' },
+      position: { x: 0, y: 0 },
+    };
+    const depEdgeMap = new Map<string, Edge[]>([
+      ['svc-local', [{ id: 'e1', source: 'svc-local', target: 'dep-target' } as Edge]],
+    ]);
+    const reachDepMatch = calculateReachability(
+      [localSvc],
+      depEdgeMap,
+      [],
+      [localSvc, deployNode, childOnWorker1]
+    );
+    expect(reachDepMatch.has('dep-target')).toBe(true);
+
+    // 5. Local policy with Deployment having child pods only on non-matching worker
+    const childOnWorker2: Node = {
+      id: 'child-w2',
+      type: 'Pod',
+      parentId: 'dep-target',
+      data: { assignedNode: 'worker-2' },
+      position: { x: 0, y: 0 },
+    };
+    const reachDepBlocked = calculateReachability(
+      [localSvc],
+      depEdgeMap,
+      [],
+      [localSvc, deployNode, childOnWorker2]
+    );
+    expect(reachDepBlocked.has('dep-target')).toBe(false);
+
+    // 6. Local policy with Deployment fallback assignedNode on itself
+    const depWithNode: Node = {
+      id: 'dep-standalone-node',
+      type: 'Deployment',
+      data: { label: 'my-app', assignedNode: 'worker-1' },
+      position: { x: 0, y: 0 },
+    };
+    const fallbackEdgeMap = new Map<string, Edge[]>([
+      ['svc-local', [{ id: 'e2', source: 'svc-local', target: 'dep-standalone-node' } as Edge]],
+    ]);
+    const reachFallback = calculateReachability(
+      [localSvc],
+      fallbackEdgeMap,
+      [],
+      [localSvc, depWithNode]
+    );
+    expect(reachFallback.has('dep-standalone-node')).toBe(true);
   });
 });

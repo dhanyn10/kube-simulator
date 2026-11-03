@@ -563,4 +563,40 @@ describe('manifestGenerator test suite', () => {
     // Deployment template should have restartPolicy: Always
     expect(yamlOutput).toContain('restartPolicy: Always');
   });
+  it('generates LoadBalancer Service selector targeting Ingress via label, ID, and edge connection', () => {
+    // 1. Selector matches Ingress label
+    const nodesLabelMatch = [
+      { id: 'lb1', type: 'Service', data: { label: 'my-lb', serviceType: 'LoadBalancer', selector: 'main-ingress' } },
+      { id: 'ing1', type: 'Ingress', data: { label: 'main-ingress' } },
+    ];
+    const yaml1 = generateYamlClientSide(nodesLabelMatch, []);
+    expect(yaml1).toContain('app.kubernetes.io/name: ingress-nginx');
+    expect(yaml1).toContain('app.kubernetes.io/component: controller');
+
+    // 2. Selector matches Ingress ID
+    const nodesIdMatch = [
+      { id: 'lb2', type: 'Service', data: { label: 'my-lb2', serviceType: 'LoadBalancer', selector: 'ing-unique-id' } },
+      { id: 'ing-unique-id', type: 'Ingress', data: { label: 'some-label' } },
+    ];
+    const yaml2 = generateYamlClientSide(nodesIdMatch, []);
+    expect(yaml2).toContain('app.kubernetes.io/name: ingress-nginx');
+
+    // 3. Outgoing edge to Ingress without selector
+    const nodesEdgeMatch = [
+      { id: 'lb3', type: 'Service', data: { label: 'my-lb3', serviceType: 'LoadBalancer' } },
+      { id: 'ing3', type: 'Ingress', data: { label: 'edge-ingress' } },
+    ];
+    const edges = [{ id: 'e1', source: 'lb3', target: 'ing3' }];
+    const yaml3 = generateYamlClientSide(nodesEdgeMatch, edges);
+    expect(yaml3).toContain('app.kubernetes.io/name: ingress-nginx');
+
+    // 4. Outgoing edge to non-ingress (Deployment) when selector is empty
+    const nodesDepEdge = [
+      { id: 'svc-dep', type: 'Service', data: { label: 'dep-service', serviceType: 'ClusterIP' } },
+      { id: 'dep-target', type: 'Deployment', data: { label: 'backend-app' } },
+    ];
+    const depEdges = [{ id: 'e2', source: 'svc-dep', target: 'dep-target' }];
+    const yaml4 = generateYamlClientSide(nodesDepEdge, depEdges);
+    expect(yaml4).toContain('app: backend-app');
+  });
 });

@@ -265,7 +265,7 @@ const isTargetingIngress = (
   }
   if (node.data?.selector) {
     for (const [, n] of nodeMap) {
-      if (n.type === 'Ingress' && ((n.data?.label as string) || n.id) === node.data.selector) {
+      if (n.type === 'Ingress' && (n.data?.label === node.data.selector || n.id === node.data.selector)) {
         return true;
       }
     }
