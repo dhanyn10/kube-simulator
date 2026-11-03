@@ -535,12 +535,14 @@ export const ServiceConfig = ({
             toggleYaml={toggleYaml}
           />
 
-          <EntryNodeSection
-            data={data}
-            colorMode={colorMode}
-            performUpdate={performUpdate}
-            toggleVisibility={toggleVisibility}
-          />
+          {currentServiceType === 'NodePort' && (
+            <EntryNodeSection
+              data={data}
+              colorMode={colorMode}
+              performUpdate={performUpdate}
+              toggleVisibility={toggleVisibility}
+            />
+          )}
         </>
       )}
 
@@ -580,7 +582,12 @@ export const ServiceConfig = ({
       {/* Selector Configuration Dropdown (Only rendered when matching options exist on canvas in same namespace) */}
       {availableOptions.length > 0 && (
         <ConfigSection
-          title="Selector (app)"
+          title={
+            currentServiceType === 'LoadBalancer' &&
+            (Boolean(data.ingressTargets?.length) || availableOptions.some((opt) => opt.category === 'INGRESS' && opt.label === currentSelector))
+              ? "Routing Target"
+              : "Selector (app)"
+          }
           icon={Box}
           isVisible={data.displaySettings?.selector}
           onToggle={() => toggleVisibility('selector')}

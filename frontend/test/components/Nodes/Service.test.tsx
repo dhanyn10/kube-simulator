@@ -147,7 +147,7 @@ describe('ServiceNode', () => {
         <ServiceNode id="s-lb" type="Service" data={{ serviceType: 'LoadBalancer', nodePort: 31000, selector: 'ingress-label' }} />
       </ReactFlowProvider>
     );
-    expect(screen.getByText('app: ingress-label')).toBeDefined();
+    expect(screen.getByText('ingress: ingress-label')).toBeDefined();
     expect(screen.getByText('nodePort:')).toBeDefined();
 
     // 2. Service Type LoadBalancer matching Ingress ID when label is empty
@@ -156,7 +156,7 @@ describe('ServiceNode', () => {
         <ServiceNode id="s-lb2" type="Service" data={{ serviceType: 'LoadBalancer', selector: 'ing2' }} />
       </ReactFlowProvider>
     );
-    expect(screen.getByText('app: ing2')).toBeDefined();
+    expect(screen.getByText('ingress: ing2')).toBeDefined();
 
     // 3. Service matching ReplicaSet baseName
     rerender(
@@ -307,7 +307,7 @@ describe('ServiceNode', () => {
         />
       </ReactFlowProvider>
     );
-    expect(screen.getByText('app: ingress-one, ing-2')).toBeDefined();
+    expect(screen.getByText('ingress: ingress-one, ing-2')).toBeDefined();
 
     // LoadBalancer whose ingressTargets are all stale falls back to single selector validation
     cleanup();
@@ -324,7 +324,7 @@ describe('ServiceNode', () => {
         />
       </ReactFlowProvider>
     );
-    expect(screen.getByText('app: ingress-one')).toBeDefined();
+    expect(screen.getByText('ingress: ingress-one')).toBeDefined();
 
     cleanup();
     render(

@@ -176,6 +176,15 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).toContain('type: LoadBalancer');
     expect(yamlOutput).toContain('nodePort: 30443');
     expect(yamlOutput).toContain('externalTrafficPolicy: Cluster');
+
+    // LoadBalancer Service targeting Ingress
+    const lbIngressNodes = [
+      { id: 'svc-lb', type: 'Service', data: { label: 'lb-ingress-svc', serviceType: 'LoadBalancer', ingressTargets: ['my-ingress'] } },
+      { id: 'ing1', type: 'Ingress', data: { label: 'my-ingress' } },
+    ];
+    const lbIngressYaml = generateYamlClientSide(lbIngressNodes, [{ id: 'e1', source: 'svc-lb', target: 'ing1' }]);
+    expect(lbIngressYaml).toContain('app.kubernetes.io/name: ingress-nginx');
+    expect(lbIngressYaml).toContain('app.kubernetes.io/component: controller');
   });
 
   it('sanitizes labels with special characters, consecutive dashes, and truncates long labels', () => {

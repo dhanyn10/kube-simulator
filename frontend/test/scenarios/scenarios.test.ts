@@ -112,4 +112,33 @@ describe('Scenarios', () => {
     expect(services.filter(s => s.data.selector === 'web-app').map(s => s.data.externalTrafficPolicy).sort()).toEqual(['Cluster', 'Local']);
     expect(services.find(s => s.data.selector === 'api-app')?.data.externalTrafficPolicy).toBe('Local');
   });
+
+  it('configures LoadBalanced App scenario with LoadBalancer routing to Ingress using ingressTargets and selector', () => {
+    const lbScenario = scenarios.find((s) => s.id === 'intermediate-lb');
+    expect(lbScenario).toBeDefined();
+
+    const nodes = lbScenario!.data.nodes;
+    const edges = lbScenario!.data.edges;
+
+    const lbService = nodes.find((n) => n.id === 'lb-service-int');
+    const ingress = nodes.find((n) => n.id === 'ingress-int');
+    const clusterIpSvc = nodes.find((n) => n.id === 'service-int');
+    const deployment = nodes.find((n) => n.id === 'deployment-int');
+
+    expect(lbService).toBeDefined();
+    expect(ingress).toBeDefined();
+    expect(clusterIpSvc).toBeDefined();
+    expect(deployment).toBeDefined();
+
+    expect(lbService?.data.serviceType).toBe('LoadBalancer');
+    expect(lbService?.data.selector).toBe('main-ingress');
+    expect(lbService?.data.ingressTargets).toEqual(['main-ingress']);
+
+    const lbToIngressEdge = edges.find((e) => e.source === 'lb-service-int' && e.target === 'ingress-int');
+    expect(lbToIngressEdge).toBeDefined();
+
+    expect(ingress?.data.backendServiceName).toBe('app-service');
+    expect(clusterIpSvc?.data.serviceType).toBe('ClusterIP');
+    expect(clusterIpSvc?.data.selector).toBe('app-deployment');
+  });
 });

@@ -26,15 +26,21 @@ const resolveValidServiceSelectorDisplay = (
   data: K8sNodeData,
   serviceType: string,
   nodes: any[]
-): { isSelectorValid: boolean; selectorText: string } => {
+): { isSelectorValid: boolean; selectorText: string; isIngressTarget: boolean } => {
   if (serviceType === 'LoadBalancer' && Array.isArray(data.ingressTargets) && data.ingressTargets.length > 0) {
     const validTargets = data.ingressTargets.filter((targetLabel) =>
       nodes.some((n) => n.type === 'Ingress' && ((n.data?.label as string) || n.id) === targetLabel)
     );
     if (validTargets.length > 0) {
-      return { isSelectorValid: true, selectorText: validTargets.join(', ') };
+      return { isSelectorValid: true, selectorText: validTargets.join(', '), isIngressTarget: true };
     }
   }
+
+  const isIngress = Boolean(
+    serviceType === 'LoadBalancer' &&
+    data.selector &&
+    nodes.some((n) => n.type === 'Ingress' && (((n.data?.label as string) || n.id) === data.selector))
+  );
 
   const isSingleValid = Boolean(
     data.selector &&
@@ -44,6 +50,7 @@ const resolveValidServiceSelectorDisplay = (
   return {
     isSelectorValid: isSingleValid,
     selectorText: isSingleValid ? String(data.selector) : '---',
+    isIngressTarget: isIngress,
   };
 };
 
@@ -55,7 +62,7 @@ export const ServiceNode = memo((props: NodeProps) => {
   const serviceType = data.serviceType || 'ClusterIP';
   const showNodePort = (serviceType === 'NodePort' || serviceType === 'LoadBalancer') && Boolean(data.nodePort);
 
-  const { isSelectorValid, selectorText } = resolveValidServiceSelectorDisplay(data, serviceType, nodes);
+  const { isSelectorValid, selectorText, isIngressTarget } = resolveValidServiceSelectorDisplay(data, serviceType, nodes);
 
   return (
     <BaseNode {...props} data={data} title="Service" icon={Network} color="amber" id={props.id} type={props.type}>
@@ -88,7 +95,9 @@ export const ServiceNode = memo((props: NodeProps) => {
 
       {data.displaySettings?.selector !== false && (
         <div className="mt-auto pt-2 border-t border-slate-700/30">
-          <span className="text-[8px] uppercase font-bold text-slate-500">Selector</span>
+          <span className="text-[8px] uppercase font-bold text-slate-500">
+            {isIngressTarget ? "Routing Target" : "Selector"}
+          </span>
           <div
             className={cn(
               "text-[9px] font-mono mt-0.5 break-all font-bold",
@@ -96,7 +105,7 @@ export const ServiceNode = memo((props: NodeProps) => {
             )}
             style={isSelectorValid ? { color: 'var(--color-mat-amber)' } : undefined}
           >
-            app: {selectorText}
+            {isIngressTarget ? `ingress: ${selectorText}` : `app: ${selectorText}`}
           </div>
         </div>
       )}

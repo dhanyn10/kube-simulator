@@ -46,6 +46,7 @@ type K8sNodeData struct {
 	TargetPort      int                    `json:"targetPort,omitempty"`
 	NodePort        int                    `json:"nodePort,omitempty"`
 	Selector        string                 `json:"selector,omitempty"`
+	IngressTargets  []string               `json:"ingressTargets,omitempty"`
 	Status          string                 `json:"status,omitempty"`
 	Webserver       string                 `json:"webserver,omitempty"`
 	Runtime         string                 `json:"runtime,omitempty"`

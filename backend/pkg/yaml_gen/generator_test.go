@@ -173,6 +173,17 @@ func TestGenerateService(t *testing.T) {
 	if strings.Contains(result3, "\"selector\":{\"app\":\"app-label\"}") {
 		t.Errorf("Generate failed to respect Service YamlSettings: %s", result3)
 	}
+
+	// Test LoadBalancer Service targeting Ingress
+	nodesJson4 := `[
+		{"id":"s1","type":"Service","data":{"label":"lb-svc","serviceType":"LoadBalancer","ingressTargets":["my-ingress"]}},
+		{"id":"ing1","type":"Ingress","data":{"label":"my-ingress"}}
+	]`
+	edgesJson4 := `[{"id":"e1","source":"s1","target":"ing1"}]`
+	result4 := Generate(nodesJson4, edgesJson4)
+	if !strings.Contains(result4, "\"app.kubernetes.io/name\":\"ingress-nginx\"") || !strings.Contains(result4, "\"app.kubernetes.io/component\":\"controller\"") {
+		t.Errorf("Expected LoadBalancer targeting Ingress to have ingress-nginx controller selector, got: %s", result4)
+	}
 }
 
 func TestGenerateServiceNodePort(t *testing.T) {

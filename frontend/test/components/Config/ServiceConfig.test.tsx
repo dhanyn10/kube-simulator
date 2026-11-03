@@ -579,4 +579,21 @@ describe('ServiceConfig', () => {
     fireEvent.click(worker2Option);
     expect(mockProps.performUpdate).toHaveBeenCalledWith({ entryNode: 'worker-2' });
   });
+
+  it('does not render simulated entry node section for LoadBalancer services', () => {
+    const lbProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's-lb',
+        data: {
+          serviceType: 'LoadBalancer',
+          port: 80,
+          targetPort: 80,
+        }
+      }
+    };
+    render(<ServiceConfig {...lbProps} />);
+
+    expect(screen.queryByText(/Simulated Entry Node/i)).not.toBeInTheDocument();
+  });
 });
