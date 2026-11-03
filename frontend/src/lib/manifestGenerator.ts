@@ -1,5 +1,5 @@
 import yaml from 'js-yaml';
-import { sanitizeSlug, sanitizeIngressHost } from './utils';
+import { sanitizeSlug } from './utils';
 
 const sanitizeName = (label: string): string => {
   if (!label) return '';
@@ -444,7 +444,7 @@ const buildIngressManifest = (
     ? Number(node.data?.servicePort || 80)
     : Number(connectedServices[0]?.port || node.data?.servicePort || 80);
 
-  const host = sanitizeIngressHost(node.data?.ingressHost || '') || 'example.local';
+  const host = (node.data?.ingressHost as string)?.trim().toLowerCase() || 'example.local';
   const ingressClassName = node.data?.ingressClassName || 'nginx';
   const paths = buildIngressRulePaths(node.data, connectedServices, serviceName, servicePort);
 

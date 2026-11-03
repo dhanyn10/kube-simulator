@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isValidRfc1123Host, sanitizeIngressHost, parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName, beautifyYaml } from '@/lib/utils';
+import { isValidRfc1123Host, parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName, beautifyYaml } from '@/lib/utils';
 
 describe('utils', () => {
   describe('trimDashes', () => {
@@ -43,31 +43,6 @@ describe('utils', () => {
       expect(cleanProjectName('My Custom Project')).toBe('my-custom-project');
     });
   });
-  describe('sanitizeIngressHost', () => {
-    it('strips schemes, ports, paths, query, hash and normalizes to RFC 1123 lowercase', () => {
-      expect(sanitizeIngressHost('https://API.Example.com:8080/v1/users')).toBe('api.example.com');
-      expect(sanitizeIngressHost('http://my_app.test.local:3000')).toBe('my-app.test.local');
-      expect(sanitizeIngressHost('   web.prod.com/path?foo=bar#hash   ')).toBe('web.prod.com');
-      expect(sanitizeIngressHost('UPPERCASE-DOMAIN.IO')).toBe('uppercase-domain.io');
-      expect(sanitizeIngressHost('special!@#chars$%.com')).toBe('specialchars.com');
-      expect(sanitizeIngressHost('..leading.and.trailing..')).toBe('leading.and.trailing');
-      expect(sanitizeIngressHost('')).toBe('');
-    });
-
-    it('handles trailing dots conditionally with preserveTrailingDot flag', () => {
-      expect(sanitizeIngressHost('api.', true)).toBe('api.');
-      expect(sanitizeIngressHost('api.', false)).toBe('api');
-      expect(sanitizeIngressHost('api.example.', true)).toBe('api.example.');
-      expect(sanitizeIngressHost('api.example.', false)).toBe('api.example');
-    });
-
-    it('limits host to RFC 1123 253 characters', () => {
-      const longPart = 'a'.repeat(300) + '.com';
-      const sanitized = sanitizeIngressHost(longPart);
-      expect(sanitized.length).toBeLessThanOrEqual(253);
-    });
-  });
-
   describe('isValidRfc1123Host', () => {
     it('validates compliant RFC 1123 DNS subdomains correctly', () => {
       expect(isValidRfc1123Host('example.local')).toBe(true);
@@ -306,18 +281,5 @@ describe('utils', () => {
       const invalidYaml = 'invalid: [unclosed';
       expect(beautifyYaml(invalidYaml)).toBe('invalid: [unclosed');
     });
-  });
-  it('sanitizes URL schemes without trailing paths or queries (line 115)', () => {
-    expect(sanitizeIngressHost('http://example.com')).toBe('example.com');
-    expect(sanitizeIngressHost('https://api.domain.io')).toBe('api.domain.io');
-  });
-
-  it('trims boundary hyphens and dots when exceeding 253 characters (line 154)', () => {
-    // Generate a string that when truncated to 253 chars ends in a dash or dot
-    const base = 'a'.repeat(251) + '-extra-long-suffix-to-exceed-253-chars';
-    const result = sanitizeIngressHost(base);
-    expect(result.length).toBeLessThanOrEqual(253);
-    expect(result.endsWith('-')).toBe(false);
-    expect(result.endsWith('.')).toBe(false);
   });
 });

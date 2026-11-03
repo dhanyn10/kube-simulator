@@ -34,7 +34,7 @@ describe('IngressConfig', () => {
   });
 
 
-  it('automatically sanitizes input on change and on blur according to RFC 1123', () => {
+  it('updates ingressHost with lowercase on change and trims on blur', () => {
     render(
       <IngressConfig
         selectedNode={selectedNode}
@@ -46,17 +46,14 @@ describe('IngressConfig', () => {
 
     const input = screen.getByDisplayValue('example.com');
 
-    // Pasting URL with scheme, port, uppercase, and path -> automatically sanitized on change
-    fireEvent.change(input, { target: { value: 'https://MY-APP.Example.com:8443/v1' } });
+    // Typing domain in uppercase converts to lowercase on change
+    fireEvent.change(input, { target: { value: 'MY-APP.EXAMPLE.COM' } });
     expect(performUpdate).toHaveBeenCalledWith({ ingressHost: 'my-app.example.com' });
 
-    // Typing trailing dot allowed while typing
-    fireEvent.change(input, { target: { value: 'api.' } });
-    expect(performUpdate).toHaveBeenCalledWith({ ingressHost: 'api.' });
-
-    // On blur, trailing dot is trimmed
-    fireEvent.blur(input, { target: { value: 'api.' } });
-    expect(performUpdate).toHaveBeenCalledWith({ ingressHost: 'api' });
+    // Typing domain with spaces trims on blur
+    fireEvent.change(input, { target: { value: '  api.local  ' } });
+    fireEvent.blur(input, { target: { value: '  api.local  ' } });
+    expect(performUpdate).toHaveBeenCalledWith({ ingressHost: 'api.local' });
   });
 
   it('displays RFC 1123 guidance and warning message when domain is incomplete or invalid', () => {
