@@ -69,6 +69,21 @@ export const sanitizeSlug = (input: string): string => {
 };
 
 /**
+ * Validates whether a given host string complies with Kubernetes RFC 1123 DNS subdomain standards.
+ * Each DNS label must be 1-63 alphanumeric characters or dashes, cannot start/end with a dash,
+ * and total length must not exceed 253 characters.
+ *
+ * @param host - Host string to validate.
+ * @returns True if valid RFC 1123 DNS subdomain.
+ */
+export const isValidRfc1123Host = (host: string): boolean => {
+  if (!host || host.length > 253) return false;
+  const labels = host.split('.');
+  const labelRegex = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+  return labels.every((label) => label.length >= 1 && label.length <= 63 && labelRegex.test(label));
+};
+
+/**
  * Sanitizes Kubernetes project and scenario names into clean filename and URL slugs.
  * Specifically converts prefix `"scenario:"` (case-insensitive) into `"scenario-"` before
  * passing the string to `sanitizeSlug` to maintain standard formatting.
@@ -82,6 +97,74 @@ export const cleanProjectName = (projectName: string): string => {
     lower = 'scenario-' + lower.slice(9).trimStart();
   }
   return sanitizeSlug(lower);
+};
+
+const extractRawHost = (input: string): string => {
+  const str = input.trim().toLowerCase();
+  const schemeIdx = str.indexOf('://');
+  if (schemeIdx !== -1) {
+    const withoutScheme = str.slice(schemeIdx + 3);
+    const end = withoutScheme.search(/[/?:#]/);
+    return end !== -1 ? withoutScheme.slice(0, end) : withoutScheme;
+  }
+  const end = str.search(/[/?:]/);
+  return end !== -1 ? str.slice(0, end) : str;
+};
+
+const normalizeHostChars = (str: string): string => {
+  let result = '';
+  let lastWasDot = false;
+  let lastWasDash = false;
+
+  for (const ch of str) {
+    const code = ch.codePointAt(0) ?? 0;
+    const isAlphaNum = (code >= 97 && code <= 122) || (code >= 48 && code <= 57);
+
+    if (isAlphaNum) {
+      result += ch;
+      lastWasDot = false;
+      lastWasDash = false;
+    } else if (ch === '.' && result.length > 0 && !lastWasDot) {
+      result += '.';
+      lastWasDot = true;
+      lastWasDash = false;
+    } else if ((ch === '-' || ch === '_' || ch === ' ') && result.length > 0 && !lastWasDash && !lastWasDot) {
+      result += '-';
+      lastWasDash = true;
+    }
+  }
+
+  return result;
+};
+
+const trimHostBoundaries = (str: string, preserveTrailingDot: boolean): string => {
+  let cleaned = str.replace(/^[.-]+/, '');
+  if (!preserveTrailingDot) {
+    cleaned = cleaned.replace(/[.-]+$/, '');
+  }
+  if (cleaned.length > 253) {
+    cleaned = cleaned.slice(0, 253);
+    if (!preserveTrailingDot) {
+      cleaned = cleaned.replace(/[.-]+$/, '');
+    }
+  }
+  return cleaned;
+};
+
+/**
+ * Sanitizes an Ingress host according to Kubernetes RFC 1123 DNS subdomain standards.
+ * Strips URL schemes (http://, https://), ports (:8080), paths (/v1), query parameters,
+ * and hashes, converts to lowercase, eliminates invalid characters, and collapses consecutive dots.
+ *
+ * @param input - Raw host string (e.g. 'https://API.Example.com:8080/v1').
+ * @param preserveTrailingDot - If true, permits a trailing dot while actively typing.
+ * @returns Clean, valid RFC 1123 DNS subdomain host string.
+ */
+export const sanitizeIngressHost = (input: string, preserveTrailingDot = false): string => {
+  if (!input) return '';
+  const raw = extractRawHost(input);
+  const normalized = normalizeHostChars(raw);
+  return trimHostBoundaries(normalized, preserveTrailingDot);
 };
 
 /**

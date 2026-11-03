@@ -33,6 +33,54 @@ describe('IngressConfig', () => {
     });
   });
 
+
+  it('automatically sanitizes input on change and on blur according to RFC 1123', () => {
+    render(
+      <IngressConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    const input = screen.getByDisplayValue('example.com');
+
+    // Pasting URL with scheme, port, uppercase, and path -> automatically sanitized on change
+    fireEvent.change(input, { target: { value: 'https://MY-APP.Example.com:8443/v1' } });
+    expect(performUpdate).toHaveBeenCalledWith({ ingressHost: 'my-app.example.com' });
+
+    // Typing trailing dot allowed while typing
+    fireEvent.change(input, { target: { value: 'api.' } });
+    expect(performUpdate).toHaveBeenCalledWith({ ingressHost: 'api.' });
+
+    // On blur, trailing dot is trimmed
+    fireEvent.blur(input, { target: { value: 'api.' } });
+    expect(performUpdate).toHaveBeenCalledWith({ ingressHost: 'api' });
+  });
+
+  it('displays RFC 1123 guidance and warning message when domain is incomplete or invalid', () => {
+    const invalidNode = {
+      ...selectedNode,
+      data: {
+        ...selectedNode.data,
+        ingressHost: 'api.',
+      },
+    };
+
+    render(
+      <IngressConfig
+        selectedNode={invalidNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText(/RFC 1123 DNS subdomain/i)).toBeInTheDocument();
+    expect(screen.getByText(/Domain must contain valid DNS labels/i)).toBeInTheDocument();
+  });
+
   it('renders correctly and handles input updates', () => {
     render(
       <IngressConfig
