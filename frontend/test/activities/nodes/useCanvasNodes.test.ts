@@ -62,6 +62,8 @@ describe('useCanvasNodes hook', () => {
           { id: 'dep-1', type: 'Deployment', parentId: 'ns-1', position: { x: 10, y: 10 }, zIndex: 5, data: { label: 'dep-1' } },
           { id: 'pod-child', type: 'Pod', parentId: 'dep-1', position: { x: 20, y: 20 }, data: { label: 'pod-child' } },
           { id: 'pod-orphan', type: 'Pod', parentId: 'missing-parent', position: { x: 0, y: 0 }, data: { label: 'pod-orphan' } },
+          { id: 'dep-no-z', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'dep-no-z' } },
+          { id: 'pod-no-z', type: 'Pod', parentId: 'dep-no-z', position: { x: 0, y: 0 }, data: { label: 'pod-no-z' } },
         ] as Node[],
       });
     });
@@ -70,9 +72,11 @@ describe('useCanvasNodes hook', () => {
     const depNode = result.current.find((n) => n.id === 'dep-1');
     const childPod = result.current.find((n) => n.id === 'pod-child');
     const orphanPod = result.current.find((n) => n.id === 'pod-orphan');
+    const podNoZ = result.current.find((n) => n.id === 'pod-no-z');
 
     expect(depNode?.zIndex).toBe(10);
     expect(childPod?.zIndex).toBe(10);
     expect(orphanPod?.zIndex).toBeUndefined();
+    expect(podNoZ?.zIndex).toBeUndefined();
   });
 });

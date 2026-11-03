@@ -232,4 +232,18 @@ describe('WorkerBudgetModal', () => {
     expect(useFlowStore.getState().isWorkerBudgetModalOpen).toBe(false);
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('does not close modal when non-Escape key is pressed', () => {
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+    fireEvent.keyDown(globalThis, { key: 'Enter' });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(useFlowStore.getState().isWorkerBudgetModalOpen).toBe(true);
+  });
+
+  it('falls back to default worker count of 3 when clusterWorkerCount is undefined in store', () => {
+    useFlowStore.setState({ clusterWorkerCount: undefined as any });
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+    const countDisplay = screen.getByTestId('worker-count-display');
+    expect(countDisplay.textContent).toBe('3 Nodes');
+  });
 });

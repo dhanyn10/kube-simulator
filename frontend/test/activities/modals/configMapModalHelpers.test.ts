@@ -69,6 +69,10 @@ describe('configMapModalHelpers', () => {
     const item3 = buildConfigMapItem('cm-custom-id', '', []);
     expect(item3.id).toBe('cm-custom-id');
     expect(item3.name).toBe('cm-custom-id');
+
+    // Symbols that sanitize to empty string fall back to id (line 72: name || id)
+    const item4 = buildConfigMapItem('cm-symbols', '---!!!', []);
+    expect(item4.name).toBe('cm-symbols');
   });
 
   describe('extractPodHashFromLabel', () => {
@@ -148,6 +152,44 @@ describe('configMapModalHelpers', () => {
         groupLabel: 'web-deploy',
       });
     });
+
+    it('handles fallbackBase and pod fallback when baseName is missing or data is undefined (lines 121-122)', () => {
+      // baseName missing, but data.podHash exists without label -> extractPodBaseName returns 'pod' as fallbackBase
+      const podNoBase = {
+        id: 'pod-no-base',
+        type: 'Pod',
+        data: { podHash: '7f9b2' },
+      };
+      const info1 = getPodReplicaGroupInfo(podNoBase);
+      expect(info1.isGroup).toBe(true);
+      expect(info1.groupLabel).toBe('pod-7f9b2');
+
+      // Getter returns data with podHash on first access, undefined on second access (line 121 : undefined, line 122 || 'pod')
+      let accessCount = 0;
+      const dynamicPod = {
+        type: 'Pod',
+        get data() {
+          return accessCount++ === 0 ? { podHash: '9x8y7' } : undefined;
+        },
+      };
+      const info2 = getPodReplicaGroupInfo(dynamicPod);
+      expect(info2.isGroup).toBe(true);
+      expect(info2.groupLabel).toBe('pod-9x8y7');
+    });
+
+    it('falls back to id or empty string for nodes missing data, label, or id (lines 133-134)', () => {
+      // Node without label falls back to node.id
+      const nodeNoLabel = { id: 'orphan-node', data: {} };
+      const info1 = getPodReplicaGroupInfo(nodeNoLabel);
+      expect(info1.groupKey).toBe('orphan-node');
+      expect(info1.groupLabel).toBe('orphan-node');
+
+      // Empty node without id or label falls back to empty strings
+      const emptyNode = {};
+      const info2 = getPodReplicaGroupInfo(emptyNode);
+      expect(info2.groupKey).toBe('');
+      expect(info2.groupLabel).toBe('');
+    });
   });
   describe('resolveTargetOptionLabel', () => {
     it('returns groupLabel if groupInfo.isGroup is true', () => {
@@ -183,6 +225,24 @@ describe('configMapModalHelpers', () => {
       expect(result[0]).toEqual({ id: 'dep-1', label: 'web-deploy', type: 'Deployment' });
       expect(result[1]).toEqual({ id: 'pod-group:web-abc12', label: 'web-abc12', type: 'Pod' });
     });
+
+    it('safely handles nodes with missing type and dynamic type fallback (lines 160 & 168)', () => {
+      let typeAccess = 0;
+      const dynamicTypeNode = {
+        id: 'dyn-type-1',
+        get type() {
+          return typeAccess++ === 0 ? 'Deployment' : undefined;
+        },
+        data: { label: 'dyn-deploy' },
+      };
+      const nodesWithMissingAndDyn = [
+        { id: 'missing-type-node', data: {} },
+        dynamicTypeNode,
+      ];
+      const result = getAvailableWorkloadComponents(nodesWithMissingAndDyn);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({ id: 'dyn-type-1', label: 'dyn-deploy', type: 'Node' });
+    });
   });
 
   describe('appendTargetComponentOption', () => {
@@ -205,6 +265,36 @@ describe('configMapModalHelpers', () => {
       const nodes = [{ id: 'target-node', type: 'Deployment', data: { label: 'target-deploy' } }];
       const result = appendTargetComponentOption(initial, 'target-node', undefined, nodes);
       expect(result).toBe(initial);
+    });
+
+    it('evaluates group replica matching in alreadyPresent (line 197)', () => {
+      const targetPod = {
+        id: 'pod-worker-1',
+        type: 'Pod',
+        data: { baseName: 'worker', podHash: 'abc12', label: 'worker-abc12-xyz01' },
+      };
+      const nodes = [targetPod];
+
+      // 1. Different component id and different group label -> proceeds to append
+      const existingOther = [{ id: 'other-comp', label: 'other-label', type: 'Pod' as const }];
+      const res1 = appendTargetComponentOption(existingOther, 'pod-worker-1', undefined, nodes);
+      expect(res1).toHaveLength(2);
+
+      // 2. Different component id, but matching groupLabel -> alreadyPresent is true
+      const existingMatchingLabel = [{ id: 'different-id', label: 'worker-abc12', type: 'Pod' as const }];
+      const res2 = appendTargetComponentOption(existingMatchingLabel, 'pod-worker-1', undefined, nodes);
+      expect(res2).toBe(existingMatchingLabel);
+    });
+
+    it('handles targetNode not found in nodes (lines 186 & 194)', () => {
+      const initial = [{ id: 'comp-1', label: 'comp-1', type: 'Pod' as const }];
+      const result = appendTargetComponentOption(initial, 'missing-node-id', 'Missing Label', []);
+      expect(result).toHaveLength(2);
+      expect(result[1]).toEqual({
+        id: 'missing-node-id',
+        label: 'Missing Label',
+        type: 'Node',
+      });
     });
   });
 

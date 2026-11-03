@@ -121,6 +121,127 @@ describe('ResourceModalFooter & Shared Helpers', () => {
     expect(mockSave).toHaveBeenCalled();
   });
 
+  it('covers getProfileBackButtonStyle and getFormBackButtonStyle with rose and teal accent colors across dark and light modes', () => {
+    // 0a. Profile mode with teal in dark mode
+    const { rerender: rerenderProfileTeal } = render(
+      <ResourceModalFooter
+        mode="profile"
+        isDark={true}
+        onAddNewFromList={vi.fn()}
+        onClose={vi.fn()}
+        onBackToMode={vi.fn()}
+        onSave={vi.fn()}
+        addNewButtonLabel="+ Add ConfigMap"
+        saveButtonLabel="Update ConfigMap"
+        accentColor="teal"
+        profileBackButtonTestId="profile-back-teal-dark"
+      />
+    );
+    expect(screen.getByTestId('profile-back-teal-dark')).toHaveClass('text-teal-400');
+
+    // 0b. Form mode with rose in light mode
+    rerenderProfileTeal(
+      <ResourceModalFooter
+        mode="form"
+        isDark={false}
+        onAddNewFromList={vi.fn()}
+        onClose={vi.fn()}
+        onBackToMode={vi.fn()}
+        onSave={vi.fn()}
+        addNewButtonLabel="+ Add Secret"
+        saveButtonLabel="Update Secret"
+        accentColor="rose"
+        backButtonTestId="form-back-rose-light"
+      />
+    );
+    expect(screen.getByTestId('form-back-rose-light')).toHaveClass('text-indigo-600');
+
+    // 1. Profile mode with rose in dark mode
+    const { rerender } = render(
+      <ResourceModalFooter
+        mode="profile"
+        isDark={true}
+        onAddNewFromList={vi.fn()}
+        onClose={vi.fn()}
+        onBackToMode={vi.fn()}
+        onSave={vi.fn()}
+        addNewButtonLabel="+ Add Secret"
+        saveButtonLabel="Update Secret"
+        accentColor="rose"
+        profileBackButtonTestId="profile-back-rose-dark"
+      />
+    );
+    expect(screen.getByTestId('profile-back-rose-dark')).toHaveClass('text-rose-400');
+
+    // 2. Profile mode with rose in light mode
+    rerender(
+      <ResourceModalFooter
+        mode="profile"
+        isDark={false}
+        onAddNewFromList={vi.fn()}
+        onClose={vi.fn()}
+        onBackToMode={vi.fn()}
+        onSave={vi.fn()}
+        addNewButtonLabel="+ Add Secret"
+        saveButtonLabel="Update Secret"
+        accentColor="rose"
+        profileBackButtonTestId="profile-back-rose-light"
+      />
+    );
+    expect(screen.getByTestId('profile-back-rose-light')).toHaveClass('text-rose-600');
+
+    // 3. Form mode with teal in dark mode
+    rerender(
+      <ResourceModalFooter
+        mode="form"
+        isDark={true}
+        onAddNewFromList={vi.fn()}
+        onClose={vi.fn()}
+        onBackToMode={vi.fn()}
+        onSave={vi.fn()}
+        addNewButtonLabel="+ Add ConfigMap"
+        saveButtonLabel="Update ConfigMap"
+        accentColor="teal"
+        backButtonTestId="form-back-teal-dark"
+      />
+    );
+    expect(screen.getByTestId('form-back-teal-dark')).toHaveClass('text-teal-400');
+
+    // 4. Form mode with teal in light mode
+    rerender(
+      <ResourceModalFooter
+        mode="form"
+        isDark={false}
+        onAddNewFromList={vi.fn()}
+        onClose={vi.fn()}
+        onBackToMode={vi.fn()}
+        onSave={vi.fn()}
+        addNewButtonLabel="+ Add ConfigMap"
+        saveButtonLabel="Update ConfigMap"
+        accentColor="teal"
+        backButtonTestId="form-back-teal-light"
+      />
+    );
+    expect(screen.getByTestId('form-back-teal-light')).toHaveClass('text-teal-600');
+
+    // 5. List mode with teal in light mode
+    rerender(
+      <ResourceModalFooter
+        mode="list"
+        isDark={false}
+        onAddNewFromList={vi.fn()}
+        onClose={vi.fn()}
+        onBackToMode={vi.fn()}
+        onSave={vi.fn()}
+        addNewButtonLabel="+ Add ConfigMap"
+        saveButtonLabel="Attach ConfigMap"
+        accentColor="teal"
+        closeButtonTestId="list-close-teal-light"
+      />
+    );
+    expect(screen.getByTestId('list-close-teal-light')).toHaveClass('text-slate-700');
+  });
+
   it('useOutsideMouseDown triggers only when clicking outside while active', () => {
     const mockOutside = vi.fn();
     const { rerender } = render(

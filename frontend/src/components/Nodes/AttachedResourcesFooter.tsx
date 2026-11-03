@@ -113,10 +113,10 @@ export const AttachedResourcesFooter: React.FC<AttachedResourcesFooterProps> = (
         nodeId={nodeId}
         nodeLabel={nodeLabel}
       />
-      {data.secrets?.map((sec: any) => (
+      {data.secrets?.map((sec: any, idx: number) => (
         <button
           type="button"
-          key={sec.id || sec.name}
+          key={`attached-secret-${sec.id || sec.name || idx}`}
           className="node-attached-badge-secret border-0 outline-none flex items-center justify-center cursor-pointer"
           title={`Secret: ${sec.name || sec.id || 'Unnamed'}`}
           aria-label={`Inspect Secret ${sec.name || sec.id || 'Unnamed'}`}

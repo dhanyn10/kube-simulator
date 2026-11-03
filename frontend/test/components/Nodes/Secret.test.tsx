@@ -81,6 +81,33 @@ describe('SecretNode', () => {
     expect(screen.getByText('+ 1 more...')).toBeDefined();
   });
 
+  it('renders more than 3 items text styling in light colorMode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    const props = {
+      id: 's-light',
+      type: 'Secret',
+      data: {
+        label: 'My Secret Light',
+        configData: [
+          { key: 'k1', value: 'v1' },
+          { key: 'k2', value: 'v2' },
+          { key: 'k3', value: 'v3' },
+          { key: 'k4', value: 'v4' },
+        ],
+      },
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <SecretNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    const moreText = screen.getByText('+ 1 more...');
+    expect(moreText).toBeDefined();
+    expect(moreText.className).toContain('text-slate-400');
+  });
+
   it('respects displaySettings', () => {
     const props = {
       id: 's1',

@@ -54,6 +54,10 @@ describe('workerNodeHelpers', () => {
       const clampedHigh = getWorkerNodes(200);
       expect(clampedHigh).toHaveLength(100);
       expect(clampedHigh[99].id).toBe('worker-100');
+
+      // Falls back to 3 when Math.floor(count) is 0 or NaN (covers Math.floor(count) || 3)
+      expect(getWorkerNodes(0)).toHaveLength(3);
+      expect(getWorkerNodes(NaN)).toHaveLength(3);
     });
 
     it('supports getWorkerNodeOptions for dynamic worker count', () => {
@@ -93,6 +97,11 @@ describe('workerNodeHelpers', () => {
       expect(getAssignedWorker(null)).toBe('worker-1');
       expect(getAssignedWorker({})).toBe('worker-1');
       expect(getAssignedWorker({ label: '' }, '')).toBe('worker-1');
+    });
+
+    it('handles rawKey containing null characters where codePointAt is 0', () => {
+      const worker = getAssignedWorker(null, '\0\0');
+      expect(worker).toBe('worker-1');
     });
   });
 
@@ -146,12 +155,44 @@ describe('workerNodeHelpers', () => {
       expect(hop.isExtraHop).toBe(false);
       expect(hop.isDropped).toBe(false);
     });
+
+    it('falls back to default worker-1 IP when entryNode or targetNode are unknown nodes', () => {
+      const hop = getTrafficHopInfo(
+        { entryNode: 'worker-unknown-99' },
+        { assignedNode: 'worker-unknown-88' }
+      );
+      expect(hop.entryNodeIp).toBe(WORKER_NODES['worker-1'].ip);
+      expect(hop.targetNodeIp).toBe(WORKER_NODES['worker-1'].ip);
+
+      // Force targetNode?.ip to be missing to cover right-hand branch of line 154
+      const originalWorker1 = WORKER_NODES['worker-1'];
+      try {
+        (WORKER_NODES as any)['worker-temp-no-ip'] = { id: 'worker-temp-no-ip' };
+        // Pass assignedNode matching /^worker-\d+$/ but intercepted in base object without ip
+        (WORKER_NODES as any)['worker-1'] = { id: 'worker-1' };
+        const hopWithoutIp = getTrafficHopInfo(null, null);
+        expect(hopWithoutIp.targetNodeIp).toBeUndefined();
+      } finally {
+        (WORKER_NODES as any)['worker-1'] = originalWorker1;
+      }
+    });
   });
 
   describe('getWorkerForIndex', () => {
     it('spreads replica indices round-robin across 3 workers', () => {
       expect([0, 1, 2, 3, 4].map(getWorkerForIndex)).toEqual(['worker-1', 'worker-2', 'worker-3', 'worker-1', 'worker-2']);
       expect(getWorkerForIndex(-2)).toBe('worker-3');
+    });
+
+    it('supports custom totalWorkers count and falls back to 3 when totalWorkers < 1', () => {
+      expect(getWorkerForIndex(0, 5)).toBe('worker-1');
+      expect(getWorkerForIndex(1, 5)).toBe('worker-2');
+      expect(getWorkerForIndex(4, 5)).toBe('worker-5');
+      expect(getWorkerForIndex(5, 5)).toBe('worker-1');
+
+      // totalWorkers < 1 falls back to 3
+      expect(getWorkerForIndex(0, 0)).toBe('worker-1');
+      expect(getWorkerForIndex(1, -2)).toBe('worker-2');
     });
   });
 

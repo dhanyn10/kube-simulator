@@ -407,5 +407,41 @@ describe('simulationReachability', () => {
       [localSvc, depWithNode]
     );
     expect(reachFallback.has('dep-standalone-node')).toBe(true);
+
+    // 7. Local policy with undefined entryNode (falls back to 'worker-1')
+    const svcNoEntryNode: Node = {
+      id: 'svc-no-entry',
+      type: 'Service',
+      data: {
+        serviceType: 'LoadBalancer',
+        selector: 'my-app',
+        externalTrafficPolicy: 'Local',
+        // entryNode omitted to trigger fallback to 'worker-1'
+      },
+      position: { x: 0, y: 0 },
+    };
+    const reachDefaultEntry = calculateReachability(
+      [svcNoEntryNode],
+      edgeMap,
+      [],
+      [svcNoEntryNode, podOnWorker1]
+    );
+    expect(reachDefaultEntry.has('pod-w1')).toBe(true);
+
+    // 8. Deployment target when nodes contains an unrelated Pod (type === 'Pod' but parentId !== node.id)
+    const unrelatedPod: Node = {
+      id: 'unrelated-pod',
+      type: 'Pod',
+      parentId: 'different-parent',
+      data: { assignedNode: 'worker-1' },
+      position: { x: 0, y: 0 },
+    };
+    const reachUnrelatedPod = calculateReachability(
+      [localSvc],
+      depEdgeMap,
+      [],
+      [localSvc, deployNode, unrelatedPod, childOnWorker1]
+    );
+    expect(reachUnrelatedPod.has('dep-target')).toBe(true);
   });
 });

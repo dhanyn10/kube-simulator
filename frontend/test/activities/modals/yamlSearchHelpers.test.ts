@@ -38,6 +38,15 @@ describe('yamlSearchHelpers', () => {
       expect(res.segments[3]).toEqual({ text: '80', isMatch: true, matchIndex: 3 });
       expect(res.nextMatchIndex).toBe(4);
     });
+
+    it('handles query matching directly at start index 0 without leading non-matching segment', () => {
+      const line = 'app: web';
+      const res = buildSearchSegmentsForLine(line, 'app', 0);
+      expect(res.segments).toHaveLength(2);
+      expect(res.segments[0]).toEqual({ text: 'app', isMatch: true, matchIndex: 0 });
+      expect(res.segments[1]).toEqual({ text: ': web', isMatch: false });
+      expect(res.nextMatchIndex).toBe(1);
+    });
   });
 
   describe('parseYamlSearchLines', () => {
