@@ -598,5 +598,15 @@ describe('manifestGenerator test suite', () => {
     const depEdges = [{ id: 'e2', source: 'svc-dep', target: 'dep-target' }];
     const yaml4 = generateYamlClientSide(nodesDepEdge, depEdges);
     expect(yaml4).toContain('app: backend-app');
+
+    // 5. Outgoing edge from LoadBalancer to non-Ingress node (Deployment) without selector
+    const nodesLbNonIngressEdge = [
+      { id: 'lb-direct', type: 'Service', data: { label: 'lb-direct', serviceType: 'LoadBalancer' } },
+      { id: 'target-dep', type: 'Deployment', data: { label: 'target-app' } },
+    ];
+    const lbDepEdges = [{ id: 'e-lb-dep', source: 'lb-direct', target: 'target-dep' }];
+    const yaml5 = generateYamlClientSide(nodesLbNonIngressEdge, lbDepEdges);
+    expect(yaml5).toContain('app: target-app');
+    expect(yaml5).not.toContain('ingress-nginx');
   });
 });

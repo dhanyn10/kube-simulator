@@ -134,4 +134,29 @@ describe('IngressNode', () => {
     expect(paymentPath).toHaveClass('block');
     expect(screen.queryByText('Backend Service')).toBeNull();
   });
+
+  it('renders multiple paths falling back to path string as key when id is omitted', () => {
+    const props = {
+      id: 'i-multi-no-id',
+      type: 'Ingress',
+      data: {
+        label: 'Multi Path Without ID',
+        displaySettings: { path: true },
+        ingressPaths: [
+          { path: '/v1', serviceName: 'v1-svc' },
+          { path: '/v2', serviceName: 'v2-svc' },
+        ],
+      },
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <IngressNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Paths (2)')).toBeDefined();
+    expect(screen.getByText('/v1')).toBeDefined();
+    expect(screen.getByText('/v2')).toBeDefined();
+  });
 });

@@ -732,6 +732,36 @@ describe('ServiceConfig', () => {
     expect(screen.queryByTestId('headless-recommendation-banner')).not.toBeInTheDocument();
   });
 
+  it('renders Headless recommendation banner in light mode with light theme styling', () => {
+    useFlowStore.setState({
+      colorMode: 'light',
+      nodes: [
+        { id: 'ss-light', type: 'StatefulSet', data: { label: 'kafka-broker' } }
+      ] as any
+    });
+
+    render(
+      <ServiceConfig
+        {...mockProps}
+        selectedNode={{
+          id: 's-light',
+          data: {
+            serviceType: 'ClusterIP',
+            selector: 'kafka-broker'
+          }
+        }}
+      />
+    );
+
+    const banner = screen.getByTestId('headless-recommendation-banner');
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveClass('bg-amber-50');
+
+    const switchBtn = screen.getByTestId('switch-to-headless-btn');
+    expect(switchBtn).toBeInTheDocument();
+    expect(switchBtn).toHaveClass('bg-amber-100');
+  });
+
   it('does not render Headless recommendation banner when targeting regular Deployment', () => {
     useFlowStore.setState({
       nodes: [
