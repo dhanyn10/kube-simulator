@@ -250,23 +250,58 @@ const determineServiceNodePort = (nodeData: any): number | undefined => {
   return showNodePort && nodeData.yamlSettings?.nodePort !== false ? Number(nodeData.nodePort) : undefined;
 };
 
+const isTargetingIngress = (
+  node: any,
+  nodeMap: Map<string, any>,
+  sourceEdgeMap: Map<string, any[]>
+): boolean => {
+  if (node.data?.serviceType !== 'LoadBalancer') {
+    return false;
+  }
+  if (Array.isArray(node.data?.ingressTargets) && node.data.ingressTargets.length > 0) {
+    return true;
+  }
+  if (node.data?.selector) {
+    for (const [, n] of nodeMap) {
+      if (n.type === 'Ingress' && ((n.data?.label as string) || n.id) === node.data.selector) {
+        return true;
+      }
+    }
+  }
+  const outgoing = sourceEdgeMap.get(node.id) || [];
+  for (const e of outgoing) {
+    const target = nodeMap.get(e.target);
+    if (target?.type === 'Ingress') {
+      return true;
+    }
+  }
+  return false;
+};
+
 const determineServiceSelector = (
   node: any,
   name: string,
   nodeMap: Map<string, any>,
   sourceEdgeMap: Map<string, any[]>
-): string => {
+): Record<string, string> => {
+  if (isTargetingIngress(node, nodeMap, sourceEdgeMap)) {
+    return {
+      'app.kubernetes.io/name': 'ingress-nginx',
+      'app.kubernetes.io/component': 'controller',
+    };
+  }
+
   if (node.data?.selector) {
-    return sanitizeName(node.data.selector);
+    return { app: sanitizeName(node.data.selector) };
   }
   const outgoing = sourceEdgeMap.get(node.id) || [];
   for (const e of outgoing) {
     const target = nodeMap.get(e.target);
-    if (target && ['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet', 'Ingress'].includes(target.type)) {
-      return sanitizeName(target.data?.label || name);
+    if (target && ['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(target.type)) {
+      return { app: sanitizeName(target.data?.label || name) };
     }
   }
-  return sanitizeName(name);
+  return { app: sanitizeName(name) };
 };
 
 const buildServiceManifest = (
@@ -288,7 +323,7 @@ const buildServiceManifest = (
     portObject.nodePort = nodePort;
   }
 
-  const selectorLabel = determineServiceSelector(node, name, nodeMap, sourceEdgeMap);
+  const selectorObject = determineServiceSelector(node, name, nodeMap, sourceEdgeMap);
 
   let specType: string | undefined = serviceType;
   let clusterIP: string | undefined;
@@ -308,7 +343,7 @@ const buildServiceManifest = (
       ports: [portObject],
       selector:
         node.data.yamlSettings?.selector !== false
-          ? { app: selectorLabel }
+          ? selectorObject
           : undefined,
       externalTrafficPolicy:
         (serviceType === 'LoadBalancer' || serviceType === 'NodePort') && node.data.externalTrafficPolicy

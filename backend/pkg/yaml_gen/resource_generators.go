@@ -430,26 +430,56 @@ func generateReplicaSet(data k8s.K8sNodeData, name, namespace string, ctx *GenCo
 	}
 }
 
+// isServiceTargetingIngress checks if a Service is LoadBalancer and routes to an Ingress.
+func isServiceTargetingIngress(data k8s.K8sNodeData, ctx *GenContext) bool {
+	if data.ServiceType != "LoadBalancer" {
+		return false
+	}
+	if len(data.IngressTargets) > 0 {
+		return true
+	}
+	if data.Selector != "" {
+		for _, node := range ctx.nodeMap {
+			if node.Type == "Ingress" && (node.Data.Label == data.Selector || node.ID == data.Selector) {
+				return true
+			}
+		}
+	}
+	for _, edge := range ctx.sourceEdgeMap[data.ID] {
+		target := ctx.nodeMap[edge.Target]
+		if target != nil && target.Type == "Ingress" {
+			return true
+		}
+	}
+	return false
+}
+
 // findTargetWorkload identifies the target Deployment or Pod node connected to a Service.
 func findTargetWorkload(serviceID string, ctx *GenContext) *k8s.FrontendNode {
 	for _, edge := range ctx.sourceEdgeMap[serviceID] {
 		target := ctx.nodeMap[edge.Target]
-		if target != nil && (target.Type == "Deployment" || target.Type == "Pod") {
+		if target != nil && (target.Type == "Deployment" || target.Type == "Pod" || target.Type == "StatefulSet" || target.Type == "ReplicaSet") {
 			return target
 		}
 	}
 	return nil
 }
 
-// determineServiceSelector derives selector label from target workload or node settings.
-func determineServiceSelector(data k8s.K8sNodeData, targetWorkload *k8s.FrontendNode) string {
+// determineServiceSelector derives selector label map from target workload or node settings.
+func determineServiceSelector(data k8s.K8sNodeData, targetWorkload *k8s.FrontendNode, ctx *GenContext) map[string]string {
+	if isServiceTargetingIngress(data, ctx) {
+		return map[string]string{
+			"app.kubernetes.io/name":      "ingress-nginx",
+			"app.kubernetes.io/component": "controller",
+		}
+	}
 	if data.Selector != "" {
-		return sanitizeName(data.Selector)
+		return map[string]string{"app": sanitizeName(data.Selector)}
 	}
 	if targetWorkload != nil {
-		return sanitizeName(targetWorkload.Data.Label)
+		return map[string]string{"app": sanitizeName(targetWorkload.Data.Label)}
 	}
-	return "app-label"
+	return map[string]string{"app": "app-label"}
 }
 
 // determineServicePort derives service port and target port from node settings.
@@ -484,7 +514,7 @@ func determineNodePort(data k8s.K8sNodeData, serviceType string) int {
 // generateService constructs a Kubernetes Service resource object.
 func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	targetWorkload := findTargetWorkload(data.ID, ctx)
-	selectorLabel := determineServiceSelector(data, targetWorkload)
+	selectorMap := determineServiceSelector(data, targetWorkload, ctx)
 	port, targetPort := determineServicePort(data)
 
 	serviceType := "ClusterIP"
@@ -523,7 +553,7 @@ func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 	}
 
 	if val, ok := data.YamlSettings["selector"]; !ok || val {
-		svc.Spec.Selector = map[string]string{"app": selectorLabel}
+		svc.Spec.Selector = selectorMap
 	}
 
 	return svc

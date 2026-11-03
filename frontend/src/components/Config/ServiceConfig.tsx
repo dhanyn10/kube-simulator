@@ -580,7 +580,12 @@ export const ServiceConfig = ({
       {/* Selector Configuration Dropdown (Only rendered when matching options exist on canvas in same namespace) */}
       {availableOptions.length > 0 && (
         <ConfigSection
-          title="Selector (app)"
+          title={
+            currentServiceType === 'LoadBalancer' &&
+            (Boolean(data.ingressTargets?.length) || availableOptions.some((opt) => opt.category === 'INGRESS' && opt.label === currentSelector))
+              ? "Routing Target"
+              : "Selector (app)"
+          }
           icon={Box}
           isVisible={data.displaySettings?.selector}
           onToggle={() => toggleVisibility('selector')}
