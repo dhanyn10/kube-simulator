@@ -1,7 +1,6 @@
 import { K8sNodeData } from '@/types';
 import { generateRandomHash, formatPodName } from '@/lib/utils';
 import {
-  WorkerNodeId,
   WorkerNodeInfo,
   WORKER_NODES,
   getWorkerForIndex,
@@ -13,13 +12,13 @@ export interface WorkloadPodItem {
   podName: string;
   podHash: string;
   replicaSuffix: string;
-  workerId: WorkerNodeId;
+  workerId: string;
   workerInfo: WorkerNodeInfo;
   status: 'Running' | 'Ready' | 'Pending';
 }
 
 export interface WorkerDistributionCount {
-  workerId: WorkerNodeId;
+  workerId: string;
   workerInfo: WorkerNodeInfo;
   count: number;
 }
@@ -70,7 +69,7 @@ const computeSinglePodName = (params: PodNameResolutionParams): string => {
   return formatPodName(baseName, groupPodHash, replicaSuffix, totalReplicas);
 };
 
-const resolvePodWorker = (index: number, childPods: any[], workerCount = 3): WorkerNodeId => {
+const resolvePodWorker = (index: number, childPods: any[], workerCount = 3): string => {
   const directPod = childPods[index];
   const assigned = directPod?.data?.assignedNode;
   if (typeof assigned === 'string' && /^worker-\d+$/.test(assigned)) {

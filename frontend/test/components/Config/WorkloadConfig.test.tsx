@@ -707,4 +707,50 @@ describe('WorkloadConfig', () => {
 
     expect(screen.queryByText('Worker Node')).toBeNull();
   });
+  it('does not render Restart Policy section for Deployment or StatefulSet', () => {
+    const deployNode = {
+      id: 'd-test-restart',
+      type: 'Deployment',
+      data: {
+        label: 'Deploy Test',
+        replicas: 2,
+        image: 'nginx:latest',
+        restartPolicy: 'OnFailure',
+      },
+    };
+    useFlowStore.setState({ nodes: [deployNode] as any });
+
+    const { rerender } = render(
+      <WorkloadConfig
+        selectedNode={deployNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.queryByText('Restart Policy')).toBeNull();
+
+    const statefulNode = {
+      id: 'ss-test-restart',
+      type: 'StatefulSet',
+      data: {
+        label: 'Stateful Test',
+        replicas: 1,
+        image: 'redis:latest',
+      },
+    };
+    useFlowStore.setState({ nodes: [statefulNode] as any });
+
+    rerender(
+      <WorkloadConfig
+        selectedNode={statefulNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.queryByText('Restart Policy')).toBeNull();
+  });
 });

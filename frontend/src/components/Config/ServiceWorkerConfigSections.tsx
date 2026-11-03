@@ -2,7 +2,7 @@ import React from 'react';
 import { Network, Server, Info } from 'lucide-react';
 import { ConfigSection } from '@/components/UI/ConfigUI';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
-import { WORKER_NODE_OPTIONS, WorkerNodeId } from '@/lib/workerNodeHelpers';
+import { WORKER_NODE_OPTIONS } from '@/lib/workerNodeHelpers';
 
 interface ExternalTrafficPolicySectionProps {
   data: any;
@@ -73,7 +73,7 @@ export const EntryNodeSection: React.FC<EntryNodeSectionProps> = ({
   performUpdate,
   toggleVisibility,
 }) => {
-  const currentEntry = (data.entryNode || 'worker-1') as WorkerNodeId;
+  const currentEntry = (data.entryNode || 'worker-1');
 
   return (
     <ConfigSection

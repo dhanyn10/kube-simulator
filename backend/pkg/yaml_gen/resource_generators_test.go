@@ -391,3 +391,190 @@ func TestFindTargetDeployment(t *testing.T) {
 		}
 	})
 }
+
+func TestIsServiceTargetingIngress(t *testing.T) {
+	ctx := &GenContext{
+		nodeMap: map[string]*k8s.FrontendNode{
+			"ing1": {ID: "ing1", Type: "Ingress", Data: k8s.K8sNodeData{Label: "ingress-label"}},
+			"pod1": {ID: "pod1", Type: "Pod", Data: k8s.K8sNodeData{Label: "app-pod"}},
+		},
+		sourceEdgeMap: map[string][]k8s.FrontendEdge{
+			"svc-edge-ing": {{ID: "e1", Source: "svc-edge-ing", Target: "ing1"}},
+			"svc-edge-pod": {{ID: "e2", Source: "svc-edge-pod", Target: "pod1"}},
+		},
+	}
+
+	t.Run("Non-LoadBalancer service returns false", func(t *testing.T) {
+		data := k8s.K8sNodeData{ServiceType: "ClusterIP", IngressTargets: []string{"ing1"}}
+		if isServiceTargetingIngress(data, ctx) {
+			t.Error("Expected false for non-LoadBalancer service")
+		}
+	})
+
+	t.Run("LoadBalancer with IngressTargets returns true", func(t *testing.T) {
+		data := k8s.K8sNodeData{ServiceType: "LoadBalancer", IngressTargets: []string{"ing1"}}
+		if !isServiceTargetingIngress(data, ctx) {
+			t.Error("Expected true when IngressTargets is non-empty")
+		}
+	})
+
+	t.Run("LoadBalancer with Selector matching Ingress Label returns true", func(t *testing.T) {
+		data := k8s.K8sNodeData{ServiceType: "LoadBalancer", Selector: "ingress-label"}
+		if !isServiceTargetingIngress(data, ctx) {
+			t.Error("Expected true when Selector matches Ingress Label")
+		}
+	})
+
+	t.Run("LoadBalancer with Selector matching Ingress ID returns true", func(t *testing.T) {
+		data := k8s.K8sNodeData{ServiceType: "LoadBalancer", Selector: "ing1"}
+		if !isServiceTargetingIngress(data, ctx) {
+			t.Error("Expected true when Selector matches Ingress ID")
+		}
+	})
+
+	t.Run("LoadBalancer connected via edge to Ingress returns true", func(t *testing.T) {
+		data := k8s.K8sNodeData{ID: "svc-edge-ing", ServiceType: "LoadBalancer"}
+		if !isServiceTargetingIngress(data, ctx) {
+			t.Error("Expected true when connected via sourceEdgeMap to Ingress")
+		}
+	})
+
+	t.Run("LoadBalancer connected to non-Ingress returns false", func(t *testing.T) {
+		data := k8s.K8sNodeData{ID: "svc-edge-pod", ServiceType: "LoadBalancer"}
+		if isServiceTargetingIngress(data, ctx) {
+			t.Error("Expected false when connected to Pod")
+		}
+	})
+}
+
+func TestDetermineServiceSelector(t *testing.T) {
+	ctx := &GenContext{
+		nodeMap: map[string]*k8s.FrontendNode{
+			"ing1": {ID: "ing1", Type: "Ingress", Data: k8s.K8sNodeData{Label: "ing-lbl"}},
+		},
+		sourceEdgeMap: map[string][]k8s.FrontendEdge{
+			"lb-ing": {{ID: "e1", Source: "lb-ing", Target: "ing1"}},
+		},
+	}
+
+	t.Run("Targeting Ingress returns nginx ingress selector", func(t *testing.T) {
+		data := k8s.K8sNodeData{ID: "lb-ing", ServiceType: "LoadBalancer"}
+		sel := determineServiceSelector(data, nil, ctx)
+		if sel["app.kubernetes.io/name"] != "ingress-nginx" {
+			t.Errorf("Expected ingress-nginx selector, got %v", sel)
+		}
+	})
+
+	t.Run("Explicit Selector returns app label", func(t *testing.T) {
+		data := k8s.K8sNodeData{ServiceType: "ClusterIP", Selector: "custom-app"}
+		sel := determineServiceSelector(data, nil, ctx)
+		if sel["app"] != "custom-app" {
+			t.Errorf("Expected app: custom-app, got %v", sel)
+		}
+	})
+
+	t.Run("Target workload returns workload label", func(t *testing.T) {
+		data := k8s.K8sNodeData{ServiceType: "ClusterIP"}
+		workload := &k8s.FrontendNode{Data: k8s.K8sNodeData{Label: "workload-app"}}
+		sel := determineServiceSelector(data, workload, ctx)
+		if sel["app"] != "workload-app" {
+			t.Errorf("Expected app: workload-app, got %v", sel)
+		}
+	})
+
+	t.Run("Fallback when no target and no selector", func(t *testing.T) {
+		data := k8s.K8sNodeData{ServiceType: "ClusterIP"}
+		sel := determineServiceSelector(data, nil, ctx)
+		if sel["app"] != "app-label" {
+			t.Errorf("Expected fallback app: app-label, got %v", sel)
+		}
+	})
+}
+
+func TestDetermineNodePort(t *testing.T) {
+	t.Run("NodePort service with port returns port", func(t *testing.T) {
+		data := k8s.K8sNodeData{NodePort: 30080}
+		if port := determineNodePort(data, "NodePort"); port != 30080 {
+			t.Errorf("Expected 30080, got %d", port)
+		}
+	})
+
+	t.Run("LoadBalancer service with port returns port", func(t *testing.T) {
+		data := k8s.K8sNodeData{NodePort: 31080}
+		if port := determineNodePort(data, "LoadBalancer"); port != 31080 {
+			t.Errorf("Expected 31080, got %d", port)
+		}
+	})
+
+	t.Run("ClusterIP service ignores nodePort", func(t *testing.T) {
+		data := k8s.K8sNodeData{NodePort: 30080}
+		if port := determineNodePort(data, "ClusterIP"); port != 0 {
+			t.Errorf("Expected 0, got %d", port)
+		}
+	})
+
+	t.Run("Disabled yamlSettings returns 0", func(t *testing.T) {
+		data := k8s.K8sNodeData{
+			NodePort:     30080,
+			YamlSettings: map[string]bool{"nodePort": false},
+		}
+		if port := determineNodePort(data, "NodePort"); port != 0 {
+			t.Errorf("Expected 0 when yamlSettings disabled, got %d", port)
+		}
+	})
+}
+
+func TestGenerateIngress_Advanced(t *testing.T) {
+	ctx := &GenContext{
+		nodeMap: map[string]*k8s.FrontendNode{
+			"svc-backend": {
+				ID:   "svc-backend",
+				Type: "Service",
+				Data: k8s.K8sNodeData{Label: "backend-svc", Port: 8080},
+			},
+		},
+		sourceEdgeMap: map[string][]k8s.FrontendEdge{
+			"ing-advanced": {{ID: "e1", Source: "ing-advanced", Target: "svc-backend"}},
+		},
+	}
+
+	t.Run("Explicit BackendServiceName and ServicePort", func(t *testing.T) {
+		data := k8s.K8sNodeData{
+			BackendServiceName: "custom-svc",
+			ServicePort:        9090,
+			IngressHost:        "api.example.com",
+			IngressPath:        "/v1",
+		}
+		res := generateIngress(data, "ing-custom", "prod", ctx)
+		ing := res.(k8s.Ingress)
+		rule := ing.Spec.Rules[0]
+		if rule.Host != "api.example.com" {
+			t.Errorf("Expected host api.example.com, got %s", rule.Host)
+		}
+		path := rule.HTTP.Paths[0]
+		if path.Path != "/v1" {
+			t.Errorf("Expected path /v1, got %s", path.Path)
+		}
+		if path.Backend.Service.Name != "custom-svc" || path.Backend.Service.Port.Number != 9090 {
+			t.Errorf("Expected backend custom-svc:9090, got %s:%d", path.Backend.Service.Name, path.Backend.Service.Port.Number)
+		}
+	})
+
+	t.Run("Connected Service fallback for Name and Port", func(t *testing.T) {
+		data := k8s.K8sNodeData{ID: "ing-advanced"}
+		res := generateIngress(data, "ing-advanced", "default", ctx)
+		ing := res.(k8s.Ingress)
+		path := ing.Spec.Rules[0].HTTP.Paths[0]
+		if path.Backend.Service.Name != "backend-svc" || path.Backend.Service.Port.Number != 8080 {
+			t.Errorf("Expected backend backend-svc:8080 from connected service, got %s:%d", path.Backend.Service.Name, path.Backend.Service.Port.Number)
+		}
+	})
+}
+
+func TestGetGenerator_Unregistered(t *testing.T) {
+	factory := NewResourceGeneratorFactory()
+	gen, ok := factory.GetGenerator("NonExistentKind")
+	if ok || gen != nil {
+		t.Errorf("Expected nil, false for unregistered kind, got %v, %v", gen, ok)
+	}
+}
