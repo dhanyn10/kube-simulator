@@ -307,4 +307,17 @@ describe('utils', () => {
       expect(beautifyYaml(invalidYaml)).toBe('invalid: [unclosed');
     });
   });
+  it('sanitizes URL schemes without trailing paths or queries (line 115)', () => {
+    expect(sanitizeIngressHost('http://example.com')).toBe('example.com');
+    expect(sanitizeIngressHost('https://api.domain.io')).toBe('api.domain.io');
+  });
+
+  it('trims boundary hyphens and dots when exceeding 253 characters (line 154)', () => {
+    // Generate a string that when truncated to 253 chars ends in a dash or dot
+    const base = 'a'.repeat(251) + '-extra-long-suffix-to-exceed-253-chars';
+    const result = sanitizeIngressHost(base);
+    expect(result.length).toBeLessThanOrEqual(253);
+    expect(result.endsWith('-')).toBe(false);
+    expect(result.endsWith('.')).toBe(false);
+  });
 });

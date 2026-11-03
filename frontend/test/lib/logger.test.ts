@@ -62,4 +62,17 @@ describe('Frontend logger', () => {
     scopedLogger.error('Pod crashed');
     expect(addLog).toHaveBeenCalledWith('error', 'Pod crashed', 'Simulation');
   });
+  it('handles gracefully when useFlowStore is not available on globalThis', () => {
+    const originalStore = (globalThis as any).useFlowStore;
+    try {
+      delete (globalThis as any).useFlowStore;
+      expect(() => {
+        logger.info('no store info');
+        logger.warn('no store warn');
+        logger.error('no store error');
+      }).not.toThrow();
+    } finally {
+      (globalThis as any).useFlowStore = originalStore;
+    }
+  });
 });

@@ -754,4 +754,27 @@ describe('ServiceConfig', () => {
 
     expect(screen.queryByTestId('headless-recommendation-banner')).not.toBeInTheDocument();
   });
+  it('handles clicking outside to close serviceType and selector dropdowns', () => {
+    const { unmount } = render(<ServiceConfig {...mockProps} />);
+
+    // Open serviceType dropdown
+    const serviceTypeBtn = screen.getByRole('button', { name: /ClusterIP/i });
+    fireEvent.click(serviceTypeBtn);
+    expect(screen.getByText('LoadBalancer')).toBeInTheDocument();
+
+    // Click outside on document body
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText('LoadBalancer')).not.toBeInTheDocument();
+
+    // Open selector dropdown
+    const selectorBtn = screen.getByRole('button', { name: /web-app/i });
+    fireEvent.click(selectorBtn);
+    expect(screen.getAllByText('DEPLOYMENT').length).toBeGreaterThan(0);
+
+    // Click outside on document body
+    fireEvent.mouseDown(document.body);
+
+    // Unmount to trigger removeEventListener cleanup
+    unmount();
+  });
 });
