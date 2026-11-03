@@ -983,3 +983,70 @@ func TestApp_GetTestFilePath_NilCtx(t *testing.T) {
 		t.Errorf("Expected empty string and false, got %s and %v", path, isTest)
 	}
 }
+
+func TestApp_WindowActionsAndUpdates(t *testing.T) {
+	app, cleanup := setupAppWithDB(t)
+	defer cleanup()
+
+	// 1. MinimizeWindow and CloseWindow when isLiveRuntime() is false
+	app.MinimizeWindow()
+	app.CloseWindow()
+
+	// 2. SaveInternetProfile with empty name or empty profileJson
+	if app.SaveInternetProfile("", `{"test": true}`) {
+		t.Error("Expected SaveInternetProfile to fail with empty name")
+	}
+
+	// 3. DeleteInternetProfile with empty name
+	if app.DeleteInternetProfile("") {
+		t.Error("Expected DeleteInternetProfile to fail with empty name")
+	}
+
+	// 4. Save and Delete valid internet profile
+	if !app.SaveInternetProfile("valid-profile", `{"nodes":[]}`) {
+		t.Error("Expected SaveInternetProfile to succeed with valid payload")
+	}
+	if !app.DeleteInternetProfile("valid-profile") {
+		t.Error("Expected DeleteInternetProfile to succeed with valid profile")
+	}
+
+	// 5. OpenLogFile with invalid directory creation path
+	tempConflictDir, _ := os.MkdirTemp("", "conflict-test-*")
+	defer os.RemoveAll(tempConflictDir)
+	conflictFile := filepath.Join(tempConflictDir, "existing_file_conflict")
+	_ = os.WriteFile(conflictFile, []byte("conflict"), 0644)
+	invalidLogPath := filepath.Join(conflictFile, "sub", "app.jsonl")
+
+	ctx := context.WithValue(context.Background(), isTestKey, true)
+	ctx = context.WithValue(ctx, testFilePathKey, invalidLogPath)
+	oldCtx := appCtx
+	appCtx = ctx
+	defer func() { appCtx = oldCtx }()
+	if app.OpenLogFile() {
+		t.Error("Expected OpenLogFile to return false when directory creation fails")
+	}
+}
+
+func TestApp_ConfigureStartupWindow_EdgeCases(t *testing.T) {
+	app := NewApp()
+
+	// Empty screens list -> returns false from GetTargetScreen
+	app.configureStartupWindow(context.WithValue(context.Background(), isTestKey, true))
+
+	// Screen with Size.Width > 0 and screenW < currWidth (testing x < 0 clamp)
+	var scr wailsRuntime.Screen
+	scr.IsPrimary = true
+	scr.Width = 500
+	scr.Height = 400
+	scr.Size.Width = 500
+	scr.Size.Height = 400
+	screens := []wailsRuntime.Screen{scr}
+	target, ok := app.GetTargetScreen(screens)
+	if !ok || target.Size.Width != 500 {
+		t.Errorf("Expected target screen with Size.Width=500, got: %+v", target)
+	}
+	h := app.CalculateAppHeight(400)
+	if h < 200 {
+		t.Errorf("Unexpected calculated height: %d", h)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/dgraph-io/badger/v4"
 )
@@ -21,6 +22,7 @@ type HistoryManager struct {
 	db           *badger.DB
 	currentIndex int
 	maxIndex     int
+	mu           sync.Mutex
 }
 
 // NewHistoryManager creates and initializes a new HistoryManager instance with default indices.
@@ -133,6 +135,8 @@ func (historyMgr *HistoryManager) Init() error {
 
 // Close gracefully closes the underlying Badger database instance if open.
 func (historyMgr *HistoryManager) Close() {
+	historyMgr.mu.Lock()
+	defer historyMgr.mu.Unlock()
 	if historyMgr.db != nil {
 		historyMgr.db.Close()
 	}
@@ -140,6 +144,9 @@ func (historyMgr *HistoryManager) Close() {
 
 // Push records a new state snapshot into the history database and updates the current and maximum history indices.
 func (historyMgr *HistoryManager) Push(state string) {
+	historyMgr.mu.Lock()
+	defer historyMgr.mu.Unlock()
+
 	if historyMgr.db == nil {
 		return
 	}
@@ -159,26 +166,39 @@ func (historyMgr *HistoryManager) Push(state string) {
 
 // Undo moves one step back in the history stack and returns the previous state string.
 func (historyMgr *HistoryManager) Undo() string {
+	historyMgr.mu.Lock()
+	defer historyMgr.mu.Unlock()
+
 	if historyMgr.db == nil || historyMgr.currentIndex <= 0 {
 		return ""
 	}
 
 	historyMgr.currentIndex--
-	return historyMgr.JumpTo(historyMgr.currentIndex)
+	return historyMgr.jumpToLocked(historyMgr.currentIndex)
 }
 
 // Redo moves one step forward in the history stack and returns the next state string.
 func (historyMgr *HistoryManager) Redo() string {
+	historyMgr.mu.Lock()
+	defer historyMgr.mu.Unlock()
+
 	if historyMgr.db == nil || historyMgr.currentIndex >= historyMgr.maxIndex {
 		return ""
 	}
 
 	historyMgr.currentIndex++
-	return historyMgr.JumpTo(historyMgr.currentIndex)
+	return historyMgr.jumpToLocked(historyMgr.currentIndex)
 }
 
 // JumpTo retrieves and returns the canvas state string recorded at the specified history index.
 func (historyMgr *HistoryManager) JumpTo(index int) string {
+	historyMgr.mu.Lock()
+	defer historyMgr.mu.Unlock()
+
+	return historyMgr.jumpToLocked(index)
+}
+
+func (historyMgr *HistoryManager) jumpToLocked(index int) string {
 	if historyMgr.db == nil || index < 0 || index > historyMgr.maxIndex {
 		return ""
 	}
@@ -207,11 +227,15 @@ func (historyMgr *HistoryManager) JumpTo(index int) string {
 
 // GetCurrentIndex returns the current active position index in the history stack.
 func (historyMgr *HistoryManager) GetCurrentIndex() int {
+	historyMgr.mu.Lock()
+	defer historyMgr.mu.Unlock()
 	return historyMgr.currentIndex
 }
 
 // GetMaxIndex returns the maximum recorded index in the history stack.
 func (historyMgr *HistoryManager) GetMaxIndex() int {
+	historyMgr.mu.Lock()
+	defer historyMgr.mu.Unlock()
 	return historyMgr.maxIndex
 }
 

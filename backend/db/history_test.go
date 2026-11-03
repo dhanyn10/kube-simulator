@@ -249,3 +249,102 @@ func TestHistoryManager_Uninitialized(t *testing.T) {
 		t.Error("Push should do nothing if db is nil")
 	}
 }
+
+func TestHistoryManager_Metadata_And_CurrentIndex(t *testing.T) {
+	hm, cleanup := setupHistoryTest(t)
+	defer cleanup()
+
+	if hm.GetCurrentIndex() != -1 {
+		t.Errorf("Expected initial current index -1, got %d", hm.GetCurrentIndex())
+	}
+	hm.Push("state1")
+	if hm.GetCurrentIndex() != 0 {
+		t.Errorf("Expected current index 0 after push, got %d", hm.GetCurrentIndex())
+	}
+}
+
+func TestIsCorruptFileAndDir(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "corrupt-file-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// 1. Non-existent file
+	if isCorruptFile(filepath.Join(tmpDir, "missing.sst")) {
+		t.Error("Missing file should not be considered corrupt")
+	}
+
+	// 2. Directory
+	subDir := filepath.Join(tmpDir, "sub")
+	_ = os.MkdirAll(subDir, 0755)
+	if isCorruptFile(subDir) {
+		t.Error("Directory should not be considered corrupt")
+	}
+
+	// 3. Empty file (0 bytes)
+	emptyFile := filepath.Join(tmpDir, "empty.sst")
+	_ = os.WriteFile(emptyFile, []byte{}, 0644)
+	if isCorruptFile(emptyFile) {
+		t.Error("Empty file should not be considered corrupt")
+	}
+
+	// 4. Valid file with non-zero bytes (< 64 bytes)
+	validSmall := filepath.Join(tmpDir, "valid-small.sst")
+	_ = os.WriteFile(validSmall, []byte("valid content"), 0644)
+	if isCorruptFile(validSmall) {
+		t.Error("Small valid file should not be considered corrupt")
+	}
+
+	// 5. Corrupt file with all zero bytes (< 64 bytes)
+	corruptSmall := filepath.Join(tmpDir, "corrupt-small.sst")
+	_ = os.WriteFile(corruptSmall, make([]byte, 32), 0644)
+	if !isCorruptFile(corruptSmall) {
+		t.Error("Small zeroed file should be considered corrupt")
+	}
+
+	// 6. Valid file (> 64 bytes)
+	validLarge := filepath.Join(tmpDir, "valid-large.sst")
+	data := make([]byte, 128)
+	data[127] = 0xFF
+	_ = os.WriteFile(validLarge, data, 0644)
+	if isCorruptFile(validLarge) {
+		t.Error("Large valid file should not be considered corrupt")
+	}
+
+	// 7. Corrupt file (> 64 bytes all trailing zeros)
+	corruptLarge := filepath.Join(tmpDir, "corrupt-large.sst")
+	_ = os.WriteFile(corruptLarge, make([]byte, 128), 0644)
+	if !isCorruptFile(corruptLarge) {
+		t.Error("Large zeroed file should be considered corrupt")
+	}
+
+	// 8. isCorruptBadgerDir tests
+	if isCorruptBadgerDir(filepath.Join(tmpDir, "nonexistent-dir")) {
+		t.Error("Non-existent dir should return false")
+	}
+
+	badgerDir := filepath.Join(tmpDir, "badger-check")
+	_ = os.MkdirAll(badgerDir, 0755)
+
+	// Clean directory with non-badger files
+	_ = os.WriteFile(filepath.Join(badgerDir, "app.log"), make([]byte, 32), 0644)
+	_ = os.MkdirAll(filepath.Join(badgerDir, "nested-folder"), 0755)
+	if isCorruptBadgerDir(badgerDir) {
+		t.Error("Dir with only log files and subfolders should return false")
+	}
+
+	// Add corrupt MANIFEST file
+	_ = os.WriteFile(filepath.Join(badgerDir, "MANIFEST"), make([]byte, 32), 0644)
+	if !isCorruptBadgerDir(badgerDir) {
+		t.Error("Dir with corrupt MANIFEST should return true")
+	}
+
+	// Add corrupt KEYREGISTRY file in separate dir
+	keyRegDir := filepath.Join(tmpDir, "keyreg-dir")
+	_ = os.MkdirAll(keyRegDir, 0755)
+	_ = os.WriteFile(filepath.Join(keyRegDir, "KEYREGISTRY"), make([]byte, 32), 0644)
+	if !isCorruptBadgerDir(keyRegDir) {
+		t.Error("Dir with corrupt KEYREGISTRY should return true")
+	}
+}

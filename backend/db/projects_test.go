@@ -147,3 +147,52 @@ func TestProjectManager_Errors(t *testing.T) {
 		t.Error("Expected error getting non-existent setting")
 	}
 }
+
+func TestProjectManager_AutosaveFiles(t *testing.T) {
+	pm, tmpDir := setupTestDB(t)
+	defer os.RemoveAll(tmpDir)
+	defer pm.Close()
+
+	oldHome := os.Getenv("HOME")
+	oldUserProfile := os.Getenv("USERPROFILE")
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Setenv("USERPROFILE", oldUserProfile)
+	}()
+
+	// 1. Save autosave setting (writes physical file)
+	err := pm.SaveSetting("autosave-test-proj", `{"state":"active"}`)
+	if err != nil {
+		t.Fatalf("Failed to save autosave setting: %v", err)
+	}
+
+	val, err := pm.GetSetting("autosave-test-proj")
+	if err != nil {
+		t.Fatalf("Failed to get autosave setting: %v", err)
+	}
+	if val != `{"state":"active"}` {
+		t.Errorf("Expected autosave content, got %s", val)
+	}
+
+	// 2. Clear autosave setting (deletes physical file)
+	err = pm.SaveSetting("autosave-test-proj", "")
+	if err != nil {
+		t.Fatalf("Failed to clear autosave setting: %v", err)
+	}
+
+	val, err = pm.GetSetting("autosave-test-proj")
+	if err != nil {
+		t.Fatalf("Failed to get cleared autosave setting: %v", err)
+	}
+	if val != "" {
+		t.Errorf("Expected empty autosave setting, got %s", val)
+	}
+
+	// 3. Non-autosave setting does not trigger autosave physical file write
+	err = pm.SaveSetting("theme", "dark")
+	if err != nil {
+		t.Fatalf("Failed to save regular setting: %v", err)
+	}
+}

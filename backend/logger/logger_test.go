@@ -114,3 +114,15 @@ func TestAppendToLogFile_InvalidPath(t *testing.T) {
 	SetLogFilePath(tmpDir) // directory instead of file
 	appendToLogFile("test line") // Should not panic or fail ungracefully
 }
+
+func TestAppendCategorizedLog_DefaultPath(t *testing.T) {
+	oldPath := GetLogFilePath()
+	defer SetLogFilePath(oldPath)
+
+	SetLogFilePath("")
+	AppendCategorizedLog("report", "info", "Report message to default path")
+}
+
+func TestAppendToLogFile_EmptyPath(t *testing.T) {
+	appendToLogFile("test append direct")
+}

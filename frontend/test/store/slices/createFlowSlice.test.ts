@@ -243,6 +243,46 @@ describe('createFlowSlice', () => {
     expect(updatedSvc2?.data.selector).toBe('my-base-pod');
   });
 
+
+  it('onConnect auto-corrects serviceType to Headless when Service connects to StatefulSet', () => {
+    // 1. Service with ClusterIP connecting to StatefulSet -> auto-sets Headless
+    const svc1 = { id: 'svc-headless-1', type: 'Service', data: { label: 'db-svc', serviceType: 'ClusterIP' } };
+    const ss1 = { id: 'ss-1', type: 'StatefulSet', data: { label: 'mysql-cluster', port: 3306 } };
+    useFlowStore.setState({ nodes: [svc1, ss1] as any, edges: [] });
+
+    useFlowStore.getState().onConnect({ source: 'svc-headless-1', target: 'ss-1' });
+
+    let state = useFlowStore.getState();
+    let updatedSvc = state.nodes.find((n) => n.id === 'svc-headless-1');
+    expect(updatedSvc?.data.selector).toBe('mysql-cluster');
+    expect(updatedSvc?.data.serviceType).toBe('Headless');
+    expect(updatedSvc?.data.targetPort).toBe(3306);
+
+    // 2. Service with undefined serviceType connecting to Deployment with workloadType StatefulSet
+    const svc2 = { id: 'svc-headless-2', type: 'Service', data: { label: 'db-svc-2' } };
+    const ss2 = { id: 'ss-2', type: 'Deployment', data: { label: 'mongo-stateful', workloadType: 'StatefulSet', port: 27017 } };
+    useFlowStore.setState({ nodes: [svc2, ss2] as any, edges: [] });
+
+    useFlowStore.getState().onConnect({ source: 'svc-headless-2', target: 'ss-2' });
+
+    state = useFlowStore.getState();
+    updatedSvc = state.nodes.find((n) => n.id === 'svc-headless-2');
+    expect(updatedSvc?.data.selector).toBe('mongo-stateful');
+    expect(updatedSvc?.data.serviceType).toBe('Headless');
+    expect(updatedSvc?.data.targetPort).toBe(27017);
+
+    // 3. Service with explicit NodePort does NOT overwrite serviceType
+    const svcNp = { id: 'svc-np', type: 'Service', data: { label: 'np-svc', serviceType: 'NodePort' } };
+    useFlowStore.setState({ nodes: [svcNp, ss1] as any, edges: [] });
+
+    useFlowStore.getState().onConnect({ source: 'svc-np', target: 'ss-1' });
+
+    state = useFlowStore.getState();
+    updatedSvc = state.nodes.find((n) => n.id === 'svc-np');
+    expect(updatedSvc?.data.selector).toBe('mysql-cluster');
+    expect(updatedSvc?.data.serviceType).toBe('NodePort');
+  });
+
   it('onQuickConnect connects nodes in orthogonal directions (right, left, top, bottom) and logs action', () => {
     const centerNode: Node = {
       id: 'center',
