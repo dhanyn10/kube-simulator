@@ -171,54 +171,28 @@ func generateStatefulSet(data k8s.K8sNodeData, name, namespace string, ctx *GenC
 	}
 }
 
-// generatePodOrDeployment generates a Deployment object if replicas > 1 or a standalone Pod if replicas <= 1.
+// generatePodOrDeployment generates a workload controller object if configured or a standalone Pod.
 func generatePodOrDeployment(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	if data.WorkloadType == "StatefulSet" {
 		return generateStatefulSet(data, name, namespace, ctx)
 	}
+	if data.WorkloadType == "Deployment" {
+		return generateDeployment(data, name, namespace, ctx)
+	}
+	if data.WorkloadType == "ReplicaSet" {
+		return generateReplicaSet(data, name, namespace, ctx)
+	}
 
-	podSpec := createPodSpec(data, ctx)
 	replicas := 1
 	if data.Replicas != nil {
 		replicas = *data.Replicas
 	}
 
 	if replicas > 1 {
-		templateSpec := podSpec
-		templateSpec.RestartPolicy = "Always"
-		if val, ok := data.YamlSettings["restartPolicy"]; ok && !val {
-			templateSpec.RestartPolicy = ""
-		}
-
-		return k8s.Deployment{
-			ApiVersion: appsApiVersion,
-			Kind:       "Deployment",
-			Metadata: k8s.ObjectMeta{
-				Name:      name,
-				Namespace: namespace,
-			},
-			Spec: k8s.DeploymentSpec{
-				Replicas: replicas,
-				Selector: k8s.LabelSelector{
-					MatchLabels: map[string]string{"app": name},
-				},
-				Strategy: &k8s.DeploymentStrategy{
-					Type: "RollingUpdate",
-					RollingUpdate: &k8s.RollingUpdateOptions{
-						MaxSurge:       "25%",
-						MaxUnavailable: "25%",
-					},
-				},
-				Template: k8s.PodTemplate{
-					Metadata: k8s.ObjectMeta{
-						Labels: map[string]string{"app": name},
-					},
-					Spec: templateSpec,
-				},
-			},
-		}
+		return generateDeployment(data, name, namespace, ctx)
 	}
 
+	podSpec := createPodSpec(data, ctx)
 	return k8s.Pod{
 		ApiVersion: "v1",
 		Kind:       "Pod",

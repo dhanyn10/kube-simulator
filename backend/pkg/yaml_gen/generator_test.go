@@ -88,6 +88,28 @@ func TestGeneratePodWithReplicas(t *testing.T) {
 	}
 }
 
+func TestGenerateSingleReplicaDeployment(t *testing.T) {
+	nodesJson := `[{"id":"d1","type":"Deployment","data":{"label":"Single Dep","replicas":1}}]`
+	result := Generate(nodesJson, "[]")
+	if !strings.Contains(result, "\"kind\":\"Deployment\"") {
+		t.Errorf("Expected Deployment Kind for replicas=1, got: %s", result)
+	}
+	if !strings.Contains(result, "\"replicas\":1") {
+		t.Errorf("Expected replicas=1, got: %s", result)
+	}
+}
+
+func TestGenerateWorkloadTypeDeployment(t *testing.T) {
+	nodesJson := `[{"id":"p1","type":"Pod","data":{"label":"Workload Dep","workloadType":"Deployment","replicas":1}}]`
+	result := Generate(nodesJson, "[]")
+	if !strings.Contains(result, "\"kind\":\"Deployment\"") {
+		t.Errorf("Expected Deployment Kind for workloadType=Deployment with replicas=1, got: %s", result)
+	}
+	if !strings.Contains(result, "\"replicas\":1") {
+		t.Errorf("Expected replicas=1, got: %s", result)
+	}
+}
+
 func TestGeneratePodInNamespace(t *testing.T) {
 	nodesJson := `[
 		{"id":"ns1","type":"Namespace","data":{"label":"My NS"}},
