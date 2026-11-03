@@ -79,8 +79,15 @@ export const sanitizeSlug = (input: string): string => {
 export const isValidRfc1123Host = (host: string): boolean => {
   if (!host || host.length > 253) return false;
   const labels = host.split('.');
-  const labelRegex = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
-  return labels.every((label) => label.length >= 1 && label.length <= 63 && labelRegex.test(label));
+  const labelRegex = /^[a-z0-9-]+$/;
+  return labels.every(
+    (label) =>
+      label.length >= 1 &&
+      label.length <= 63 &&
+      !label.startsWith('-') &&
+      !label.endsWith('-') &&
+      labelRegex.test(label)
+  );
 };
 
 /**

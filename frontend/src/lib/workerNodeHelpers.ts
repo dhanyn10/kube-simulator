@@ -1,9 +1,7 @@
 import { K8sNodeData } from '@/types';
 
-export type WorkerNodeId = string;
-
 export interface WorkerNodeInfo {
-  id: WorkerNodeId;
+  id: string;
   name: string;
   ip: string;
   badgeBg: string;
@@ -79,7 +77,7 @@ export const WORKER_NODES: Record<string, WorkerNodeInfo> = new Proxy(BASE_WORKE
   },
 });
 
-export const getWorkerNodeOptions = (count = 3): { id: WorkerNodeId; label: string; ip: string }[] => {
+export const getWorkerNodeOptions = (count = 3): { id: string; label: string; ip: string }[] => {
   return getWorkerNodes(count).map((w) => ({
     id: w.id,
     label: `${w.name} (${w.ip})`,
@@ -87,7 +85,7 @@ export const getWorkerNodeOptions = (count = 3): { id: WorkerNodeId; label: stri
   }));
 };
 
-export const WORKER_NODE_OPTIONS: { id: WorkerNodeId; label: string; ip: string }[] =
+export const WORKER_NODE_OPTIONS: { id: string; label: string; ip: string }[] =
   getWorkerNodeOptions(3);
 
 /**
@@ -99,7 +97,7 @@ export const getAssignedWorker = (
   nodeData?: Partial<K8sNodeData> | null,
   nodeId?: string,
   totalWorkers = 3
-): WorkerNodeId => {
+): string => {
   const safeTotal = Math.max(1, totalWorkers);
   const assigned = nodeData?.assignedNode;
   if (typeof assigned === 'string' && /^worker-\d+$/.test(assigned)) {
@@ -123,8 +121,8 @@ export const getAssignedWorker = (
 };
 
 export interface TrafficHopResult {
-  entryNode: WorkerNodeId;
-  targetNode: WorkerNodeId;
+  entryNode: string;
+  targetNode: string;
   policy: 'Cluster' | 'Local';
   isExtraHop: boolean;
   isDropped: boolean;
@@ -140,8 +138,8 @@ export const getTrafficHopInfo = (
   podData?: Partial<K8sNodeData> | null,
   podId?: string
 ): TrafficHopResult => {
-  const entryNode: WorkerNodeId = serviceData?.entryNode || 'worker-1';
-  const targetNode: WorkerNodeId = getAssignedWorker(podData, podId);
+  const entryNode: string = serviceData?.entryNode || 'worker-1';
+  const targetNode: string = getAssignedWorker(podData, podId);
   const policy: 'Cluster' | 'Local' = serviceData?.externalTrafficPolicy || 'Cluster';
   const isExtraHop = entryNode !== targetNode;
   const isDropped = policy === 'Local' && isExtraHop;
@@ -165,7 +163,7 @@ export const getWorkerForIndex = (
   index: number,
   totalWorkers?: number,
   ...rest: unknown[]
-): WorkerNodeId => {
+): string => {
   const isMapInvocation = rest.length > 0 && Array.isArray(rest[0]);
   const count =
     isMapInvocation || typeof totalWorkers !== 'number' || totalWorkers < 1
@@ -233,7 +231,7 @@ export const pickKubeProxyRoute = (
   randomValue: number
 ): KubeProxyRoute | null => {
   if (endpoints.length === 0) return null;
-  const entryNode: WorkerNodeId = serviceData?.entryNode || 'worker-1';
+  const entryNode: string = serviceData?.entryNode || 'worker-1';
   const policy: 'Cluster' | 'Local' = serviceData?.externalTrafficPolicy || 'Cluster';
   const localEndpoints = endpoints.filter((ep) => getAssignedWorker(ep.data, ep.id) === entryNode);
   const pool = policy === 'Local' ? localEndpoints : endpoints;
