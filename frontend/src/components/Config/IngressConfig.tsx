@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useFlowStore } from '@/store';
-import { Globe, Code, Server, ChevronDown, Check, Plus } from 'lucide-react';
+import { Globe, Code, Server, ChevronDown, Check, Plus, Info } from 'lucide-react';
 import { IngressPathsModal, resolveIngressClusterIpServices } from '@/components/Modals/IngressPathsModal';
 import { ConfigInput, ConfigSection } from '@/components/UI/ConfigUI';
-import { cn } from '@/lib/utils';
+import { cn, sanitizeIngressHost, isValidRfc1123Host } from '@/lib/utils';
 
 interface IngressConfigProps {
   selectedNode: any;
@@ -186,10 +186,24 @@ export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility, t
       >
         <ConfigInput
           value={data.ingressHost || ''}
-          onChange={(e: any) => performUpdate({ ingressHost: e.target.value })}
+          onChange={(e: any) => performUpdate({ ingressHost: sanitizeIngressHost(e.target.value, true) })}
+          onBlur={(e: any) => performUpdate({ ingressHost: sanitizeIngressHost(e.target.value, false) })}
           placeholder="example.com"
           colorMode={colorMode}
         />
+        <div className="mt-1.5 space-y-1">
+          <div className="flex items-start gap-1 text-[9px] text-slate-400 leading-tight">
+            <Info size={11} className="text-rose-400 shrink-0 mt-0.5" />
+            <span>
+              RFC 1123 DNS subdomain (e.g. <span className="font-mono text-rose-300">app.example.local</span>). Schemes, ports, and paths are automatically sanitized.
+            </span>
+          </div>
+          {Boolean(data.ingressHost && !isValidRfc1123Host(data.ingressHost)) && (
+            <div className="text-[9px] text-amber-400 flex items-center gap-1 font-mono">
+              <span>Domain must contain valid DNS labels separated by dots (e.g. app.local).</span>
+            </div>
+          )}
+        </div>
       </ConfigSection>
 
       <ConfigSection
