@@ -292,6 +292,27 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).toContain('cpu: 1000m');
   });
 
+  it('automatically defaults requests to match limits when limits are specified without requests', () => {
+    const nodes = [
+      {
+        id: 'pod-limits',
+        type: 'Pod',
+        data: {
+          label: 'guaranteed-pod',
+          cpuLimit: '800m',
+          memoryLimit: '512Mi',
+          resourceLimits: [{ id: 'rl1' }],
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).toContain('limits:');
+    expect(yamlOutput).toContain('requests:');
+    expect(yamlOutput).toContain('cpu: 800m');
+    expect(yamlOutput).toContain('memory: 512Mi');
+  });
+
   it('handles missing parent node in nodeMap gracefully when parentId is specified', () => {
     const nodes = [
       { id: 'pod1', type: 'Pod', parentId: 'missing-ns', data: { label: 'Orphan Pod' } }

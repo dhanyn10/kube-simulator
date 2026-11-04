@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Edit2, Trash2 } from 'lucide-react';
 import { Modal } from './Modal';
 import { useFlowStore } from '@/store';
-import { cn } from '@/lib/utils';
+import { cn, getPodQoSClass } from '@/lib/utils';
 import { K8sResourceType } from '@/types';
 import {
   OverviewItem,
@@ -108,6 +108,12 @@ const ResourceLimitDetails: React.FC<{ readonly item: any }> = ({ item }) => {
   const limCpu = item.cpuLimit || item.limitCpu || 'none';
   const reqMem = item.memoryRequest || item.requestMemory || 'none';
   const limMem = item.memoryLimit || item.limitMemory || 'none';
+  const qos = getPodQoSClass({
+    cpuRequest: item.cpuRequest || item.requestCpu,
+    cpuLimit: item.cpuLimit || item.limitCpu,
+    memoryRequest: item.memoryRequest || item.requestMemory,
+    memoryLimit: item.memoryLimit || item.limitMemory,
+  });
 
   return (
     <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] font-mono text-blue-300">
@@ -116,6 +122,9 @@ const ResourceLimitDetails: React.FC<{ readonly item: any }> = ({ item }) => {
       </span>
       <span className="px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">
         Mem: {reqMem} req / {limMem} limit
+      </span>
+      <span className="text-[9px] px-1.5 py-0.5 rounded border uppercase border-purple-500/30 text-purple-300 font-sans font-semibold">
+        {qos}
       </span>
     </div>
   );

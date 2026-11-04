@@ -197,6 +197,26 @@ func TestGetResourceConfigSourceEdge(t *testing.T) {
 	}
 }
 
+func TestGetResourceConfig_RequestDefaulting(t *testing.T) {
+	data := k8s.K8sNodeData{
+		CpuLimit:    "1000m",
+		MemoryLimit: "512Mi",
+		ResourceLimits: []k8s.ResourceLimitItem{
+			{ID: "rl1", Name: "default-limit"},
+		},
+	}
+	res := getResourceConfig(data, []string{"p1"}, nil)
+	if res == nil {
+		t.Fatal("Expected non-nil ResourceRequirements")
+	}
+	if res.Requests["cpu"] != "1000m" || res.Requests["memory"] != "512Mi" {
+		t.Errorf("Expected requests to default to limits, got %v", res.Requests)
+	}
+	if res.Limits["cpu"] != "1000m" || res.Limits["memory"] != "512Mi" {
+		t.Errorf("Expected limits to be preserved, got %v", res.Limits)
+	}
+}
+
 func TestGetResourceConfigNoLimits(t *testing.T) {
 	data := k8s.K8sNodeData{
 		CpuRequest:  "100m",

@@ -1,5 +1,5 @@
 import { Layers } from 'lucide-react';
-import { cn, parseCPU, parseMemory } from '@/lib/utils';
+import { cn, parseCPU, parseMemory, getPodQoSClass } from '@/lib/utils';
 import { ConfigLabel } from '@/components/UI/ConfigUI';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { getResourceSettingItems } from '@/activities/workload';
@@ -19,6 +19,12 @@ export const ResourceSettingsList = ({
   performUpdate
 }: ResourceSettingsProps) => {
   const items = getResourceSettingItems();
+  const qosClass = getPodQoSClass(data);
+  const qosBadgeStyles = {
+    Guaranteed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    Burstable: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    BestEffort: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+  }[qosClass];
 
   const handleSelect = (field: string, val: string) => {
     if (field === 'cpuLimit') {
@@ -47,6 +53,18 @@ export const ResourceSettingsList = ({
 
   return (
     <>
+      <div className="flex items-center justify-between px-2 py-1.5 rounded bg-slate-800/40 border border-slate-700/40 mb-2.5 text-xs">
+        <span className="text-slate-400 font-medium">QoS Class:</span>
+        <span
+          className={cn(
+            'px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase border',
+            qosBadgeStyles
+          )}
+          title={`Kubernetes QoS Class: ${qosClass}`}
+        >
+          {qosClass}
+        </span>
+      </div>
       {items.map((item: any) => {
         if (item.type === 'separator') {
           return <div key={item.field} className="h-px bg-slate-700/30 my-2" />;

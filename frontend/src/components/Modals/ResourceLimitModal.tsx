@@ -3,7 +3,7 @@ import { Layers } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sResourceLimitItem } from '@/types';
 import { useFlowStore } from '@/store';
-import { cn } from '@/lib/utils';
+import { cn, getPodQoSClass } from '@/lib/utils';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { useResourceLimitModal } from '@/activities/modals/useResourceLimitModal';
 import { CPU_OPTIONS, MEMORY_OPTIONS } from '@/constants/config';
@@ -42,6 +42,13 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
     isMemoryRequestOptionDisabled,
     handleSave,
   } = useResourceLimitModal(isOpen, targetNodeId, initialResourceLimit, onSave, onClose);
+
+  const qosClass = getPodQoSClass({ cpuRequest, cpuLimit, memoryRequest, memoryLimit });
+  const qosBadgeStyles = {
+    Guaranteed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    Burstable: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    BestEffort: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+  }[qosClass];
 
   if (!isOpen) return null;
 
@@ -101,6 +108,20 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
                 : "bg-slate-50 border-slate-300 text-slate-900"
             )}
           />
+        </div>
+
+        {/* QoS Indicator */}
+        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/40 border border-slate-700/40 text-xs">
+          <span className="text-slate-400 font-medium">Quality of Service (QoS) Class:</span>
+          <span
+            className={cn(
+              'px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase border',
+              qosBadgeStyles
+            )}
+            title={`Kubernetes QoS Class: ${qosClass}`}
+          >
+            {qosClass}
+          </span>
         </div>
 
         {/* CPU Allocation (Limit above Request) */}

@@ -41,10 +41,10 @@ describe('AttachedResourcesFooter', () => {
     expect(screen.getByTestId('configmap-count-badge')).toHaveTextContent('2');
     expect(screen.getByTitle('Secret: my-secret')).toBeInTheDocument();
     expect(
-      screen.getByTitle('Resource Limit: my-limit (CPU: 250m / 500m | Mem: 128Mi / 256Mi)')
+      screen.getByTitle('Resource Limit: my-limit [QoS: Burstable] (CPU: 250m / 500m | Mem: 128Mi / 256Mi)')
     ).toBeInTheDocument();
     expect(
-      screen.getByTitle('Resource Limit: res-default (CPU: 500m / 1000m | Mem: 256Mi / 512Mi)')
+      screen.getByTitle('Resource Limit: res-default [QoS: BestEffort] (CPU: 500m / 1000m | Mem: 256Mi / 512Mi)')
     ).toBeInTheDocument();
     expect(
       screen.getByTitle('HPA: my-hpa (Min: 1, Max: 5, CPU: 80%)')

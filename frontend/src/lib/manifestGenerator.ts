@@ -48,9 +48,11 @@ const hasConnectedResourceLimit = (
 };
 
 const createResourceObject = (data: any) => {
+  const effectiveCpuReq = data.cpuRequest || data.cpuLimit;
+  const effectiveMemReq = data.memoryRequest || data.memoryLimit;
   const requests: Record<string, string> = {};
-  if (data.cpuRequest) requests.cpu = data.cpuRequest;
-  if (data.memoryRequest) requests.memory = data.memoryRequest;
+  if (effectiveCpuReq) requests.cpu = effectiveCpuReq;
+  if (effectiveMemReq) requests.memory = effectiveMemReq;
 
   const limits: Record<string, string> = {};
   if (data.cpuLimit) limits.cpu = data.cpuLimit;
