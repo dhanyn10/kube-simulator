@@ -4,7 +4,7 @@ import { useFlowStore } from '@/store';
 import { parseCPU, parseMemory, generateRandomHash } from '@/lib/utils';
 
 /**
- * Custom hook managing form state and saving logic for Resource Limit modal.
+ * Custom hook managing form state, QoS validation, and saving logic for Resource Limit modal.
  */
 export const useResourceLimitModal = (
   isOpen: boolean,
@@ -62,9 +62,24 @@ export const useResourceLimitModal = (
     return parseMemory(val) > parseMemory(memoryLimit);
   };
 
+  const parsedCpuReq = parseCPU(cpuRequest);
+  const parsedCpuLim = parseCPU(cpuLimit);
+  const parsedMemReq = parseMemory(memoryRequest);
+  const parsedMemLim = parseMemory(memoryLimit);
+
+  const isCpuInvalid = Boolean(cpuLimit && cpuRequest && parsedCpuReq > parsedCpuLim);
+  const isMemoryInvalid = Boolean(memoryLimit && memoryRequest && parsedMemReq > parsedMemLim);
+  const hasResourceError = isCpuInvalid || isMemoryInvalid;
+  const isFormInvalid = hasResourceError || !name.trim();
+
   const handleSave = () => {
     if (!name.trim()) {
       addLog('error', 'Resource Limit name cannot be empty.', 'UI');
+      return;
+    }
+
+    if (hasResourceError) {
+      addLog('error', 'Cannot save: Resource requests must be less than or equal to limits.', 'UI');
       return;
     }
 
@@ -94,6 +109,14 @@ export const useResourceLimitModal = (
     setMemoryLimit: handleMemoryLimitChange,
     isCpuRequestOptionDisabled,
     isMemoryRequestOptionDisabled,
+    isCpuInvalid,
+    isMemoryInvalid,
+    hasResourceError,
+    isFormInvalid,
+    parsedCpuReq,
+    parsedCpuLim,
+    parsedMemReq,
+    parsedMemLim,
     handleSave,
   };
 };

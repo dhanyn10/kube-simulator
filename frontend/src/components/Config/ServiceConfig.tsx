@@ -556,6 +556,7 @@ export const ServiceConfig = ({
   const activeIngressTargets = resolveActiveIngressTargets(data, currentServiceType, availableOptions);
   const currentSelector = data.selector || '';
   const isTargetingStatefulSet = isTargetStatefulSet(currentSelector, availableOptions, nodes);
+  const isNodePortOutOfRange = data.nodePort !== undefined && (data.nodePort < 30000 || data.nodePort > 32767);
   const inputFieldClasses = getInputFieldClasses(colorMode);
 
   return (
@@ -608,8 +609,21 @@ export const ServiceConfig = ({
               value={data.nodePort ?? ''}
               onChange={(e: any) => performUpdate({ nodePort: e.target.value ? Number.parseInt(e.target.value, 10) : undefined })}
               placeholder="30000-32767 (Optional)"
-              className={cn('w-full text-[10px] p-2 rounded border outline-none font-mono', inputFieldClasses)}
+              className={cn(
+                'w-full text-[10px] p-2 rounded border outline-none font-mono',
+                inputFieldClasses,
+                isNodePortOutOfRange && '!border-rose-500 !focus:ring-rose-500/50'
+              )}
             />
+            {isNodePortOutOfRange && (
+              <div
+                data-testid="nodeport-range-error"
+                className="mt-1.5 flex items-center gap-1.5 text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded px-2 py-1 font-sans"
+              >
+                <AlertTriangle size={12} className="shrink-0 text-rose-400" />
+                <span>NodePort must be between 30000 and 32767</span>
+              </div>
+            )}
           </ConfigSection>
 
           <ExternalTrafficPolicySection

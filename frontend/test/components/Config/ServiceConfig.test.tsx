@@ -840,4 +840,40 @@ describe('ServiceConfig', () => {
     // Unmount to trigger removeEventListener cleanup
     unmount();
   });
+
+  it('renders inline error callout and applies border-rose-500 when nodePort is out of range (< 30000 or > 32767)', () => {
+    const invalidNodePortProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's-invalid-np',
+        data: {
+          serviceType: 'NodePort',
+          nodePort: 8080,
+          displaySettings: { nodePort: true },
+        }
+      }
+    };
+
+    const { rerender } = render(<ServiceConfig {...invalidNodePortProps} />);
+    expect(screen.getByTestId('nodeport-range-error')).toBeInTheDocument();
+    expect(screen.getByText('NodePort must be between 30000 and 32767')).toBeInTheDocument();
+
+    const nodePortInput = screen.getByPlaceholderText('30000-32767 (Optional)');
+    expect(nodePortInput).toHaveClass('!border-rose-500');
+
+    // Also test upper bound > 32767
+    const highNodePortProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's-invalid-np-high',
+        data: {
+          serviceType: 'NodePort',
+          nodePort: 40000,
+          displaySettings: { nodePort: true },
+        }
+      }
+    };
+    rerender(<ServiceConfig {...highNodePortProps} />);
+    expect(screen.getByTestId('nodeport-range-error')).toBeInTheDocument();
+  });
 });

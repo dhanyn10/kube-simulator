@@ -3,6 +3,8 @@ package yaml_gen
 import (
 	"build-wails/backend/pkg/k8s"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 // getEnvFromConnections extracts environment variable references from attached ConfigMap and Secret source nodes.
@@ -139,6 +141,57 @@ func checkConnectedResourceLimit(targetIDs []string, ctx *GenContext) bool {
 	return false
 }
 
+// parseCpuMilli normalizes Kubernetes CPU strings (e.g. "500m", "1.5", "2") into millicores.
+func parseCpuMilli(cpu string) int64 {
+	trimmed := strings.TrimSpace(cpu)
+	if trimmed == "" {
+		return 0
+	}
+	if strings.HasSuffix(trimmed, "m") {
+		val, err := strconv.ParseInt(strings.TrimSuffix(trimmed, "m"), 10, 64)
+		if err == nil {
+			return val
+		}
+		return 0
+	}
+	val, err := strconv.ParseFloat(trimmed, 64)
+	if err == nil {
+		return int64(val * 1000)
+	}
+	return 0
+}
+
+// parseMemoryBytes normalizes Kubernetes memory strings (e.g. "256Mi", "1Gi", "1024") into bytes.
+func parseMemoryBytes(mem string) int64 {
+	trimmed := strings.TrimSpace(mem)
+	if trimmed == "" {
+		return 0
+	}
+	if strings.HasSuffix(trimmed, "Gi") {
+		val, err := strconv.ParseFloat(strings.TrimSuffix(trimmed, "Gi"), 64)
+		if err == nil {
+			return int64(val * 1024 * 1024 * 1024)
+		}
+	}
+	if strings.HasSuffix(trimmed, "Mi") {
+		val, err := strconv.ParseFloat(strings.TrimSuffix(trimmed, "Mi"), 64)
+		if err == nil {
+			return int64(val * 1024 * 1024)
+		}
+	}
+	if strings.HasSuffix(trimmed, "Ki") {
+		val, err := strconv.ParseFloat(strings.TrimSuffix(trimmed, "Ki"), 64)
+		if err == nil {
+			return int64(val * 1024)
+		}
+	}
+	val, err := strconv.ParseInt(trimmed, 10, 64)
+	if err == nil {
+		return val
+	}
+	return 0
+}
+
 // getResourceConfig builds resource requirements (requests and limits) from workload node settings.
 func getResourceConfig(data k8s.K8sNodeData, targetIDs []string, ctx *GenContext) *k8s.ResourceRequirements {
 	if val, ok := data.YamlSettings["resources"]; ok && !val {
@@ -157,6 +210,18 @@ func getResourceConfig(data k8s.K8sNodeData, targetIDs []string, ctx *GenContext
 	effectiveMemReq := data.MemoryRequest
 	if effectiveMemReq == "" && data.MemoryLimit != "" {
 		effectiveMemReq = data.MemoryLimit
+	}
+
+	// QoS Admission Control integrity: requests must be <= limits
+	if data.CpuLimit != "" && effectiveCpuReq != "" {
+		if parseCpuMilli(effectiveCpuReq) > parseCpuMilli(data.CpuLimit) {
+			effectiveCpuReq = data.CpuLimit
+		}
+	}
+	if data.MemoryLimit != "" && effectiveMemReq != "" {
+		if parseMemoryBytes(effectiveMemReq) > parseMemoryBytes(data.MemoryLimit) {
+			effectiveMemReq = data.MemoryLimit
+		}
 	}
 
 	requests := createResourceMap(effectiveCpuReq, effectiveMemReq)

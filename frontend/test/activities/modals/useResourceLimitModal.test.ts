@@ -191,4 +191,34 @@ describe('useResourceLimitModal', () => {
       memoryLimit: '1024Mi',
     }));
   });
+
+  it('detects invalid resource state when request exceeds limit and blocks save', () => {
+    const invalidLimit = {
+      id: 'rl-invalid',
+      name: 'invalid-limit',
+      cpuRequest: '2000m',
+      cpuLimit: '500m',
+      memoryRequest: '1024Mi',
+      memoryLimit: '256Mi',
+    };
+
+    const { result } = renderHook(() =>
+      useResourceLimitModal(true, 'dep-1', invalidLimit, mockOnSave, mockOnClose)
+    );
+
+    expect(result.current.isCpuInvalid).toBe(true);
+    expect(result.current.isMemoryInvalid).toBe(true);
+    expect(result.current.hasResourceError).toBe(true);
+    expect(result.current.isFormInvalid).toBe(true);
+
+    act(() => {
+      result.current.handleSave();
+    });
+
+    expect(mockOnSave).not.toHaveBeenCalled();
+    expect(mockOnClose).not.toHaveBeenCalled();
+
+    const logs = useFlowStore.getState().logs;
+    expect(logs.some(l => l.message.includes('Resource requests must be less than or equal to limits.'))).toBe(true);
+  });
 });

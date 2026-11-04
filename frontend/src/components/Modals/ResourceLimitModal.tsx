@@ -1,10 +1,11 @@
 import React from 'react';
-import { Layers } from 'lucide-react';
+import { Layers, AlertTriangle } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sResourceLimitItem } from '@/types';
 import { useFlowStore } from '@/store';
 import { cn, getPodQoSClass } from '@/lib/utils';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
+import { ResourceRangeBar } from '@/components/UI/ResourceRangeBar';
 import { useResourceLimitModal } from '@/activities/modals/useResourceLimitModal';
 import { CPU_OPTIONS, MEMORY_OPTIONS } from '@/constants/config';
 
@@ -40,6 +41,13 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
     setMemoryLimit,
     isCpuRequestOptionDisabled,
     isMemoryRequestOptionDisabled,
+    isCpuInvalid,
+    isMemoryInvalid,
+    isFormInvalid,
+    parsedCpuReq,
+    parsedCpuLim,
+    parsedMemReq,
+    parsedMemLim,
     handleSave,
   } = useResourceLimitModal(isOpen, targetNodeId, initialResourceLimit, onSave, onClose);
 
@@ -69,7 +77,13 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
       <button
         type="button"
         onClick={handleSave}
-        className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white shadow-md transition-all"
+        disabled={isFormInvalid}
+        className={cn(
+          "px-4 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all",
+          isFormInvalid
+            ? "bg-purple-600/50 text-slate-400 cursor-not-allowed opacity-60"
+            : "bg-purple-600 hover:bg-purple-500 text-white cursor-pointer"
+        )}
       >
         {initialResourceLimit ? 'Update Resource Limit' : 'Attach Resource Limit'}
       </button>
@@ -124,7 +138,32 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
           </span>
         </div>
 
-        {/* CPU Allocation (Limit above Request) */}
+        {/* Validation Error Callouts */}
+        {isCpuInvalid && (
+          <div
+            data-testid="cpu-resource-error"
+            className="flex items-center gap-2 p-2.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs"
+          >
+            <AlertTriangle size={15} className="shrink-0 text-rose-400" />
+            <span>
+              <strong>Invalid CPU Allocation:</strong> CPU Request ({cpuRequest}) must be &le; CPU Limit ({cpuLimit}).
+            </span>
+          </div>
+        )}
+
+        {isMemoryInvalid && (
+          <div
+            data-testid="memory-resource-error"
+            className="flex items-center gap-2 p-2.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 text-xs"
+          >
+            <AlertTriangle size={15} className="shrink-0 text-rose-400" />
+            <span>
+              <strong>Invalid Memory Allocation:</strong> Memory Request ({memoryRequest}) must be &le; Memory Limit ({memoryLimit}).
+            </span>
+          </div>
+        )}
+
+        {/* CPU Allocation (Limit above Request) with Range */}
         <div className="space-y-3 p-3 rounded-lg border border-slate-700/40 bg-slate-500/5">
           <div className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
             <Layers size={14} /> CPU Allocation
@@ -149,10 +188,21 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
                 disabledOption={isCpuRequestOptionDisabled}
               />
             </div>
+            <ResourceRangeBar
+              label="CPU"
+              unit="m"
+              requestStr={cpuRequest}
+              limitStr={cpuLimit}
+              parsedRequest={parsedCpuReq}
+              parsedLimit={parsedCpuLim}
+              maxScale={2000}
+              colorMode={colorMode}
+              formatDisplay={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)} Core` : `${Math.round(v)}m`)}
+            />
           </div>
         </div>
 
-        {/* Memory Allocation (Limit above Request) */}
+        {/* Memory Allocation (Limit above Request) with Range */}
         <div className="space-y-3 p-3 rounded-lg border border-slate-700/40 bg-slate-500/5">
           <div className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
             <Layers size={14} /> Memory Allocation
@@ -177,6 +227,17 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
                 disabledOption={isMemoryRequestOptionDisabled}
               />
             </div>
+            <ResourceRangeBar
+              label="Memory"
+              unit="Mi"
+              requestStr={memoryRequest}
+              limitStr={memoryLimit}
+              parsedRequest={parsedMemReq}
+              parsedLimit={parsedMemLim}
+              maxScale={2048}
+              colorMode={colorMode}
+              formatDisplay={(v) => (v >= 1024 ? `${(v / 1024).toFixed(1)} Gi` : `${Math.round(v)} Mi`)}
+            />
           </div>
         </div>
       </div>

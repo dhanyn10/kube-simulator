@@ -226,3 +226,59 @@ func TestGetResourceConfigNoLimits(t *testing.T) {
 		t.Error("Expected nil when no ResourceLimit attached or connected")
 	}
 }
+
+func TestGetResourceConfig_ClampsRequestsExceedingLimits(t *testing.T) {
+	data := k8s.K8sNodeData{
+		CpuRequest:   "2000m",
+		CpuLimit:     "500m",
+		MemoryRequest: "1Gi",
+		MemoryLimit:   "256Mi",
+		ResourceLimits: []k8s.ResourceLimitItem{
+			{ID: "rl-clamp", Name: "clamped-limit"},
+		},
+	}
+	res := getResourceConfig(data, []string{"p1"}, nil)
+	if res == nil {
+		t.Fatal("Expected non-nil ResourceRequirements")
+	}
+	if res.Requests["cpu"] != "500m" {
+		t.Errorf("Expected CPU request to be clamped to 500m, got %s", res.Requests["cpu"])
+	}
+	if res.Requests["memory"] != "256Mi" {
+		t.Errorf("Expected memory request to be clamped to 256Mi, got %s", res.Requests["memory"])
+	}
+}
+
+func TestParseResourceQuantities(t *testing.T) {
+	if parseCpuMilli("") != 0 {
+		t.Error("Expected 0 for empty CPU")
+	}
+	if parseCpuMilli("500m") != 500 {
+		t.Errorf("Expected 500 for 500m, got %d", parseCpuMilli("500m"))
+	}
+	if parseCpuMilli("2") != 2000 {
+		t.Errorf("Expected 2000 for 2, got %d", parseCpuMilli("2"))
+	}
+	if parseCpuMilli("invalid") != 0 {
+		t.Error("Expected 0 for invalid CPU")
+	}
+
+	if parseMemoryBytes("") != 0 {
+		t.Error("Expected 0 for empty memory")
+	}
+	if parseMemoryBytes("1Gi") != 1024*1024*1024 {
+		t.Errorf("Expected 1Gi in bytes, got %d", parseMemoryBytes("1Gi"))
+	}
+	if parseMemoryBytes("256Mi") != 256*1024*1024 {
+		t.Errorf("Expected 256Mi in bytes, got %d", parseMemoryBytes("256Mi"))
+	}
+	if parseMemoryBytes("512Ki") != 512*1024 {
+		t.Errorf("Expected 512Ki in bytes, got %d", parseMemoryBytes("512Ki"))
+	}
+	if parseMemoryBytes("1000") != 1000 {
+		t.Errorf("Expected 1000 bytes, got %d", parseMemoryBytes("1000"))
+	}
+	if parseMemoryBytes("invalid") != 0 {
+		t.Error("Expected 0 for invalid memory")
+	}
+}

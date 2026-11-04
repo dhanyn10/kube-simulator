@@ -542,6 +542,18 @@ func TestDetermineNodePort(t *testing.T) {
 			t.Errorf("Expected 0 when yamlSettings disabled, got %d", port)
 		}
 	})
+
+	t.Run("Out of range nodePort (< 30000 or > 32767) returns 0", func(t *testing.T) {
+		tooLowData := k8s.K8sNodeData{NodePort: 8080}
+		if port := determineNodePort(tooLowData, "NodePort"); port != 0 {
+			t.Errorf("Expected 0 for nodePort 8080, got %d", port)
+		}
+
+		tooHighData := k8s.K8sNodeData{NodePort: 40000}
+		if port := determineNodePort(tooHighData, "NodePort"); port != 0 {
+			t.Errorf("Expected 0 for nodePort 40000, got %d", port)
+		}
+	})
 }
 
 func TestGenerateIngress_Advanced(t *testing.T) {

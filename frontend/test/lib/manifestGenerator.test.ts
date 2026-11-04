@@ -334,6 +334,60 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).not.toContain('name: empty-res-pod\n          resources:');
   });
 
+  it('clamps resource requests that exceed limits to satisfy admission control integrity', () => {
+    const nodes = [
+      {
+        id: 'pod-clamped',
+        type: 'Pod',
+        data: {
+          label: 'Clamped Pod',
+          cpuRequest: '2000m',
+          cpuLimit: '500m',
+          memoryRequest: '1Gi',
+          memoryLimit: '256Mi',
+          resourceLimits: [{ id: 'rl1' }]
+        }
+      }
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).toContain('cpu: 500m');
+    expect(yamlOutput).toContain('memory: 256Mi');
+    expect(yamlOutput).not.toContain('cpu: 2000m');
+    expect(yamlOutput).not.toContain('memory: 1Gi');
+  });
+
+  it('omits out-of-range nodePort (< 30000 or > 32767) from generated Service manifest', () => {
+    const nodes = [
+      {
+        id: 'svc-invalid-np',
+        type: 'Service',
+        data: {
+          label: 'Invalid NodePort Svc',
+          serviceType: 'NodePort',
+          port: '80',
+          targetPort: '8080',
+          nodePort: '8080' // Invalid: < 30000
+        }
+      },
+      {
+        id: 'svc-high-np',
+        type: 'Service',
+        data: {
+          label: 'High NodePort Svc',
+          serviceType: 'NodePort',
+          port: '80',
+          targetPort: '8080',
+          nodePort: '40000' // Invalid: > 32767
+        }
+      }
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).not.toContain('nodePort: 8080');
+    expect(yamlOutput).not.toContain('nodePort: 40000');
+  });
+
   it('covers sanitizeName with empty string, Ingress serviceName property, and Service/Pod missing labels', () => {
     const nodes = [
       { id: 'ing1', type: 'Ingress', data: { label: 'Ingress 1', serviceName: 'custom-svc-name', servicePort: '9090' } },

@@ -545,7 +545,7 @@ func determineNodePort(data k8s.K8sNodeData, serviceType string) int {
 	if val, ok := data.YamlSettings["nodePort"]; ok && !val {
 		return 0
 	}
-	if (serviceType == "NodePort" || serviceType == "LoadBalancer") && data.NodePort != 0 {
+	if (serviceType == "NodePort" || serviceType == "LoadBalancer") && data.NodePort >= 30000 && data.NodePort <= 32767 {
 		return data.NodePort
 	}
 	return 0

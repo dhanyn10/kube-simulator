@@ -1,5 +1,5 @@
 import yaml from 'js-yaml';
-import { sanitizeSlug } from './utils';
+import { sanitizeSlug, parseCPU, parseMemory } from './utils';
 
 const sanitizeName = (label: string): string => {
   if (!label) return '';
@@ -48,8 +48,17 @@ const hasConnectedResourceLimit = (
 };
 
 const createResourceObject = (data: any) => {
-  const effectiveCpuReq = data.cpuRequest || data.cpuLimit;
-  const effectiveMemReq = data.memoryRequest || data.memoryLimit;
+  let effectiveCpuReq = data.cpuRequest || data.cpuLimit;
+  let effectiveMemReq = data.memoryRequest || data.memoryLimit;
+
+  // QoS Admission Control integrity: requests must be <= limits
+  if (data.cpuLimit && effectiveCpuReq && parseCPU(effectiveCpuReq) > parseCPU(data.cpuLimit)) {
+    effectiveCpuReq = data.cpuLimit;
+  }
+  if (data.memoryLimit && effectiveMemReq && parseMemory(effectiveMemReq) > parseMemory(data.memoryLimit)) {
+    effectiveMemReq = data.memoryLimit;
+  }
+
   const requests: Record<string, string> = {};
   if (effectiveCpuReq) requests.cpu = effectiveCpuReq;
   if (effectiveMemReq) requests.memory = effectiveMemReq;
@@ -315,7 +324,14 @@ const buildPodOrDeploymentManifest = (
 const determineServiceNodePort = (nodeData: any): number | undefined => {
   const serviceType = nodeData.serviceType || 'ClusterIP';
   const showNodePort = (serviceType === 'NodePort' || serviceType === 'LoadBalancer') && nodeData.nodePort;
-  return showNodePort && nodeData.yamlSettings?.nodePort !== false ? Number(nodeData.nodePort) : undefined;
+  if (!showNodePort || nodeData.yamlSettings?.nodePort === false) {
+    return undefined;
+  }
+  const port = Number(nodeData.nodePort);
+  if (Number.isNaN(port) || port < 30000 || port > 32767) {
+    return undefined;
+  }
+  return port;
 };
 
 const isTargetingIngress = (

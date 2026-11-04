@@ -104,4 +104,35 @@ describe('ResourceLimitModal', () => {
 
     expect(screen.getByText('Resource Limit Name')).toBeDefined();
   });
+
+  it('renders validation error callouts and disables Save button when requests exceed limits', () => {
+    const invalidLimit = {
+      id: 'rl-err',
+      name: 'broken-limit',
+      cpuRequest: '2000m',
+      cpuLimit: '250m',
+      memoryRequest: '1024Mi',
+      memoryLimit: '128Mi',
+    };
+
+    render(
+      <ResourceLimitModal
+        isOpen={true}
+        onClose={mockOnClose}
+        targetNodeId="dep-1"
+        initialResourceLimit={invalidLimit}
+        onSave={mockOnSave}
+      />
+    );
+
+    expect(screen.getByTestId('cpu-resource-error')).toBeInTheDocument();
+    expect(screen.getByTestId('memory-resource-error')).toBeInTheDocument();
+
+    const saveBtn = screen.getByText('Update Resource Limit');
+    expect(saveBtn).toBeDisabled();
+    expect(saveBtn).toHaveClass('cursor-not-allowed');
+
+    fireEvent.click(saveBtn);
+    expect(mockOnSave).not.toHaveBeenCalled();
+  });
 });
