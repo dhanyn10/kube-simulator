@@ -3,6 +3,7 @@ import { useFlowStore } from '@/store';
 import { Network, Box, Server, ChevronDown, Check, Lock, AlertTriangle } from 'lucide-react';
 import { ConfigSection } from '@/components/UI/ConfigUI';
 import { cn } from '@/lib/utils';
+import { resolveNodeNamespace } from '@/lib/namespaceUtils';
 import { ExternalTrafficPolicySection, EntryNodeSection } from './ServiceWorkerConfigSections';
 
 interface ServiceConfigProps {
@@ -86,24 +87,32 @@ const getCategoryBadgeClasses = (category: string): string => {
 
 const isNodeInServiceScope = (
   n: any,
-  selectedNamespaceId: string | null,
-  currentServiceType: string
+  selectedNamespace: string,
+  currentServiceType: string,
+  nodes: any[]
 ): boolean => {
   if (currentServiceType === 'LoadBalancer') return true;
-  if (!selectedNamespaceId) return !n.parentId;
-  return n.parentId === selectedNamespaceId;
+  const nodeNs = resolveNodeNamespace(n, nodes);
+  return selectedNamespace === nodeNs;
 };
 
-const isSelectableWorkloadNode = (n: any): boolean => {
+const isSelectableWorkloadNode = (n: any, nodes?: any[]): boolean => {
   if (WORKLOAD_TYPES.has(n.type)) return true;
-  return n.type === 'Pod' && !n.parentId && !n.data?.parentId;
+  if (n.type !== 'Pod') return false;
+  if (!n.parentId && !n.data?.parentId) return true;
+  const parent = nodes?.find((p) => p.id === (n.parentId || n.data?.parentId));
+  return parent?.type === 'Namespace';
 };
 
 const getNodeLabel = (n: any): string => {
   return (n.data?.label as string) || (n.data?.baseName as string) || n.id || '';
 };
 
-const toSelectorOption = (n: any, currentServiceType: string): SelectorDropdownOption | null => {
+const toSelectorOption = (
+  n: any,
+  currentServiceType: string,
+  nodes?: any[]
+): SelectorDropdownOption | null => {
   const label = getNodeLabel(n);
   if (!label) return null;
 
@@ -111,7 +120,7 @@ const toSelectorOption = (n: any, currentServiceType: string): SelectorDropdownO
     return { label, category: 'INGRESS' };
   }
 
-  if (!isSelectableWorkloadNode(n)) return null;
+  if (!isSelectableWorkloadNode(n, nodes)) return null;
   const isStateful = n.type === 'StatefulSet' || n.data?.workloadType === 'StatefulSet';
   const cat = (isStateful ? 'STATEFULSET' : n.type.toUpperCase()) as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
   const port = Number(n.data?.port) || undefined;
@@ -123,12 +132,12 @@ const buildServiceSelectorOptions = (
   nodes: any[],
   currentServiceType: string
 ): SelectorDropdownOption[] => {
-  const selectedNamespaceId = selectedNode.parentId || selectedNode.data?.parentId || null;
+  const selectedNamespace = resolveNodeNamespace(selectedNode, nodes);
   const optionsMap = new Map<string, SelectorDropdownOption>();
 
   for (const n of nodes) {
-    if (isNodeInServiceScope(n, selectedNamespaceId, currentServiceType)) {
-      const opt = toSelectorOption(n, currentServiceType);
+    if (isNodeInServiceScope(n, selectedNamespace, currentServiceType, nodes)) {
+      const opt = toSelectorOption(n, currentServiceType, nodes);
       if (opt && !optionsMap.has(opt.label)) {
         optionsMap.set(opt.label, opt);
       }

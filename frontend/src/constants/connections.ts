@@ -135,17 +135,6 @@ const checkServiceSourceRules = (
   return null;
 };
 
-/**
- * Evaluates whether a proposed edge connection between a source node and a target node is valid.
- * Checks the macro-level matrix in `VALID_CONNECTIONS` as well as fine-grained resource rules for
- * Internet, Ingress, and Service components (ClusterIP, NodePort, LoadBalancer).
- *
- * @param sourceType - The string resource type of the source node (e.g., 'Internet', 'Service', 'Ingress', 'Deployment').
- * @param targetType - The string resource type of the target node (e.g., 'Service', 'Pod', 'PVC').
- * @param sourceData - Optional data object containing configuration properties (e.g. `serviceType`) for the source node.
- * @param targetData - Optional data object containing configuration properties for the target node.
- * @returns `null` if the connection is permitted, or a descriptive English error message string explaining why it is rejected.
- */
 type RuleChecker = (
   s: string,
   t: string,
@@ -161,11 +150,104 @@ const SPECIFIC_RULES: RuleChecker[] = [
   (s, t, sData, tData) => (s === 'Service' ? checkServiceSourceRules(t, sData, tData) : null),
 ];
 
+const WORKLOAD_TYPES = new Set(['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet']);
+const CONFIG_TYPES = new Set(['ConfigMap', 'Secret', 'PVC']);
+
+const isWorkload = (t: string): boolean => WORKLOAD_TYPES.has(t);
+const isConfigResource = (t: string): boolean => CONFIG_TYPES.has(t);
+
+const checkServiceWorkloadNamespace = (
+  s: string,
+  t: string,
+  sData?: Record<string, any>,
+  tData?: Record<string, any>,
+  sNs?: string,
+  tNs?: string
+): string | null => {
+  const isSvcWorkload = (s === 'Service' && isWorkload(t)) || (isWorkload(s) && t === 'Service');
+  if (!isSvcWorkload) return null;
+  const sType = (s === 'Service' ? sData : tData)?.serviceType || 'ClusterIP';
+  if (sType === 'LoadBalancer') return null;
+  return `Cross-namespace connection is not allowed: Service in namespace "${sNs}" cannot connect to workload in namespace "${tNs}".`;
+};
+
+const checkIngressServiceNamespace = (s: string, t: string, sNs?: string, tNs?: string): string | null => {
+  if (s === 'Ingress' && t === 'Service') {
+    return `Cross-namespace backend is not allowed: Ingress in namespace "${sNs}" cannot route to Service in namespace "${tNs}".`;
+  }
+  return null;
+};
+
+const checkWorkloadConfigNamespace = (s: string, t: string, sNs?: string, tNs?: string): string | null => {
+  const isMatch = (isWorkload(s) && isConfigResource(t)) || (isConfigResource(s) && isWorkload(t));
+  if (isMatch) {
+    return `Cross-namespace resource binding is not allowed: ${s} in namespace "${sNs}" cannot bind to ${t} in namespace "${tNs}".`;
+  }
+  return null;
+};
+
+const checkHpaWorkloadNamespace = (s: string, t: string, sNs?: string, tNs?: string): string | null => {
+  const isMatch = (s === 'HPA' && isWorkload(t)) || (isWorkload(s) && t === 'HPA');
+  if (isMatch) {
+    return `Cross-namespace scaling is not allowed: HPA in namespace "${sNs}" cannot scale workload in namespace "${tNs}".`;
+  }
+  return null;
+};
+
+type NamespaceRuleChecker = (
+  s: string,
+  t: string,
+  sData?: Record<string, any>,
+  tData?: Record<string, any>,
+  sNs?: string,
+  tNs?: string
+) => string | null;
+
+const NAMESPACE_RULES: NamespaceRuleChecker[] = [
+  checkServiceWorkloadNamespace,
+  (s, t, _, __, sNs, tNs) => checkIngressServiceNamespace(s, t, sNs, tNs),
+  (s, t, _, __, sNs, tNs) => checkWorkloadConfigNamespace(s, t, sNs, tNs),
+  (s, t, _, __, sNs, tNs) => checkHpaWorkloadNamespace(s, t, sNs, tNs),
+];
+
+export const checkNamespaceIsolation = (
+  sourceType: string,
+  targetType: string,
+  sourceData?: Record<string, any>,
+  targetData?: Record<string, any>,
+  sourceNs?: string,
+  targetNs?: string
+): string | null => {
+  if (!sourceNs || !targetNs || sourceNs === targetNs) {
+    return null;
+  }
+  for (const checker of NAMESPACE_RULES) {
+    const err = checker(sourceType, targetType, sourceData, targetData, sourceNs, targetNs);
+    if (err) return err;
+  }
+  return null;
+};
+
+/**
+ * Evaluates whether a proposed edge connection between a source node and a target node is valid.
+ * Checks the macro-level matrix in `VALID_CONNECTIONS` as well as fine-grained resource rules for
+ * Internet, Ingress, and Service components (ClusterIP, NodePort, LoadBalancer), as well as namespace scoping.
+ *
+ * @param sourceType - The string resource type of the source node (e.g., 'Internet', 'Service', 'Ingress', 'Deployment').
+ * @param targetType - The string resource type of the target node (e.g., 'Service', 'Pod', 'PVC').
+ * @param sourceData - Optional data object containing configuration properties (e.g. `serviceType`) for the source node.
+ * @param targetData - Optional data object containing configuration properties for the target node.
+ * @param sourceNamespace - Optional Kubernetes namespace of the source node.
+ * @param targetNamespace - Optional Kubernetes namespace of the target node.
+ * @returns `null` if the connection is permitted, or a descriptive English error message string explaining why it is rejected.
+ */
 export const getConnectionError = (
   sourceType: string,
   targetType: string,
   sourceData?: Record<string, any>,
-  targetData?: Record<string, any>
+  targetData?: Record<string, any>,
+  sourceNamespace?: string,
+  targetNamespace?: string
 ): string | null => {
   const validTargets = VALID_CONNECTIONS[sourceType as K8sResourceType];
   if (!validTargets) return `Source type ${sourceType} is not recognized.`;
@@ -178,6 +260,16 @@ export const getConnectionError = (
   if (!validTargets.includes(targetType as K8sResourceType)) {
     return `${sourceType} cannot be connected to ${targetType}.`;
   }
+
+  const nsError = checkNamespaceIsolation(
+    sourceType,
+    targetType,
+    sourceData,
+    targetData,
+    sourceNamespace,
+    targetNamespace
+  );
+  if (nsError) return nsError;
 
   return null;
 };

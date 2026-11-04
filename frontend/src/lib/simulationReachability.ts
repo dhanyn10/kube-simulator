@@ -1,14 +1,28 @@
 import { Node, Edge } from '@xyflow/react';
 import { SimulationContext } from './simulationTypes';
 import { getAssignedWorker } from './workerNodeHelpers';
+import { resolveNodeNamespace } from './namespaceUtils';
 
 /**
  * Helper to check if a Service's selector matches a target workload's label.
+ * Enforces intra-namespace matching for non-LoadBalancer services.
  */
-export const isServiceSelectorMatching = (serviceNode: Node, workloadNode: Node): boolean => {
+export const isServiceSelectorMatching = (
+  serviceNode: Node,
+  workloadNode: Node,
+  nodes?: Node[]
+): boolean => {
   const selector = serviceNode.data?.selector;
   if (!selector || typeof selector !== 'string' || selector.trim() === '') {
     return false;
+  }
+  const serviceType = serviceNode.data?.serviceType || 'ClusterIP';
+  if (serviceType !== 'LoadBalancer') {
+    const svcNs = resolveNodeNamespace(serviceNode, nodes || [serviceNode]);
+    const workloadNs = resolveNodeNamespace(workloadNode, nodes || [workloadNode]);
+    if (svcNs !== workloadNs) {
+      return false;
+    }
   }
   const targetLabel = workloadNode.data?.label || workloadNode.data?.baseName;
   const matchLabels = workloadNode.data?.labels?.app;
@@ -25,38 +39,51 @@ export const hasValidServiceSelectorTarget = (serviceNode: Node, nodes: Node[]):
   }
   return nodes.some(node =>
     (node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet' || node.type === 'StatefulSet') &&
-    isServiceSelectorMatching(serviceNode, node)
+    isServiceSelectorMatching(serviceNode, node, nodes)
+  );
+};
+
+const matchesIngressRule = (
+  node: Node,
+  ruleServiceName: string,
+  ingressNs: string,
+  nodes: Node[]
+): boolean => {
+  return (
+    node.type === 'Service' &&
+    (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
+    (node.data?.label === ruleServiceName || node.data?.selector === ruleServiceName) &&
+    resolveNodeNamespace(node, nodes) === ingressNs
   );
 };
 
 /**
- * Checks if an Ingress resource points to a valid ClusterIP Service on the canvas.
+ * Checks if an Ingress resource points to a valid ClusterIP Service on the canvas within the same namespace.
  */
 export const hasValidIngressBackend = (ingressNode: Node, nodes: Node[], edgeMap?: Map<string, Edge[]>): boolean => {
+  const ingressNs = resolveNodeNamespace(ingressNode, nodes);
+
   const outgoing = edgeMap?.get(ingressNode.id) || [];
   for (const edge of outgoing) {
+    if (edge.data?.validationError) continue;
     const target = nodes.find(node => node.id === edge.target);
-    if (target?.type === 'Service' && (target?.data?.serviceType || 'ClusterIP') === 'ClusterIP') {
+    if (
+      target?.type === 'Service' &&
+      (target?.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
+      resolveNodeNamespace(target, nodes) === ingressNs
+    ) {
       return true;
     }
   }
   if (Array.isArray(ingressNode.data?.ingressPaths) && ingressNode.data.ingressPaths.length > 0) {
     const hasValidRule = ingressNode.data.ingressPaths.some((rule: any) =>
-      nodes.some(node =>
-        node.type === 'Service' &&
-        (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
-        (node.data?.label === rule.serviceName || node.data?.selector === rule.serviceName)
-      )
+      nodes.some(node => matchesIngressRule(node, rule.serviceName, ingressNs, nodes))
     );
     if (hasValidRule) return true;
   }
   const backendName = ingressNode.data?.backendServiceName || ingressNode.data?.serviceName;
   if (backendName) {
-    return nodes.some(node =>
-      node.type === 'Service' &&
-      (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
-      (node.data?.label === backendName || node.data?.selector === backendName)
-    );
+    return nodes.some(node => matchesIngressRule(node, backendName, ingressNs, nodes));
   }
   return false;
 };
@@ -121,7 +148,7 @@ const enqueueDynamicServiceTargets = (
   if (currentNode.type !== 'Service' || !nodes) return;
   const selectorTargets = nodes.filter(node =>
     (node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet' || node.type === 'StatefulSet') &&
-    isServiceSelectorMatching(currentNode, node) &&
+    isServiceSelectorMatching(currentNode, node, nodes) &&
     !isLocalPolicyBlocked(currentNode, node, nodes)
   );
   for (const target of selectorTargets) {
@@ -154,10 +181,13 @@ const enqueueDynamicIngressTargets = (
   const targetServiceNames = getIngressTargetServiceNames(currentNode);
   if (targetServiceNames.size === 0) return;
 
+  const ingressNs = resolveNodeNamespace(currentNode, nodes);
+
   const backendServices = nodes.filter(node =>
     node.type === 'Service' &&
     (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
-    targetServiceNames.has(String(node.data?.label || ''))
+    targetServiceNames.has(String(node.data?.label || '')) &&
+    resolveNodeNamespace(node, nodes) === ingressNs
   );
   for (const service of backendServices) {
     queue.push(String(service.id));
@@ -231,7 +261,7 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
     const serviceType = node?.data?.serviceType || 'ClusterIP';
     const outgoing = nodes.filter(n =>
       (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet' || n.type === 'StatefulSet') &&
-      isServiceSelectorMatching(node, n)
+      isServiceSelectorMatching(node, n, nodes)
     );
     const hasIngressTarget = nodes.some(n => n.type === 'Ingress');
     if (outgoing.length === 0 && !hasIngressTarget && serviceType !== 'NodePort') {

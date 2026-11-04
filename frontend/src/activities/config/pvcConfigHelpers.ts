@@ -1,25 +1,8 @@
 import { Node, Edge } from '@xyflow/react';
 import { getAssignedWorker } from '@/lib/workerNodeHelpers';
+import { resolveNodeNamespace } from '@/lib/namespaceUtils';
 
-/**
- * Resolves the Kubernetes namespace for a given node, either from `node.data.namespace`
- * or by traversing parent hierarchy until reaching a Namespace container node.
- */
-export const resolveNodeNamespace = (node: Node, nodes: Node[]): string => {
-  if (node.data?.namespace) {
-    return String(node.data.namespace);
-  }
-  let curr: Node | undefined = node;
-  while (curr?.parentId) {
-    const parent = nodes.find((n) => n.id === curr?.parentId);
-    if (!parent) break;
-    if (parent.type === 'Namespace') {
-      return String(parent.data?.label || parent.data?.name || parent.id);
-    }
-    curr = parent;
-  }
-  return '';
-};
+export { resolveNodeNamespace };
 
 /**
  * Extracts connected workload node IDs directly connected to the specified PVC node.
@@ -103,9 +86,9 @@ const checkWorkloadNamespaceConflict = (
   nodes: Node[],
   currentConflict?: PvcWorkloadAnalysis['namespaceConflict']
 ): PvcWorkloadAnalysis['namespaceConflict'] => {
-  if (currentConflict || !pvcNs) return currentConflict;
+  if (currentConflict) return currentConflict;
   const nodeNs = resolveNodeNamespace(workloadNode, nodes);
-  if (nodeNs && pvcNs !== nodeNs) {
+  if (pvcNs !== nodeNs) {
     return {
       pvcNs,
       workloadNs: nodeNs,

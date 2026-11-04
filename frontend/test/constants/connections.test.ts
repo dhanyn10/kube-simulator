@@ -239,4 +239,67 @@ describe('connections constants', () => {
     ).toBeNull();
     (VALID_CONNECTIONS as any).Service = originalService;
   });
+
+  it('enforces Kubernetes namespace isolation rules across resource types', () => {
+    // 1. Service <-> Workload in different namespaces (ClusterIP, NodePort, Headless)
+    expect(
+      getConnectionError('Service', 'Pod', { serviceType: 'ClusterIP' }, {}, 'staging', 'production')
+    ).toContain('Cross-namespace connection is not allowed: Service in namespace "staging" cannot connect to workload in namespace "production".');
+
+    expect(
+      getConnectionError('Service', 'Deployment', { serviceType: 'NodePort' }, {}, 'ns-a', 'ns-b')
+    ).toContain('Cross-namespace connection is not allowed');
+
+    expect(
+      getConnectionError('Pod', 'Service', {}, { serviceType: 'ClusterIP' }, 'staging', 'production')
+    ).toContain('Cross-namespace connection is not allowed');
+
+    // Service <-> Workload in the same namespace is allowed
+    expect(
+      getConnectionError('Service', 'Pod', { serviceType: 'ClusterIP' }, {}, 'production', 'production')
+    ).toBeNull();
+
+    // Service (LoadBalancer) is cluster-external / edge and allowed across namespaces
+    expect(
+      getConnectionError('Service', 'Deployment', { serviceType: 'LoadBalancer' }, {}, 'default', 'production')
+    ).toBeNull();
+
+    // 2. Ingress -> Service in different namespaces
+    expect(
+      getConnectionError('Ingress', 'Service', {}, { serviceType: 'ClusterIP' }, 'staging', 'production')
+    ).toContain('Cross-namespace backend is not allowed: Ingress in namespace "staging" cannot route to Service in namespace "production".');
+
+    // Ingress -> Service in the same namespace is allowed
+    expect(
+      getConnectionError('Ingress', 'Service', {}, { serviceType: 'ClusterIP' }, 'production', 'production')
+    ).toBeNull();
+
+    // 3. Workload <-> ConfigMap / Secret / PVC in different namespaces
+    expect(
+      getConnectionError('Deployment', 'ConfigMap', {}, {}, 'staging', 'production')
+    ).toContain('Cross-namespace resource binding is not allowed: Deployment in namespace "staging" cannot bind to ConfigMap in namespace "production".');
+
+    expect(
+      getConnectionError('Pod', 'Secret', {}, {}, 'staging', 'production')
+    ).toContain('Cross-namespace resource binding is not allowed: Pod in namespace "staging" cannot bind to Secret in namespace "production".');
+
+    expect(
+      getConnectionError('StatefulSet', 'PVC', {}, {}, 'staging', 'production')
+    ).toContain('Cross-namespace resource binding is not allowed: StatefulSet in namespace "staging" cannot bind to PVC in namespace "production".');
+
+    // Workload <-> Config in same namespace is allowed
+    expect(
+      getConnectionError('Deployment', 'ConfigMap', {}, {}, 'production', 'production')
+    ).toBeNull();
+
+    // 4. HPA -> Workload in different namespaces
+    expect(
+      getConnectionError('HPA', 'Deployment', {}, {}, 'staging', 'production')
+    ).toContain('Cross-namespace scaling is not allowed: HPA in namespace "staging" cannot scale workload in namespace "production".');
+
+    // HPA -> Workload in same namespace is allowed
+    expect(
+      getConnectionError('HPA', 'Deployment', {}, {}, 'production', 'production')
+    ).toBeNull();
+  });
 });
