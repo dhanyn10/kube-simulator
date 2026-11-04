@@ -294,6 +294,7 @@ export const syncPodsInDeployment = (
 
     const podDataWithWorkloadType = {
       ...commonData,
+      restartPolicy: 'Always',
       workloadType: isStatefulSet ? 'StatefulSet' : 'Deployment'
     };
 

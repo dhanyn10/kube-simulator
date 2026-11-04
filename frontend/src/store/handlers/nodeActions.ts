@@ -50,7 +50,7 @@ const handleReplicaSetTransform = (nodeId: string, updatedNode: Node, updatedDat
   const groupId = `replicaset-${crypto.randomUUID().split('-')[0]}`;
   const newGroup: Node = {
     id: groupId, type: 'ReplicaSet', position: { x: podPos.x - 20, y: podPos.y - 40 },
-    data: { ...updatedData, label: updatedData.label, ...createNodeHandlers(groupId, get) }
+    data: { ...updatedData, label: updatedData.label, restartPolicy: 'Always', ...createNodeHandlers(groupId, get) }
   };
   const tempPod = {
     ...updatedNode,
@@ -58,6 +58,7 @@ const handleReplicaSetTransform = (nodeId: string, updatedNode: Node, updatedDat
     position: { x: 20, y: 40 },
     data: {
       ...updatedNode.data,
+        restartPolicy: 'Always',
       roles: undefined,
       configMaps: undefined,
       secrets: undefined,
@@ -117,6 +118,7 @@ const handlePodParentSync = (_target: Node, updatedNode: Node, newData: Partial<
       extent: undefined,
       data: {
         ...updatedNode.data,
+        restartPolicy: 'Always',
         label: cleanBase,
         replicas: 1,
         parentReplicas: 1,

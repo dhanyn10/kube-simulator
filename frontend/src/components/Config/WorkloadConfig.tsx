@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useFlowStore } from '@/store';
-import { AlertTriangle, Box, Layers, RotateCcw, Server, Activity, Boxes } from 'lucide-react';
+import { AlertTriangle, Box, Layers, RotateCcw, Server, Activity, Boxes, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ConfigSection, NumberStepper } from '@/components/UI/ConfigUI';
 import { ImageDropdown } from '@/components/UI/ImageDropdown';
@@ -15,6 +15,87 @@ interface WorkloadConfigProps {
   toggleVisibility: (field: string) => void;
   toggleYaml: (field: string) => void;
 }
+
+const WORKLOAD_TYPES = [
+  { id: 'Deployment', label: 'Deployment' },
+  { id: 'StatefulSet', label: 'StatefulSet' }
+] as const;
+
+const RESTART_POLICIES = [
+  { id: 'Always', label: 'Always' },
+  { id: 'OnFailure', label: 'On Failure' },
+  { id: 'Never', label: 'Never' }
+] as const;
+
+export const isControllerPodNode = (node: any): boolean => {
+  if (!node) return false;
+  return Boolean(
+    node.parentId ||
+    node.data?.parentId ||
+    (node.data?.replicas && node.data.replicas > 1) ||
+    (node.data?.parentReplicas && node.data.parentReplicas > 1) ||
+    node.data?.workloadType === 'StatefulSet'
+  );
+};
+
+interface WorkloadRestartPolicySectionProps {
+  readonly selectedNode: any;
+  readonly isControllerPod: boolean;
+  readonly colorMode: string;
+  readonly toggleVisibility: (field: string) => void;
+  readonly toggleYaml: (field: string) => void;
+  readonly performUpdate: (updates: any) => void;
+}
+
+const WorkloadRestartPolicySection: React.FC<WorkloadRestartPolicySectionProps> = ({
+  selectedNode,
+  isControllerPod,
+  colorMode,
+  toggleVisibility,
+  toggleYaml,
+  performUpdate,
+}) => {
+  const data = selectedNode.data || {};
+  const currentVal = isControllerPod ? 'Always' : (data.restartPolicy || 'Always');
+
+  return (
+    <ConfigSection
+      title="Restart Policy"
+      icon={RotateCcw}
+      isVisible={data.displaySettings?.restartPolicy}
+      onToggle={() => toggleVisibility('restartPolicy')}
+      isYamlEnabled={data.yamlSettings?.restartPolicy}
+      onYamlToggle={() => toggleYaml('restartPolicy')}
+      disableYamlToggle={Boolean(data.restartPolicy) === false}
+    >
+      <SelectorGroup
+        options={RESTART_POLICIES}
+        currentValue={currentVal}
+        onSelect={(val) => {
+          if (!isControllerPod || val === 'Always') {
+            performUpdate({ restartPolicy: val });
+          }
+        }}
+        disabledOption={(val) => isControllerPod && val !== 'Always'}
+        colorMode={colorMode}
+      />
+      {isControllerPod && (
+        <div
+          data-testid="controller-restart-policy-hint"
+          className={cn(
+            "text-[10px] mt-1.5 px-2 py-1 rounded border flex items-center gap-1.5",
+            colorMode === 'dark'
+              ? "bg-blue-950/40 border-blue-800/60 text-blue-300"
+              : "bg-blue-50 border-blue-200 text-blue-700"
+          )}
+        >
+          <Info size={12} className="shrink-0 text-blue-400" />
+          <span>Controllers require restartPolicy: Always</span>
+        </div>
+      )}
+    </ConfigSection>
+  );
+};
 
 /**
  * Main configuration component for Workload resources (Pods and Deployments).
@@ -33,16 +114,7 @@ export const WorkloadConfig = ({
 
   const data = selectedNode.data;
 
-  const WORKLOAD_TYPES = [
-    { id: 'Deployment', label: 'Deployment' },
-    { id: 'StatefulSet', label: 'StatefulSet' }
-  ] as const;
-
-  const RESTART_POLICIES = [
-    { id: 'Always', label: 'Always' },
-    { id: 'OnFailure', label: 'On Failure' },
-    { id: 'Never', label: 'Never' }
-  ] as const;
+  const isControllerPod = isControllerPodNode(selectedNode);
 
   return (
     <div className="space-y-4">
@@ -165,24 +237,16 @@ export const WorkloadConfig = ({
             />
           </ConfigSection>
 
-          {/* Restart Policy (only for standalone Pods) */}
+          {/* Restart Policy */}
           {selectedNode.type === 'Pod' && (
-            <ConfigSection
-              title="Restart Policy"
-              icon={RotateCcw}
-              isVisible={data.displaySettings?.restartPolicy}
-              onToggle={() => toggleVisibility('restartPolicy')}
-              isYamlEnabled={data.yamlSettings?.restartPolicy}
-              onYamlToggle={() => toggleYaml('restartPolicy')}
-              disableYamlToggle={Boolean(data.restartPolicy) === false}
-            >
-              <SelectorGroup
-                options={RESTART_POLICIES}
-                currentValue={data.restartPolicy || 'Always'}
-                onSelect={(val) => performUpdate({ restartPolicy: val })}
-                colorMode={colorMode}
-              />
-            </ConfigSection>
+            <WorkloadRestartPolicySection
+              selectedNode={selectedNode}
+              isControllerPod={isControllerPod}
+              colorMode={colorMode}
+              toggleVisibility={toggleVisibility}
+              toggleYaml={toggleYaml}
+              performUpdate={performUpdate}
+            />
           )}
 
           {/* Assigned Worker Node - hidden when replicas > 3 */}

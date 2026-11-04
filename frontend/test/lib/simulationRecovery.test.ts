@@ -57,6 +57,35 @@ describe('simulationRecovery', () => {
       );
     });
 
+    it('always recovers child pod belonging to a controller even if pod data has restartPolicy: Never', () => {
+      const addLog = vi.fn();
+      const ctx: SimulationContext = {
+        get: () => ({
+          nodes: [
+            {
+              id: 'child-pod-never',
+              type: 'Pod',
+              parentId: 'dep-1',
+              position: { x: 0, y: 0 },
+              data: { restartPolicy: 'Never', label: 'Child-Pod-1' },
+            },
+          ],
+          addLog,
+          simulationSpeed: 1,
+        } as any),
+        childPodMap: new Map(),
+      };
+
+      const dep = { id: 'dep-1', type: 'Deployment', position: { x: 0, y: 0 }, data: {} } as Node;
+
+      scheduleRecovery(dep, 'child-pod-never', ctx);
+      expect(addLog).toHaveBeenCalledWith(
+        'warning',
+        expect.stringContaining('Restarting container (restartPolicy: Always)'),
+        'Simulation'
+      );
+    });
+
     it('catches and logs error when addLog throws in scheduleRecovery', () => {
       const loggerErrorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
       const ctx: SimulationContext = {

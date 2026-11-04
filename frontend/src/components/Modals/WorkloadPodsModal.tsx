@@ -12,6 +12,7 @@ import {
   Terminal,
   Type,
   X,
+  Info,
 } from 'lucide-react';
 import { Modal } from './Modal';
 import { useFlowStore } from '@/store';
@@ -278,6 +279,60 @@ const WorkloadPodsListTab: React.FC<WorkloadPodsListTabProps> = ({
   );
 };
 
+interface WorkloadModalRestartPolicySectionProps {
+  readonly controller: any;
+  readonly isDark: boolean;
+  readonly colorMode: 'dark' | 'light';
+  readonly updateNodeData: (id: string, data: any) => void;
+}
+
+const WorkloadModalRestartPolicySection: React.FC<WorkloadModalRestartPolicySectionProps> = ({
+  controller,
+  isDark,
+  colorMode,
+  updateNodeData,
+}) => {
+  const isControllerWorkload = Boolean(
+    controller.type === 'Deployment' ||
+    controller.type === 'StatefulSet' ||
+    controller.type === 'ReplicaSet' ||
+    (controller.data?.replicas && controller.data.replicas > 1) ||
+    controller.data?.workloadType === 'StatefulSet'
+  );
+  const data = controller.data || {};
+  const currentVal = isControllerWorkload ? 'Always' : (data.restartPolicy || 'Always');
+
+  return (
+    <ConfigSection title="Restart Policy" icon={RotateCcw}>
+      <SelectorGroup
+        options={RESTART_POLICIES}
+        currentValue={currentVal}
+        onSelect={(val) => {
+          if (!isControllerWorkload || val === 'Always') {
+            updateNodeData(controller.id, { restartPolicy: val });
+          }
+        }}
+        disabledOption={(val) => isControllerWorkload && val !== 'Always'}
+        colorMode={colorMode}
+      />
+      {isControllerWorkload && (
+        <div
+          data-testid="controller-restart-policy-hint"
+          className={cn(
+            "text-[10px] mt-1.5 px-2 py-1 rounded border flex items-center gap-1.5",
+            isDark
+              ? "bg-blue-950/40 border-blue-800/60 text-blue-300"
+              : "bg-blue-50 border-blue-200 text-blue-700"
+          )}
+        >
+          <Info size={12} className="shrink-0 text-blue-400" />
+          <span>Controllers require restartPolicy: Always</span>
+        </div>
+      )}
+    </ConfigSection>
+  );
+};
+
 interface WorkloadSetupTabProps {
   readonly controller: any;
   readonly colorMode: 'dark' | 'light';
@@ -346,16 +401,14 @@ const WorkloadSetupTab: React.FC<WorkloadSetupTabProps> = ({
         />
       </ConfigSection>
 
-      {/* Restart Policy (only for standalone Pods) */}
+      {/* Restart Policy */}
       {controller.type === 'Pod' && (
-        <ConfigSection title="Restart Policy" icon={RotateCcw}>
-          <SelectorGroup
-            options={RESTART_POLICIES}
-            currentValue={data.restartPolicy || 'Always'}
-            onSelect={(val) => updateNodeData(controller.id, { restartPolicy: val })}
-            colorMode={colorMode}
-          />
-        </ConfigSection>
+        <WorkloadModalRestartPolicySection
+          controller={controller}
+          isDark={isDark}
+          colorMode={colorMode}
+          updateNodeData={updateNodeData}
+        />
       )}
 
       {/* View Logs button */}
