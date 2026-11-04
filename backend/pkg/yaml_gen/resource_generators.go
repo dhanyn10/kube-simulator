@@ -139,13 +139,20 @@ func isMatchingServiceSelector(svcNode *k8s.FrontendNode, ssNode *k8s.FrontendNo
 	return false
 }
 
-// findStatefulSetServiceName identifies connected Service name for a StatefulSet or falls back to name.
-func findStatefulSetServiceName(nodeID, fallbackName string, ctx *GenContext) string {
-	ssNode := ctx.nodeMap[nodeID]
-	if ssNode != nil && ssNode.Data.BackendServiceName != "" {
-		return sanitizeName(ssNode.Data.BackendServiceName)
+// collectSelectorMatchingServices finds Service nodes whose selector matches the StatefulSet.
+func collectSelectorMatchingServices(ssNode *k8s.FrontendNode, fallbackName string, ctx *GenContext, addCandidate func(*k8s.FrontendNode)) {
+	if ssNode == nil {
+		return
 	}
+	for _, node := range ctx.nodeMap {
+		if node.Type == "Service" && isMatchingServiceSelector(node, ssNode, fallbackName) {
+			addCandidate(node)
+		}
+	}
+}
 
+// collectConnectedServices collects candidate Service nodes connected via edges or selector to StatefulSet.
+func collectConnectedServices(nodeID string, ssNode *k8s.FrontendNode, fallbackName string, ctx *GenContext) []*k8s.FrontendNode {
 	var candidates []*k8s.FrontendNode
 	seen := make(map[string]bool)
 
@@ -162,24 +169,33 @@ func findStatefulSetServiceName(nodeID, fallbackName string, ctx *GenContext) st
 	for _, edge := range ctx.sourceEdgeMap[nodeID] {
 		addCandidate(ctx.nodeMap[edge.Target])
 	}
-	if ssNode != nil {
-		for _, node := range ctx.nodeMap {
-			if node.Type == "Service" && isMatchingServiceSelector(node, ssNode, fallbackName) {
-				addCandidate(node)
-			}
-		}
-	}
+	collectSelectorMatchingServices(ssNode, fallbackName, ctx, addCandidate)
 
+	return candidates
+}
+
+// selectBestServiceName chooses a headless service or first available service candidate name.
+func selectBestServiceName(candidates []*k8s.FrontendNode, fallbackName string) string {
 	if len(candidates) == 0 {
 		return fallbackName
 	}
-
 	for _, c := range candidates {
 		if c.Data.ServiceType == "Headless" {
 			return sanitizeName(c.Data.Label)
 		}
 	}
 	return sanitizeName(candidates[0].Data.Label)
+}
+
+// findStatefulSetServiceName identifies connected Service name for a StatefulSet or falls back to name.
+func findStatefulSetServiceName(nodeID, fallbackName string, ctx *GenContext) string {
+	ssNode := ctx.nodeMap[nodeID]
+	if ssNode != nil && ssNode.Data.BackendServiceName != "" {
+		return sanitizeName(ssNode.Data.BackendServiceName)
+	}
+
+	candidates := collectConnectedServices(nodeID, ssNode, fallbackName, ctx)
+	return selectBestServiceName(candidates, fallbackName)
 }
 
 // generateStatefulSet constructs a Kubernetes StatefulSet resource object.
