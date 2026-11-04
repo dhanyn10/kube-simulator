@@ -602,28 +602,70 @@ export const ServiceConfig = ({
             onYamlToggle={() => toggleYaml('nodePort')}
             disableYamlToggle={Boolean(data.nodePort) === false}
           >
-            <input
-              type="number"
-              min={30000}
-              max={32767}
-              value={data.nodePort ?? ''}
-              onChange={(e: any) => performUpdate({ nodePort: e.target.value ? Number.parseInt(e.target.value, 10) : undefined })}
-              placeholder="30000-32767 (Optional)"
-              className={cn(
-                'w-full text-[10px] p-2 rounded border outline-none font-mono',
-                inputFieldClasses,
-                isNodePortOutOfRange && '!border-rose-500 !focus:ring-rose-500/50'
-              )}
-            />
-            {isNodePortOutOfRange && (
-              <div
-                data-testid="nodeport-range-error"
-                className="mt-1.5 flex items-center gap-1.5 text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded px-2 py-1 font-sans"
-              >
-                <AlertTriangle size={12} className="shrink-0 text-rose-400" />
-                <span>NodePort must be between 30000 and 32767</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={30000}
+                  max={32767}
+                  value={data.nodePort ?? ''}
+                  onChange={(e: any) => performUpdate({ nodePort: e.target.value ? Number.parseInt(e.target.value, 10) : undefined })}
+                  placeholder="30000-32767 (Optional)"
+                  className={cn(
+                    'w-full text-[10px] p-2 rounded border outline-none font-mono',
+                    inputFieldClasses,
+                    isNodePortOutOfRange && '!border-rose-500 !focus:ring-rose-500/50'
+                  )}
+                />
+                {data.nodePort !== undefined && (
+                  <button
+                    type="button"
+                    onClick={() => performUpdate({ nodePort: undefined })}
+                    className={cn(
+                      "px-2 py-1.5 rounded text-[10px] font-medium border transition-colors whitespace-nowrap",
+                      colorMode === 'dark'
+                        ? "border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
+                        : "border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    )}
+                    title="Reset to automatic NodePort allocation"
+                    data-testid="nodeport-auto-btn"
+                  >
+                    Auto
+                  </button>
+                )}
               </div>
-            )}
+
+              {/* Interactive Range Slider (30000 - 32767) */}
+              <div className="space-y-1 pt-0.5">
+                <input
+                  type="range"
+                  min={30000}
+                  max={32767}
+                  step={1}
+                  value={data.nodePort ?? 30000}
+                  onChange={(e: any) => performUpdate({ nodePort: Number.parseInt(e.target.value, 10) })}
+                  className="w-full h-1.5 bg-slate-700/60 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                  data-testid="nodeport-range-slider"
+                />
+                <div className="flex items-center justify-between text-[9px] font-mono text-slate-400">
+                  <span>30000</span>
+                  <span className="text-[10px] text-purple-400 font-semibold font-sans">
+                    {data.nodePort ? `Port: ${data.nodePort}` : 'Auto (30000 - 32767)'}
+                  </span>
+                  <span>32767</span>
+                </div>
+              </div>
+
+              {isNodePortOutOfRange && (
+                <div
+                  data-testid="nodeport-range-error"
+                  className="mt-1 flex items-center gap-1.5 text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded px-2 py-1 font-sans"
+                >
+                  <AlertTriangle size={12} className="shrink-0 text-rose-400" />
+                  <span>NodePort must be between 30000 and 32767</span>
+                </div>
+              )}
+            </div>
           </ConfigSection>
 
           <ExternalTrafficPolicySection
