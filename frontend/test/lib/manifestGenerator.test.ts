@@ -642,4 +642,79 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).toContain('name: single-rs');
     expect(yamlOutput).toContain('replicas: 1');
   });
+  it('auto-enforces Headless Service (clusterIP: None) and resolves serviceName when targeting StatefulSet', () => {
+    // 1. Service with ClusterIP connected via edge to StatefulSet -> automatically becomes clusterIP: None
+    const nodesEdge = [
+      { id: 'ss1', type: 'StatefulSet', data: { label: 'kafka-cluster', replicas: 3 } },
+      { id: 'svc1', type: 'Service', data: { label: 'kafka-service', serviceType: 'ClusterIP', port: 9092 } },
+    ];
+    const edges1 = [{ id: 'e1', source: 'svc1', target: 'ss1' }];
+    const yaml1 = generateYamlClientSide(nodesEdge, edges1);
+    const docs1 = yaml.loadAll(yaml1) as any[];
+
+    const ssDoc1 = docs1.find((d) => d?.kind === 'StatefulSet');
+    const svcDoc1 = docs1.find((d) => d?.kind === 'Service');
+
+    expect(ssDoc1).toBeDefined();
+    expect(ssDoc1.spec.serviceName).toBe('kafka-service');
+    expect(svcDoc1).toBeDefined();
+    expect(svcDoc1.spec.type).toBe('ClusterIP');
+    expect(svcDoc1.spec.clusterIP).toBe('None');
+
+    // 2. Service targeting StatefulSet via selector without explicit edge
+    const nodesSelector = [
+      { id: 'ss2', type: 'StatefulSet', data: { label: 'es-cluster', replicas: 2 } },
+      { id: 'svc2', type: 'Service', data: { label: 'es-headless', selector: 'es-cluster', port: 9200 } },
+    ];
+    const yaml2 = generateYamlClientSide(nodesSelector, []);
+    const docs2 = yaml.loadAll(yaml2) as any[];
+
+    const ssDoc2 = docs2.find((d) => d?.kind === 'StatefulSet');
+    const svcDoc2 = docs2.find((d) => d?.kind === 'Service');
+
+    expect(ssDoc2.spec.serviceName).toBe('es-headless');
+    expect(svcDoc2.spec.clusterIP).toBe('None');
+
+    // 3. Outgoing edge from StatefulSet to Service
+    const nodesReverseEdge = [
+      { id: 'ss3', type: 'StatefulSet', data: { label: 'cassandra-db', replicas: 3 } },
+      { id: 'svc3', type: 'Service', data: { label: 'cassandra-svc', port: 9042 } },
+    ];
+    const edgesReverse = [{ id: 'e-rev', source: 'ss3', target: 'svc3' }];
+    const yaml3 = generateYamlClientSide(nodesReverseEdge, edgesReverse);
+    const docs3 = yaml.loadAll(yaml3) as any[];
+
+    const ssDoc3 = docs3.find((d) => d?.kind === 'StatefulSet');
+    const svcDoc3 = docs3.find((d) => d?.kind === 'Service');
+
+    expect(ssDoc3.spec.serviceName).toBe('cassandra-svc');
+    expect(svcDoc3.spec.clusterIP).toBe('None');
+
+    // 4. Multiple Services targeting StatefulSet -> prefers Headless Service
+    const nodesMultiSvc = [
+      { id: 'ss4', type: 'StatefulSet', data: { label: 'zk-ensemble', replicas: 3 } },
+      { id: 'svc4-lb', type: 'Service', data: { label: 'zk-external', serviceType: 'LoadBalancer' } },
+      { id: 'svc4-hl', type: 'Service', data: { label: 'zk-internal-hs', serviceType: 'Headless' } },
+    ];
+    const edgesMulti = [
+      { id: 'e-zk-1', source: 'svc4-lb', target: 'ss4' },
+      { id: 'e-zk-2', source: 'svc4-hl', target: 'ss4' },
+    ];
+    const yaml4 = generateYamlClientSide(nodesMultiSvc, edgesMulti);
+    const docs4 = yaml.loadAll(yaml4) as any[];
+    const ssDoc4 = docs4.find((d) => d?.kind === 'StatefulSet');
+    expect(ssDoc4.spec.serviceName).toBe('zk-internal-hs');
+
+    // 5. Explicit serviceName on StatefulSet and disabled clusterIP in yamlSettings
+    const nodesExplicit = [
+      { id: 'ss5', type: 'StatefulSet', data: { label: 'custom-ss', serviceName: 'user-defined-svc' } },
+      { id: 'svc5', type: 'Service', data: { label: 'user-defined-svc', serviceType: 'Headless', yamlSettings: { clusterIP: false } } },
+    ];
+    const yaml5 = generateYamlClientSide(nodesExplicit, []);
+    const docs5 = yaml.loadAll(yaml5) as any[];
+    const ssDoc5 = docs5.find((d) => d?.kind === 'StatefulSet');
+    const svcDoc5 = docs5.find((d) => d?.kind === 'Service');
+    expect(ssDoc5.spec.serviceName).toBe('user-defined-svc');
+    expect(svcDoc5.spec.clusterIP).toBeUndefined();
+  });
 });

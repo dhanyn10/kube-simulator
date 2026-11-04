@@ -5,13 +5,13 @@ import { K8sResourceType } from '@/types';
  * Defines the macro-level edge connection matrix for canvas diagramming and validation.
  */
 export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResourceType | 'ReplicaSet')[]> = {
-  Internet: ['Service', 'Ingress'],
+  Internet: ['Service'],
   Ingress: ['Service'],
   Service: ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress'],
-  Deployment: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
-  StatefulSet: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
-  Pod: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
-  ReplicaSet: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
+  Deployment: ['Service', 'PVC', 'ConfigMap', 'Secret'],
+  StatefulSet: ['Service', 'PVC', 'ConfigMap', 'Secret'],
+  Pod: ['Service', 'PVC', 'ConfigMap', 'Secret'],
+  ReplicaSet: ['Service', 'PVC', 'ConfigMap', 'Secret'],
   HPA: ['Deployment', 'StatefulSet', 'ReplicaSet'],
   PVC: [],
   ConfigMap: [],
@@ -29,12 +29,14 @@ export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResou
  * @returns An English error message if the connection is invalid, or `null` if valid.
  */
 const checkInternetRules = (targetType: string, targetData?: Record<string, any>): string | null => {
-  if (targetType === 'Ingress') return null;
+  if (targetType === 'Ingress') {
+    return 'Internet cannot connect directly to Ingress. Traffic must enter through an Ingress Controller exposed via a LoadBalancer or NodePort Service.';
+  }
   if (targetType !== 'Service') return null;
   const tType = targetData?.serviceType || 'ClusterIP';
   return tType === 'LoadBalancer' || tType === 'NodePort'
     ? null
-    : `Internet can only connect to LoadBalancer Services, NodePort Services, or Ingress. Cannot connect to ${tType} Service.`;
+    : `Internet can only connect to LoadBalancer Services or NodePort Services. Cannot connect to ${tType} Service.`;
 };
 
 /**
@@ -46,7 +48,9 @@ const checkInternetRules = (targetType: string, targetData?: Record<string, any>
  * @returns An English error message if the incoming connection is invalid, or `null` if valid.
  */
 const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string, any>): string | null => {
-  if (sourceType === 'Internet') return null;
+  if (sourceType === 'Internet') {
+    return 'Internet cannot connect directly to Ingress. Traffic must enter through an Ingress Controller exposed via a LoadBalancer or NodePort Service.';
+  }
   if (sourceType === 'Service') {
     const sType = sourceData?.serviceType || 'ClusterIP';
     return sType === 'LoadBalancer' || sType === 'NodePort'
@@ -54,9 +58,9 @@ const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string,
       : `${sType} Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
   }
   if (sourceType === 'Pod' || sourceType === 'Deployment' || sourceType === 'StatefulSet' || sourceType === 'ReplicaSet') {
-    return null;
+    return 'Workloads cannot connect to Ingress. Ingress routes traffic to Workloads through a ClusterIP Service.';
   }
-  return `${sourceType} cannot be connected to Ingress. Only Services or Workloads can connect to Ingress.`;
+  return `${sourceType} cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
 };
 
 /**
@@ -166,13 +170,13 @@ export const getConnectionError = (
   const validTargets = VALID_CONNECTIONS[sourceType as K8sResourceType];
   if (!validTargets) return `Source type ${sourceType} is not recognized.`;
 
-  if (!validTargets.includes(targetType as K8sResourceType)) {
-    return `${sourceType} cannot be connected to ${targetType}.`;
-  }
-
   for (const checkRule of SPECIFIC_RULES) {
     const err = checkRule(sourceType, targetType, sourceData, targetData);
     if (err) return err;
+  }
+
+  if (!validTargets.includes(targetType as K8sResourceType)) {
+    return `${sourceType} cannot be connected to ${targetType}.`;
   }
 
   return null;

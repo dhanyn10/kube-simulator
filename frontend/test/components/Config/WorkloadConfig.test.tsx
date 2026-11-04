@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { WorkloadConfig } from '@/components/Config/WorkloadConfig';
+import { WorkloadConfig, isControllerPodNode } from '@/components/Config/WorkloadConfig';
 import { useFlowStore } from '@/store';
 
 describe('WorkloadConfig', () => {
@@ -752,5 +752,69 @@ describe('WorkloadConfig', () => {
     );
 
     expect(screen.queryByText('Restart Policy')).toBeNull();
+  });
+  it('covers isControllerPodNode helper edge cases', () => {
+    expect(isControllerPodNode(null)).toBe(false);
+    expect(isControllerPodNode(undefined)).toBe(false);
+    expect(isControllerPodNode({ id: 'p1', type: 'Pod', data: { replicas: 1 } })).toBe(false);
+    expect(isControllerPodNode({ id: 'p1', type: 'Pod', parentId: 'dep-1', data: {} })).toBe(true);
+    expect(isControllerPodNode({ id: 'p1', type: 'Pod', data: { parentId: 'dep-1' } })).toBe(true);
+    expect(isControllerPodNode({ id: 'p1', type: 'Pod', data: { replicas: 2 } })).toBe(true);
+    expect(isControllerPodNode({ id: 'p1', type: 'Pod', data: { parentReplicas: 3 } })).toBe(true);
+    expect(isControllerPodNode({ id: 'p1', type: 'Pod', data: { workloadType: 'StatefulSet' } })).toBe(true);
+  });
+
+  it('locks Restart Policy to Always and shows controller hint for child Pod under Deployment', () => {
+    const parentDep = { id: 'dep-1', type: 'Deployment', data: { label: 'my-dep', replicas: 2 } };
+    const childPod = {
+      id: 'p-child',
+      type: 'Pod',
+      parentId: 'dep-1',
+      data: {
+        label: 'my-dep-pod-1',
+        restartPolicy: 'Always',
+        displaySettings: { restartPolicy: true },
+        yamlSettings: { restartPolicy: true },
+      },
+    };
+    useFlowStore.setState({ colorMode: 'dark', nodes: [parentDep, childPod] as any });
+
+    const { rerender } = render(
+      <WorkloadConfig
+        selectedNode={childPod}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Restart Policy')).toBeDefined();
+    const hint = screen.getByTestId('controller-restart-policy-hint');
+    expect(hint).toBeDefined();
+    expect(hint.textContent).toContain('Controllers require restartPolicy: Always');
+
+    // Attempt to click disabled Never button
+    const neverBtn = screen.getByText('Never').closest('button')!;
+    expect(neverBtn.disabled).toBe(true);
+    fireEvent.click(neverBtn);
+    expect(performUpdate).not.toHaveBeenCalled();
+
+    // Click Always button
+    const alwaysBtn = screen.getByText('Always').closest('button')!;
+    fireEvent.click(alwaysBtn);
+    expect(performUpdate).toHaveBeenCalledWith({ restartPolicy: 'Always' });
+
+    // Test light colorMode rendering for controller hint
+    useFlowStore.setState({ colorMode: 'light' });
+    rerender(
+      <WorkloadConfig
+        selectedNode={childPod}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    const lightHint = screen.getByTestId('controller-restart-policy-hint');
+    expect(lightHint.className).toContain('bg-blue-50');
   });
 });

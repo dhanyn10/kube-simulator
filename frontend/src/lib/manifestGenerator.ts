@@ -130,6 +130,69 @@ const createPodSpec = (
   return spec;
 };
 
+const isMatchingServiceSelector = (svc: any, node: any, name: string): boolean => {
+  const sel = svc?.data?.selector;
+  if (!sel) return false;
+  const nodeLabel = node.data?.label || node.data?.baseName || name;
+  return (
+    sel === node.id ||
+    sel === node.data?.label ||
+    sel === node.data?.baseName ||
+    sanitizeName(sel) === sanitizeName(nodeLabel) ||
+    sanitizeName(sel) === sanitizeName(name)
+  );
+};
+
+const findCandidateServicesForStatefulSet = (
+  node: any,
+  name: string,
+  targetEdgeMap: Map<string, any[]>,
+  sourceEdgeMap: Map<string, any[]>,
+  nodeMap: Map<string, any>
+): any[] => {
+  const candidates: any[] = [];
+  const seen = new Set<string>();
+
+  const addCandidate = (s: any) => {
+    if (s?.type === 'Service' && !seen.has(s.id)) {
+      seen.add(s.id);
+      candidates.push(s);
+    }
+  };
+
+  for (const e of targetEdgeMap.get(node.id) || []) {
+    addCandidate(nodeMap.get(e.source));
+  }
+  for (const e of sourceEdgeMap.get(node.id) || []) {
+    addCandidate(nodeMap.get(e.target));
+  }
+  for (const n of nodeMap.values()) {
+    if (n?.type === 'Service' && isMatchingServiceSelector(n, node, name)) {
+      addCandidate(n);
+    }
+  }
+  return candidates;
+};
+
+const resolveStatefulSetServiceName = (
+  node: any,
+  name: string,
+  targetEdgeMap: Map<string, any[]>,
+  sourceEdgeMap: Map<string, any[]>,
+  nodeMap: Map<string, any>
+): string => {
+  if (node.data?.serviceName) {
+    return sanitizeName(node.data.serviceName);
+  }
+  const candidates = findCandidateServicesForStatefulSet(node, name, targetEdgeMap, sourceEdgeMap, nodeMap);
+  if (candidates.length === 0) {
+    return name;
+  }
+  const headlessSvc = candidates.find((s) => s.data?.serviceType === 'Headless');
+  const chosen = headlessSvc || candidates[0];
+  return sanitizeName(chosen.data?.label || chosen.id || name);
+};
+
 const buildStatefulSetManifest = (
   node: any,
   metadata: any,
@@ -178,15 +241,13 @@ const buildStatefulSetManifest = (
     podSpec.containers[0].volumeMounts = vctVolumeMounts;
   }
 
-  let serviceName = name;
-  const incoming = targetEdgeMap.get(node.id) || [];
-  for (const e of incoming) {
-    const src = nodeMap.get(e.source);
-    if (src?.type === 'Service') {
-      serviceName = sanitizeName(src.data?.label || name);
-      break;
-    }
-  }
+  const serviceName = resolveStatefulSetServiceName(
+    node,
+    name,
+    targetEdgeMap,
+    sourceEdgeMap,
+    nodeMap
+  );
 
   return {
     apiVersion: 'apps/v1',
@@ -309,12 +370,59 @@ const determineServiceSelector = (
   return { app: sanitizeName(name) };
 };
 
+const isStatefulWorkloadNode = (n: any, nodeMap: Map<string, any>): boolean => {
+  if (!n) return false;
+  if (n.type === 'StatefulSet' || n.data?.workloadType === 'StatefulSet') return true;
+  if (n.parentId) {
+    const parent = nodeMap.get(n.parentId);
+    if (parent?.type === 'StatefulSet' || parent?.data?.workloadType === 'StatefulSet') {
+      return true;
+    }
+  }
+  return false;
+};
+
+const isServiceTargetingStatefulSet = (
+  node: any,
+  nodeMap: Map<string, any>,
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap?: Map<string, any[]>
+): boolean => {
+  const outgoing = sourceEdgeMap.get(node.id) || [];
+  for (const e of outgoing) {
+    if (isStatefulWorkloadNode(nodeMap.get(e.target), nodeMap)) {
+      return true;
+    }
+  }
+  const incoming = targetEdgeMap?.get(node.id) || [];
+  for (const e of incoming) {
+    if (isStatefulWorkloadNode(nodeMap.get(e.source), nodeMap)) {
+      return true;
+    }
+  }
+  const selector = node.data?.selector;
+  if (!selector) return false;
+  const sanitizedSel = sanitizeName(selector);
+  for (const n of nodeMap.values()) {
+    if (isStatefulWorkloadNode(n, nodeMap)) {
+      const match =
+        n.id === selector ||
+        n.data?.label === selector ||
+        n.data?.baseName === selector ||
+        sanitizeName(n.data?.label || n.data?.baseName || '') === sanitizedSel;
+      if (match) return true;
+    }
+  }
+  return false;
+};
+
 const buildServiceManifest = (
   node: any,
   metadata: any,
   name: string,
   nodeMap: Map<string, any>,
-  sourceEdgeMap: Map<string, any[]>
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap?: Map<string, any[]>
 ) => {
   const serviceType = node.data.serviceType || 'ClusterIP';
   const nodePort = determineServiceNodePort(node.data);
@@ -330,10 +438,12 @@ const buildServiceManifest = (
 
   const selectorObject = determineServiceSelector(node, name, nodeMap, sourceEdgeMap);
 
-  let specType: string | undefined = serviceType;
-  let clusterIP: string | undefined;
+  const isStatefulTarget = isServiceTargetingStatefulSet(node, nodeMap, sourceEdgeMap, targetEdgeMap);
 
-  if (serviceType === 'Headless') {
+  let specType: string | undefined = serviceType;
+  let clusterIP: string | undefined = node.data.clusterIP;
+
+  if (serviceType === 'Headless' || (isStatefulTarget && (serviceType === 'ClusterIP' || !serviceType))) {
     specType = 'ClusterIP';
     clusterIP = 'None';
   }
@@ -344,7 +454,7 @@ const buildServiceManifest = (
     metadata,
     spec: {
       type: node.data.yamlSettings?.serviceType !== false ? specType : undefined,
-      clusterIP,
+      clusterIP: node.data.yamlSettings?.clusterIP !== false ? clusterIP : undefined,
       ports: [portObject],
       selector:
         node.data.yamlSettings?.selector !== false
@@ -549,7 +659,7 @@ const buildNodeManifest = (
         nodeMap
       );
     case 'Service':
-      return buildServiceManifest(node, metadata, name, nodeMap, sourceEdgeMap);
+      return buildServiceManifest(node, metadata, name, nodeMap, sourceEdgeMap, targetEdgeMap);
     case 'Ingress':
       return buildIngressManifest(node, metadata, nodeMap, sourceEdgeMap);
     case 'Namespace':

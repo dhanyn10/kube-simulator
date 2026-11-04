@@ -124,15 +124,78 @@ func buildStatefulSetVolumeClaims(targetIDs []string, ctx *GenContext) ([]k8s.PV
 	return volumeClaimTemplates, vctVolumeMounts
 }
 
-// findStatefulSetServiceName identifies connected Service name for a StatefulSet or falls back to name.
-func findStatefulSetServiceName(nodeID, fallbackName string, ctx *GenContext) string {
-	for _, edge := range ctx.targetEdgeMap[nodeID] {
-		sourceNode := ctx.nodeMap[edge.Source]
-		if sourceNode != nil && sourceNode.Type == "Service" {
-			return sanitizeName(sourceNode.Data.Label)
+// isMatchingServiceSelector checks if Service node selector matches StatefulSet name or labels.
+func isMatchingServiceSelector(svcNode *k8s.FrontendNode, ssNode *k8s.FrontendNode, fallbackName string) bool {
+	sel := svcNode.Data.Selector
+	if sel == "" {
+		return false
+	}
+	if sel == ssNode.ID || sanitizeName(sel) == sanitizeName(fallbackName) {
+		return true
+	}
+	if ssNode.Data.Label != "" && (sel == ssNode.Data.Label || sanitizeName(sel) == sanitizeName(ssNode.Data.Label)) {
+		return true
+	}
+	return false
+}
+
+// collectSelectorMatchingServices finds Service nodes whose selector matches the StatefulSet.
+func collectSelectorMatchingServices(ssNode *k8s.FrontendNode, fallbackName string, ctx *GenContext, addCandidate func(*k8s.FrontendNode)) {
+	if ssNode == nil {
+		return
+	}
+	for _, node := range ctx.nodeMap {
+		if node.Type == "Service" && isMatchingServiceSelector(node, ssNode, fallbackName) {
+			addCandidate(node)
 		}
 	}
-	return fallbackName
+}
+
+// collectConnectedServices collects candidate Service nodes connected via edges or selector to StatefulSet.
+func collectConnectedServices(nodeID string, ssNode *k8s.FrontendNode, fallbackName string, ctx *GenContext) []*k8s.FrontendNode {
+	var candidates []*k8s.FrontendNode
+	seen := make(map[string]bool)
+
+	addCandidate := func(n *k8s.FrontendNode) {
+		if n != nil && n.Type == "Service" && !seen[n.ID] {
+			seen[n.ID] = true
+			candidates = append(candidates, n)
+		}
+	}
+
+	for _, edge := range ctx.targetEdgeMap[nodeID] {
+		addCandidate(ctx.nodeMap[edge.Source])
+	}
+	for _, edge := range ctx.sourceEdgeMap[nodeID] {
+		addCandidate(ctx.nodeMap[edge.Target])
+	}
+	collectSelectorMatchingServices(ssNode, fallbackName, ctx, addCandidate)
+
+	return candidates
+}
+
+// selectBestServiceName chooses a headless service or first available service candidate name.
+func selectBestServiceName(candidates []*k8s.FrontendNode, fallbackName string) string {
+	if len(candidates) == 0 {
+		return fallbackName
+	}
+	for _, c := range candidates {
+		if c.Data.ServiceType == "Headless" {
+			return sanitizeName(c.Data.Label)
+		}
+	}
+	return sanitizeName(candidates[0].Data.Label)
+}
+
+// findStatefulSetServiceName identifies connected Service name for a StatefulSet or falls back to name.
+func findStatefulSetServiceName(nodeID, fallbackName string, ctx *GenContext) string {
+	ssNode := ctx.nodeMap[nodeID]
+	if ssNode != nil && ssNode.Data.BackendServiceName != "" {
+		return sanitizeName(ssNode.Data.BackendServiceName)
+	}
+
+	candidates := collectConnectedServices(nodeID, ssNode, fallbackName, ctx)
+	return selectBestServiceName(candidates, fallbackName)
 }
 
 // generateStatefulSet constructs a Kubernetes StatefulSet resource object.
@@ -488,6 +551,66 @@ func determineNodePort(data k8s.K8sNodeData, serviceType string) int {
 	return 0
 }
 
+// isStatefulSetWorkload checks if a node is a StatefulSet or child pod of a StatefulSet.
+func isStatefulSetWorkload(n *k8s.FrontendNode, ctx *GenContext) bool {
+	if n == nil {
+		return false
+	}
+	if n.Type == "StatefulSet" || n.Data.WorkloadType == "StatefulSet" {
+		return true
+	}
+	if n.ParentID != "" {
+		parent := ctx.nodeMap[n.ParentID]
+		if parent != nil && (parent.Type == "StatefulSet" || parent.Data.WorkloadType == "StatefulSet") {
+			return true
+		}
+	}
+	return false
+}
+
+// isTargetingViaEdges checks if any incoming or outgoing edge connects to a StatefulSet workload.
+func isTargetingViaEdges(dataID string, ctx *GenContext) bool {
+	for _, edge := range ctx.targetEdgeMap[dataID] {
+		if isStatefulSetWorkload(ctx.nodeMap[edge.Source], ctx) {
+			return true
+		}
+	}
+	for _, edge := range ctx.sourceEdgeMap[dataID] {
+		if isStatefulSetWorkload(ctx.nodeMap[edge.Target], ctx) {
+			return true
+		}
+	}
+	return false
+}
+
+// isTargetingViaSelector checks if a Service selector matches a StatefulSet workload.
+func isTargetingViaSelector(selector string, ctx *GenContext) bool {
+	if selector == "" {
+		return false
+	}
+	sanitizedSel := sanitizeName(selector)
+	for _, node := range ctx.nodeMap {
+		if !isStatefulSetWorkload(node, ctx) {
+			continue
+		}
+		if node.Data.Label == selector || node.ID == selector || sanitizeName(node.Data.Label) == sanitizedSel {
+			return true
+		}
+	}
+	return false
+}
+
+// isTargetingStatefulSet checks if a Service targets a StatefulSet via edges or selector.
+func isTargetingStatefulSet(data k8s.K8sNodeData, targetWorkload *k8s.FrontendNode, ctx *GenContext) bool {
+	if isStatefulSetWorkload(targetWorkload, ctx) {
+		return true
+	}
+	if isTargetingViaEdges(data.ID, ctx) {
+		return true
+	}
+	return isTargetingViaSelector(data.Selector, ctx)
+}
+
 // generateService constructs a Kubernetes Service resource object.
 func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	targetWorkload := findTargetWorkload(data.ID, ctx)
@@ -520,13 +643,18 @@ func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 		},
 	}
 
+	isStatefulTarget := isTargetingStatefulSet(data, targetWorkload, ctx)
+
 	if val, ok := data.YamlSettings["serviceType"]; !ok || val {
-		if serviceType == "Headless" {
+		if serviceType == "Headless" || (isStatefulTarget && (serviceType == "ClusterIP" || serviceType == "")) {
 			svc.Spec.Type = "ClusterIP"
 			svc.Spec.ClusterIP = "None"
 		} else {
 			svc.Spec.Type = serviceType
 		}
+	}
+	if val, ok := data.YamlSettings["clusterIP"]; ok && !val {
+		svc.Spec.ClusterIP = ""
 	}
 
 	if val, ok := data.YamlSettings["selector"]; !ok || val {

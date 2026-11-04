@@ -229,7 +229,8 @@ describe('WorkloadPodsModal', () => {
     expect(setTerminalOpen).toHaveBeenCalledWith(true);
     expect(onClose).toHaveBeenCalled();
   });
-  it('renders Restart Policy when controller is a standalone Pod', () => {
+  it('renders Restart Policy when controller is a standalone Pod and allows selecting options', () => {
+    const updateNodeDataMock = vi.fn();
     const podNode = {
       id: 'pod-standalone',
       type: 'Pod',
@@ -240,7 +241,7 @@ describe('WorkloadPodsModal', () => {
         restartPolicy: 'Always',
       },
     };
-    useFlowStore.setState({ nodes: [podNode] as any });
+    useFlowStore.setState({ nodes: [podNode] as any, updateNodeData: updateNodeDataMock });
 
     render(
       <WorkloadPodsModal
@@ -254,5 +255,64 @@ describe('WorkloadPodsModal', () => {
     fireEvent.click(setupTabBtn);
 
     expect(screen.getByText('Restart Policy')).toBeDefined();
+    expect(screen.queryByTestId('controller-restart-policy-hint')).toBeNull();
+
+    const neverBtn = screen.getByText('Never').closest('button')!;
+    expect(neverBtn.disabled).toBe(false);
+    fireEvent.click(neverBtn);
+    expect(updateNodeDataMock).toHaveBeenCalledWith('pod-standalone', { restartPolicy: 'Never' });
+  });
+
+  it('locks Restart Policy and shows hint when controller is a multi-replica Pod or StatefulSet workload', () => {
+    const updateNodeDataMock = vi.fn();
+    const multiPodNode = {
+      id: 'pod-multi',
+      type: 'Pod',
+      data: {
+        label: 'multi-pod',
+        image: 'nginx:latest',
+        replicas: 4,
+        status: 'ready',
+        restartPolicy: 'Always',
+      },
+    };
+    useFlowStore.setState({ colorMode: 'dark', nodes: [multiPodNode] as any, updateNodeData: updateNodeDataMock });
+
+    const { rerender } = render(
+      <WorkloadPodsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        selectedNode={multiPodNode}
+      />
+    );
+
+    const setupTabBtn = screen.getByTestId('tab-setup');
+    fireEvent.click(setupTabBtn);
+
+    expect(screen.getByText('Restart Policy')).toBeDefined();
+    const hint = screen.getByTestId('controller-restart-policy-hint');
+    expect(hint).toBeDefined();
+    expect(hint.textContent).toContain('Controllers require restartPolicy: Always');
+
+    const neverBtn = screen.getByText('Never').closest('button')!;
+    expect(neverBtn.disabled).toBe(true);
+    fireEvent.click(neverBtn);
+    expect(updateNodeDataMock).not.toHaveBeenCalled();
+
+    const alwaysBtn = screen.getByText('Always').closest('button')!;
+    fireEvent.click(alwaysBtn);
+    expect(updateNodeDataMock).toHaveBeenCalledWith('pod-multi', { restartPolicy: 'Always' });
+
+    // Light colorMode branch
+    useFlowStore.setState({ colorMode: 'light' });
+    rerender(
+      <WorkloadPodsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        selectedNode={multiPodNode}
+      />
+    );
+    const lightHint = screen.getByTestId('controller-restart-policy-hint');
+    expect(lightHint.className).toContain('bg-blue-50');
   });
 });

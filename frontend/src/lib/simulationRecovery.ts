@@ -12,8 +12,9 @@ export const scheduleRecovery = (_dep: Node, podId: string, ctx: SimulationConte
   const currentState = ctx.get();
   const latestNode = currentState?.nodes?.find(node => node.id === podId);
   const podData = latestNode?.data as K8sNodeData | undefined;
+  const isControllerChild = Boolean(latestNode?.parentId || podData?.parentId);
 
-  if (podData?.restartPolicy === 'Never') {
+  if (!isControllerChild && podData?.restartPolicy === 'Never') {
     try {
       currentState?.addLog?.(
         'error',
@@ -31,7 +32,7 @@ export const scheduleRecovery = (_dep: Node, podId: string, ctx: SimulationConte
   const chars = getImageCharacteristics(imageName);
   // Scale recovery delay using numerical startupDelayTicks factor
   const delayMs = Math.round((1000 * chars.startupDelayTicks) / Math.max(1, speed));
-  const policy = podData?.restartPolicy || 'Always';
+  const policy = isControllerChild ? 'Always' : (podData?.restartPolicy || 'Always');
 
   try {
     currentState?.addLog?.(

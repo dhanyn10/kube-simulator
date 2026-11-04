@@ -1,3 +1,5 @@
+import { renderHook, act } from '@testing-library/react';
+import { useNodeConfigHandler } from '@/activities/config';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFlowStore } from '@/store';
 
@@ -724,6 +726,97 @@ describe('nodeActions', () => {
     deleteNodes([ssAfterPodDelete]);
     expect(useFlowStore.getState().nodes.some(n => n.id === ssNode.id)).toBe(false);
     expect(useFlowStore.getState().nodes.some(n => n.parentId === ssNode.id)).toBe(false);
+  });
+
+  it('synchronizes names both ways between StatefulSet and child pods in all interactions', () => {
+    const { addNode, updateNodeData } = useFlowStore.getState();
+    addNode('StatefulSet', { x: 0, y: 0 });
+
+    let nodes = useFlowStore.getState().nodes;
+    const ss = nodes.find(n => n.type === 'StatefulSet')!;
+    updateNodeData(ss.id, { replicas: 3 });
+    nodes = useFlowStore.getState().nodes;
+
+    let childPods = nodes.filter(n => n.parentId === ss.id);
+    expect(childPods).toHaveLength(3);
+    expect(childPods[0].data.label).toBe('new-statefulset-0');
+    expect(childPods[1].data.label).toBe('new-statefulset-1');
+    expect(childPods[2].data.label).toBe('new-statefulset-2');
+
+    // 1. Rename StatefulSet via updateNodeData -> all child pods follow
+    updateNodeData(ss.id, { label: 'mysql-cluster' });
+    nodes = useFlowStore.getState().nodes;
+    const ssAfter = nodes.find(n => n.id === ss.id)!;
+    expect(ssAfter.data.label).toBe('mysql-cluster');
+    expect(ssAfter.data.baseName).toBe('mysql-cluster');
+
+    childPods = nodes.filter(n => n.parentId === ss.id);
+    expect(childPods[0].data.label).toBe('mysql-cluster-0');
+    expect(childPods[1].data.label).toBe('mysql-cluster-1');
+    expect(childPods[2].data.label).toBe('mysql-cluster-2');
+
+    // 2. onRename on child Pod with ordinal suffix -> strips suffix and updates StatefulSet and siblings
+    childPods[0].data.onRename?.('postgres-db-0');
+    nodes = useFlowStore.getState().nodes;
+    const ssAfterPodRename = nodes.find(n => n.id === ss.id)!;
+    expect(ssAfterPodRename.data.label).toBe('postgres-db');
+    expect(ssAfterPodRename.data.baseName).toBe('postgres-db');
+
+    childPods = nodes.filter(n => n.parentId === ss.id);
+    expect(childPods[0].data.label).toBe('postgres-db-0');
+    expect(childPods[1].data.label).toBe('postgres-db-1');
+    expect(childPods[2].data.label).toBe('postgres-db-2');
+
+    // 3. onRename on child Pod without ordinal suffix
+    childPods[2].data.onRename?.('cockroach-sql');
+    nodes = useFlowStore.getState().nodes;
+    const ssAfterCockroach = nodes.find(n => n.id === ss.id)!;
+    expect(ssAfterCockroach.data.label).toBe('cockroach-sql');
+
+    childPods = nodes.filter(n => n.parentId === ss.id);
+    expect(childPods[0].data.label).toBe('cockroach-sql-0');
+    expect(childPods[1].data.label).toBe('cockroach-sql-1');
+    expect(childPods[2].data.label).toBe('cockroach-sql-2');
+
+    // 4. updateNodeData on child Pod directly
+    updateNodeData(childPods[1].id, { label: 'cassandra-ring' });
+    nodes = useFlowStore.getState().nodes;
+    const ssAfterDirectPodUpdate = nodes.find(n => n.id === ss.id)!;
+    expect(ssAfterDirectPodUpdate.data.label).toBe('cassandra-ring');
+
+    childPods = nodes.filter(n => n.parentId === ss.id);
+    expect(childPods[0].data.label).toBe('cassandra-ring-0');
+    expect(childPods[1].data.label).toBe('cassandra-ring-1');
+    expect(childPods[2].data.label).toBe('cassandra-ring-2');
+  });
+
+  it('useNodeConfigHandler correctly handles StatefulSet and child Pod base name editing', () => {
+    const { addNode, updateNodeData } = useFlowStore.getState();
+    addNode('StatefulSet', { x: 0, y: 0 });
+
+    let nodes = useFlowStore.getState().nodes;
+    const ss = nodes.find(n => n.type === 'StatefulSet')!;
+    updateNodeData(ss.id, { replicas: 2, label: 'redis-stateful' });
+    nodes = useFlowStore.getState().nodes;
+
+    const childPods = nodes.filter(n => n.parentId === ss.id);
+    expect(childPods[0].data.label).toBe('redis-stateful-0');
+
+    // Test hook for child Pod: podBaseName should be 'redis-stateful' (clean without -0)
+    const { result } = renderHook(() => useNodeConfigHandler(childPods[0]));
+    expect(result.current.podBaseName).toBe('redis-stateful');
+
+    // Updating base name on child pod updates the parent StatefulSet and all child pods
+    act(() => {
+      result.current.updatePodBaseName('valkey-cache');
+    });
+    nodes = useFlowStore.getState().nodes;
+    const updatedSS = nodes.find(n => n.id === ss.id)!;
+    expect(updatedSS.data.label).toBe('valkey-cache');
+
+    const updatedPods = nodes.filter(n => n.parentId === ss.id);
+    expect(updatedPods[0].data.label).toBe('valkey-cache-0');
+    expect(updatedPods[1].data.label).toBe('valkey-cache-1');
   });
 
   it('extractParentAttachedResources extracts all attached resources during ReplicaSet downscale to 1', () => {

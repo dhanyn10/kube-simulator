@@ -133,6 +133,7 @@ export interface K8sNodeData {
   framework?: string;
   restartPolicy?: 'Always' | 'OnFailure' | 'Never';
   isAutoNamed?: boolean;
+  baseName?: string;
 
   // Resource Limits
   cpuRequest?: string;

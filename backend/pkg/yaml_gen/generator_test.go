@@ -72,6 +72,32 @@ func TestGenerateDeploymentWithEnforcedRestartPolicy(t *testing.T) {
 	}
 }
 
+func TestGenerateStatefulSetWithEnforcedRestartPolicy(t *testing.T) {
+	nodesJson := `[
+		{"id":"ss1","type":"StatefulSet","data":{"label":"My SS","replicas":2,"restartPolicy":"Never"}}
+	]`
+	result := Generate(nodesJson, "[]")
+	if strings.Contains(result, "Never") {
+		t.Errorf("StatefulSet must not allow restartPolicy: Never: %s", result)
+	}
+	if !strings.Contains(result, "restartPolicy") || !strings.Contains(result, "Always") {
+		t.Errorf("StatefulSet should enforce restartPolicy: Always: %s", result)
+	}
+}
+
+func TestGenerateReplicaSetWithEnforcedRestartPolicy(t *testing.T) {
+	nodesJson := `[
+		{"id":"rs1","type":"ReplicaSet","data":{"label":"My RS","replicas":2,"restartPolicy":"OnFailure"}}
+	]`
+	result := Generate(nodesJson, "[]")
+	if strings.Contains(result, "OnFailure") {
+		t.Errorf("ReplicaSet must not allow restartPolicy: OnFailure: %s", result)
+	}
+	if !strings.Contains(result, "restartPolicy") || !strings.Contains(result, "Always") {
+		t.Errorf("ReplicaSet should enforce restartPolicy: Always: %s", result)
+	}
+}
+
 func TestGeneratePodWithReplicas(t *testing.T) {
 	// replicas=1 -> Pod
 	nodesJson1 := `[{"id":"p1","type":"Pod","data":{"label":"My Pod","replicas":1}}]`

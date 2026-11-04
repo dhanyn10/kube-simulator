@@ -17,7 +17,7 @@ import { getPodReplicaInfo } from '@/lib/podReplicaHelpers';
  * @returns Clean base name string for editing and display.
  */
 export const extractPodBaseName = (data: K8sNodeData): string => {
-  if (data.type !== 'Pod') return data.baseName || data.label || 'pod';
+  if (data.type && data.type !== 'Pod') return data.baseName || data.label || 'pod';
   if (data.baseName) return data.baseName;
 
   const hash = data.podHash;
@@ -29,6 +29,9 @@ export const extractPodBaseName = (data: K8sNodeData): string => {
   }
   if (hash && label?.endsWith(`-${hash}`)) {
     return label.slice(0, -(hash.length + 1));
+  }
+  if (suf && label?.endsWith(`-${suf}`)) {
+    return label.slice(0, -(suf.length + 1));
   }
   return data.label || 'pod';
 };

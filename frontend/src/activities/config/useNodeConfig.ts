@@ -6,6 +6,7 @@ import { useFlowStore } from '@/store';
 import { sortNodes } from '@/store/helpers';
 import { syncDeployment } from '@/store/nodeHelpers';
 import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '@/store/handlers/nodeConfigUtils';
+import { extractPodBaseName } from '@/activities/nodes/useBaseNode';
 import { generateRandomHash, sanitizeSlug } from '@/lib/utils';
 
 export const syncPeersAndParent = (
@@ -47,10 +48,14 @@ export const syncParentPodUpdates = (selectedNode: any, updates: any) => {
   if (!parent) return;
 
   const syncData: any = {};
-  const syncKeys = ['cpuLimit', 'memoryLimit', 'label', 'image', 'status', 'webserver', 'runtime', 'restartPolicy', 'workloadType'];
+  const syncKeys = ['cpuLimit', 'memoryLimit', 'image', 'status', 'webserver', 'runtime', 'workloadType'];
   syncKeys.forEach((key) => {
     if (key in updates) syncData[key] = updates[key];
   });
+  if (updates.baseName) {
+    syncData.label = updates.baseName;
+    syncData.baseName = updates.baseName;
+  }
   if (Object.keys(syncData).length > 0) {
     state.updateNodeData(parent.id, syncData);
   }
@@ -82,7 +87,7 @@ export const useNodeConfigHandler = (selectedNode: any) => {
   const performUpdate = (updates: any) => {
     let nextData = { ...data, ...updates };
 
-    if (selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') {
+    if (['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(selectedNode.type)) {
       nextData = getWorkloadUpdates(selectedNode.type, data, updates);
     }
 
@@ -90,20 +95,20 @@ export const useNodeConfigHandler = (selectedNode: any) => {
     syncParentPodUpdates(selectedNode, updates);
   };
 
-  const podHash = data.podHash || (data.label?.includes('-') ? data.label.split('-').pop() : '') || generateRandomHash(5);
-  let podBaseName = data.baseName || data.label || 'pod';
-  if (!data.baseName) {
-    if (data.podHash && data.replicaSuffix && data.label?.endsWith(`-${data.podHash}-${data.replicaSuffix}`)) {
-      podBaseName = data.label.slice(0, -(data.podHash.length + data.replicaSuffix.length + 2));
-    } else if (data.podHash && data.label?.endsWith(`-${data.podHash}`)) {
-      podBaseName = data.label.slice(0, -(data.podHash.length + 1));
-    }
+  const isStateful = selectedNode.type === 'StatefulSet' || data.workloadType === 'StatefulSet';
+
+  let fallbackHash = '';
+  if (data.label?.includes('-')) {
+    fallbackHash = data.label.split('-').pop() || '';
   }
+  const defaultHash = data.podHash || fallbackHash || generateRandomHash(5);
+  const podHash = isStateful ? '' : defaultHash;
+  const podBaseName = data.baseName || extractPodBaseName(data);
 
   const updatePodBaseName = (newBase: string) => {
     const cleanBase = sanitizeSlug(newBase) || 'pod';
     const state = useFlowStore.getState();
-    let deploymentNode = selectedNode.type === 'Deployment' || selectedNode.type === 'ReplicaSet' ? selectedNode : null;
+    let deploymentNode = ['Deployment', 'StatefulSet', 'ReplicaSet'].includes(selectedNode.type) ? selectedNode : null;
     if (!deploymentNode && selectedNode.parentId) {
       deploymentNode = state.nodes.find((n: any) => n.id === selectedNode.parentId) || null;
     }
@@ -123,7 +128,7 @@ export const useNodeConfigHandler = (selectedNode: any) => {
 
   const randomizePodHash = () => {
     const state = useFlowStore.getState();
-    let deploymentNode = selectedNode.type === 'Deployment' || selectedNode.type === 'ReplicaSet' ? selectedNode : null;
+    let deploymentNode = ['Deployment', 'StatefulSet', 'ReplicaSet'].includes(selectedNode.type) ? selectedNode : null;
     if (!deploymentNode && selectedNode.parentId) {
       deploymentNode = state.nodes.find((n: any) => n.id === selectedNode.parentId) || null;
     }
