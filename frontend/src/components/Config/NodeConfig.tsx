@@ -135,6 +135,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
               value={data.label || ''}
               onChange={(e: any) => updateNodeData(selectedNode.id, {
                 label: sanitizeSlug(e.target.value)
+
               })}
               placeholder="node-name"
               maxLength={63}

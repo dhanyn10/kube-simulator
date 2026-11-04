@@ -21,7 +21,7 @@ import {
 } from './nodeUtils';
 import { evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
 import { alignAllNodesToGrid as alignAllNodesToGridHelper } from '@/activities/layout/canvasAlignmentHelpers';
-import { formatPodName } from '@/lib/utils';
+import { formatPodName, sanitizeSlug } from '@/lib/utils';
 import {
   emitLiveScaleCommand,
   emitLiveSetImageCommand,
@@ -100,15 +100,51 @@ const buildAttachedPatch = (newData: Partial<K8sNodeData>, value: any): Partial<
   };
 };
 
+const resolveCleanParentNameFromPod = (
+  parentType: string,
+  isStateful: boolean,
+  updatedNode: Node,
+  newData: Partial<K8sNodeData>
+): string => {
+  let rawName = newData.baseName || newData.label || '';
+  if (isStateful) {
+    rawName = rawName.replace(/-\d+$/, '');
+  } else if (parentType === 'Deployment' || parentType === 'ReplicaSet') {
+    const hash = updatedNode.data?.podHash;
+    const suf = updatedNode.data?.replicaSuffix;
+    if (hash && suf && rawName.endsWith(`-${hash}-${suf}`)) {
+      rawName = rawName.slice(0, -(hash.length + suf.length + 2));
+    } else if (hash && rawName.endsWith(`-${hash}`)) {
+      rawName = rawName.slice(0, -(hash.length + 1));
+    }
+  }
+  return sanitizeSlug(rawName);
+};
+
 const handlePodParentSync = (_target: Node, updatedNode: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   const parent = nodes.find(n => n.id === updatedNode.parentId);
   if (!parent) return nodes;
 
-  const effectiveReplicas = newData.replicas ?? Number(parent.data?.replicas || 0);
+  let updatedParent = parent;
+  if (newData.label !== undefined || newData.baseName !== undefined) {
+    const isStateful = parent.type === 'StatefulSet' || parent.data?.workloadType === 'StatefulSet';
+    const cleanBase = resolveCleanParentNameFromPod(parent.type, isStateful, updatedNode, newData) || parent.data?.label || 'workload';
+    const uniqueParentName = ensureUniqueResourceName(cleanBase, parent.type || 'StatefulSet', parent.parentId, nodes, parent.id);
+    updatedParent = {
+      ...parent,
+      data: {
+        ...parent.data,
+        label: uniqueParentName,
+        baseName: uniqueParentName,
+      }
+    };
+  }
 
-  if (parent.type === 'ReplicaSet' && effectiveReplicas <= 1) {
-    const groupPos = getAbsPos(parent.id, nodes);
-    const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
+  const effectiveReplicas = newData.replicas ?? Number(updatedParent.data?.replicas || 0);
+
+  if (updatedParent.type === 'ReplicaSet' && effectiveReplicas <= 1) {
+    const groupPos = getAbsPos(updatedParent.id, nodes);
+    const others = nodes.filter(n => n.id !== updatedParent.id && n.parentId !== updatedParent.id);
     const baseName = updatedNode.data?.baseName || updatedNode.data?.label || 'pod';
     const cleanBase = formatPodName(baseName, updatedNode.data?.podHash, updatedNode.data?.replicaSuffix, 1);
     const updatedPodWithCleanLabel = {
@@ -122,18 +158,18 @@ const handlePodParentSync = (_target: Node, updatedNode: Node, newData: Partial<
         label: cleanBase,
         replicas: 1,
         parentReplicas: 1,
-        ...extractParentAttachedResources(parent.data as K8sNodeData),
+        ...extractParentAttachedResources(updatedParent.data as K8sNodeData),
       }
     };
     return sortNodes([...others, updatedPodWithCleanLabel]);
   }
 
-  const parentReplicas = Number(parent.data?.replicas || 0);
-  const isController = Boolean(parent && WORKLOAD_CONTROLLERS.has(parent.type));
+  const parentReplicas = Number(updatedParent.data?.replicas || 0);
+  const isController = Boolean(WORKLOAD_CONTROLLERS.has(updatedParent.type));
   const replicasChange = (isController && newData.replicas !== undefined)
     ? (newData.replicas || 0) - parentReplicas : 0;
 
-  const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, replicasChange, get, updatedNode);
+  const { updatedDeployment, laidOut } = syncDeployment(updatedParent, nodes, replicasChange, get, updatedNode);
   const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
   const resultNodes = sortNodes([...others, updatedDeployment, ...laidOut]);
   return syncContainerSize(parent.parentId, resultNodes);
@@ -813,7 +849,7 @@ const applyUniqueLabelSanitization = (
     target.id
   );
   const next = { ...sanitizedData, label: uniqueName };
-  if (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'ReplicaSet') {
+  if (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'StatefulSet' || target.type === 'ReplicaSet') {
     next.baseName = uniqueName;
   }
   return next;
