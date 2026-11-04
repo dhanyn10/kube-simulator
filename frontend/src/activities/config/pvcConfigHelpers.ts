@@ -118,7 +118,12 @@ export const analyzePvcWorkloadConnections = (
       namespaceConflict = { pvcNs, workloadNs: nodeNs, workloadLabel: node.data?.label || node.id };
     }
 
-    if (node.type === 'Deployment' || node.type === 'StatefulSet' || node.type === 'ReplicaSet') {
+    if (
+      node.type === 'Deployment' ||
+      node.type === 'StatefulSet' ||
+      node.type === 'ReplicaSet' ||
+      node.data?.workloadType === 'StatefulSet'
+    ) {
       const res = analyzeControllerWorkload(node, nodes);
       totalReplicas += res.replicas;
       res.pods.forEach((p) => {
