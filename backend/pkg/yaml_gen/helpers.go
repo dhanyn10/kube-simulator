@@ -150,7 +150,16 @@ func getResourceConfig(data k8s.K8sNodeData, targetIDs []string, ctx *GenContext
 		return nil
 	}
 
-	requests := createResourceMap(data.CpuRequest, data.MemoryRequest)
+	effectiveCpuReq := data.CpuRequest
+	if effectiveCpuReq == "" && data.CpuLimit != "" {
+		effectiveCpuReq = data.CpuLimit
+	}
+	effectiveMemReq := data.MemoryRequest
+	if effectiveMemReq == "" && data.MemoryLimit != "" {
+		effectiveMemReq = data.MemoryLimit
+	}
+
+	requests := createResourceMap(effectiveCpuReq, effectiveMemReq)
 	limits := createResourceMap(data.CpuLimit, data.MemoryLimit)
 
 	if requests == nil && limits == nil {

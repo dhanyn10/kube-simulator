@@ -64,7 +64,7 @@ describe('resourceBudgetHelpers', () => {
     ];
 
     const totals = calculateResourceTotals(nodes);
-    expect(totals.cpuReq).toBe(100);
+    expect(totals.cpuReq).toBe(300);
     expect(totals.memReq).toBe(128);
 
     const metrics = calculateWorkloadLimitMetrics(nodes);
@@ -88,5 +88,25 @@ describe('resourceBudgetHelpers', () => {
     const metrics = calculateWorkloadLimitMetrics(nodes);
     expect(metrics.totalPodCount).toBe(1);
     expect(metrics.constrainedPodCount).toBe(0);
+  });
+
+  it('defaults requests to limits for Guaranteed QoS and supports StatefulSet nodes', () => {
+    const nodes = [
+      { id: 'ss-1', type: 'StatefulSet', data: { replicas: 2, cpuLimit: '500m', memoryLimit: '256Mi' } },
+      { id: 'ss-child', type: 'Pod', parentId: 'ss-1', data: { cpuLimit: '500m', memoryLimit: '256Mi' } },
+    ];
+
+    const totals = calculateResourceTotals(nodes);
+    expect(totals.cpuReq).toBe(1000);
+    expect(totals.cpuLim).toBe(1000);
+    expect(totals.memReq).toBe(512);
+    expect(totals.memLim).toBe(512);
+    expect(totals.hasMissingLimits).toBe(false);
+
+    const metrics = calculateWorkloadLimitMetrics(nodes);
+    expect(metrics.totalPodCount).toBe(2);
+    expect(metrics.constrainedPodCount).toBe(2);
+    expect(metrics.totalCpuLimMilli).toBe(1000);
+    expect(metrics.totalMemLimMiB).toBe(512);
   });
 });

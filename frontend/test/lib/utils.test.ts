@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isValidRfc1123Host, parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName, beautifyYaml } from '@/lib/utils';
+import { isValidRfc1123Host, parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, getPodQoSClass, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName, beautifyYaml } from '@/lib/utils';
 
 describe('utils', () => {
   describe('trimDashes', () => {
@@ -183,6 +183,40 @@ describe('utils', () => {
           expect(res.isMemError).toBe(true);
           expect(res.hasError).toBe(true);
       });
+  describe('getPodQoSClass', () => {
+    it('returns BestEffort when neither requests nor limits are specified', () => {
+      expect(getPodQoSClass({})).toBe('BestEffort');
+      expect(getPodQoSClass({ cpuRequest: '', cpuLimit: '', memoryRequest: '', memoryLimit: '' })).toBe('BestEffort');
+    });
+
+    it('returns Guaranteed when both limits are set and requests match limits or are omitted', () => {
+      expect(getPodQoSClass({
+        cpuRequest: '500m',
+        cpuLimit: '500m',
+        memoryRequest: '256Mi',
+        memoryLimit: '256Mi',
+      })).toBe('Guaranteed');
+
+      expect(getPodQoSClass({
+        cpuLimit: '1000m',
+        memoryLimit: '512Mi',
+      })).toBe('Guaranteed');
+    });
+
+    it('returns Burstable when limits/requests are partial or do not match', () => {
+      expect(getPodQoSClass({ cpuRequest: '500m', memoryRequest: '256Mi' })).toBe('Burstable');
+
+      expect(getPodQoSClass({
+        cpuRequest: '250m',
+        cpuLimit: '500m',
+        memoryRequest: '256Mi',
+        memoryLimit: '512Mi',
+      })).toBe('Burstable');
+
+      expect(getPodQoSClass({ cpuLimit: '500m' })).toBe('Burstable');
+    });
+  });
+
       it('returns no error for valid limits', () => {
           const data = { cpuRequest: '200m', cpuLimit: '500m' };
           const res = validateResourceLimits(data);

@@ -7,6 +7,11 @@ describe('deploymentNodeHelpers', () => {
     expect(checkShowHPAWarning('dep-1', configuredDeploymentData as any, [], [])).toBe(false);
   });
 
+  it('returns false when deployment has CPU and Memory limits configured without explicit requests (Guaranteed QoS)', () => {
+    const limitsOnlyData = { cpuLimit: '500m', memoryLimit: '512Mi', hpas: [{ minReplicas: 1, maxReplicas: 5 }] };
+    expect(checkShowHPAWarning('dep-1', limitsOnlyData as any, [], [])).toBe(false);
+  });
+
   it('returns true when CPU or Memory requests are missing and attached HPA exists', () => {
     const deploymentDataNoCpu = { memoryRequest: '256Mi', hpas: [{ minReplicas: 1, maxReplicas: 5 }] };
     expect(checkShowHPAWarning('dep-1', deploymentDataNoCpu as any, [], [])).toBe(true);

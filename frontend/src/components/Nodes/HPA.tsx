@@ -19,7 +19,7 @@ export const HPANode = memo((props: NodeProps) => {
   const targetDeployment = targetNode?.type === 'Deployment' ? targetNode : null;
 
   const targetData = targetDeployment?.data as K8sNodeData | undefined;
-  const hasRequests = Boolean(targetData?.cpuRequest && targetData?.memoryRequest);
+  const hasRequests = Boolean((targetData?.cpuRequest || targetData?.cpuLimit) && (targetData?.memoryRequest || targetData?.memoryLimit));
   const showWarning = Boolean(connectedEdge && !hasRequests);
 
   const isValidConnection = useCallback(

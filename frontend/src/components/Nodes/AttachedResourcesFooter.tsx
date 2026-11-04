@@ -2,6 +2,7 @@ import React from 'react';
 import { Shield, Settings, Lock, Activity, Layers } from 'lucide-react';
 import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
+import { getPodQoSClass } from '@/lib/utils';
 
 export interface AttachedResourcesFooterProps {
   readonly data: K8sNodeData;
@@ -131,7 +132,8 @@ export const AttachedResourcesFooter: React.FC<AttachedResourcesFooterProps> = (
         </button>
       ))}
       {data.resourceLimits?.map((res: any) => {
-        const details = ` (CPU: ${res.cpuRequest || '500m'} / ${res.cpuLimit || '1000m'} | Mem: ${res.memoryRequest || '256Mi'} / ${res.memoryLimit || '512Mi'})`;
+        const qos = getPodQoSClass(res);
+        const details = ` [QoS: ${qos}] (CPU: ${res.cpuRequest || '500m'} / ${res.cpuLimit || '1000m'} | Mem: ${res.memoryRequest || '256Mi'} / ${res.memoryLimit || '512Mi'})`;
         return (
           <button
             type="button"

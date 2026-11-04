@@ -29,9 +29,14 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
   const targetNode = connectedEdge ? nodes.find(n => n.id === connectedEdge.target) : null;
   const targetDeployment = targetNode?.type === 'Deployment' ? targetNode : null;
 
-  const hasRequests = targetDeployment
-    ? (targetDeployment.data as K8sNodeData).cpuRequest && (targetDeployment.data as K8sNodeData).memoryRequest
-    : false;
+  const depData = targetDeployment ? (targetDeployment.data as K8sNodeData) : undefined;
+  const hasRequests = Boolean(
+    (depData?.cpuRequest || depData?.cpuLimit) &&
+    (depData?.memoryRequest || depData?.memoryLimit)
+  );
+
+
+
 
   const getStatusInfo = () => {
     if (!connectedEdge) {

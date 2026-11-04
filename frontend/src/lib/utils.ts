@@ -249,6 +249,44 @@ export function formatMemory(mib: number): string {
  * @param data - Object containing `cpuRequest`, `cpuLimit`, `memoryRequest`, and `memoryLimit`.
  * @returns Object with boolean error flags: `{ isCpuError, isMemError, hasError }`.
  */
+export type PodQoSClass = 'Guaranteed' | 'Burstable' | 'BestEffort';
+
+/**
+ * Determines the Kubernetes Quality of Service (QoS) Class for a workload.
+ *
+ * - Guaranteed: Both CPU and Memory limits are defined, and requests either match limits or are omitted (defaulting to limits).
+ * - Burstable: At least one request or limit is defined, but does not meet Guaranteed criteria.
+ * - BestEffort: No requests and no limits are defined.
+ *
+ * @param data - Object containing optional CPU and Memory request and limit strings.
+ * @returns QoS Class name string: 'Guaranteed' | 'Burstable' | 'BestEffort'.
+ */
+export function getPodQoSClass(data: {
+  cpuRequest?: string;
+  cpuLimit?: string;
+  memoryRequest?: string;
+  memoryLimit?: string;
+}): PodQoSClass {
+  const hasCpuReq = Boolean(data.cpuRequest);
+  const hasCpuLim = Boolean(data.cpuLimit);
+  const hasMemReq = Boolean(data.memoryRequest);
+  const hasMemLim = Boolean(data.memoryLimit);
+
+  if (!hasCpuReq && !hasCpuLim && !hasMemReq && !hasMemLim) {
+    return 'BestEffort';
+  }
+
+  if (hasCpuLim && hasMemLim) {
+    const cpuMatches = !hasCpuReq || parseCPU(data.cpuRequest) === parseCPU(data.cpuLimit);
+    const memMatches = !hasMemReq || parseMemory(data.memoryRequest) === parseMemory(data.memoryLimit);
+    if (cpuMatches && memMatches) {
+      return 'Guaranteed';
+    }
+  }
+
+  return 'Burstable';
+}
+
 export function validateResourceLimits(data: any) {
   const cpuReq = parseCPU(data.cpuRequest);
   const cpuLim = parseCPU(data.cpuLimit);

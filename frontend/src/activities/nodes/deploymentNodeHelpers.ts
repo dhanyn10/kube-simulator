@@ -11,7 +11,7 @@ import { K8sNodeData } from '@/types';
  * @returns Boolean indicating whether the HPA warning banner should be displayed.
  */
 export const checkShowHPAWarning = (nodeId: string, data: K8sNodeData, edges: any[], nodes: any[]): boolean => {
-  const hasRequests = Boolean(data.cpuRequest && data.memoryRequest);
+  const hasRequests = Boolean((data.cpuRequest || data.cpuLimit) && (data.memoryRequest || data.memoryLimit));
   if (hasRequests) return false;
 
   const hasAttachedHpa = Array.isArray(data.hpas) && data.hpas.length > 0;

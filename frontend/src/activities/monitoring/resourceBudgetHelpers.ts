@@ -29,7 +29,7 @@ export interface WorkloadLimitMetrics {
 export const calculateWorkloadLimitMetrics = (nodes: any[]): WorkloadLimitMetrics => {
   return nodes.reduce(
     (acc, nodeItem) => {
-      if (!['Deployment', 'Pod', 'ReplicaSet'].includes(nodeItem.type || '')) {
+      if (!['Deployment', 'Pod', 'ReplicaSet', 'StatefulSet'].includes(nodeItem.type || '')) {
         return acc;
       }
 
@@ -38,7 +38,7 @@ export const calculateWorkloadLimitMetrics = (nodes: any[]): WorkloadLimitMetric
 
       if (nodeItem.parentId) {
         const parentNode = nodes.find((node) => node.id === nodeItem.parentId);
-        if (['Deployment', 'ReplicaSet'].includes(parentNode?.type ?? '')) {
+        if (['Deployment', 'ReplicaSet', 'StatefulSet'].includes(parentNode?.type ?? '')) {
           return acc;
         }
       }
@@ -63,7 +63,7 @@ export const calculateWorkloadLimitMetrics = (nodes: any[]): WorkloadLimitMetric
 export const calculateResourceTotals = (nodes: any[]) => {
   return nodes.reduce(
     (totalsAccumulator, nodeItem) => {
-      if (!['Deployment', 'Pod', 'ReplicaSet'].includes(nodeItem.type || '')) {
+      if (!['Deployment', 'Pod', 'ReplicaSet', 'StatefulSet'].includes(nodeItem.type || '')) {
         return totalsAccumulator;
       }
 
@@ -72,13 +72,15 @@ export const calculateResourceTotals = (nodes: any[]) => {
 
       if (nodeItem.parentId) {
         const parentNode = nodes.find((node) => node.id === nodeItem.parentId);
-        if (['Deployment', 'ReplicaSet'].includes(parentNode?.type ?? '')) {
+        if (['Deployment', 'ReplicaSet', 'StatefulSet'].includes(parentNode?.type ?? '')) {
           return totalsAccumulator;
         }
       }
 
-      const cpuReq = parseCPU(data.cpuRequest || '0');
-      const memReq = parseMemory(data.memoryRequest || '0');
+      const effectiveCpuReq = data.cpuRequest || data.cpuLimit || '0';
+      const effectiveMemReq = data.memoryRequest || data.memoryLimit || '0';
+      const cpuReq = parseCPU(effectiveCpuReq);
+      const memReq = parseMemory(effectiveMemReq);
       const cpuLim = data.cpuLimit ? parseCPU(data.cpuLimit) : cpuReq;
       const memLim = data.memoryLimit ? parseMemory(data.memoryLimit) : memReq;
 
