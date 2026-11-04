@@ -552,32 +552,47 @@ func isStatefulSetWorkload(n *k8s.FrontendNode, ctx *GenContext) bool {
 	return false
 }
 
+// isTargetingViaEdges checks if any incoming or outgoing edge connects to a StatefulSet workload.
+func isTargetingViaEdges(dataID string, ctx *GenContext) bool {
+	for _, edge := range ctx.targetEdgeMap[dataID] {
+		if isStatefulSetWorkload(ctx.nodeMap[edge.Source], ctx) {
+			return true
+		}
+	}
+	for _, edge := range ctx.sourceEdgeMap[dataID] {
+		if isStatefulSetWorkload(ctx.nodeMap[edge.Target], ctx) {
+			return true
+		}
+	}
+	return false
+}
+
+// isTargetingViaSelector checks if a Service selector matches a StatefulSet workload.
+func isTargetingViaSelector(selector string, ctx *GenContext) bool {
+	if selector == "" {
+		return false
+	}
+	sanitizedSel := sanitizeName(selector)
+	for _, node := range ctx.nodeMap {
+		if !isStatefulSetWorkload(node, ctx) {
+			continue
+		}
+		if node.Data.Label == selector || node.ID == selector || sanitizeName(node.Data.Label) == sanitizedSel {
+			return true
+		}
+	}
+	return false
+}
+
 // isTargetingStatefulSet checks if a Service targets a StatefulSet via edges or selector.
 func isTargetingStatefulSet(data k8s.K8sNodeData, targetWorkload *k8s.FrontendNode, ctx *GenContext) bool {
 	if isStatefulSetWorkload(targetWorkload, ctx) {
 		return true
 	}
-	for _, edge := range ctx.targetEdgeMap[data.ID] {
-		if isStatefulSetWorkload(ctx.nodeMap[edge.Source], ctx) {
-			return true
-		}
+	if isTargetingViaEdges(data.ID, ctx) {
+		return true
 	}
-	for _, edge := range ctx.sourceEdgeMap[data.ID] {
-		if isStatefulSetWorkload(ctx.nodeMap[edge.Target], ctx) {
-			return true
-		}
-	}
-	if data.Selector != "" {
-		sanitizedSel := sanitizeName(data.Selector)
-		for _, node := range ctx.nodeMap {
-			if isStatefulSetWorkload(node, ctx) {
-				if node.Data.Label == data.Selector || node.ID == data.Selector || sanitizeName(node.Data.Label) == sanitizedSel {
-					return true
-				}
-			}
-		}
-	}
-	return false
+	return isTargetingViaSelector(data.Selector, ctx)
 }
 
 // generateService constructs a Kubernetes Service resource object.

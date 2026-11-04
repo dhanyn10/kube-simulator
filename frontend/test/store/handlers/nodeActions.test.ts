@@ -738,7 +738,7 @@ describe('nodeActions', () => {
     nodes = useFlowStore.getState().nodes;
 
     let childPods = nodes.filter(n => n.parentId === ss.id);
-    expect(childPods.length).toBe(3);
+    expect(childPods).toHaveLength(3);
     expect(childPods[0].data.label).toBe('new-statefulset-0');
     expect(childPods[1].data.label).toBe('new-statefulset-1');
     expect(childPods[2].data.label).toBe('new-statefulset-2');

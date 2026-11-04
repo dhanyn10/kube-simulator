@@ -848,7 +848,7 @@ const applyUniqueLabelSanitization = (
     nodes,
     target.id
   );
-  const next = { ...sanitizedData, label: uniqueName };
+  const next: Partial<K8sNodeData> = { ...sanitizedData, label: uniqueName };
   if (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'StatefulSet' || target.type === 'ReplicaSet') {
     next.baseName = uniqueName;
   }

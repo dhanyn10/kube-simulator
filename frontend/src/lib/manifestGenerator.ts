@@ -154,7 +154,7 @@ const findCandidateServicesForStatefulSet = (
   const seen = new Set<string>();
 
   const addCandidate = (s: any) => {
-    if (s && s.type === 'Service' && !seen.has(s.id)) {
+    if (s?.type === 'Service' && !seen.has(s.id)) {
       seen.add(s.id);
       candidates.push(s);
     }
@@ -375,7 +375,7 @@ const isStatefulWorkloadNode = (n: any, nodeMap: Map<string, any>): boolean => {
   if (n.type === 'StatefulSet' || n.data?.workloadType === 'StatefulSet') return true;
   if (n.parentId) {
     const parent = nodeMap.get(n.parentId);
-    if (parent && (parent.type === 'StatefulSet' || parent.data?.workloadType === 'StatefulSet')) {
+    if (parent?.type === 'StatefulSet' || parent?.data?.workloadType === 'StatefulSet') {
       return true;
     }
   }

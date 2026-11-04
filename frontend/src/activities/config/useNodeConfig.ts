@@ -96,9 +96,13 @@ export const useNodeConfigHandler = (selectedNode: any) => {
   };
 
   const isStateful = selectedNode.type === 'StatefulSet' || data.workloadType === 'StatefulSet';
-  const podHash = isStateful
-    ? ''
-    : data.podHash || (data.label?.includes('-') ? data.label.split('-').pop() : '') || generateRandomHash(5);
+
+  let fallbackHash = '';
+  if (data.label?.includes('-')) {
+    fallbackHash = data.label.split('-').pop() || '';
+  }
+  const defaultHash = data.podHash || fallbackHash || generateRandomHash(5);
+  const podHash = isStateful ? '' : defaultHash;
   const podBaseName = data.baseName || extractPodBaseName(data);
 
   const updatePodBaseName = (newBase: string) => {
