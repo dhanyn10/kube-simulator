@@ -3,6 +3,8 @@ package yaml_gen
 import (
 	"build-wails/backend/pkg/k8s"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 // getEnvFromConnections extracts environment variable references from attached ConfigMap and Secret source nodes.
@@ -139,6 +141,79 @@ func checkConnectedResourceLimit(targetIDs []string, ctx *GenContext) bool {
 	return false
 }
 
+// parseCpuMilli normalizes Kubernetes CPU strings (e.g. "500m", "1.5", "2") into millicores.
+func parseCpuMilli(cpu string) int64 {
+	trimmed := strings.TrimSpace(cpu)
+	if trimmed == "" {
+		return 0
+	}
+	if strings.HasSuffix(trimmed, "m") {
+		val, err := strconv.ParseInt(strings.TrimSuffix(trimmed, "m"), 10, 64)
+		if err == nil {
+			return val
+		}
+		return 0
+	}
+	val, err := strconv.ParseFloat(trimmed, 64)
+	if err == nil {
+		return int64(val * 1000)
+	}
+	return 0
+}
+
+// parseMemoryBytes normalizes Kubernetes memory strings (e.g. "256Mi", "1Gi", "1024") into bytes.
+func parseMemoryBytes(mem string) int64 {
+	trimmed := strings.TrimSpace(mem)
+	if trimmed == "" {
+		return 0
+	}
+	if strings.HasSuffix(trimmed, "Gi") {
+		val, err := strconv.ParseFloat(strings.TrimSuffix(trimmed, "Gi"), 64)
+		if err == nil {
+			return int64(val * 1024 * 1024 * 1024)
+		}
+	}
+	if strings.HasSuffix(trimmed, "Mi") {
+		val, err := strconv.ParseFloat(strings.TrimSuffix(trimmed, "Mi"), 64)
+		if err == nil {
+			return int64(val * 1024 * 1024)
+		}
+	}
+	if strings.HasSuffix(trimmed, "Ki") {
+		val, err := strconv.ParseFloat(strings.TrimSuffix(trimmed, "Ki"), 64)
+		if err == nil {
+			return int64(val * 1024)
+		}
+	}
+	val, err := strconv.ParseInt(trimmed, 10, 64)
+	if err == nil {
+		return val
+	}
+	return 0
+}
+
+// resolveEffectiveCpu determines the effective CPU request value, defaulting to limit and clamping to limit if exceeded.
+func resolveEffectiveCpu(cpuReq, cpuLimit string) string {
+	if cpuReq == "" {
+		return cpuLimit
+	}
+	if cpuLimit != "" && parseCpuMilli(cpuReq) > parseCpuMilli(cpuLimit) {
+		return cpuLimit
+	}
+	return cpuReq
+}
+
+// resolveEffectiveMemory determines the effective memory request value, defaulting to limit and clamping to limit if exceeded.
+func resolveEffectiveMemory(memReq, memLimit string) string {
+	if memReq == "" {
+		return memLimit
+	}
+	if memLimit != "" && parseMemoryBytes(memReq) > parseMemoryBytes(memLimit) {
+		return memLimit
+	}
+	return memReq
+}
+
 // getResourceConfig builds resource requirements (requests and limits) from workload node settings.
 func getResourceConfig(data k8s.K8sNodeData, targetIDs []string, ctx *GenContext) *k8s.ResourceRequirements {
 	if val, ok := data.YamlSettings["resources"]; ok && !val {
@@ -150,14 +225,8 @@ func getResourceConfig(data k8s.K8sNodeData, targetIDs []string, ctx *GenContext
 		return nil
 	}
 
-	effectiveCpuReq := data.CpuRequest
-	if effectiveCpuReq == "" && data.CpuLimit != "" {
-		effectiveCpuReq = data.CpuLimit
-	}
-	effectiveMemReq := data.MemoryRequest
-	if effectiveMemReq == "" && data.MemoryLimit != "" {
-		effectiveMemReq = data.MemoryLimit
-	}
+	effectiveCpuReq := resolveEffectiveCpu(data.CpuRequest, data.CpuLimit)
+	effectiveMemReq := resolveEffectiveMemory(data.MemoryRequest, data.MemoryLimit)
 
 	requests := createResourceMap(effectiveCpuReq, effectiveMemReq)
 	limits := createResourceMap(data.CpuLimit, data.MemoryLimit)

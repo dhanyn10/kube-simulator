@@ -60,3 +60,11 @@ func TestCustomFactoryRegister(t *testing.T) {
 		t.Errorf("Expected 'custom-object', got %v", res)
 	}
 }
+
+func TestFactory_NilGenerators(t *testing.T) {
+	emptyFactory := &ResourceGeneratorFactory{}
+	gen, ok := emptyFactory.GetGenerator("Pod")
+	if ok || gen != nil {
+		t.Errorf("Expected false and nil generator for uninitialized factory, got %v", gen)
+	}
+}

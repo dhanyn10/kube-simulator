@@ -6,3 +6,4 @@ export * from '../Modals/resource-manager';
 export * from './AutocompleteDropdown';
 export * from './SelectorGroup';
 export * from './SidebarContextMenu';
+export * from './ResourceRangeBar';

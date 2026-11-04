@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { ResourceLimitNode } from '@/components/Nodes/ResourceLimit';
 import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
+import '@testing-library/jest-dom';
 
 describe('ResourceLimitNode', () => {
   beforeEach(() => {
@@ -101,5 +102,28 @@ describe('ResourceLimitNode', () => {
 
     const handles = container.querySelectorAll('.opacity-20');
     expect(handles).toHaveLength(2);
+  });
+
+  it('renders QoS Error callout badge and red text highlight when requests exceed limits', () => {
+    const props = {
+      id: 'rl-qos-err',
+      type: 'ResourceLimit',
+      data: {
+        label: 'broken-qos-limit',
+        cpuRequest: '2000m',
+        cpuLimit: '500m',
+        memoryRequest: '1024Mi',
+        memoryLimit: '256Mi',
+      },
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <ResourceLimitNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByTestId('resource-node-warning')).toBeInTheDocument();
+    expect(screen.getByText('QoS Error: Req > Limit')).toBeInTheDocument();
   });
 });

@@ -516,5 +516,24 @@ describe('simulationPvc', () => {
       expect(edge.data?.validationError).toContain('Cross-Namespace Binding Error');
       expect(ctx.updatedNodes.find((n) => n.id === 'pod-a')?.data.status).toBe('pending');
     });
+
+    it('falls back to nodeMap when both updatedNodes and nodes are empty', () => {
+      const pvcNode: Node = {
+        id: 'pvc-fallback',
+        type: 'PVC',
+        data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+        position: { x: 0, y: 0 },
+      };
+      const nodeMap = new Map<string, Node>([['pvc-fallback', pvcNode]]);
+      const ctx: any = {
+        updatedNodes: [],
+        nodes: [],
+        nodeMap,
+        edges: [],
+      };
+
+      const result = countConnectedPvcReplicas(pvcNode, ctx);
+      expect(result.totalReplicas).toBe(0);
+    });
   });
 });
