@@ -4,6 +4,7 @@ import {
   evaluatePvcRealtimeStatus,
   handlePvcRwoAccessMode,
   syncPvcRealtimeState,
+  analyzePvcWorkloadConnections,
 } from '@/activities/config/pvcConfigHelpers';
 import { Node, Edge } from '@xyflow/react';
 
@@ -496,6 +497,48 @@ describe('pvcConfigHelpers test suite', () => {
     expect(synced.edges[0].data?.validationError).toContain('Cross-Namespace Binding Error');
     const updatedPod = synced.nodes.find((n) => n.id === 'pod-app');
     expect(updatedPod?.data?.status).toBe('pending');
+  });
+
+  it('covers calculatePvcConnectedReplicas fallback to 0 when pvcNodeId does not exist', () => {
+    expect(calculatePvcConnectedReplicas('unknown-pvc', [], [])).toBe(0);
+  });
+
+  it('covers StatefulSet with 0 child pods in countWorkloadReplicasAndPods fallback', () => {
+    const pvcNode: Node = {
+      id: 'pvc-empty-ss',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+      position: { x: 0, y: 0 },
+    };
+    const ssEmpty: Node = {
+      id: 'ss-no-pods',
+      type: 'StatefulSet',
+      data: { label: 'empty-ss', replicas: 1 },
+      position: { x: 0, y: 0 },
+    };
+    const edge: Edge = { id: 'e-ss', source: 'ss-no-pods', target: 'pvc-empty-ss' };
+
+    const analysis = analyzePvcWorkloadConnections(pvcNode, [pvcNode, ssEmpty], [edge]);
+    expect(analysis.totalReplicas).toBe(1);
+    expect(analysis.connectedPods).toHaveLength(0);
+  });
+
+  it('preserves existing namespace conflict when multiple conflicting workloads connect to PVC', () => {
+    const nsMain: Node = { id: 'ns-main', type: 'Namespace', data: { label: 'main' }, position: { x: 0, y: 0 } };
+    const nsOther1: Node = { id: 'ns-o1', type: 'Namespace', data: { label: 'other-1' }, position: { x: 0, y: 0 } };
+    const nsOther2: Node = { id: 'ns-o2', type: 'Namespace', data: { label: 'other-2' }, position: { x: 0, y: 0 } };
+    const pvcNode: Node = { id: 'pvc-main', type: 'PVC', parentId: 'ns-main', data: {}, position: { x: 0, y: 0 } };
+    const dep1: Node = { id: 'dep-1', type: 'Deployment', parentId: 'ns-o1', data: { label: 'dep-1' }, position: { x: 0, y: 0 } };
+    const dep2: Node = { id: 'dep-2', type: 'Deployment', parentId: 'ns-o2', data: { label: 'dep-2' }, position: { x: 0, y: 0 } };
+
+    const edges: Edge[] = [
+      { id: 'e1', source: 'dep-1', target: 'pvc-main' },
+      { id: 'e2', source: 'dep-2', target: 'pvc-main' },
+    ];
+
+    const analysis = analyzePvcWorkloadConnections(pvcNode, [nsMain, nsOther1, nsOther2, pvcNode, dep1, dep2], edges);
+    expect(analysis.namespaceConflict).toBeDefined();
+    expect(analysis.namespaceConflict?.pvcNs).toBe('main');
   });
 });
 

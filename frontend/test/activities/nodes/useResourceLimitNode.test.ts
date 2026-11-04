@@ -55,4 +55,51 @@ describe('useResourceLimitNode', () => {
 
     expect(result.current.hasWorkload).toBe(false);
   });
+
+  it('validates resource limits and flags invalid request > limit QoS states', () => {
+    // Valid state (req <= limit)
+    const validProps = {
+      id: 'rl-valid',
+      data: {
+        cpuRequest: '500m',
+        cpuLimit: '1000m',
+        memoryRequest: '256Mi',
+        memoryLimit: '512Mi',
+      },
+    } as any;
+    const { result: validResult } = renderHook(() => useResourceLimitNode(validProps));
+    expect(validResult.current.isCpuInvalid).toBe(false);
+    expect(validResult.current.isMemoryInvalid).toBe(false);
+    expect(validResult.current.hasResourceError).toBe(false);
+
+    // Invalid CPU state (cpuRequest > cpuLimit)
+    const invalidCpuProps = {
+      id: 'rl-invalid-cpu',
+      data: {
+        cpuRequest: '2000m',
+        cpuLimit: '500m',
+        memoryRequest: '256Mi',
+        memoryLimit: '512Mi',
+      },
+    } as any;
+    const { result: invalidCpuResult } = renderHook(() => useResourceLimitNode(invalidCpuProps));
+    expect(invalidCpuResult.current.isCpuInvalid).toBe(true);
+    expect(invalidCpuResult.current.isMemoryInvalid).toBe(false);
+    expect(invalidCpuResult.current.hasResourceError).toBe(true);
+
+    // Invalid Memory state (memoryRequest > memoryLimit)
+    const invalidMemProps = {
+      id: 'rl-invalid-mem',
+      data: {
+        cpuRequest: '500m',
+        cpuLimit: '1000m',
+        memoryRequest: '1Gi',
+        memoryLimit: '256Mi',
+      },
+    } as any;
+    const { result: invalidMemResult } = renderHook(() => useResourceLimitNode(invalidMemProps));
+    expect(invalidMemResult.current.isCpuInvalid).toBe(false);
+    expect(invalidMemResult.current.isMemoryInvalid).toBe(true);
+    expect(invalidMemResult.current.hasResourceError).toBe(true);
+  });
 });

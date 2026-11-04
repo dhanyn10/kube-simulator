@@ -282,3 +282,37 @@ func TestParseResourceQuantities(t *testing.T) {
 		t.Error("Expected 0 for invalid memory")
 	}
 }
+
+func TestResolveEffectiveResources(t *testing.T) {
+	// Empty request defaults to limit
+	if res := resolveEffectiveCpu("", "1000m"); res != "1000m" {
+		t.Errorf("Expected 1000m, got %s", res)
+	}
+	if res := resolveEffectiveMemory("", "512Mi"); res != "512Mi" {
+		t.Errorf("Expected 512Mi, got %s", res)
+	}
+
+	// Valid request <= limit preserved
+	if res := resolveEffectiveCpu("500m", "1000m"); res != "500m" {
+		t.Errorf("Expected 500m, got %s", res)
+	}
+	if res := resolveEffectiveMemory("256Mi", "512Mi"); res != "256Mi" {
+		t.Errorf("Expected 256Mi, got %s", res)
+	}
+
+	// Request > limit clamped to limit
+	if res := resolveEffectiveCpu("2000m", "1000m"); res != "1000m" {
+		t.Errorf("Expected 1000m, got %s", res)
+	}
+	if res := resolveEffectiveMemory("1Gi", "512Mi"); res != "512Mi" {
+		t.Errorf("Expected 512Mi, got %s", res)
+	}
+
+	// Empty limit preserved
+	if res := resolveEffectiveCpu("500m", ""); res != "500m" {
+		t.Errorf("Expected 500m, got %s", res)
+	}
+	if res := resolveEffectiveMemory("256Mi", ""); res != "256Mi" {
+		t.Errorf("Expected 256Mi, got %s", res)
+	}
+}

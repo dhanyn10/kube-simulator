@@ -33,9 +33,8 @@ export const ResourceRangeBar: React.FC<ResourceRangeBarProps> = ({
   const limPercent = Math.min(100, Math.max(0, (parsedLimit / effectiveMax) * 100));
   const burstWidth = Math.max(0, limPercent - reqPercent);
 
-  const formatText = (num: number, rawStr?: string) => {
+  const formatText = (num: number) => {
     if (formatDisplay) return formatDisplay(num);
-    if (rawStr) return rawStr;
     return `${num}${unit}`;
   };
 

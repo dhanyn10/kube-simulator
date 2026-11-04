@@ -768,3 +768,131 @@ func TestResourceGenerators_StatefulSetAndHeadlessServiceValidation(t *testing.T
 	t.Run("StatefulSet serviceName prefers Headless service when multiple services exist", testStatefulSetPrefersHeadless)
 	t.Run("StatefulSet serviceName respects explicit backendServiceName and disabled clusterIP yaml setting", testStatefulSetRespectsExplicitAndDisabledYaml)
 }
+
+func TestStatefulSetTargetingHelpers(t *testing.T) {
+	ctx := &GenContext{
+		nodeMap: map[string]*k8s.FrontendNode{
+			"ss-1": {
+				ID:   "ss-1",
+				Type: "StatefulSet",
+				Data: k8s.K8sNodeData{Label: "database"},
+			},
+			"pod-child": {
+				ID:       "pod-child",
+				Type:     "Pod",
+				ParentID: "ss-1",
+				Data:     k8s.K8sNodeData{Label: "database-0"},
+			},
+			"pod-other": {
+				ID:       "pod-other",
+				Type:     "Pod",
+				ParentID: "dep-other",
+				Data:     k8s.K8sNodeData{Label: "web-0"},
+			},
+			"dep-other": {
+				ID:   "dep-other",
+				Type: "Deployment",
+				Data: k8s.K8sNodeData{Label: "web"},
+			},
+			"svc-1": {
+				ID:   "svc-1",
+				Type: "Service",
+				Data: k8s.K8sNodeData{ID: "svc-1", Label: "db-svc"},
+			},
+		},
+		targetEdgeMap: map[string][]k8s.FrontendEdge{
+			"svc-1": {{Source: "ss-1", Target: "svc-1"}},
+		},
+		sourceEdgeMap: map[string][]k8s.FrontendEdge{
+			"svc-1": {{Source: "svc-1", Target: "ss-1"}},
+		},
+	}
+
+	// isStatefulSetWorkload
+	if isStatefulSetWorkload(nil, ctx) {
+		t.Error("Expected nil node to return false")
+	}
+	if !isStatefulSetWorkload(ctx.nodeMap["ss-1"], ctx) {
+		t.Error("Expected StatefulSet node to return true")
+	}
+	if !isStatefulSetWorkload(ctx.nodeMap["pod-child"], ctx) {
+		t.Error("Expected child pod of StatefulSet to return true")
+	}
+	if isStatefulSetWorkload(ctx.nodeMap["pod-other"], ctx) {
+		t.Error("Expected child pod of Deployment to return false")
+	}
+
+	// isTargetingViaEdges
+	if !isTargetingViaEdges("svc-1", ctx) {
+		t.Error("Expected svc-1 to target StatefulSet via edges")
+	}
+	if isTargetingViaEdges("dep-other", ctx) {
+		t.Error("Expected dep-other not to target StatefulSet via edges")
+	}
+	// Test sourceEdgeMap only branch
+	ctx.targetEdgeMap["svc-source-only"] = nil
+	ctx.sourceEdgeMap["svc-source-only"] = []k8s.FrontendEdge{{Source: "svc-source-only", Target: "ss-1"}}
+	if !isTargetingViaEdges("svc-source-only", ctx) {
+		t.Error("Expected svc-source-only to target StatefulSet via outgoing source edge")
+	}
+
+	// isTargetingViaSelector
+	if isTargetingViaSelector("", ctx) {
+		t.Error("Expected empty selector to return false")
+	}
+	if !isTargetingViaSelector("database", ctx) {
+		t.Error("Expected matching label database to return true")
+	}
+	if !isTargetingViaSelector("ss-1", ctx) {
+		t.Error("Expected matching ID ss-1 to return true")
+	}
+	if isTargetingViaSelector("non-existent-sel", ctx) {
+		t.Error("Expected non-existent selector to return false")
+	}
+
+	// isTargetingStatefulSet
+	svcData := k8s.K8sNodeData{ID: "svc-1"}
+	if !isTargetingStatefulSet(svcData, ctx.nodeMap["ss-1"], ctx) {
+		t.Error("Expected isTargetingStatefulSet with direct targetWorkload to return true")
+	}
+	if !isTargetingStatefulSet(svcData, nil, ctx) {
+		t.Error("Expected isTargetingStatefulSet via edge to return true")
+	}
+}
+
+func TestIsMatchingServiceSelector(t *testing.T) {
+	ssNode := &k8s.FrontendNode{
+		ID:   "ss-db",
+		Data: k8s.K8sNodeData{Label: "postgres-db"},
+	}
+
+	// Empty selector -> false
+	emptySvc := &k8s.FrontendNode{Data: k8s.K8sNodeData{Selector: ""}}
+	if isMatchingServiceSelector(emptySvc, ssNode, "fallback") {
+		t.Error("Expected empty selector to return false")
+	}
+
+	// Match by ID
+	idSvc := &k8s.FrontendNode{Data: k8s.K8sNodeData{Selector: "ss-db"}}
+	if !isMatchingServiceSelector(idSvc, ssNode, "fallback") {
+		t.Error("Expected match by ssNode ID")
+	}
+
+	// Match by fallbackName
+	fallbackSvc := &k8s.FrontendNode{Data: k8s.K8sNodeData{Selector: "my-stateful-app"}}
+	if !isMatchingServiceSelector(fallbackSvc, ssNode, "my-stateful-app") {
+		t.Error("Expected match by fallbackName")
+	}
+
+	// Match by Label
+	labelSvc := &k8s.FrontendNode{Data: k8s.K8sNodeData{Selector: "postgres-db"}}
+	if !isMatchingServiceSelector(labelSvc, ssNode, "other") {
+		t.Error("Expected match by ssNode Label")
+	}
+
+	// No match
+	noMatchSvc := &k8s.FrontendNode{Data: k8s.K8sNodeData{Selector: "redis"}}
+	if isMatchingServiceSelector(noMatchSvc, ssNode, "fallback") {
+		t.Error("Expected no match for unrelated selector")
+	}
+}

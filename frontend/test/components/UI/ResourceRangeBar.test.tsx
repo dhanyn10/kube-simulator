@@ -80,4 +80,38 @@ describe('ResourceRangeBar', () => {
     expect(screen.getByText('Max: 2000Mi')).toBeInTheDocument();
     expect(screen.getByText(/256Mi → 512Mi \(\+256Mi burst\)/)).toBeInTheDocument();
   });
+
+  it('dynamically expands max scale when limit or request exceeds maxScale in light mode', () => {
+    const { rerender } = render(
+      <ResourceRangeBar
+        label="CPU"
+        unit="m"
+        requestStr="2500m"
+        limitStr="4000m"
+        parsedRequest={2500}
+        parsedLimit={4000}
+        maxScale={2000}
+        colorMode="light"
+      />
+    );
+
+    expect(screen.getByText('Max: 4000m')).toBeInTheDocument();
+
+    // When request is huge and invalid
+    rerender(
+      <ResourceRangeBar
+        label="CPU"
+        unit="m"
+        requestStr="5000m"
+        limitStr="3000m"
+        parsedRequest={5000}
+        parsedLimit={3000}
+        maxScale={2000}
+        colorMode="light"
+      />
+    );
+
+    expect(screen.getByText('Max: 5000m')).toBeInTheDocument();
+    expect(screen.getByTestId('range-status-invalid-cpu')).toBeInTheDocument();
+  });
 });
