@@ -393,5 +393,109 @@ describe('pvcConfigHelpers test suite', () => {
     const updatedPvc = res.nodes.find((n) => n.id === 'pvc-1');
     expect(updatedPvc?.data?.pvcStatus).toBe('Multi-Attach Error');
   });
+
+  it('detects multi-workload mount violation when 2 Deployments (1 replica each) connect to 1 RWO PVC', () => {
+    const pvcNode: Node = {
+      id: 'pvc-shared',
+      type: 'PVC',
+      data: { label: 'shared-data', accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+      position: { x: 0, y: 0 },
+    };
+    const dep1: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { label: 'web-app', replicas: 1 },
+      position: { x: 0, y: 0 },
+    };
+    const pod1: Node = {
+      id: 'pod-1',
+      type: 'Pod',
+      parentId: 'dep-1',
+      data: { status: 'ready', image: 'nginx:latest', assignedNode: 'worker-1' },
+      position: { x: 0, y: 0 },
+    };
+    const dep2: Node = {
+      id: 'dep-2',
+      type: 'Deployment',
+      data: { label: 'worker-app', replicas: 1 },
+      position: { x: 0, y: 0 },
+    };
+    const pod2: Node = {
+      id: 'pod-2',
+      type: 'Pod',
+      parentId: 'dep-2',
+      data: { status: 'ready', image: 'redis:latest', assignedNode: 'worker-2' },
+      position: { x: 0, y: 0 },
+    };
+    const edges: Edge[] = [
+      { id: 'e1', source: 'dep-1', target: 'pvc-shared', data: {} },
+      { id: 'e2', source: 'dep-2', target: 'pvc-shared', data: {} },
+    ];
+
+    const allNodes = [pvcNode, dep1, pod1, dep2, pod2];
+    const total = calculatePvcConnectedReplicas('pvc-shared', allNodes, edges);
+    expect(total).toBe(2);
+
+    const status = evaluatePvcRealtimeStatus(pvcNode, allNodes, edges);
+    expect(status).toBe('Multi-Attach Error');
+
+    const synced = handlePvcRwoAccessMode(pvcNode, allNodes, edges);
+    const updatedPvc = synced.nodes.find((n) => n.id === 'pvc-shared');
+    const updatedPod1 = synced.nodes.find((n) => n.id === 'pod-1');
+    const updatedPod2 = synced.nodes.find((n) => n.id === 'pod-2');
+
+    expect(updatedPvc?.data?.pvcStatus).toBe('Multi-Attach Error');
+    expect(updatedPod1?.data?.status).toBe('pending');
+    expect(updatedPod2?.data?.status).toBe('pending');
+    expect(synced.edges[0].data?.validationError).toContain('Multi-Attach Error');
+    expect(synced.edges[1].data?.validationError).toContain('Multi-Attach Error');
+
+    // Disconnect dep-2: conflict resolves
+    const resolvedEdges = [edges[0]];
+    const resolved = handlePvcRwoAccessMode(updatedPvc!, [updatedPvc!, dep1, updatedPod1!, dep2, updatedPod2!], resolvedEdges);
+    const resolvedPvc = resolved.nodes.find((n) => n.id === 'pvc-shared');
+    const resolvedPod1 = resolved.nodes.find((n) => n.id === 'pod-1');
+
+    expect(resolvedPvc?.data?.pvcStatus).toBe('Bound');
+    expect(resolvedPod1?.data?.status).toBe('ready');
+    expect(resolved.edges[0].data?.validationError).toBeUndefined();
+  });
+
+  it('detects cross-namespace binding conflict between PVC and workload', () => {
+    const nsApp: Node = { id: 'ns-app', type: 'Namespace', data: { label: 'app-ns' }, position: { x: 0, y: 0 } };
+    const nsDb: Node = { id: 'ns-db', type: 'Namespace', data: { label: 'db-ns' }, position: { x: 0, y: 0 } };
+
+    const pvcNode: Node = {
+      id: 'pvc-db',
+      type: 'PVC',
+      parentId: 'ns-db',
+      data: { label: 'db-volume', accessMode: 'ReadWriteOnce', pvcStatus: 'Pending' },
+      position: { x: 0, y: 0 },
+    };
+    const depNode: Node = {
+      id: 'dep-app',
+      type: 'Deployment',
+      parentId: 'ns-app',
+      data: { label: 'frontend-app', replicas: 1 },
+      position: { x: 0, y: 0 },
+    };
+    const podNode: Node = {
+      id: 'pod-app',
+      type: 'Pod',
+      parentId: 'dep-app',
+      data: { status: 'ready', image: 'nginx:alpine' },
+      position: { x: 0, y: 0 },
+    };
+    const edge: Edge = { id: 'e1', source: 'dep-app', target: 'pvc-db', data: {} };
+
+    const allNodes = [nsApp, nsDb, pvcNode, depNode, podNode];
+    const status = evaluatePvcRealtimeStatus(pvcNode, allNodes, [edge]);
+    expect(status).toBe('Multi-Attach Error');
+
+    const synced = handlePvcRwoAccessMode(pvcNode, allNodes, [edge]);
+    expect(synced.edges[0].data?.validationError).toContain('Cross-Namespace Binding Error');
+    const updatedPod = synced.nodes.find((n) => n.id === 'pod-app');
+    expect(updatedPod?.data?.status).toBe('pending');
+  });
 });
 

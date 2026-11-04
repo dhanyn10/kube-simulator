@@ -428,5 +428,93 @@ describe('simulationPvc', () => {
       failResolveCtx.updatedNodes = []; // updateNodeData fails in resolvePvcMultiAttachError
       checkPvcReadiness(depResolved, failResolveCtx);
     });
+
+    it('detects multi-workload mount violation in simulation when 2 Deployments connect to 1 RWO PVC', () => {
+      const pvcNode: Node = {
+        id: 'pvc-multi',
+        type: 'PVC',
+        data: { label: 'multi-vol', accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+        position: { x: 0, y: 0 },
+      };
+      const dep1: Node = {
+        id: 'dep-1',
+        type: 'Deployment',
+        data: { replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const pod1: Node = {
+        id: 'pod-1',
+        type: 'Pod',
+        parentId: 'dep-1',
+        data: { status: 'ready', image: 'nginx:latest', assignedNode: 'worker-1' },
+        position: { x: 0, y: 0 },
+      };
+      const dep2: Node = {
+        id: 'dep-2',
+        type: 'Deployment',
+        data: { replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const pod2: Node = {
+        id: 'pod-2',
+        type: 'Pod',
+        parentId: 'dep-2',
+        data: { status: 'ready', image: 'redis:latest', assignedNode: 'worker-2' },
+        position: { x: 0, y: 0 },
+      };
+      const edge1: Edge = { id: 'e1', source: 'dep-1', target: 'pvc-multi', data: {} };
+      const edge2: Edge = { id: 'e2', source: 'dep-2', target: 'pvc-multi', data: {} };
+
+      const ctx = createMockCtx([pvcNode, dep1, pod1, dep2, pod2], [edge1, edge2]);
+
+      const res1 = checkPvcReadiness(dep1, ctx);
+      expect(res1.isBlocked).toBe(true);
+      expect(res1.hasChanges).toBe(true);
+
+      const pvcUpdated = ctx.updatedNodes.find((n) => n.id === 'pvc-multi');
+      const pod1Updated = ctx.updatedNodes.find((n) => n.id === 'pod-1');
+      const pod2Updated = ctx.updatedNodes.find((n) => n.id === 'pod-2');
+
+      expect(pvcUpdated?.data.pvcStatus).toBe('Multi-Attach Error');
+      expect(pod1Updated?.data.status).toBe('pending');
+      expect(pod2Updated?.data.status).toBe('pending');
+      expect(edge1.data?.validationError).toContain('Multi-Attach Error');
+      expect(edge2.data?.validationError).toContain('Multi-Attach Error');
+    });
+
+    it('detects cross-namespace binding error in simulation when workload and PVC namespaces differ', () => {
+      const nsA: Node = { id: 'ns-a', type: 'Namespace', data: { label: 'ns-a' }, position: { x: 0, y: 0 } };
+      const nsB: Node = { id: 'ns-b', type: 'Namespace', data: { label: 'ns-b' }, position: { x: 0, y: 0 } };
+      const pvcNode: Node = {
+        id: 'pvc-b',
+        type: 'PVC',
+        parentId: 'ns-b',
+        data: { label: 'vol-b', accessMode: 'ReadWriteOnce', pvcStatus: 'Pending' },
+        position: { x: 0, y: 0 },
+      };
+      const depA: Node = {
+        id: 'dep-a',
+        type: 'Deployment',
+        parentId: 'ns-a',
+        data: { replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const podA: Node = {
+        id: 'pod-a',
+        type: 'Pod',
+        parentId: 'dep-a',
+        data: { status: 'ready', image: 'nginx:alpine' },
+        position: { x: 0, y: 0 },
+      };
+      const edge: Edge = { id: 'e1', source: 'dep-a', target: 'pvc-b', data: {} };
+
+      const ctx = createMockCtx([nsA, nsB, pvcNode, depA, podA], [edge]);
+      const res = checkPvcReadiness(depA, ctx);
+
+      expect(res.isBlocked).toBe(true);
+      expect(res.hasChanges).toBe(true);
+      expect(edge.data?.validationError).toContain('Cross-Namespace Binding Error');
+      expect(ctx.updatedNodes.find((n) => n.id === 'pod-a')?.data.status).toBe('pending');
+    });
   });
 });

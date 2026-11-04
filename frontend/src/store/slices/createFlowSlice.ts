@@ -20,7 +20,7 @@ import {
 } from '@/activities/terminal/liveUpdateCommands';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 import { hasResourceLimitAttachedOrConnected } from '@/activities/nodes/resourceLimitHelpers';
-import { evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
+import { evaluatePvcRealtimeStatus, syncPvcRealtimeState } from '@/activities/config/pvcConfigHelpers';
 import { syncDeployment, syncContainerSize, isChildPodOf } from '@/store/nodeHelpers';
 
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
@@ -681,7 +681,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     emitRemovedEdgeCommands(removeChanges, nodes, edges);
 
     set((state) => {
-      const nextEdges = applyEdgeChanges(changes, state.edges);
+      let nextEdges = applyEdgeChanges(changes, state.edges);
       let syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
 
       const removedEdgeObjects = removeChanges
@@ -691,6 +691,12 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       syncedNodes = syncedNodes.map((node) =>
         reconcileNodeOnEdgeChange(node, removedEdgeObjects, nextEdges, state.nodes)
       );
+
+      if (syncedNodes.some((n) => n.type === 'PVC')) {
+        const pvcSynced = syncPvcRealtimeState(syncedNodes, nextEdges);
+        syncedNodes = pvcSynced.nodes;
+        nextEdges = pvcSynced.edges;
+      }
 
       const isRemoval = removeChanges.length > 0;
       return {
@@ -751,7 +757,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       if (state.edges.some((e) => e.source === sourceId && e.target === targetId)) return state;
 
       isAdded = true;
-      const nextEdges = addEdge(newEdge, state.edges);
+      let nextEdges = addEdge(newEdge, state.edges);
       let syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
 
       syncedNodes = syncedNodes.map((n) =>
@@ -764,6 +770,12 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
           tgtNode: targetNode,
         })
       );
+
+      if (sourceNode?.type === 'PVC' || targetNode?.type === 'PVC' || syncedNodes.some((n) => n.type === 'PVC')) {
+        const pvcSynced = syncPvcRealtimeState(syncedNodes, nextEdges);
+        syncedNodes = pvcSynced.nodes;
+        nextEdges = pvcSynced.edges;
+      }
 
       return {
         edges: nextEdges,

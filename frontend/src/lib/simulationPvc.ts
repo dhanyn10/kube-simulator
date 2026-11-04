@@ -3,6 +3,8 @@ import { K8sNodeData } from '@/types';
 import { safeRandom } from './utils';
 import { logger } from './logger';
 import { SimulationContext, updateNodeData } from './simulationTypes';
+import { getAssignedWorker } from './workerNodeHelpers';
+import { resolveNodeNamespace } from '@/activities/config/pvcConfigHelpers';
 
 const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
@@ -26,33 +28,97 @@ const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
   return connectedPVCs;
 };
 
-const calculateWorkloadReplicaCount = (
-  workloadNode: Node,
-  connectedWorkloadIds: Set<string>
-): number => {
-  if (workloadNode.data?.workloadType === 'StatefulSet') {
-    return 1;
+interface SimulationWorkloadResult {
+  replicas: number;
+  pods: Node[];
+  workers: string[];
+}
+
+const analyzeSimulationController = (
+  node: Node,
+  ctx: SimulationContext
+): SimulationWorkloadResult => {
+  const isStatefulSet = node.data?.workloadType === 'StatefulSet';
+  const childPods =
+    ctx.childPodMap?.get(node.id) ||
+    ctx.updatedNodes.filter(
+      (n) => n.type === 'Pod' && (n.parentId === node.id || n.data?.parentId === node.id)
+    ) ||
+    [];
+
+  if (isStatefulSet) {
+    const firstPod = childPods[0];
+    const worker = firstPod
+      ? getAssignedWorker(firstPod.data, firstPod.id)
+      : getAssignedWorker(node.data, node.id);
+    return {
+      replicas: 1,
+      pods: firstPod ? [firstPod] : [],
+      workers: [worker],
+    };
   }
-  if (workloadNode.type === 'Deployment' || workloadNode.type === 'StatefulSet' || workloadNode.type === 'ReplicaSet') {
-    const replicas = Number(workloadNode.data?.replicas);
-    return Number.isNaN(replicas) || replicas < 1 ? 1 : replicas;
+
+  const rep = Number(node.data?.replicas);
+  const safeRep = Number.isNaN(rep) || rep < 1 ? 1 : rep;
+  const effectiveReplicas = Math.max(childPods.length, safeRep);
+
+  const workers: string[] = [];
+  if (childPods.length > 0) {
+    childPods.forEach((p) => workers.push(getAssignedWorker(p.data, p.id)));
+  } else {
+    workers.push(getAssignedWorker(node.data, node.id));
   }
-  if (workloadNode.type === 'Pod') {
-    const parentId = String(workloadNode.parentId || workloadNode.data?.parentId || '');
-    if (!parentId || !connectedWorkloadIds.has(parentId)) {
-      return 1;
+
+  return {
+    replicas: effectiveReplicas,
+    pods: childPods,
+    workers,
+  };
+};
+
+export interface PvcSimulationCountResult {
+  totalReplicas: number;
+  connectedEdges: Edge[];
+  connectedPods: Node[];
+  workerNodes: Set<string>;
+  namespaceConflict?: { pvcNs: string; workloadNs: string; workloadLabel: string };
+  errorMsg?: string;
+}
+
+const formatSimulationPvcError = (
+  pvc: Node,
+  totalReplicas: number,
+  workerNodes: Set<string>,
+  namespaceConflict?: { pvcNs: string; workloadNs: string; workloadLabel: string }
+): string | undefined => {
+  const pvcLabel = pvc.data?.label || pvc.id;
+  const accessMode = pvc.data?.accessMode || 'ReadWriteOnce';
+
+  if (namespaceConflict) {
+    return `Cross-Namespace Binding Error: PVC "${pvcLabel}" in namespace "${namespaceConflict.pvcNs}" cannot be claimed by workload "${namespaceConflict.workloadLabel}" in namespace "${namespaceConflict.workloadNs}"`;
+  }
+
+  if (accessMode === 'ReadWriteOnce') {
+    if (workerNodes.size > 1) {
+      const workerList = Array.from(workerNodes).sort().join(', ');
+      return `Multi-Attach Error: Volume "${pvcLabel}" (ReadWriteOnce) cannot be mounted on multiple worker nodes (${workerList}) simultaneously`;
+    }
+    if (totalReplicas > 1) {
+      return `Multi-Attach Error: Volume "${pvcLabel}" (ReadWriteOnce) cannot be mounted by ${totalReplicas} replicas simultaneously`;
     }
   }
-  return 0;
+
+  return undefined;
 };
 
 /**
- * Calculates total active replicas connected to a PVC node across all connected workloads.
+ * Calculates total active replicas connected to a PVC node across all connected workloads,
+ * gathering child pods, worker nodes, and namespace isolation constraints.
  */
 export const countConnectedPvcReplicas = (
   pvc: Node,
   ctx: SimulationContext
-): { totalReplicas: number; connectedEdges: Edge[] } => {
+): PvcSimulationCountResult => {
   const connectedEdges: Edge[] = [];
   const connectedWorkloadIds = new Set<string>();
 
@@ -66,26 +132,81 @@ export const countConnectedPvcReplicas = (
     }
   }
 
+  const pvcNs = resolveNodeNamespace(pvc, ctx.nodes);
+  let namespaceConflict: PvcSimulationCountResult['namespaceConflict'];
+  const workerNodes = new Set<string>();
+  const connectedPods: Node[] = [];
+  const podIdsSeen = new Set<string>();
   let totalReplicas = 0;
+
   for (const workloadId of connectedWorkloadIds) {
-    const workloadNode = ctx.nodeMap?.get(workloadId) || ctx.updatedNodes.find(node => node.id === workloadId) || ctx.nodes.find(node => node.id === workloadId);
-    if (workloadNode) {
-      totalReplicas += calculateWorkloadReplicaCount(workloadNode, connectedWorkloadIds);
+    const workloadNode =
+      ctx.nodeMap?.get(workloadId) ||
+      ctx.updatedNodes.find((node) => node.id === workloadId) ||
+      ctx.nodes.find((node) => node.id === workloadId);
+    if (!workloadNode) continue;
+
+    const workloadNs = resolveNodeNamespace(workloadNode, ctx.nodes);
+    if (pvcNs && workloadNs && pvcNs !== workloadNs && !namespaceConflict) {
+      namespaceConflict = {
+        pvcNs,
+        workloadNs,
+        workloadLabel: workloadNode.data?.label || workloadNode.id,
+      };
+    }
+
+    if (
+      workloadNode.type === 'Deployment' ||
+      workloadNode.type === 'StatefulSet' ||
+      workloadNode.type === 'ReplicaSet' ||
+      workloadNode.data?.workloadType === 'StatefulSet'
+    ) {
+      const res = analyzeSimulationController(workloadNode, ctx);
+      totalReplicas += res.replicas;
+      res.pods.forEach((p) => {
+        if (!podIdsSeen.has(p.id)) {
+          podIdsSeen.add(p.id);
+          connectedPods.push(p);
+        }
+      });
+      res.workers.forEach((w) => workerNodes.add(w));
+    } else if (workloadNode.type === 'Pod') {
+      const parentId = String(workloadNode.parentId || workloadNode.data?.parentId || '');
+      if (!parentId || !connectedWorkloadIds.has(parentId)) {
+        if (!podIdsSeen.has(workloadNode.id)) {
+          podIdsSeen.add(workloadNode.id);
+          connectedPods.push(workloadNode);
+        }
+        totalReplicas += 1;
+        workerNodes.add(getAssignedWorker(workloadNode.data, workloadNode.id));
+      }
     }
   }
 
-  return { totalReplicas, connectedEdges };
+  const errorMsg = formatSimulationPvcError(pvc, totalReplicas, workerNodes, namespaceConflict);
+
+  return {
+    totalReplicas,
+    connectedEdges,
+    connectedPods,
+    workerNodes,
+    namespaceConflict,
+    errorMsg,
+  };
 };
 
 const handlePvcMultiAttachError = (
   pvc: Node,
   totalReplicas: number,
   connectedEdges: Edge[],
-  childPods: Node[],
-  ctx: SimulationContext
+  allPodsToUpdate: Node[],
+  ctx: SimulationContext,
+  customErrorMsg?: string
 ): boolean => {
   let hasChanges = false;
-  const errorMsg = `Multi-Attach Error: Volume "${pvc.data?.label || pvc.id}" (ReadWriteOnce) cannot be mounted by ${totalReplicas} replicas simultaneously`;
+  const errorMsg =
+    customErrorMsg ||
+    `Multi-Attach Error: Volume "${pvc.data?.label || pvc.id}" (ReadWriteOnce) cannot be mounted by ${totalReplicas} replicas simultaneously`;
 
   if (pvc.data?.pvcStatus !== 'Multi-Attach Error') {
     if (updateNodeData(ctx, pvc.id, { pvcStatus: 'Multi-Attach Error' })) {
@@ -105,7 +226,7 @@ const handlePvcMultiAttachError = (
     }
   }
 
-  for (const pod of childPods) {
+  for (const pod of allPodsToUpdate) {
     if (pod.data?.status === 'ready') {
       if (updateNodeData(ctx, pod.id, { status: 'pending' })) {
         hasChanges = true;
@@ -127,7 +248,10 @@ const resolvePvcMultiAttachError = (
       hasChanges = true;
     }
     for (const edge of connectedEdges) {
-      if (edge.data?.validationError?.includes('Multi-Attach Error')) {
+      if (
+        edge.data?.validationError?.includes('Multi-Attach Error') ||
+        edge.data?.validationError?.includes('Cross-Namespace Binding Error')
+      ) {
         edge.data = { ...edge.data, validationError: undefined };
         hasChanges = true;
       }
@@ -150,10 +274,18 @@ const evaluateSingleConnectedPvc = (
   let isBlocked = false;
 
   const accessMode = pvc.data?.accessMode || 'ReadWriteOnce';
-  const { totalReplicas, connectedEdges } = countConnectedPvcReplicas(pvc, ctx);
+  const { totalReplicas, connectedEdges, connectedPods, workerNodes, namespaceConflict, errorMsg } =
+    countConnectedPvcReplicas(pvc, ctx);
 
-  if (accessMode === 'ReadWriteOnce' && totalReplicas > 1) {
-    if (handlePvcMultiAttachError(pvc, totalReplicas, connectedEdges, childPods, ctx)) {
+  const isConflict = Boolean(
+    namespaceConflict ||
+      (accessMode === 'ReadWriteOnce' && (workerNodes.size > 1 || totalReplicas > 1))
+  );
+
+  const podsToUpdate = Array.from(new Set([...childPods, ...connectedPods]));
+
+  if (isConflict) {
+    if (handlePvcMultiAttachError(pvc, totalReplicas, connectedEdges, podsToUpdate, ctx, errorMsg)) {
       hasChanges = true;
     }
     return { hasChanges, isBlocked: true };
@@ -163,9 +295,9 @@ const evaluateSingleConnectedPvc = (
     hasChanges = true;
   }
 
-  const currentPvcNode = ctx.updatedNodes.find(node => node.id === pvc.id) || pvc;
+  const currentPvcNode = ctx.updatedNodes.find((node) => node.id === pvc.id) || pvc;
   if (currentPvcNode.data?.pvcStatus !== 'Bound') {
-    const unboundResult = handleUnboundPvcs([currentPvcNode], childPods, ctx);
+    const unboundResult = handleUnboundPvcs([currentPvcNode], podsToUpdate, ctx);
     if (unboundResult.hasChanges) hasChanges = true;
     isBlocked = true;
   }

@@ -1,100 +1,30 @@
 import { Node, Edge } from '@xyflow/react';
+import { getAssignedWorker } from '@/lib/workerNodeHelpers';
 
 /**
- * Calculates total connected workload replicas for a given PVC node.
- *
- * @param pvcNodeId - The ID of the PVC node.
- * @param nodes - List of all canvas nodes.
- * @param edges - List of all canvas edges.
- * @returns Total number of connected replicas across Deployments, ReplicaSets, and standalone Pods.
+ * Resolves the Kubernetes namespace for a given node, either from `node.data.namespace`
+ * or by traversing parent hierarchy until reaching a Namespace container node.
  */
-export const calculatePvcConnectedReplicas = (
-  pvcNodeId: string,
-  nodes: Node[],
-  edges: Edge[]
-): number => {
-  const connectedNodeIds = new Set<string>();
-
-  edges.forEach((edge) => {
-    if (edge.source === pvcNodeId) {
-      connectedNodeIds.add(edge.target);
-    } else if (edge.target === pvcNodeId) {
-      connectedNodeIds.add(edge.source);
-    }
-  });
-
-  let totalReplicas = 0;
-  connectedNodeIds.forEach((id) => {
-    const node = nodes.find((n) => n.id === id);
-    if (!node) return;
-
-    if (node.data?.workloadType === 'StatefulSet') {
-      totalReplicas += 1;
-    } else if (node.type === 'Deployment' || node.type === 'ReplicaSet') {
-      const rep = Number(node.data?.replicas);
-      totalReplicas += Number.isNaN(rep) || rep < 1 ? 1 : rep;
-    } else if (node.type === 'Pod') {
-      // Only count standalone Pods if they don't have a parent Deployment already counted
-      if (!node.data?.parentId || !connectedNodeIds.has(String(node.data.parentId))) {
-        totalReplicas += 1;
-      }
-    }
-  });
-
-  return totalReplicas;
-};
-
-/**
- * Evaluates real-time PVC status based on connected workload replicas and PVC accessMode.
- *
- * @param pvcNode - The PVC canvas node object.
- * @param nodes - List of all canvas nodes.
- * @param edges - List of all canvas edges.
- * @returns Status string: 'Multi-Attach Error', 'Bound', or 'Pending'.
- */
-export const evaluatePvcRealtimeStatus = (
-  pvcNode: Node,
-  nodes: Node[],
-  edges: Edge[]
-): 'Multi-Attach Error' | 'Bound' | 'Pending' => {
-  const connectedReplicas = calculatePvcConnectedReplicas(pvcNode.id, nodes, edges);
-  const accessMode = pvcNode.data?.accessMode || 'ReadWriteOnce';
-
-  if (accessMode === 'ReadWriteOnce' && connectedReplicas > 1) {
-    return 'Multi-Attach Error';
+export const resolveNodeNamespace = (node: Node, nodes: Node[]): string => {
+  if (node.data?.namespace) {
+    return String(node.data.namespace);
   }
-
-  if (connectedReplicas > 0) {
-    return 'Bound';
+  let curr: Node | undefined = node;
+  while (curr?.parentId) {
+    const parent = nodes.find((n) => n.id === curr?.parentId);
+    if (!parent) break;
+    if (parent.type === 'Namespace') {
+      return String(parent.data?.label || parent.data?.name || parent.id);
+    }
+    curr = parent;
   }
-
-  return (pvcNode.data?.pvcStatus as 'Bound' | 'Pending') || 'Pending';
-};
-
-/**
- * Determines the target PVC status based on multi-attach conflict state and connected replica count.
- *
- * @param isMultiAttachConflict - Whether a multi-attach error condition exists.
- * @param connectedReplicas - Number of connected workload replicas.
- * @returns Target PVC status string.
- */
-const determinePvcTargetStatus = (
-  isMultiAttachConflict: boolean,
-  connectedReplicas: number
-): 'Multi-Attach Error' | 'Bound' | 'Pending' => {
-  if (isMultiAttachConflict) return 'Multi-Attach Error';
-  if (connectedReplicas > 0) return 'Bound';
-  return 'Pending';
+  return '';
 };
 
 /**
  * Extracts connected workload node IDs directly connected to the specified PVC node.
- *
- * @param pvcNodeId - ID of the PVC node.
- * @param edges - Array of canvas edges.
- * @returns Set of connected workload node IDs.
  */
-const getConnectedWorkloadIds = (pvcNodeId: string, edges: Edge[]): Set<string> => {
+export const getConnectedWorkloadIds = (pvcNodeId: string, edges: Edge[]): Set<string> => {
   const connectedWorkloadIds = new Set<string>();
   edges.forEach((e) => {
     if (e.source === pvcNodeId) connectedWorkloadIds.add(e.target);
@@ -104,38 +34,234 @@ const getConnectedWorkloadIds = (pvcNodeId: string, edges: Edge[]): Set<string> 
 };
 
 /**
+ * Finds all child pods belonging to a controller workload node.
+ */
+export const collectWorkloadChildPods = (workloadNode: Node, allNodes: Node[]): Node[] => {
+  return allNodes.filter(
+    (n) => n.type === 'Pod' && (n.parentId === workloadNode.id || n.data?.parentId === workloadNode.id)
+  );
+};
+
+export interface PvcWorkloadAnalysis {
+  totalReplicas: number;
+  connectedEdges: Edge[];
+  connectedPods: Node[];
+  distinctWorkerNodes: Set<string>;
+  namespaceConflict?: { pvcNs: string; workloadNs: string; workloadLabel: string };
+  workerNodeConflict?: { workerNodes: string[] };
+}
+
+/**
+ * Analyzes a controller workload node (Deployment, StatefulSet, ReplicaSet) for PVC connection.
+ */
+const analyzeControllerWorkload = (
+  node: Node,
+  allNodes: Node[]
+): { replicas: number; pods: Node[]; workers: string[] } => {
+  const isStatefulSet = node.data?.workloadType === 'StatefulSet';
+  const childPods = collectWorkloadChildPods(node, allNodes);
+
+  if (isStatefulSet) {
+    const firstPod = childPods[0];
+    const worker = firstPod
+      ? getAssignedWorker(firstPod.data, firstPod.id)
+      : getAssignedWorker(node.data, node.id);
+    return {
+      replicas: 1,
+      pods: firstPod ? [firstPod] : [],
+      workers: [worker],
+    };
+  }
+
+  const rep = Number(node.data?.replicas);
+  const safeRep = Number.isNaN(rep) || rep < 1 ? 1 : rep;
+  const effectiveReplicas = Math.max(childPods.length, safeRep);
+
+  const workers: string[] = [];
+  if (childPods.length > 0) {
+    childPods.forEach((p) => workers.push(getAssignedWorker(p.data, p.id)));
+  } else {
+    workers.push(getAssignedWorker(node.data, node.id));
+  }
+
+  return {
+    replicas: effectiveReplicas,
+    pods: childPods,
+    workers,
+  };
+};
+
+/**
+ * Analyzes all workloads, child pods, worker nodes, and namespaces connected to a PVC node.
+ */
+export const analyzePvcWorkloadConnections = (
+  pvcNode: Node,
+  nodes: Node[],
+  edges: Edge[]
+): PvcWorkloadAnalysis => {
+  const connectedEdges = edges.filter((e) => e.source === pvcNode.id || e.target === pvcNode.id);
+  const connectedIds = getConnectedWorkloadIds(pvcNode.id, edges);
+
+  const pvcNs = resolveNodeNamespace(pvcNode, nodes);
+  let namespaceConflict: PvcWorkloadAnalysis['namespaceConflict'];
+  const distinctWorkerNodes = new Set<string>();
+  const connectedPods: Node[] = [];
+  const podIdsSeen = new Set<string>();
+  let totalReplicas = 0;
+
+  for (const id of connectedIds) {
+    const node = nodes.find((n) => n.id === id);
+    if (!node) continue;
+
+    const nodeNs = resolveNodeNamespace(node, nodes);
+    if (pvcNs && nodeNs && pvcNs !== nodeNs && !namespaceConflict) {
+      namespaceConflict = { pvcNs, workloadNs: nodeNs, workloadLabel: node.data?.label || node.id };
+    }
+
+    if (node.type === 'Deployment' || node.type === 'StatefulSet' || node.type === 'ReplicaSet') {
+      const res = analyzeControllerWorkload(node, nodes);
+      totalReplicas += res.replicas;
+      res.pods.forEach((p) => {
+        if (!podIdsSeen.has(p.id)) {
+          podIdsSeen.add(p.id);
+          connectedPods.push(p);
+        }
+      });
+      res.workers.forEach((w) => distinctWorkerNodes.add(w));
+    } else if (node.type === 'Pod') {
+      const parentId = String(node.parentId || node.data?.parentId || '');
+      if (!parentId || !connectedIds.has(parentId)) {
+        if (!podIdsSeen.has(node.id)) {
+          podIdsSeen.add(node.id);
+          connectedPods.push(node);
+        }
+        totalReplicas += 1;
+        distinctWorkerNodes.add(getAssignedWorker(node.data, node.id));
+      }
+    }
+  }
+
+  const workerNodeConflict =
+    distinctWorkerNodes.size > 1
+      ? { workerNodes: Array.from(distinctWorkerNodes).sort() }
+      : undefined;
+
+  return {
+    totalReplicas,
+    connectedEdges,
+    connectedPods,
+    distinctWorkerNodes,
+    namespaceConflict,
+    workerNodeConflict,
+  };
+};
+
+/**
+ * Generates descriptive error message for PVC validation conflicts.
+ */
+export const getPvcValidationErrorMsg = (
+  pvcNode: Node,
+  analysis: PvcWorkloadAnalysis
+): string | undefined => {
+  const pvcLabel = pvcNode.data?.label || pvcNode.id;
+  const accessMode = pvcNode.data?.accessMode || 'ReadWriteOnce';
+
+  if (analysis.namespaceConflict) {
+    return `Cross-Namespace Binding Error: PVC "${pvcLabel}" in namespace "${analysis.namespaceConflict.pvcNs}" cannot be claimed by workload "${analysis.namespaceConflict.workloadLabel}" in namespace "${analysis.namespaceConflict.workloadNs}"`;
+  }
+
+  if (accessMode === 'ReadWriteOnce') {
+    if (analysis.workerNodeConflict && analysis.workerNodeConflict.workerNodes.length > 1) {
+      const workerList = analysis.workerNodeConflict.workerNodes.join(', ');
+      return `Multi-Attach Error: Volume "${pvcLabel}" (ReadWriteOnce) cannot be mounted on multiple worker nodes (${workerList}) simultaneously`;
+    }
+    if (analysis.totalReplicas > 1) {
+      return `Multi-Attach Error: Volume "${pvcLabel}" (ReadWriteOnce) cannot be mounted by ${analysis.totalReplicas} replicas simultaneously`;
+    }
+  }
+
+  return undefined;
+};
+
+/**
+ * Calculates total connected workload replicas for a given PVC node.
+ */
+export const calculatePvcConnectedReplicas = (
+  pvcNodeId: string,
+  nodes: Node[],
+  edges: Edge[]
+): number => {
+  const pvcNode = nodes.find((n) => n.id === pvcNodeId);
+  if (!pvcNode) return 0;
+  const analysis = analyzePvcWorkloadConnections(pvcNode, nodes, edges);
+  return analysis.totalReplicas;
+};
+
+/**
+ * Determines target PVC status based on multi-attach / namespace conflicts and replica count.
+ */
+const determinePvcTargetStatus = (
+  isConflict: boolean,
+  connectedReplicas: number
+): 'Multi-Attach Error' | 'Bound' | 'Pending' => {
+  if (isConflict) return 'Multi-Attach Error';
+  if (connectedReplicas > 0) return 'Bound';
+  return 'Pending';
+};
+
+/**
+ * Evaluates real-time PVC status based on connected workload replicas and PVC accessMode.
+ */
+export const evaluatePvcRealtimeStatus = (
+  pvcNode: Node,
+  nodes: Node[],
+  edges: Edge[]
+): 'Multi-Attach Error' | 'Bound' | 'Pending' => {
+  const analysis = analyzePvcWorkloadConnections(pvcNode, nodes, edges);
+  const accessMode = pvcNode.data?.accessMode || 'ReadWriteOnce';
+
+  if (analysis.namespaceConflict) {
+    return 'Multi-Attach Error';
+  }
+
+  if (accessMode === 'ReadWriteOnce') {
+    if (analysis.workerNodeConflict || analysis.totalReplicas > 1) {
+      return 'Multi-Attach Error';
+    }
+  }
+
+  if (analysis.totalReplicas > 0) {
+    return 'Bound';
+  }
+
+  return (pvcNode.data?.pvcStatus as 'Bound' | 'Pending') || 'Pending';
+};
+
+/**
  * Updates validation errors on canvas edges connected to a PVC node.
- *
- * @param pvcNode - Target PVC node.
- * @param edges - Array of canvas edges.
- * @param isMultiAttachConflict - Whether multi-attach conflict exists.
- * @param connectedReplicas - Number of connected replicas.
- * @returns Object containing updated edges array and changed boolean flag.
  */
 const updatePvcEdges = (
   pvcNode: Node,
   edges: Edge[],
-  isMultiAttachConflict: boolean,
-  connectedReplicas: number
+  isConflict: boolean,
+  errorMsg?: string
 ): { edges: Edge[]; changed: boolean } => {
   let edgesChanged = false;
-  const errorMsg = isMultiAttachConflict
-    ? `Multi-Attach Error: Volume "${pvcNode.data?.label || pvcNode.id}" (ReadWriteOnce) cannot be mounted by ${connectedReplicas} replicas simultaneously`
-    : undefined;
 
   const updatedEdges = edges.map((edge) => {
     if (edge.source !== pvcNode.id && edge.target !== pvcNode.id) {
       return edge;
     }
 
-    if (isMultiAttachConflict) {
+    if (isConflict && errorMsg) {
       if (edge.data?.validationError !== errorMsg) {
         edgesChanged = true;
         return { ...edge, data: { ...edge.data, validationError: errorMsg } };
       }
     } else if (
       typeof edge.data?.validationError === 'string' &&
-      edge.data.validationError.includes('Multi-Attach Error')
+      (edge.data.validationError.includes('Multi-Attach Error') ||
+        edge.data.validationError.includes('Cross-Namespace Binding Error'))
     ) {
       edgesChanged = true;
       return { ...edge, data: { ...edge.data, validationError: undefined } };
@@ -147,29 +273,23 @@ const updatePvcEdges = (
 };
 
 /**
- * Synchronizes Pod statuses for workloads connected to a PVC node.
- *
- * @param nodes - Array of canvas nodes.
- * @param connectedWorkloadIds - Set of connected workload IDs.
- * @param isMultiAttachConflict - Whether multi-attach conflict exists.
- * @returns Object containing updated nodes array and changed boolean flag.
+ * Synchronizes Pod statuses for all workloads connected to a PVC node.
  */
 const updateConnectedPodStatuses = (
   nodes: Node[],
-  connectedWorkloadIds: Set<string>,
-  isMultiAttachConflict: boolean
+  connectedPods: Node[],
+  isConflict: boolean
 ): { nodes: Node[]; changed: boolean } => {
-  if (connectedWorkloadIds.size === 0) {
+  if (connectedPods.length === 0) {
     return { nodes, changed: false };
   }
 
+  const podIdSet = new Set(connectedPods.map((p) => p.id));
   let nodesChanged = false;
-  const updatedNodes = nodes.map((node) => {
-    const isConnectedDirectly = connectedWorkloadIds.has(node.id);
-    const isConnectedParent = node.parentId && connectedWorkloadIds.has(String(node.parentId));
 
-    if (node.type === 'Pod' && (isConnectedDirectly || isConnectedParent)) {
-      if (isMultiAttachConflict) {
+  const updatedNodes = nodes.map((node) => {
+    if (node.type === 'Pod' && podIdSet.has(node.id)) {
+      if (isConflict) {
         if (node.data?.status !== 'pending') {
           nodesChanged = true;
           return { ...node, data: { ...node.data, status: 'pending' } };
@@ -189,30 +309,26 @@ const updateConnectedPodStatuses = (
 };
 
 /**
- * Dedicated function to handle ReadWriteOnce (RWO) PVC access mode validation and state synchronization.
- * Evaluates connected workload replicas in real-time (whether in simulation or edit mode):
- * - If connected replicas > 1 for RWO, sets PVC status to 'Multi-Attach Error', applies edge validation errors, and marks workload pods as pending.
- * - If connected replicas <= 1, restores PVC status to 'Bound', clears edge validation errors, and restores workload pods to 'ready' status if configured.
- *
- * @param pvcNode - The target PVC canvas node.
- * @param nodes - List of current canvas nodes.
- * @param edges - List of current canvas edges.
- * @returns Object containing updated nodes and edges arrays.
+ * Dedicated function to handle ReadWriteOnce (RWO) and Namespace PVC access mode validation and state synchronization.
  */
 export const handlePvcRwoAccessMode = (
   pvcNode: Node,
   nodes: Node[],
   edges: Edge[]
 ): { nodes: Node[]; edges: Edge[] } => {
-  const connectedReplicas = calculatePvcConnectedReplicas(pvcNode.id, nodes, edges);
+  const analysis = analyzePvcWorkloadConnections(pvcNode, nodes, edges);
   const accessMode = pvcNode.data?.accessMode || 'ReadWriteOnce';
   const isRWO = accessMode === 'ReadWriteOnce';
-  const isMultiAttachConflict = isRWO && connectedReplicas > 1;
+
+  const isConflict = Boolean(
+    analysis.namespaceConflict ||
+      (isRWO && (analysis.workerNodeConflict || analysis.totalReplicas > 1))
+  );
 
   let nodesChanged = false;
   let updatedNodes = [...nodes];
 
-  const targetPvcStatus = determinePvcTargetStatus(isMultiAttachConflict, connectedReplicas);
+  const targetPvcStatus = determinePvcTargetStatus(isConflict, analysis.totalReplicas);
   if (pvcNode.data?.pvcStatus !== targetPvcStatus) {
     nodesChanged = true;
     updatedNodes = updatedNodes.map((n) =>
@@ -220,18 +336,18 @@ export const handlePvcRwoAccessMode = (
     );
   }
 
+  const errorMsg = isConflict ? getPvcValidationErrorMsg(pvcNode, analysis) : undefined;
   const { edges: updatedEdges, changed: edgesChanged } = updatePvcEdges(
     pvcNode,
     edges,
-    isMultiAttachConflict,
-    connectedReplicas
+    isConflict,
+    errorMsg
   );
 
-  const connectedWorkloadIds = getConnectedWorkloadIds(pvcNode.id, edges);
   const { nodes: syncedNodes, changed: podsChanged } = updateConnectedPodStatuses(
     updatedNodes,
-    connectedWorkloadIds,
-    isMultiAttachConflict
+    analysis.connectedPods,
+    isConflict
   );
 
   return {
@@ -242,10 +358,6 @@ export const handlePvcRwoAccessMode = (
 
 /**
  * Synchronizes PVC statuses and connected edge validation errors in real-time across all PVC nodes on canvas.
- *
- * @param nodes - List of all canvas nodes.
- * @param edges - List of all canvas edges.
- * @returns Object containing updated nodes and edges arrays.
  */
 export const syncPvcRealtimeState = (
   nodes: Node[],
