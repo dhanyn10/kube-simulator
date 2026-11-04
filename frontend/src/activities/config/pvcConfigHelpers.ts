@@ -91,6 +91,86 @@ const analyzeControllerWorkload = (
   };
 };
 
+interface WorkloadAccumulation {
+  connectedPods: Node[];
+  podIdsSeen: Set<string>;
+  distinctWorkerNodes: Set<string>;
+}
+
+const checkWorkloadNamespaceConflict = (
+  pvcNs: string,
+  workloadNode: Node,
+  nodes: Node[],
+  currentConflict?: PvcWorkloadAnalysis['namespaceConflict']
+): PvcWorkloadAnalysis['namespaceConflict'] => {
+  if (currentConflict || !pvcNs) return currentConflict;
+  const nodeNs = resolveNodeNamespace(workloadNode, nodes);
+  if (nodeNs && pvcNs !== nodeNs) {
+    return {
+      pvcNs,
+      workloadNs: nodeNs,
+      workloadLabel: workloadNode.data?.label || workloadNode.id,
+    };
+  }
+  return undefined;
+};
+
+const isControllerWorkload = (node: Node): boolean => {
+  return (
+    node.type === 'Deployment' ||
+    node.type === 'StatefulSet' ||
+    node.type === 'ReplicaSet' ||
+    node.data?.workloadType === 'StatefulSet'
+  );
+};
+
+const addPodsAndWorkers = (
+  target: WorkloadAccumulation,
+  pods: Node[],
+  workers: string[]
+) => {
+  for (const p of pods) {
+    if (!target.podIdsSeen.has(p.id)) {
+      target.podIdsSeen.add(p.id);
+      target.connectedPods.push(p);
+    }
+  }
+  for (const w of workers) {
+    target.distinctWorkerNodes.add(w);
+  }
+};
+
+const processStandalonePod = (
+  node: Node,
+  connectedIds: Set<string>,
+  target: WorkloadAccumulation
+): number => {
+  const parentId = String(node.parentId || node.data?.parentId || '');
+  if (parentId && connectedIds.has(parentId)) {
+    return 0;
+  }
+  const worker = getAssignedWorker(node.data, node.id);
+  addPodsAndWorkers(target, [node], [worker]);
+  return 1;
+};
+
+const processConnectedWorkloadNode = (
+  node: Node,
+  connectedIds: Set<string>,
+  nodes: Node[],
+  target: WorkloadAccumulation
+): number => {
+  if (isControllerWorkload(node)) {
+    const res = analyzeControllerWorkload(node, nodes);
+    addPodsAndWorkers(target, res.pods, res.workers);
+    return res.replicas;
+  }
+  if (node.type === 'Pod') {
+    return processStandalonePod(node, connectedIds, target);
+  }
+  return 0;
+};
+
 /**
  * Analyzes all workloads, child pods, worker nodes, and namespaces connected to a PVC node.
  */
@@ -101,61 +181,34 @@ export const analyzePvcWorkloadConnections = (
 ): PvcWorkloadAnalysis => {
   const connectedEdges = edges.filter((e) => e.source === pvcNode.id || e.target === pvcNode.id);
   const connectedIds = getConnectedWorkloadIds(pvcNode.id, edges);
-
   const pvcNs = resolveNodeNamespace(pvcNode, nodes);
+
   let namespaceConflict: PvcWorkloadAnalysis['namespaceConflict'];
-  const distinctWorkerNodes = new Set<string>();
-  const connectedPods: Node[] = [];
-  const podIdsSeen = new Set<string>();
+  const target: WorkloadAccumulation = {
+    connectedPods: [],
+    podIdsSeen: new Set<string>(),
+    distinctWorkerNodes: new Set<string>(),
+  };
   let totalReplicas = 0;
 
   for (const id of connectedIds) {
     const node = nodes.find((n) => n.id === id);
     if (!node) continue;
 
-    const nodeNs = resolveNodeNamespace(node, nodes);
-    if (pvcNs && nodeNs && pvcNs !== nodeNs && !namespaceConflict) {
-      namespaceConflict = { pvcNs, workloadNs: nodeNs, workloadLabel: node.data?.label || node.id };
-    }
-
-    if (
-      node.type === 'Deployment' ||
-      node.type === 'StatefulSet' ||
-      node.type === 'ReplicaSet' ||
-      node.data?.workloadType === 'StatefulSet'
-    ) {
-      const res = analyzeControllerWorkload(node, nodes);
-      totalReplicas += res.replicas;
-      res.pods.forEach((p) => {
-        if (!podIdsSeen.has(p.id)) {
-          podIdsSeen.add(p.id);
-          connectedPods.push(p);
-        }
-      });
-      res.workers.forEach((w) => distinctWorkerNodes.add(w));
-    } else if (node.type === 'Pod') {
-      const parentId = String(node.parentId || node.data?.parentId || '');
-      if (!parentId || !connectedIds.has(parentId)) {
-        if (!podIdsSeen.has(node.id)) {
-          podIdsSeen.add(node.id);
-          connectedPods.push(node);
-        }
-        totalReplicas += 1;
-        distinctWorkerNodes.add(getAssignedWorker(node.data, node.id));
-      }
-    }
+    namespaceConflict = checkWorkloadNamespaceConflict(pvcNs, node, nodes, namespaceConflict);
+    totalReplicas += processConnectedWorkloadNode(node, connectedIds, nodes, target);
   }
 
   const workerNodeConflict =
-    distinctWorkerNodes.size > 1
-      ? { workerNodes: Array.from(distinctWorkerNodes).sort() }
+    target.distinctWorkerNodes.size > 1
+      ? { workerNodes: Array.from(target.distinctWorkerNodes).sort((a, b) => a.localeCompare(b)) }
       : undefined;
 
   return {
     totalReplicas,
     connectedEdges,
-    connectedPods,
-    distinctWorkerNodes,
+    connectedPods: target.connectedPods,
+    distinctWorkerNodes: target.distinctWorkerNodes,
     namespaceConflict,
     workerNodeConflict,
   };

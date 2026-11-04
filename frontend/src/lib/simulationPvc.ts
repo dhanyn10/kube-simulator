@@ -40,6 +40,16 @@ export interface PvcSimulationCountResult {
   errorMsg?: string;
 }
 
+const resolveSimulationNodes = (ctx: SimulationContext): Node[] => {
+  if (ctx.updatedNodes && ctx.updatedNodes.length > 0) {
+    return ctx.updatedNodes;
+  }
+  if (ctx.nodes && ctx.nodes.length > 0) {
+    return ctx.nodes;
+  }
+  return Array.from(ctx.nodeMap?.values() || []);
+};
+
 /**
  * Calculates total active replicas connected to a PVC node across all connected workloads,
  * delegating to the unified PVC workload analyzer.
@@ -48,9 +58,7 @@ export const countConnectedPvcReplicas = (
   pvc: Node,
   ctx: SimulationContext
 ): PvcSimulationCountResult => {
-  const currentNodes = ctx.updatedNodes?.length
-    ? ctx.updatedNodes
-    : (ctx.nodes?.length ? ctx.nodes : Array.from(ctx.nodeMap?.values() || []));
+  const currentNodes = resolveSimulationNodes(ctx);
   const analysis = analyzePvcWorkloadConnections(pvc, currentNodes, ctx.edges);
   const errorMsg = getPvcValidationErrorMsg(pvc, analysis);
 
