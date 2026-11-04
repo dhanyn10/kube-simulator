@@ -3,6 +3,11 @@ import { K8sNodeData } from '@/types';
 import { safeRandom } from './utils';
 import { logger } from './logger';
 import { SimulationContext, updateNodeData } from './simulationTypes';
+import {
+  analyzePvcWorkloadConnections,
+  getPvcValidationErrorMsg,
+  PvcWorkloadAnalysis,
+} from '@/activities/config/pvcConfigHelpers';
 
 const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
@@ -26,66 +31,59 @@ const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
   return connectedPVCs;
 };
 
-const calculateWorkloadReplicaCount = (
-  workloadNode: Node,
-  connectedWorkloadIds: Set<string>
-): number => {
-  if (workloadNode.data?.workloadType === 'StatefulSet') {
-    return 1;
+export interface PvcSimulationCountResult {
+  totalReplicas: number;
+  connectedEdges: Edge[];
+  connectedPods: Node[];
+  workerNodes: Set<string>;
+  namespaceConflict?: PvcWorkloadAnalysis['namespaceConflict'];
+  errorMsg?: string;
+}
+
+const resolveSimulationNodes = (ctx: SimulationContext): Node[] => {
+  if (ctx.updatedNodes && ctx.updatedNodes.length > 0) {
+    return ctx.updatedNodes;
   }
-  if (workloadNode.type === 'Deployment' || workloadNode.type === 'StatefulSet' || workloadNode.type === 'ReplicaSet') {
-    const replicas = Number(workloadNode.data?.replicas);
-    return Number.isNaN(replicas) || replicas < 1 ? 1 : replicas;
+  if (ctx.nodes && ctx.nodes.length > 0) {
+    return ctx.nodes;
   }
-  if (workloadNode.type === 'Pod') {
-    const parentId = String(workloadNode.parentId || workloadNode.data?.parentId || '');
-    if (!parentId || !connectedWorkloadIds.has(parentId)) {
-      return 1;
-    }
-  }
-  return 0;
+  return Array.from(ctx.nodeMap?.values() || []);
 };
 
 /**
- * Calculates total active replicas connected to a PVC node across all connected workloads.
+ * Calculates total active replicas connected to a PVC node across all connected workloads,
+ * delegating to the unified PVC workload analyzer.
  */
 export const countConnectedPvcReplicas = (
   pvc: Node,
   ctx: SimulationContext
-): { totalReplicas: number; connectedEdges: Edge[] } => {
-  const connectedEdges: Edge[] = [];
-  const connectedWorkloadIds = new Set<string>();
+): PvcSimulationCountResult => {
+  const currentNodes = resolveSimulationNodes(ctx);
+  const analysis = analyzePvcWorkloadConnections(pvc, currentNodes, ctx.edges);
+  const errorMsg = getPvcValidationErrorMsg(pvc, analysis);
 
-  for (const edge of ctx.edges) {
-    if (edge.source === pvc.id) {
-      connectedEdges.push(edge);
-      connectedWorkloadIds.add(edge.target);
-    } else if (edge.target === pvc.id) {
-      connectedEdges.push(edge);
-      connectedWorkloadIds.add(edge.source);
-    }
-  }
-
-  let totalReplicas = 0;
-  for (const workloadId of connectedWorkloadIds) {
-    const workloadNode = ctx.nodeMap?.get(workloadId) || ctx.updatedNodes.find(node => node.id === workloadId) || ctx.nodes.find(node => node.id === workloadId);
-    if (workloadNode) {
-      totalReplicas += calculateWorkloadReplicaCount(workloadNode, connectedWorkloadIds);
-    }
-  }
-
-  return { totalReplicas, connectedEdges };
+  return {
+    totalReplicas: analysis.totalReplicas,
+    connectedEdges: analysis.connectedEdges,
+    connectedPods: analysis.connectedPods,
+    workerNodes: analysis.distinctWorkerNodes,
+    namespaceConflict: analysis.namespaceConflict,
+    errorMsg,
+  };
 };
 
 const handlePvcMultiAttachError = (
   pvc: Node,
   totalReplicas: number,
   connectedEdges: Edge[],
-  childPods: Node[],
-  ctx: SimulationContext
+  allPodsToUpdate: Node[],
+  ctx: SimulationContext,
+  customErrorMsg?: string
 ): boolean => {
   let hasChanges = false;
-  const errorMsg = `Multi-Attach Error: Volume "${pvc.data?.label || pvc.id}" (ReadWriteOnce) cannot be mounted by ${totalReplicas} replicas simultaneously`;
+  const errorMsg =
+    customErrorMsg ||
+    `Multi-Attach Error: Volume "${pvc.data?.label || pvc.id}" (ReadWriteOnce) cannot be mounted by ${totalReplicas} replicas simultaneously`;
 
   if (pvc.data?.pvcStatus !== 'Multi-Attach Error') {
     if (updateNodeData(ctx, pvc.id, { pvcStatus: 'Multi-Attach Error' })) {
@@ -105,7 +103,7 @@ const handlePvcMultiAttachError = (
     }
   }
 
-  for (const pod of childPods) {
+  for (const pod of allPodsToUpdate) {
     if (pod.data?.status === 'ready') {
       if (updateNodeData(ctx, pod.id, { status: 'pending' })) {
         hasChanges = true;
@@ -127,7 +125,10 @@ const resolvePvcMultiAttachError = (
       hasChanges = true;
     }
     for (const edge of connectedEdges) {
-      if (edge.data?.validationError?.includes('Multi-Attach Error')) {
+      if (
+        edge.data?.validationError?.includes('Multi-Attach Error') ||
+        edge.data?.validationError?.includes('Cross-Namespace Binding Error')
+      ) {
         edge.data = { ...edge.data, validationError: undefined };
         hasChanges = true;
       }
@@ -150,10 +151,18 @@ const evaluateSingleConnectedPvc = (
   let isBlocked = false;
 
   const accessMode = pvc.data?.accessMode || 'ReadWriteOnce';
-  const { totalReplicas, connectedEdges } = countConnectedPvcReplicas(pvc, ctx);
+  const { totalReplicas, connectedEdges, connectedPods, workerNodes, namespaceConflict, errorMsg } =
+    countConnectedPvcReplicas(pvc, ctx);
 
-  if (accessMode === 'ReadWriteOnce' && totalReplicas > 1) {
-    if (handlePvcMultiAttachError(pvc, totalReplicas, connectedEdges, childPods, ctx)) {
+  const isConflict = Boolean(
+    namespaceConflict ||
+      (accessMode === 'ReadWriteOnce' && (workerNodes.size > 1 || totalReplicas > 1))
+  );
+
+  const podsToUpdate = Array.from(new Set([...childPods, ...connectedPods]));
+
+  if (isConflict) {
+    if (handlePvcMultiAttachError(pvc, totalReplicas, connectedEdges, podsToUpdate, ctx, errorMsg)) {
       hasChanges = true;
     }
     return { hasChanges, isBlocked: true };
@@ -163,9 +172,9 @@ const evaluateSingleConnectedPvc = (
     hasChanges = true;
   }
 
-  const currentPvcNode = ctx.updatedNodes.find(node => node.id === pvc.id) || pvc;
+  const currentPvcNode = ctx.updatedNodes.find((node) => node.id === pvc.id) || pvc;
   if (currentPvcNode.data?.pvcStatus !== 'Bound') {
-    const unboundResult = handleUnboundPvcs([currentPvcNode], childPods, ctx);
+    const unboundResult = handleUnboundPvcs([currentPvcNode], podsToUpdate, ctx);
     if (unboundResult.hasChanges) hasChanges = true;
     isBlocked = true;
   }
