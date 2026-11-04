@@ -1,14 +1,28 @@
 import { Node, Edge } from '@xyflow/react';
 import { SimulationContext } from './simulationTypes';
 import { getAssignedWorker } from './workerNodeHelpers';
+import { resolveNodeNamespace } from './namespaceUtils';
 
 /**
  * Helper to check if a Service's selector matches a target workload's label.
+ * Enforces intra-namespace matching for non-LoadBalancer services.
  */
-export const isServiceSelectorMatching = (serviceNode: Node, workloadNode: Node): boolean => {
+export const isServiceSelectorMatching = (
+  serviceNode: Node,
+  workloadNode: Node,
+  nodes?: Node[]
+): boolean => {
   const selector = serviceNode.data?.selector;
   if (!selector || typeof selector !== 'string' || selector.trim() === '') {
     return false;
+  }
+  const serviceType = serviceNode.data?.serviceType || 'ClusterIP';
+  if (serviceType !== 'LoadBalancer') {
+    const serviceNamespace = resolveNodeNamespace(serviceNode, nodes || [serviceNode]);
+    const workloadNamespace = resolveNodeNamespace(workloadNode, nodes || [workloadNode]);
+    if (serviceNamespace !== workloadNamespace) {
+      return false;
+    }
   }
   const targetLabel = workloadNode.data?.label || workloadNode.data?.baseName;
   const matchLabels = workloadNode.data?.labels?.app;
@@ -23,40 +37,53 @@ export const hasValidServiceSelectorTarget = (serviceNode: Node, nodes: Node[]):
   if (!selector || typeof selector !== 'string' || selector.trim() === '') {
     return false;
   }
-  return nodes.some(node =>
-    (node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet' || node.type === 'StatefulSet') &&
-    isServiceSelectorMatching(serviceNode, node)
+  return nodes.some(candidateNode =>
+    (candidateNode.type === 'Pod' || candidateNode.type === 'Deployment' || candidateNode.type === 'ReplicaSet' || candidateNode.type === 'StatefulSet') &&
+    isServiceSelectorMatching(serviceNode, candidateNode, nodes)
+  );
+};
+
+const matchesIngressRule = (
+  serviceNode: Node,
+  ruleServiceName: string,
+  ingressNamespace: string,
+  nodes: Node[]
+): boolean => {
+  return (
+    serviceNode.type === 'Service' &&
+    (serviceNode.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
+    (serviceNode.data?.label === ruleServiceName || serviceNode.data?.selector === ruleServiceName) &&
+    resolveNodeNamespace(serviceNode, nodes) === ingressNamespace
   );
 };
 
 /**
- * Checks if an Ingress resource points to a valid ClusterIP Service on the canvas.
+ * Checks if an Ingress resource points to a valid ClusterIP Service on the canvas within the same namespace.
  */
 export const hasValidIngressBackend = (ingressNode: Node, nodes: Node[], edgeMap?: Map<string, Edge[]>): boolean => {
-  const outgoing = edgeMap?.get(ingressNode.id) || [];
-  for (const edge of outgoing) {
-    const target = nodes.find(node => node.id === edge.target);
-    if (target?.type === 'Service' && (target?.data?.serviceType || 'ClusterIP') === 'ClusterIP') {
+  const ingressNamespace = resolveNodeNamespace(ingressNode, nodes);
+
+  const outgoingEdges = edgeMap?.get(ingressNode.id) || [];
+  for (const edge of outgoingEdges) {
+    if (edge.data?.validationError) continue;
+    const targetService = nodes.find(candidateNode => candidateNode.id === edge.target);
+    if (
+      targetService?.type === 'Service' &&
+      (targetService?.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
+      resolveNodeNamespace(targetService, nodes) === ingressNamespace
+    ) {
       return true;
     }
   }
   if (Array.isArray(ingressNode.data?.ingressPaths) && ingressNode.data.ingressPaths.length > 0) {
     const hasValidRule = ingressNode.data.ingressPaths.some((rule: any) =>
-      nodes.some(node =>
-        node.type === 'Service' &&
-        (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
-        (node.data?.label === rule.serviceName || node.data?.selector === rule.serviceName)
-      )
+      nodes.some(candidateNode => matchesIngressRule(candidateNode, rule.serviceName, ingressNamespace, nodes))
     );
     if (hasValidRule) return true;
   }
   const backendName = ingressNode.data?.backendServiceName || ingressNode.data?.serviceName;
   if (backendName) {
-    return nodes.some(node =>
-      node.type === 'Service' &&
-      (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
-      (node.data?.label === backendName || node.data?.selector === backendName)
-    );
+    return nodes.some(candidateNode => matchesIngressRule(candidateNode, backendName, ingressNamespace, nodes));
   }
   return false;
 };
@@ -72,9 +99,9 @@ const isServiceValidForProcessing = (
   if (serviceType === 'NodePort') return true;
 
   const hasWorkloadTarget = hasValidServiceSelectorTarget(currentNode, nodes);
-  const outgoing = edgeMap.get(currentId) || [];
-  const hasIngressTarget = outgoing.some(edge => {
-    const targetNode = nodes.find(node => node.id === edge.target);
+  const outgoingEdges = edgeMap.get(currentId) || [];
+  const hasIngressTarget = outgoingEdges.some(edge => {
+    const targetNode = nodes.find(candidateNode => candidateNode.id === edge.target);
     return targetNode?.type === 'Ingress';
   });
 
@@ -90,12 +117,12 @@ const isTargetOnEntryNode = (
     return getAssignedWorker(node.data, node.id) === entryNode;
   }
   const childPods = nodes.filter(
-    child =>
-      child.type === 'Pod' &&
-      (String(child.parentId) === String(node.id) || String(child.data?.parentId) === String(node.id))
+    childPod =>
+      childPod.type === 'Pod' &&
+      (String(childPod.parentId) === String(node.id) || String(childPod.data?.parentId) === String(node.id))
   );
   if (childPods.length > 0) {
-    return childPods.some(child => getAssignedWorker(child.data, child.id) === entryNode);
+    return childPods.some(childPod => getAssignedWorker(childPod.data, childPod.id) === entryNode);
   }
   return getAssignedWorker(node.data, node.id) === entryNode;
 };
@@ -119,10 +146,10 @@ const enqueueDynamicServiceTargets = (
   queue: string[]
 ) => {
   if (currentNode.type !== 'Service' || !nodes) return;
-  const selectorTargets = nodes.filter(node =>
-    (node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet' || node.type === 'StatefulSet') &&
-    isServiceSelectorMatching(currentNode, node) &&
-    !isLocalPolicyBlocked(currentNode, node, nodes)
+  const selectorTargets = nodes.filter(candidateNode =>
+    (candidateNode.type === 'Pod' || candidateNode.type === 'Deployment' || candidateNode.type === 'ReplicaSet' || candidateNode.type === 'StatefulSet') &&
+    isServiceSelectorMatching(currentNode, candidateNode, nodes) &&
+    !isLocalPolicyBlocked(currentNode, candidateNode, nodes)
   );
   for (const target of selectorTargets) {
     queue.push(String(target.id));
@@ -130,19 +157,19 @@ const enqueueDynamicServiceTargets = (
 };
 
 const getIngressTargetServiceNames = (currentNode: Node): Set<string> => {
-  const names = new Set<string>();
+  const targetNames = new Set<string>();
   const backendName = currentNode.data?.backendServiceName || currentNode.data?.serviceName;
   if (typeof backendName === 'string' && backendName) {
-    names.add(backendName);
+    targetNames.add(backendName);
   }
   if (Array.isArray(currentNode.data?.ingressPaths)) {
     for (const rule of currentNode.data.ingressPaths) {
       if (rule?.serviceName) {
-        names.add(String(rule.serviceName));
+        targetNames.add(String(rule.serviceName));
       }
     }
   }
-  return names;
+  return targetNames;
 };
 
 const enqueueDynamicIngressTargets = (
@@ -154,10 +181,13 @@ const enqueueDynamicIngressTargets = (
   const targetServiceNames = getIngressTargetServiceNames(currentNode);
   if (targetServiceNames.size === 0) return;
 
-  const backendServices = nodes.filter(node =>
-    node.type === 'Service' &&
-    (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
-    targetServiceNames.has(String(node.data?.label || ''))
+  const ingressNamespace = resolveNodeNamespace(currentNode, nodes);
+
+  const backendServices = nodes.filter(candidateService =>
+    candidateService.type === 'Service' &&
+    (candidateService.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
+    targetServiceNames.has(String(candidateService.data?.label || '')) &&
+    resolveNodeNamespace(candidateService, nodes) === ingressNamespace
   );
   for (const service of backendServices) {
     queue.push(String(service.id));
@@ -171,7 +201,7 @@ const processOutgoingEdges = (
   queue: string[],
   nodes?: Node[]
 ) => {
-  const currentNode = nodes?.find(node => node.id === currentId);
+  const currentNode = nodes?.find(candidateNode => candidateNode.id === currentId);
 
   if (currentNode && nodes) {
     if (!isServiceValidForProcessing(currentNode, currentId, nodes, edgeMap)) {
@@ -182,9 +212,9 @@ const processOutgoingEdges = (
     }
   }
 
-  const outgoing = edgeMap.get(currentId);
-  if (outgoing) {
-    for (const edge of outgoing) {
+  const outgoingEdges = edgeMap.get(currentId);
+  if (outgoingEdges) {
+    for (const edge of outgoingEdges) {
       if (activeEdgesSet.has(String(edge.id)) && !edge.data?.validationError) {
         queue.push(String(edge.target));
       }
@@ -207,7 +237,7 @@ export const calculateReachability = (
   allNodes?: Node[]
 ): Set<string> => {
   const reachableNodes = new Set<string>();
-  const queue = startNodes.map(node => node.id);
+  const queue = startNodes.map(startNode => startNode.id);
   const activeEdgesSet = activeSimulationEdges instanceof Set
     ? activeSimulationEdges
     : new Set(activeSimulationEdges);
@@ -229,12 +259,12 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
 
   if (node?.type === 'Service') {
     const serviceType = node?.data?.serviceType || 'ClusterIP';
-    const outgoing = nodes.filter(n =>
-      (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet' || n.type === 'StatefulSet') &&
-      isServiceSelectorMatching(node, n)
+    const matchingWorkloads = nodes.filter(candidateWorkload =>
+      (candidateWorkload.type === 'Pod' || candidateWorkload.type === 'Deployment' || candidateWorkload.type === 'ReplicaSet' || candidateWorkload.type === 'StatefulSet') &&
+      isServiceSelectorMatching(node, candidateWorkload, nodes)
     );
-    const hasIngressTarget = nodes.some(n => n.type === 'Ingress');
-    if (outgoing.length === 0 && !hasIngressTarget && serviceType !== 'NodePort') {
+    const hasIngressTarget = nodes.some(candidateNode => candidateNode.type === 'Ingress');
+    if (matchingWorkloads.length === 0 && !hasIngressTarget && serviceType !== 'NodePort') {
       return true;
     }
   }
@@ -246,7 +276,7 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
   }
 
   if (node?.type === 'Deployment' || node?.type === 'StatefulSet') {
-    const childPods = nodes.filter((n) => (String(n.parentId) === String(node.id) || String(n.data?.parentId) === String(node.id)) && n.type === 'Pod');
+    const childPods = nodes.filter((candidatePod) => (String(candidatePod.parentId) === String(node.id) || String(candidatePod.data?.parentId) === String(node.id)) && candidatePod.type === 'Pod');
     if (childPods.some((pod) => pod.data?.status !== 'ready')) return true;
   }
   return false;
@@ -268,8 +298,8 @@ const hasUnreadyDownstreamPath = (
     if (visited.has(currentId)) continue;
     visited.add(currentId);
 
-    const node = ctx.nodeMap?.get(currentId) || ctx.nodes.find(n => String(n.id) === currentId);
-    if (checkNodeUnreadyInternal(node, ctx.nodes)) {
+    const targetNode = ctx.nodeMap?.get(currentId) || ctx.nodes.find(candidateNode => String(candidateNode.id) === currentId);
+    if (checkNodeUnreadyInternal(targetNode, ctx.nodes)) {
       return true;
     }
 
@@ -290,12 +320,12 @@ const hasUnreadyDownstreamPath = (
  * Checks if outgoing edges from internet node or downstream workload paths have validation errors or unready nodes.
  */
 export const isInternetConnectionRed = (internet: Node, ctx: SimulationContext): boolean => {
-  const outgoing = ctx.edgeMap?.get(internet.id) || [];
-  if (outgoing.length === 0) return true;
+  const outgoingEdges = ctx.edgeMap?.get(internet.id) || [];
+  if (outgoingEdges.length === 0) return true;
 
   const activeEdgesSet = new Set(ctx.activeSimulationEdges);
 
-  for (const edge of outgoing) {
+  for (const edge of outgoingEdges) {
     if (edge.data?.validationError) return true;
     if (hasUnreadyDownstreamPath(String(edge.target), ctx, activeEdgesSet)) {
       return true;

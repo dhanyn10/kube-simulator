@@ -461,6 +461,27 @@ describe('createFlowSlice', () => {
     expect(edges[0].data?.validationError).toBeDefined();
   });
 
+  it('onConnect flags validationError and emits warning log on cross-namespace connection', () => {
+    const addLogSpy = vi.fn();
+    const ns1 = { id: 'ns1', type: 'Namespace', data: { label: 'ns-1' }, position: { x: 0, y: 0 } };
+    const ns2 = { id: 'ns2', type: 'Namespace', data: { label: 'ns-2' }, position: { x: 0, y: 0 } };
+    const svc1 = { id: 'svc1', type: 'Service', parentId: 'ns1', data: { serviceType: 'ClusterIP' }, position: { x: 0, y: 0 } };
+    const pod2 = { id: 'pod2', type: 'Pod', parentId: 'ns2', data: { label: 'pod-2' }, position: { x: 0, y: 0 } };
+
+    useFlowStore.setState({
+      nodes: [ns1, ns2, svc1, pod2] as any,
+      edges: [],
+      addLog: addLogSpy,
+    });
+
+    useFlowStore.getState().onConnect({ source: 'svc1', target: 'pod2' });
+
+    const edges = useFlowStore.getState().edges;
+    expect(edges).toHaveLength(1);
+    expect(edges[0].data?.validationError).toContain('Cross-namespace connection is not allowed');
+    expect(addLogSpy).toHaveBeenCalledWith('warn', expect.stringContaining('Cross-namespace connection is not allowed'), 'UI');
+  });
+
   it('onConnect handles parented source and target nodes with container handles', () => {
     const ns = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
     const pod1 = { id: 'p1', type: 'Pod', parentId: 'ns1', position: { x: 10, y: 10 }, data: {} };

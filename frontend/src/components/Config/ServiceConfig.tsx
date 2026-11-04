@@ -3,6 +3,7 @@ import { useFlowStore } from '@/store';
 import { Network, Box, Server, ChevronDown, Check, Lock, AlertTriangle } from 'lucide-react';
 import { ConfigSection } from '@/components/UI/ConfigUI';
 import { cn } from '@/lib/utils';
+import { resolveNodeNamespace } from '@/lib/namespaceUtils';
 import { ExternalTrafficPolicySection, EntryNodeSection } from './ServiceWorkerConfigSections';
 
 interface ServiceConfigProps {
@@ -85,37 +86,45 @@ const getCategoryBadgeClasses = (category: string): string => {
 };
 
 const isNodeInServiceScope = (
-  n: any,
-  selectedNamespaceId: string | null,
-  currentServiceType: string
+  candidateNode: any,
+  selectedNamespace: string,
+  currentServiceType: string,
+  nodes: any[]
 ): boolean => {
   if (currentServiceType === 'LoadBalancer') return true;
-  if (!selectedNamespaceId) return !n.parentId;
-  return n.parentId === selectedNamespaceId;
+  const candidateNamespace = resolveNodeNamespace(candidateNode, nodes);
+  return selectedNamespace === candidateNamespace;
 };
 
-const isSelectableWorkloadNode = (n: any): boolean => {
-  if (WORKLOAD_TYPES.has(n.type)) return true;
-  return n.type === 'Pod' && !n.parentId && !n.data?.parentId;
+const isSelectableWorkloadNode = (candidateNode: any, nodes?: any[]): boolean => {
+  if (WORKLOAD_TYPES.has(candidateNode.type)) return true;
+  if (candidateNode.type !== 'Pod') return false;
+  if (!candidateNode.parentId && !candidateNode.data?.parentId) return true;
+  const parentNode = nodes?.find((p) => p.id === (candidateNode.parentId || candidateNode.data?.parentId));
+  return parentNode?.type === 'Namespace';
 };
 
-const getNodeLabel = (n: any): string => {
-  return (n.data?.label as string) || (n.data?.baseName as string) || n.id || '';
+const getNodeLabel = (targetNode: any): string => {
+  return (targetNode.data?.label as string) || (targetNode.data?.baseName as string) || targetNode.id || '';
 };
 
-const toSelectorOption = (n: any, currentServiceType: string): SelectorDropdownOption | null => {
-  const label = getNodeLabel(n);
+const toSelectorOption = (
+  candidateNode: any,
+  currentServiceType: string,
+  nodes?: any[]
+): SelectorDropdownOption | null => {
+  const label = getNodeLabel(candidateNode);
   if (!label) return null;
 
-  if (currentServiceType === 'LoadBalancer' && n.type === 'Ingress') {
+  if (currentServiceType === 'LoadBalancer' && candidateNode.type === 'Ingress') {
     return { label, category: 'INGRESS' };
   }
 
-  if (!isSelectableWorkloadNode(n)) return null;
-  const isStateful = n.type === 'StatefulSet' || n.data?.workloadType === 'StatefulSet';
-  const cat = (isStateful ? 'STATEFULSET' : n.type.toUpperCase()) as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
-  const port = Number(n.data?.port) || undefined;
-  return { label, category: cat, port };
+  if (!isSelectableWorkloadNode(candidateNode, nodes)) return null;
+  const isStateful = candidateNode.type === 'StatefulSet' || candidateNode.data?.workloadType === 'StatefulSet';
+  const category = (isStateful ? 'STATEFULSET' : candidateNode.type.toUpperCase()) as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
+  const port = Number(candidateNode.data?.port) || undefined;
+  return { label, category, port };
 };
 
 const buildServiceSelectorOptions = (
@@ -123,14 +132,14 @@ const buildServiceSelectorOptions = (
   nodes: any[],
   currentServiceType: string
 ): SelectorDropdownOption[] => {
-  const selectedNamespaceId = selectedNode.parentId || selectedNode.data?.parentId || null;
+  const selectedNamespace = resolveNodeNamespace(selectedNode, nodes);
   const optionsMap = new Map<string, SelectorDropdownOption>();
 
-  for (const n of nodes) {
-    if (isNodeInServiceScope(n, selectedNamespaceId, currentServiceType)) {
-      const opt = toSelectorOption(n, currentServiceType);
-      if (opt && !optionsMap.has(opt.label)) {
-        optionsMap.set(opt.label, opt);
+  for (const candidateNode of nodes) {
+    if (isNodeInServiceScope(candidateNode, selectedNamespace, currentServiceType, nodes)) {
+      const selectorOption = toSelectorOption(candidateNode, currentServiceType, nodes);
+      if (selectorOption && !optionsMap.has(selectorOption.label)) {
+        optionsMap.set(selectorOption.label, selectorOption);
       }
     }
   }

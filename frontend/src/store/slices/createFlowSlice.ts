@@ -12,6 +12,7 @@ import {
 } from '@xyflow/react';
 import type { FlowState } from '@/store/types';
 import { getConnectionError } from '@/constants/connections';
+import { resolveNodeNamespace } from '@/lib/namespaceUtils';
 import { getAbsPos, ejectLoadBalancersFromNamespaces } from '@/store/helpers';
 import { safeRandom } from '@/lib/utils';
 import {
@@ -396,7 +397,9 @@ const isNodeInDirection = (
   nodes: Node[]
 ): boolean => {
   if (targetNode.id === sourceNode.id) return false;
-  if (getConnectionError(sourceNode.type || '', targetNode.type || '', sourceNode.data, targetNode.data) !== null) return false;
+  const sourceNamespace = resolveNodeNamespace(sourceNode, nodes);
+  const targetNamespace = resolveNodeNamespace(targetNode, nodes);
+  if (getConnectionError(sourceNode.type || '', targetNode.type || '', sourceNode.data, targetNode.data, sourceNamespace, targetNamespace) !== null) return false;
 
   const sourceCenter = getNodeAbsCenter(sourceNode, nodes);
   const targetCenter = getNodeAbsCenter(targetNode, nodes);
@@ -715,7 +718,16 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     const targetNode = nodes.find((n) => n.id === edge.target);
     if (!sourceNode || !targetNode) return edge;
 
-    const error = getConnectionError(sourceNode.type || '', targetNode.type || '', sourceNode.data, targetNode.data);
+    const sourceNamespace = resolveNodeNamespace(sourceNode, nodes);
+    const targetNamespace = resolveNodeNamespace(targetNode, nodes);
+    const error = getConnectionError(
+      sourceNode.type || '',
+      targetNode.type || '',
+      sourceNode.data,
+      targetNode.data,
+      sourceNamespace,
+      targetNamespace
+    );
     return {
       ...edge,
       data: { ...edge.data, validationError: error },
@@ -751,6 +763,10 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       source: sourceId,
       target: targetId,
     } as Edge);
+
+    if (newEdge.data?.validationError) {
+      addLog('warn', `[Connection Alert] ${newEdge.data.validationError}`, 'UI');
+    }
 
     let isAdded = false;
     set((state) => {

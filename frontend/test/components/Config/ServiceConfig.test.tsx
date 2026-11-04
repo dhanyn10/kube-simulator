@@ -276,6 +276,39 @@ describe('ServiceConfig', () => {
     expect(screen.queryByText('ns1-pod')).toBeNull();
   });
 
+  it('strictly limits selector dropdown options to workloads inside the same namespace container', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'ns-staging', type: 'Namespace', data: { label: 'staging' } },
+        { id: 'ns-prod', type: 'Namespace', data: { label: 'prod' } },
+        { id: 'dep-staging', type: 'Deployment', parentId: 'ns-staging', data: { label: 'staging-app' } },
+        { id: 'dep-prod', type: 'Deployment', parentId: 'ns-prod', data: { label: 'prod-app' } },
+        { id: 'dep-default', type: 'Deployment', data: { label: 'default-app' } },
+      ] as any,
+    });
+
+    const serviceInStaging = {
+      ...mockProps,
+      selectedNode: {
+        id: 'svc-staging',
+        parentId: 'ns-staging',
+        data: {
+          serviceType: 'ClusterIP',
+          selector: 'staging-app',
+        },
+      },
+    };
+
+    render(<ServiceConfig {...serviceInStaging} />);
+
+    const selectorDropdownBtn = screen.getByRole('button', { name: /staging-app/i });
+    fireEvent.click(selectorDropdownBtn);
+
+    expect(screen.getAllByText('staging-app').length).toBeGreaterThan(0);
+    expect(screen.queryByText('prod-app')).toBeNull();
+    expect(screen.queryByText('default-app')).toBeNull();
+  });
+
   it('covers Target Port input change and fallback values', () => {
     render(<ServiceConfig {...mockProps} />);
 

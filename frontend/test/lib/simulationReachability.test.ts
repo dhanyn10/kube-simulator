@@ -538,4 +538,92 @@ describe('simulationReachability', () => {
     };
     expect(isInternetConnectionRed(internetNode, ctxReady)).toBe(false);
   });
+
+  it('enforces namespace boundary for service selector and ingress backend routing', () => {
+    const nsStaging: Node = { id: 'ns-staging', type: 'Namespace', data: { label: 'staging' }, position: { x: 0, y: 0 } };
+    const nsProd: Node = { id: 'ns-prod', type: 'Namespace', data: { label: 'production' }, position: { x: 0, y: 0 } };
+
+    // Service in staging with selector "web"
+    const svcStaging: Node = {
+      id: 'svc-staging',
+      type: 'Service',
+      parentId: 'ns-staging',
+      data: { label: 'web-svc', selector: 'web', serviceType: 'ClusterIP' },
+      position: { x: 0, y: 0 },
+    };
+
+    // Pod in production with label "web"
+    const podProd: Node = {
+      id: 'pod-prod',
+      type: 'Pod',
+      parentId: 'ns-prod',
+      data: { label: 'web', status: 'ready' },
+      position: { x: 0, y: 0 },
+    };
+
+    // Pod in staging with label "web"
+    const podStaging: Node = {
+      id: 'pod-staging',
+      type: 'Pod',
+      parentId: 'ns-staging',
+      data: { label: 'web', status: 'ready' },
+      position: { x: 0, y: 0 },
+    };
+
+    const allNodesCrossNs = [nsStaging, nsProd, svcStaging, podProd];
+
+    // 1. Service in staging should NOT match Pod in production despite matching selector
+    expect(hasValidServiceSelectorTarget(svcStaging, allNodesCrossNs)).toBe(false);
+
+    // 2. Service in staging DOES match Pod in staging
+    const allNodesSameNs = [nsStaging, nsProd, svcStaging, podStaging];
+    expect(hasValidServiceSelectorTarget(svcStaging, allNodesSameNs)).toBe(true);
+
+    // 3. Dynamic service reachability: traffic from svc-staging should NOT reach pod-prod
+    const edgeMap = new Map<string, Edge[]>([
+      ['svc-staging', []],
+    ]);
+    const reachableCross = calculateReachability([svcStaging], edgeMap, [], allNodesCrossNs);
+    expect(reachableCross.has('svc-staging')).toBe(true);
+    expect(reachableCross.has('pod-prod')).toBe(false);
+
+    // 4. Dynamic service reachability: traffic from svc-staging DOES reach pod-staging
+    const reachableSame = calculateReachability([svcStaging], edgeMap, [], allNodesSameNs);
+    expect(reachableSame.has('pod-staging')).toBe(true);
+
+    // 5. Ingress in staging with backendServiceName: 'web-svc'
+    const ingressStaging: Node = {
+      id: 'ing-staging',
+      type: 'Ingress',
+      parentId: 'ns-staging',
+      data: { backendServiceName: 'web-svc' },
+      position: { x: 0, y: 0 },
+    };
+
+    // Service in production named 'web-svc'
+    const svcProd: Node = {
+      id: 'svc-prod',
+      type: 'Service',
+      parentId: 'ns-prod',
+      data: { label: 'web-svc', serviceType: 'ClusterIP' },
+      position: { x: 0, y: 0 },
+    };
+
+    // Ingress in staging should NOT accept backend Service in production
+    expect(hasValidIngressBackend(ingressStaging, [nsStaging, nsProd, ingressStaging, svcProd])).toBe(false);
+
+    // Ingress in staging DOES accept backend Service in staging
+    expect(hasValidIngressBackend(ingressStaging, [nsStaging, nsProd, ingressStaging, svcStaging])).toBe(true);
+
+    // Dynamic ingress reachability: Ingress in staging cannot reach Service in prod
+    const ingressEdgeMap = new Map<string, Edge[]>([
+      ['ing-staging', []],
+    ]);
+    const ingressReachableCross = calculateReachability([ingressStaging], ingressEdgeMap, [], [nsStaging, nsProd, ingressStaging, svcProd]);
+    expect(ingressReachableCross.has('svc-prod')).toBe(false);
+
+    // Dynamic ingress reachability: Ingress in staging reaches Service in staging
+    const ingressReachableSame = calculateReachability([ingressStaging], ingressEdgeMap, [], [nsStaging, nsProd, ingressStaging, svcStaging]);
+    expect(ingressReachableSame.has('svc-staging')).toBe(true);
+  });
 });
