@@ -192,6 +192,28 @@ func parseMemoryBytes(mem string) int64 {
 	return 0
 }
 
+// resolveEffectiveCpu determines the effective CPU request value, defaulting to limit and clamping to limit if exceeded.
+func resolveEffectiveCpu(cpuReq, cpuLimit string) string {
+	if cpuReq == "" {
+		return cpuLimit
+	}
+	if cpuLimit != "" && parseCpuMilli(cpuReq) > parseCpuMilli(cpuLimit) {
+		return cpuLimit
+	}
+	return cpuReq
+}
+
+// resolveEffectiveMemory determines the effective memory request value, defaulting to limit and clamping to limit if exceeded.
+func resolveEffectiveMemory(memReq, memLimit string) string {
+	if memReq == "" {
+		return memLimit
+	}
+	if memLimit != "" && parseMemoryBytes(memReq) > parseMemoryBytes(memLimit) {
+		return memLimit
+	}
+	return memReq
+}
+
 // getResourceConfig builds resource requirements (requests and limits) from workload node settings.
 func getResourceConfig(data k8s.K8sNodeData, targetIDs []string, ctx *GenContext) *k8s.ResourceRequirements {
 	if val, ok := data.YamlSettings["resources"]; ok && !val {
@@ -203,26 +225,8 @@ func getResourceConfig(data k8s.K8sNodeData, targetIDs []string, ctx *GenContext
 		return nil
 	}
 
-	effectiveCpuReq := data.CpuRequest
-	if effectiveCpuReq == "" && data.CpuLimit != "" {
-		effectiveCpuReq = data.CpuLimit
-	}
-	effectiveMemReq := data.MemoryRequest
-	if effectiveMemReq == "" && data.MemoryLimit != "" {
-		effectiveMemReq = data.MemoryLimit
-	}
-
-	// QoS Admission Control integrity: requests must be <= limits
-	if data.CpuLimit != "" && effectiveCpuReq != "" {
-		if parseCpuMilli(effectiveCpuReq) > parseCpuMilli(data.CpuLimit) {
-			effectiveCpuReq = data.CpuLimit
-		}
-	}
-	if data.MemoryLimit != "" && effectiveMemReq != "" {
-		if parseMemoryBytes(effectiveMemReq) > parseMemoryBytes(data.MemoryLimit) {
-			effectiveMemReq = data.MemoryLimit
-		}
-	}
+	effectiveCpuReq := resolveEffectiveCpu(data.CpuRequest, data.CpuLimit)
+	effectiveMemReq := resolveEffectiveMemory(data.MemoryRequest, data.MemoryLimit)
 
 	requests := createResourceMap(effectiveCpuReq, effectiveMemReq)
 	limits := createResourceMap(data.CpuLimit, data.MemoryLimit)

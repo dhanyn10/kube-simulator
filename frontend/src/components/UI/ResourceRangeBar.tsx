@@ -39,32 +39,43 @@ export const ResourceRangeBar: React.FC<ResourceRangeBarProps> = ({
     return `${num}${unit}`;
   };
 
+  const renderStatusBadge = () => {
+    const labelKey = label.toLowerCase();
+    if (isInvalid) {
+      return (
+        <span
+          data-testid={`range-status-invalid-${labelKey}`}
+          className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-rose-500/20 text-rose-300 border border-rose-500/40"
+        >
+          Invalid: Request &gt; Limit
+        </span>
+      );
+    }
+    if (isGuaranteed) {
+      return (
+        <span
+          data-testid={`range-status-guaranteed-${labelKey}`}
+          className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+        >
+          Guaranteed ({requestStr})
+        </span>
+      );
+    }
+    return (
+      <span
+        data-testid={`range-status-burstable-${labelKey}`}
+        className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-purple-500/15 text-purple-300 border border-purple-500/30"
+      >
+        {requestStr} &rarr; {limitStr} (+{formatText(burstValue)} burst)
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-1.5 pt-1" data-testid={`resource-range-${label.toLowerCase()}`}>
       <div className="flex items-center justify-between text-[11px]">
         <span className="font-semibold text-slate-400">{label} Range</span>
-        {isInvalid ? (
-          <span
-            data-testid={`range-status-invalid-${label.toLowerCase()}`}
-            className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-rose-500/20 text-rose-300 border border-rose-500/40"
-          >
-            Invalid: Request &gt; Limit
-          </span>
-        ) : isGuaranteed ? (
-          <span
-            data-testid={`range-status-guaranteed-${label.toLowerCase()}`}
-            className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-          >
-            Guaranteed ({requestStr})
-          </span>
-        ) : (
-          <span
-            data-testid={`range-status-burstable-${label.toLowerCase()}`}
-            className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-purple-500/15 text-purple-300 border border-purple-500/30"
-          >
-            {requestStr} &rarr; {limitStr} (+{formatText(burstValue)} burst)
-          </span>
-        )}
+        {renderStatusBadge()}
       </div>
 
       <div
