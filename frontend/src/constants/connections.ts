@@ -33,10 +33,10 @@ const checkInternetRules = (targetType: string, targetData?: Record<string, any>
     return 'Internet cannot connect directly to Ingress. Traffic must enter through an Ingress Controller exposed via a LoadBalancer or NodePort Service.';
   }
   if (targetType !== 'Service') return null;
-  const tType = targetData?.serviceType || 'ClusterIP';
-  return tType === 'LoadBalancer' || tType === 'NodePort'
+  const targetServiceType = targetData?.serviceType || 'ClusterIP';
+  return targetServiceType === 'LoadBalancer' || targetServiceType === 'NodePort'
     ? null
-    : `Internet can only connect to LoadBalancer Services or NodePort Services. Cannot connect to ${tType} Service.`;
+    : `Internet can only connect to LoadBalancer Services or NodePort Services. Cannot connect to ${targetServiceType} Service.`;
 };
 
 /**
@@ -52,10 +52,10 @@ const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string,
     return 'Internet cannot connect directly to Ingress. Traffic must enter through an Ingress Controller exposed via a LoadBalancer or NodePort Service.';
   }
   if (sourceType === 'Service') {
-    const sType = sourceData?.serviceType || 'ClusterIP';
-    return sType === 'LoadBalancer' || sType === 'NodePort'
+    const sourceServiceType = sourceData?.serviceType || 'ClusterIP';
+    return sourceServiceType === 'LoadBalancer' || sourceServiceType === 'NodePort'
       ? null
-      : `${sType} Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
+      : `${sourceServiceType} Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
   }
   if (sourceType === 'Pod' || sourceType === 'Deployment' || sourceType === 'StatefulSet' || sourceType === 'ReplicaSet') {
     return 'Workloads cannot connect to Ingress. Ingress routes traffic to Workloads through a ClusterIP Service.';
@@ -75,10 +75,10 @@ const checkIngressSourceRules = (targetType: string, targetData?: Record<string,
   if (targetType !== 'Service') {
     return `Ingress cannot be connected directly to ${targetType}. Ingress routes traffic strictly through a ClusterIP Service (via backend.service.name).`;
   }
-  const tType = targetData?.serviceType || 'ClusterIP';
-  return tType === 'ClusterIP'
+  const targetServiceType = targetData?.serviceType || 'ClusterIP';
+  return targetServiceType === 'ClusterIP'
     ? null
-    : `Ingress can only connect to ClusterIP Service. Cannot connect to ${tType} Service.`;
+    : `Ingress can only connect to ClusterIP Service. Cannot connect to ${targetServiceType} Service.`;
 };
 
 /**
@@ -90,8 +90,8 @@ const checkIngressSourceRules = (targetType: string, targetData?: Record<string,
  * @returns An English error message if the incoming connection is invalid, or `null` if valid.
  */
 const checkServiceTargetRules = (sourceType: string, targetData?: Record<string, any>): string | null => {
-  const tType = targetData?.serviceType || 'ClusterIP';
-  if (tType === 'LoadBalancer' && sourceType !== 'Internet' && sourceType !== 'Service' && sourceType !== 'Pod' && sourceType !== 'Deployment' && sourceType !== 'StatefulSet') {
+  const targetServiceType = targetData?.serviceType || 'ClusterIP';
+  if (targetServiceType === 'LoadBalancer' && sourceType !== 'Internet' && sourceType !== 'Service' && sourceType !== 'Pod' && sourceType !== 'Deployment' && sourceType !== 'StatefulSet') {
     return `${sourceType} cannot be connected to LoadBalancer Service.`;
   }
   return null;
@@ -104,10 +104,10 @@ const checkServiceTargetRules = (sourceType: string, targetData?: Record<string,
  * @returns An English error message if target Service type is invalid, or `null` if valid.
  */
 const checkLoadBalancerTargetService = (targetData?: Record<string, any>): string | null => {
-  const tType = targetData?.serviceType || 'ClusterIP';
-  return tType === 'ClusterIP' || tType === 'NodePort'
+  const targetServiceType = targetData?.serviceType || 'ClusterIP';
+  return targetServiceType === 'ClusterIP' || targetServiceType === 'NodePort'
     ? null
-    : `LoadBalancer Service cannot connect to ${tType} Service.`;
+    : `LoadBalancer Service cannot connect to ${targetServiceType} Service.`;
 };
 
 /**
@@ -124,11 +124,11 @@ const checkServiceSourceRules = (
   sourceData?: Record<string, any>,
   targetData?: Record<string, any>
 ): string | null => {
-  const sType = sourceData?.serviceType || 'ClusterIP';
+  const sourceServiceType = sourceData?.serviceType || 'ClusterIP';
   if (targetType === 'Pod' || targetType === 'Deployment' || targetType === 'StatefulSet' || targetType === 'ReplicaSet') {
     return null;
   }
-  if (sType === 'LoadBalancer') {
+  if (sourceServiceType === 'LoadBalancer') {
     if (targetType === 'Ingress') return null;
     if (targetType === 'Service') return checkLoadBalancerTargetService(targetData);
   }
@@ -136,78 +136,93 @@ const checkServiceSourceRules = (
 };
 
 type RuleChecker = (
-  s: string,
-  t: string,
-  sData?: Record<string, any>,
-  tData?: Record<string, any>
+  sourceType: string,
+  targetType: string,
+  sourceData?: Record<string, any>,
+  targetData?: Record<string, any>
 ) => string | null;
 
 const SPECIFIC_RULES: RuleChecker[] = [
-  (s, t, _, tData) => (s === 'Internet' ? checkInternetRules(t, tData) : null),
-  (s, t, sData) => (t === 'Ingress' ? checkIngressTargetRules(s, sData) : null),
-  (s, t, _, tData) => (s === 'Ingress' ? checkIngressSourceRules(t, tData) : null),
-  (s, t, _, tData) => (t === 'Service' ? checkServiceTargetRules(s, tData) : null),
-  (s, t, sData, tData) => (s === 'Service' ? checkServiceSourceRules(t, sData, tData) : null),
+  (sourceType, targetType, _sourceData, targetData) => (sourceType === 'Internet' ? checkInternetRules(targetType, targetData) : null),
+  (sourceType, targetType, sourceData) => (targetType === 'Ingress' ? checkIngressTargetRules(sourceType, sourceData) : null),
+  (sourceType, targetType, _sourceData, targetData) => (sourceType === 'Ingress' ? checkIngressSourceRules(targetType, targetData) : null),
+  (sourceType, targetType, _sourceData, targetData) => (targetType === 'Service' ? checkServiceTargetRules(sourceType, targetData) : null),
+  (sourceType, targetType, sourceData, targetData) => (sourceType === 'Service' ? checkServiceSourceRules(targetType, sourceData, targetData) : null),
 ];
 
 const WORKLOAD_TYPES = new Set(['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet']);
 const CONFIG_TYPES = new Set(['ConfigMap', 'Secret', 'PVC']);
 
-const isWorkload = (t: string): boolean => WORKLOAD_TYPES.has(t);
-const isConfigResource = (t: string): boolean => CONFIG_TYPES.has(t);
+const isWorkload = (resourceType: string): boolean => WORKLOAD_TYPES.has(resourceType);
+const isConfigResource = (resourceType: string): boolean => CONFIG_TYPES.has(resourceType);
 
 const checkServiceWorkloadNamespace = (
-  s: string,
-  t: string,
-  sData?: Record<string, any>,
-  tData?: Record<string, any>,
-  sNs?: string,
-  tNs?: string
+  sourceType: string,
+  targetType: string,
+  sourceData?: Record<string, any>,
+  targetData?: Record<string, any>,
+  sourceNs?: string,
+  targetNs?: string
 ): string | null => {
-  const isSvcWorkload = (s === 'Service' && isWorkload(t)) || (isWorkload(s) && t === 'Service');
+  const isSvcWorkload = (sourceType === 'Service' && isWorkload(targetType)) || (isWorkload(sourceType) && targetType === 'Service');
   if (!isSvcWorkload) return null;
-  const sType = (s === 'Service' ? sData : tData)?.serviceType || 'ClusterIP';
-  if (sType === 'LoadBalancer') return null;
-  return `Cross-namespace connection is not allowed: Service in namespace "${sNs}" cannot connect to workload in namespace "${tNs}".`;
+  const serviceType = (sourceType === 'Service' ? sourceData : targetData)?.serviceType || 'ClusterIP';
+  if (serviceType === 'LoadBalancer') return null;
+  return `Cross-namespace connection is not allowed: Service in namespace "${sourceNs}" cannot connect to workload in namespace "${targetNs}".`;
 };
 
-const checkIngressServiceNamespace = (s: string, t: string, sNs?: string, tNs?: string): string | null => {
-  if (s === 'Ingress' && t === 'Service') {
-    return `Cross-namespace backend is not allowed: Ingress in namespace "${sNs}" cannot route to Service in namespace "${tNs}".`;
+const checkIngressServiceNamespace = (
+  sourceType: string,
+  targetType: string,
+  sourceNs?: string,
+  targetNs?: string
+): string | null => {
+  if (sourceType === 'Ingress' && targetType === 'Service') {
+    return `Cross-namespace backend is not allowed: Ingress in namespace "${sourceNs}" cannot route to Service in namespace "${targetNs}".`;
   }
   return null;
 };
 
-const checkWorkloadConfigNamespace = (s: string, t: string, sNs?: string, tNs?: string): string | null => {
-  const isMatch = (isWorkload(s) && isConfigResource(t)) || (isConfigResource(s) && isWorkload(t));
+const checkWorkloadConfigNamespace = (
+  sourceType: string,
+  targetType: string,
+  sourceNs?: string,
+  targetNs?: string
+): string | null => {
+  const isMatch = (isWorkload(sourceType) && isConfigResource(targetType)) || (isConfigResource(sourceType) && isWorkload(targetType));
   if (isMatch) {
-    return `Cross-namespace resource binding is not allowed: ${s} in namespace "${sNs}" cannot bind to ${t} in namespace "${tNs}".`;
+    return `Cross-namespace resource binding is not allowed: ${sourceType} in namespace "${sourceNs}" cannot bind to ${targetType} in namespace "${targetNs}".`;
   }
   return null;
 };
 
-const checkHpaWorkloadNamespace = (s: string, t: string, sNs?: string, tNs?: string): string | null => {
-  const isMatch = (s === 'HPA' && isWorkload(t)) || (isWorkload(s) && t === 'HPA');
+const checkHpaWorkloadNamespace = (
+  sourceType: string,
+  targetType: string,
+  sourceNs?: string,
+  targetNs?: string
+): string | null => {
+  const isMatch = (sourceType === 'HPA' && isWorkload(targetType)) || (isWorkload(sourceType) && targetType === 'HPA');
   if (isMatch) {
-    return `Cross-namespace scaling is not allowed: HPA in namespace "${sNs}" cannot scale workload in namespace "${tNs}".`;
+    return `Cross-namespace scaling is not allowed: HPA in namespace "${sourceNs}" cannot scale workload in namespace "${targetNs}".`;
   }
   return null;
 };
 
 type NamespaceRuleChecker = (
-  s: string,
-  t: string,
-  sData?: Record<string, any>,
-  tData?: Record<string, any>,
-  sNs?: string,
-  tNs?: string
+  sourceType: string,
+  targetType: string,
+  sourceData?: Record<string, any>,
+  targetData?: Record<string, any>,
+  sourceNs?: string,
+  targetNs?: string
 ) => string | null;
 
 const NAMESPACE_RULES: NamespaceRuleChecker[] = [
   checkServiceWorkloadNamespace,
-  (s, t, _, __, sNs, tNs) => checkIngressServiceNamespace(s, t, sNs, tNs),
-  (s, t, _, __, sNs, tNs) => checkWorkloadConfigNamespace(s, t, sNs, tNs),
-  (s, t, _, __, sNs, tNs) => checkHpaWorkloadNamespace(s, t, sNs, tNs),
+  (sourceType, targetType, _sourceData, _targetData, sourceNs, targetNs) => checkIngressServiceNamespace(sourceType, targetType, sourceNs, targetNs),
+  (sourceType, targetType, _sourceData, _targetData, sourceNs, targetNs) => checkWorkloadConfigNamespace(sourceType, targetType, sourceNs, targetNs),
+  (sourceType, targetType, _sourceData, _targetData, sourceNs, targetNs) => checkHpaWorkloadNamespace(sourceType, targetType, sourceNs, targetNs),
 ];
 
 export const checkNamespaceIsolation = (

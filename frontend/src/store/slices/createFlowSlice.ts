@@ -397,9 +397,9 @@ const isNodeInDirection = (
   nodes: Node[]
 ): boolean => {
   if (targetNode.id === sourceNode.id) return false;
-  const sourceNs = resolveNodeNamespace(sourceNode, nodes);
-  const targetNs = resolveNodeNamespace(targetNode, nodes);
-  if (getConnectionError(sourceNode.type || '', targetNode.type || '', sourceNode.data, targetNode.data, sourceNs, targetNs) !== null) return false;
+  const sourceNamespace = resolveNodeNamespace(sourceNode, nodes);
+  const targetNamespace = resolveNodeNamespace(targetNode, nodes);
+  if (getConnectionError(sourceNode.type || '', targetNode.type || '', sourceNode.data, targetNode.data, sourceNamespace, targetNamespace) !== null) return false;
 
   const sourceCenter = getNodeAbsCenter(sourceNode, nodes);
   const targetCenter = getNodeAbsCenter(targetNode, nodes);
@@ -718,15 +718,15 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     const targetNode = nodes.find((n) => n.id === edge.target);
     if (!sourceNode || !targetNode) return edge;
 
-    const sourceNs = resolveNodeNamespace(sourceNode, nodes);
-    const targetNs = resolveNodeNamespace(targetNode, nodes);
+    const sourceNamespace = resolveNodeNamespace(sourceNode, nodes);
+    const targetNamespace = resolveNodeNamespace(targetNode, nodes);
     const error = getConnectionError(
       sourceNode.type || '',
       targetNode.type || '',
       sourceNode.data,
       targetNode.data,
-      sourceNs,
-      targetNs
+      sourceNamespace,
+      targetNamespace
     );
     return {
       ...edge,

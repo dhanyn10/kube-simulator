@@ -81,17 +81,17 @@ interface WorkloadAccumulation {
 }
 
 const checkWorkloadNamespaceConflict = (
-  pvcNs: string,
+  pvcNamespace: string,
   workloadNode: Node,
   nodes: Node[],
   currentConflict?: PvcWorkloadAnalysis['namespaceConflict']
 ): PvcWorkloadAnalysis['namespaceConflict'] => {
   if (currentConflict) return currentConflict;
-  const nodeNs = resolveNodeNamespace(workloadNode, nodes);
-  if (pvcNs !== nodeNs) {
+  const workloadNamespace = resolveNodeNamespace(workloadNode, nodes);
+  if (pvcNamespace !== workloadNamespace) {
     return {
-      pvcNs,
-      workloadNs: nodeNs,
+      pvcNs: pvcNamespace,
+      workloadNs: workloadNamespace,
       workloadLabel: workloadNode.data?.label || workloadNode.id,
     };
   }
@@ -112,14 +112,14 @@ const addPodsAndWorkers = (
   pods: Node[],
   workers: string[]
 ) => {
-  for (const p of pods) {
-    if (!target.podIdsSeen.has(p.id)) {
-      target.podIdsSeen.add(p.id);
-      target.connectedPods.push(p);
+  for (const pod of pods) {
+    if (!target.podIdsSeen.has(pod.id)) {
+      target.podIdsSeen.add(pod.id);
+      target.connectedPods.push(pod);
     }
   }
-  for (const w of workers) {
-    target.distinctWorkerNodes.add(w);
+  for (const workerNode of workers) {
+    target.distinctWorkerNodes.add(workerNode);
   }
 };
 
@@ -132,8 +132,8 @@ const processStandalonePod = (
   if (parentId && connectedIds.has(parentId)) {
     return 0;
   }
-  const worker = getAssignedWorker(node.data, node.id);
-  addPodsAndWorkers(target, [node], [worker]);
+  const workerNode = getAssignedWorker(node.data, node.id);
+  addPodsAndWorkers(target, [node], [workerNode]);
   return 1;
 };
 
@@ -144,9 +144,9 @@ const processConnectedWorkloadNode = (
   target: WorkloadAccumulation
 ): number => {
   if (isControllerWorkload(node)) {
-    const res = analyzeControllerWorkload(node, nodes);
-    addPodsAndWorkers(target, res.pods, res.workers);
-    return res.replicas;
+    const controllerAnalysis = analyzeControllerWorkload(node, nodes);
+    addPodsAndWorkers(target, controllerAnalysis.pods, controllerAnalysis.workers);
+    return controllerAnalysis.replicas;
   }
   if (node.type === 'Pod') {
     return processStandalonePod(node, connectedIds, target);
@@ -162,9 +162,9 @@ export const analyzePvcWorkloadConnections = (
   nodes: Node[],
   edges: Edge[]
 ): PvcWorkloadAnalysis => {
-  const connectedEdges = edges.filter((e) => e.source === pvcNode.id || e.target === pvcNode.id);
+  const connectedEdges = edges.filter((edge) => edge.source === pvcNode.id || edge.target === pvcNode.id);
   const connectedIds = getConnectedWorkloadIds(pvcNode.id, edges);
-  const pvcNs = resolveNodeNamespace(pvcNode, nodes);
+  const pvcNamespace = resolveNodeNamespace(pvcNode, nodes);
 
   let namespaceConflict: PvcWorkloadAnalysis['namespaceConflict'];
   const target: WorkloadAccumulation = {
@@ -174,12 +174,12 @@ export const analyzePvcWorkloadConnections = (
   };
   let totalReplicas = 0;
 
-  for (const id of connectedIds) {
-    const node = nodes.find((n) => n.id === id);
-    if (!node) continue;
+  for (const connectedId of connectedIds) {
+    const targetNode = nodes.find((candidateNode) => candidateNode.id === connectedId);
+    if (!targetNode) continue;
 
-    namespaceConflict = checkWorkloadNamespaceConflict(pvcNs, node, nodes, namespaceConflict);
-    totalReplicas += processConnectedWorkloadNode(node, connectedIds, nodes, target);
+    namespaceConflict = checkWorkloadNamespaceConflict(pvcNamespace, targetNode, nodes, namespaceConflict);
+    totalReplicas += processConnectedWorkloadNode(targetNode, connectedIds, nodes, target);
   }
 
   const workerNodeConflict =

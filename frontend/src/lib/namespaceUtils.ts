@@ -11,18 +11,18 @@ export const resolveNodeNamespace = (node?: Node | null, nodes: Node[] = []): st
   if (node.data?.namespace) {
     return String(node.data.namespace);
   }
-  let curr: Node | undefined = node;
-  let currParentId = curr.parentId || curr.data?.parentId;
-  while (currParentId) {
-    const parent = nodes.find((n) => n.id === currParentId);
-    if (!parent) {
-      return String(currParentId);
+  let currentNode: Node | undefined = node;
+  let currentParentId = currentNode.parentId || currentNode.data?.parentId;
+  while (currentParentId) {
+    const parentNode = nodes.find((candidateNode) => candidateNode.id === currentParentId);
+    if (!parentNode) {
+      return String(currentParentId);
     }
-    if (parent.type === 'Namespace') {
-      return String(parent.data?.label || parent.data?.name || parent.id);
+    if (parentNode.type === 'Namespace') {
+      return String(parentNode.data?.label || parentNode.data?.name || parentNode.id);
     }
-    curr = parent;
-    currParentId = curr.parentId || curr.data?.parentId;
+    currentNode = parentNode;
+    currentParentId = currentNode.parentId || currentNode.data?.parentId;
   }
   return 'default';
 };
