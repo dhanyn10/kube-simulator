@@ -606,7 +606,7 @@ describe('useDropHandler', () => {
 
       expect(addLogSpy).toHaveBeenCalledWith(
         'warn',
-        expect.stringContaining('HPA must be dropped onto an existing card (e.g. Deployment or ReplicaSet)'),
+        expect.stringContaining('HPA must be dropped onto an existing card (e.g. Deployment, StatefulSet, or ReplicaSet)'),
         'UI'
       );
     });

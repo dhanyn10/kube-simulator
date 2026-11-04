@@ -294,6 +294,59 @@ func TestGenerateHPA(t *testing.T) {
 	}
 }
 
+func TestGenerateHPA_StatefulSet(t *testing.T) {
+	nodesJson := `[
+		{"id":"h1","type":"HPA","data":{"label":"My HPA","minReplicas":3,"maxReplicas":6}},
+		{"id":"ss1","type":"StatefulSet","data":{"label":"My Stateful App"}}
+	]`
+	edgesJson := `[{"id":"e1","source":"h1","target":"ss1"}]`
+	result := Generate(nodesJson, edgesJson)
+	if !strings.Contains(result, "HorizontalPodAutoscaler") || !strings.Contains(result, `"kind":"StatefulSet"`) || !strings.Contains(result, "my-stateful-app") {
+		t.Errorf("Generate failed for HPA targeting StatefulSet: %s", result)
+	}
+}
+
+func TestGenerateHPA_ReplicaSet(t *testing.T) {
+	nodesJson := `[
+		{"id":"h1","type":"HPA","data":{"label":"My HPA","minReplicas":1,"maxReplicas":4}},
+		{"id":"rs1","type":"ReplicaSet","data":{"label":"My RS"}}
+	]`
+	edgesJson := `[{"id":"e1","source":"h1","target":"rs1"}]`
+	result := Generate(nodesJson, edgesJson)
+	if !strings.Contains(result, "HorizontalPodAutoscaler") || !strings.Contains(result, `"kind":"ReplicaSet"`) || !strings.Contains(result, "my-rs") {
+		t.Errorf("Generate failed for HPA targeting ReplicaSet: %s", result)
+	}
+}
+
+func TestGenerateHPA_AttachedItem(t *testing.T) {
+	nodesJson := `[
+		{
+			"id":"ss1",
+			"type":"StatefulSet",
+			"data":{
+				"label":"My Stateful App",
+				"hpas":[
+					{
+						"id":"hpa-1",
+						"name":"ss-hpa",
+						"minReplicas":2,
+						"maxReplicas":6,
+						"targetCPU":75,
+						"targetMemory":80
+					}
+				]
+			}
+		}
+	]`
+	result := Generate(nodesJson, "[]")
+	if !strings.Contains(result, "HorizontalPodAutoscaler") || !strings.Contains(result, `"kind":"StatefulSet"`) || !strings.Contains(result, "my-stateful-app") || !strings.Contains(result, "ss-hpa") {
+		t.Errorf("Generate failed for attached HPA on StatefulSet: %s", result)
+	}
+	if !strings.Contains(result, "75") || !strings.Contains(result, "80") {
+		t.Errorf("Generate failed to include attached HPA metrics: %s", result)
+	}
+}
+
 func TestGenerateServiceDisabledTargetPort(t *testing.T) {
 	nodesJson := `[{"id":"s1","type":"Service","data":{"label":"My Svc","port":80,"targetPort":8080,"yamlSettings":{"targetPort":false}}}]`
 	result := Generate(nodesJson, "[]")

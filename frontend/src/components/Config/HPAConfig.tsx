@@ -24,19 +24,17 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
   const edges = useFlowStore((state) => state.edges);
   const data = selectedNode.data;
 
-  // Find connected deployment
+  // Find connected scale workload (Deployment, StatefulSet, ReplicaSet)
   const connectedEdge = edges.find(e => e.source === selectedNode.id);
   const targetNode = connectedEdge ? nodes.find(n => n.id === connectedEdge.target) : null;
-  const targetDeployment = targetNode?.type === 'Deployment' ? targetNode : null;
+  const isScaleWorkload = targetNode && ['Deployment', 'StatefulSet', 'ReplicaSet'].includes(targetNode.type || '');
+  const targetWorkload = isScaleWorkload ? targetNode : null;
 
-  const depData = targetDeployment ? (targetDeployment.data as K8sNodeData) : undefined;
+  const workloadData = targetWorkload ? (targetWorkload.data as K8sNodeData) : undefined;
   const hasRequests = Boolean(
-    (depData?.cpuRequest || depData?.cpuLimit) &&
-    (depData?.memoryRequest || depData?.memoryLimit)
+    (workloadData?.cpuRequest || workloadData?.cpuLimit) &&
+    (workloadData?.memoryRequest || workloadData?.memoryLimit)
   );
-
-
-
 
   const getStatusInfo = () => {
     if (!connectedEdge) {
@@ -47,7 +45,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
       };
     }
     if (hasRequests) {
-      const label = (targetDeployment?.data as K8sNodeData).label.toUpperCase();
+      const label = ((targetWorkload?.data as K8sNodeData)?.label || targetWorkload?.id || '').toUpperCase();
       return {
         container: "bg-emerald-500/10 border-emerald-500/30 text-emerald-500",
         dot: "bg-emerald-500",
@@ -75,12 +73,12 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
 
       {!hasRequests && connectedEdge && (
         <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] text-amber-500 leading-relaxed">
-          <p>HPA requires CPU/Memory requests on the target Deployment to function in real-world clusters.</p>
+          <p>HPA requires CPU/Memory requests on the target {targetWorkload?.type || 'workload'} to function in real-world clusters.</p>
           <button 
             type="button"
             onClick={() => {
-              if (targetDeployment) {
-                useFlowStore.getState().updateNodeData(targetDeployment.id, {
+              if (targetWorkload) {
+                useFlowStore.getState().updateNodeData(targetWorkload.id, {
                   cpuRequest: '100m',
                   memoryRequest: '128Mi'
                 });

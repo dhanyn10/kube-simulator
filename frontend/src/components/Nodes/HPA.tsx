@@ -7,25 +7,27 @@ import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 import { ProgressBar } from '@/components/Monitoring/ProgressBar';
 
+const SCALE_WORKLOAD_TYPES = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
+
 export const HPANode = memo((props: NodeProps) => {
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
-  const hasDeployment = nodes.some((n: any) => n.type === 'Deployment');
+  const hasWorkload = nodes.some((n: any) => SCALE_WORKLOAD_TYPES.has(n.type));
 
   const connectedEdge = edges.find((e) => e.source === props.id);
   const targetNode = connectedEdge ? nodes.find((n) => n.id === connectedEdge.target) : null;
-  const targetDeployment = targetNode?.type === 'Deployment' ? targetNode : null;
+  const targetWorkload = targetNode && SCALE_WORKLOAD_TYPES.has(targetNode.type) ? targetNode : null;
 
-  const targetData = targetDeployment?.data as K8sNodeData | undefined;
+  const targetData = targetWorkload?.data as K8sNodeData | undefined;
   const hasRequests = Boolean((targetData?.cpuRequest || targetData?.cpuLimit) && (targetData?.memoryRequest || targetData?.memoryLimit));
   const showWarning = Boolean(connectedEdge && !hasRequests);
 
   const isValidConnection = useCallback(
     (connection: any) => {
       const target = nodes.find((n: any) => n.id === connection.target);
-      return target?.type === 'Deployment';
+      return Boolean(target && SCALE_WORKLOAD_TYPES.has(target.type));
     },
     [nodes]
   );
@@ -101,14 +103,14 @@ export const HPANode = memo((props: NodeProps) => {
         type="source"
         position={Position.Bottom}
         id="bottom-s"
-        className={cn('!bg-fuchsia-500 !w-2 !h-2', !hasDeployment && 'opacity-20 pointer-events-none')}
+        className={cn('!bg-fuchsia-500 !w-2 !h-2', !hasWorkload && 'opacity-20 pointer-events-none')}
         isValidConnection={isValidConnection}
       />
       <Handle
         type="source"
         position={Position.Right}
         id="right-s"
-        className={cn('!bg-fuchsia-500 !w-2 !h-2', !hasDeployment && 'opacity-20 pointer-events-none')}
+        className={cn('!bg-fuchsia-500 !w-2 !h-2', !hasWorkload && 'opacity-20 pointer-events-none')}
         isValidConnection={isValidConnection}
       />
     </SimpleResourceNode>

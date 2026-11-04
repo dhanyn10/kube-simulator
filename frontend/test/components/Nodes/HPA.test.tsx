@@ -34,8 +34,10 @@ vi.mock('@xyflow/react', async (importOriginal) => {
     Handle: ({ isValidConnection, id }: any) => (
       <div data-testid={`handle-${id}`} data-isvalid={isValidConnection ? 'has-fn' : 'none'} onClick={() => {
         if (isValidConnection) {
-          (window as any)._lastIsValidDeployment = isValidConnection({ target: 'd1' });
-          (window as any)._lastIsValidPod = isValidConnection({ target: 'p1' });
+          (globalThis as any)._lastIsValidDeployment = isValidConnection({ target: 'd1' });
+          (globalThis as any)._lastIsValidStatefulSet = isValidConnection({ target: 'ss1' });
+          (globalThis as any)._lastIsValidReplicaSet = isValidConnection({ target: 'rs1' });
+          (globalThis as any)._lastIsValidPod = isValidConnection({ target: 'p1' });
         }
       }} />
     ),
@@ -334,5 +336,35 @@ describe('HPANode', () => {
     );
     expect(screen.getByText('min:')).toHaveClass('text-slate-400');
     expect(screen.getByText('max:')).toHaveClass('text-slate-400');
+  });
+
+  it('supports StatefulSet and ReplicaSet as valid connection targets and handles connected edges', () => {
+    const ssTarget = { id: 'ss1', type: 'StatefulSet', data: { label: 'My StatefulSet', cpuRequest: '100m', memoryRequest: '128Mi' } };
+    const rsTarget = { id: 'rs1', type: 'ReplicaSet', data: { label: 'My ReplicaSet', cpuRequest: '100m', memoryRequest: '128Mi' } };
+    const depTarget = { id: 'd1', type: 'Deployment', data: { label: 'My Deployment' } };
+    const podTarget = { id: 'p1', type: 'Pod', data: { label: 'My Pod' } };
+
+    useFlowStore.setState({
+      nodes: [ssTarget, rsTarget, depTarget, podTarget],
+      edges: [{ id: 'e-ss', source: 'h1', target: 'ss1' }]
+    } as any);
+
+    render(
+      <ReactFlowProvider>
+        <HPANode id="h1" type="HPA" data={{ label: 'My HPA' }} />
+      </ReactFlowProvider>
+    );
+
+    // Target StatefulSet has requests, so no warning
+    expect(screen.queryByText(/Missing Resource Requests on Target/)).toBeNull();
+
+    // Test isValidConnection on handle
+    const handle = screen.getByTestId('handle-bottom-s');
+    handle.click();
+
+    expect((globalThis as any)._lastIsValidDeployment).toBe(true);
+    expect((globalThis as any)._lastIsValidStatefulSet).toBe(true);
+    expect((globalThis as any)._lastIsValidReplicaSet).toBe(true);
+    expect((globalThis as any)._lastIsValidPod).toBe(false);
   });
 });

@@ -222,8 +222,42 @@ func TestResourceGenerators_DisabledFields(t *testing.T) {
 		if hpa.Spec.MinReplicas != 1 || hpa.Spec.MaxReplicas != 10 {
 			t.Errorf("Expected 1 and 10 when replicas is disabled, got %d and %d", hpa.Spec.MinReplicas, hpa.Spec.MaxReplicas)
 		}
-		if hpa.Spec.ScaleTargetRef.Name != "tbd-deployment" {
-			t.Errorf("Expected fallback scaleTargetRef 'tbd-deployment', got %s", hpa.Spec.ScaleTargetRef.Name)
+		if hpa.Spec.ScaleTargetRef.Kind != "Deployment" || hpa.Spec.ScaleTargetRef.Name != "tbd-deployment" {
+			t.Errorf("Expected fallback scaleTargetRef 'Deployment'/'tbd-deployment', got %s/%s", hpa.Spec.ScaleTargetRef.Kind, hpa.Spec.ScaleTargetRef.Name)
+		}
+	})
+
+	t.Run("HPA Targeting StatefulSet", func(t *testing.T) {
+		data := k8s.K8sNodeData{ID: "hpa-ss"}
+		ctx := &GenContext{
+			nodeMap: map[string]*k8s.FrontendNode{
+				"ss1": {ID: "ss1", Type: "StatefulSet", Data: k8s.K8sNodeData{Label: "my-stateful-app"}},
+			},
+			sourceEdgeMap: map[string][]k8s.FrontendEdge{
+				"hpa-ss": {{Source: "hpa-ss", Target: "ss1"}},
+			},
+		}
+		res := generateHPA(data, "hpa-ss", "default", ctx)
+		hpa := res.(k8s.HPA)
+		if hpa.Spec.ScaleTargetRef.Kind != "StatefulSet" || hpa.Spec.ScaleTargetRef.Name != "my-stateful-app" {
+			t.Errorf("Expected scaleTargetRef StatefulSet/my-stateful-app, got %s/%s", hpa.Spec.ScaleTargetRef.Kind, hpa.Spec.ScaleTargetRef.Name)
+		}
+	})
+
+	t.Run("HPA Targeting ReplicaSet With Empty Label Fallback", func(t *testing.T) {
+		data := k8s.K8sNodeData{ID: "hpa-rs"}
+		ctx := &GenContext{
+			nodeMap: map[string]*k8s.FrontendNode{
+				"rs-node-id": {ID: "rs-node-id", Type: "ReplicaSet", Data: k8s.K8sNodeData{Label: ""}},
+			},
+			sourceEdgeMap: map[string][]k8s.FrontendEdge{
+				"hpa-rs": {{Source: "hpa-rs", Target: "rs-node-id"}},
+			},
+		}
+		res := generateHPA(data, "hpa-rs", "default", ctx)
+		hpa := res.(k8s.HPA)
+		if hpa.Spec.ScaleTargetRef.Kind != "ReplicaSet" || hpa.Spec.ScaleTargetRef.Name != "rs-node-id" {
+			t.Errorf("Expected scaleTargetRef ReplicaSet/rs-node-id, got %s/%s", hpa.Spec.ScaleTargetRef.Kind, hpa.Spec.ScaleTargetRef.Name)
 		}
 	})
 }
@@ -394,18 +428,38 @@ func TestFindTargetService(t *testing.T) {
 	})
 }
 
-func TestFindTargetDeployment(t *testing.T) {
+func TestFindTargetScaleWorkload(t *testing.T) {
 	ctx := setupTestContext()
+	ctx.nodeMap["ss1"] = &k8s.FrontendNode{ID: "ss1", Type: "StatefulSet", Data: k8s.K8sNodeData{Label: "my-ss"}}
+	ctx.nodeMap["rs1"] = &k8s.FrontendNode{ID: "rs1", Type: "ReplicaSet", Data: k8s.K8sNodeData{Label: "my-rs"}}
+	ctx.nodeMap["hpa-ss"] = &k8s.FrontendNode{ID: "hpa-ss", Type: "HPA"}
+	ctx.nodeMap["hpa-rs"] = &k8s.FrontendNode{ID: "hpa-rs", Type: "HPA"}
+	ctx.sourceEdgeMap["hpa-ss"] = []k8s.FrontendEdge{{Source: "hpa-ss", Target: "ss1"}}
+	ctx.sourceEdgeMap["hpa-rs"] = []k8s.FrontendEdge{{Source: "hpa-rs", Target: "rs1"}}
 
-	t.Run("Success", func(t *testing.T) {
-		target := findTargetDeployment("hpa1", ctx)
+	t.Run("Deployment target", func(t *testing.T) {
+		target := findTargetScaleWorkload("hpa1", ctx)
 		if target == nil || target.ID != "dep1" {
 			t.Errorf("Expected target dep1, got %v", target)
 		}
 	})
 
+	t.Run("StatefulSet target", func(t *testing.T) {
+		target := findTargetScaleWorkload("hpa-ss", ctx)
+		if target == nil || target.ID != "ss1" || target.Type != "StatefulSet" {
+			t.Errorf("Expected target ss1 StatefulSet, got %v", target)
+		}
+	})
+
+	t.Run("ReplicaSet target", func(t *testing.T) {
+		target := findTargetScaleWorkload("hpa-rs", ctx)
+		if target == nil || target.ID != "rs1" || target.Type != "ReplicaSet" {
+			t.Errorf("Expected target rs1 ReplicaSet, got %v", target)
+		}
+	})
+
 	t.Run("No target", func(t *testing.T) {
-		target := findTargetDeployment("non-existent", ctx)
+		target := findTargetScaleWorkload("non-existent", ctx)
 		if target != nil {
 			t.Errorf("Expected nil target, got %v", target)
 		}

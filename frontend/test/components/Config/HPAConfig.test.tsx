@@ -245,4 +245,68 @@ describe('HPAConfig', () => {
     const updatedPod = useFlowStore.getState().nodes.find(n => n.id === 'pod1');
     expect(updatedPod?.data.cpuRequest).toBeUndefined();
   });
+
+  it('renders LINKED status and supports Fix automatically for StatefulSet targets', () => {
+    const ssNode = {
+      id: 'ss1',
+      type: 'StatefulSet',
+      data: { label: 'My StatefulSet' }
+    };
+    useFlowStore.setState({
+      nodes: [selectedNode, ssNode],
+      edges: [{ id: 'e-ss', source: 'hpa1', target: 'ss1' }]
+    });
+
+    const { unmount } = render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('MISSING RESOURCE REQUESTS')).toBeDefined();
+    const fixBtn = screen.getByText('Fix automatically');
+    fireEvent.click(fixBtn);
+
+    const updatedSS = useFlowStore.getState().nodes.find(n => n.id === 'ss1');
+    expect(updatedSS?.data.cpuRequest).toBe('100m');
+    expect(updatedSS?.data.memoryRequest).toBe('128Mi');
+
+    unmount();
+
+    // Re-render with requests configured
+    render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    expect(screen.getByText('LINKED TO MY STATEFULSET')).toBeDefined();
+  });
+
+  it('renders LINKED status for ReplicaSet targets with requests', () => {
+    const rsNode = {
+      id: 'rs1',
+      type: 'ReplicaSet',
+      data: { label: 'My ReplicaSet', cpuRequest: '100m', memoryRequest: '128Mi' }
+    };
+    useFlowStore.setState({
+      nodes: [selectedNode, rsNode],
+      edges: [{ id: 'e-rs', source: 'hpa1', target: 'rs1' }]
+    });
+
+    render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    expect(screen.getByText('LINKED TO MY REPLICASET')).toBeDefined();
+  });
 });
