@@ -598,3 +598,156 @@ func TestGetGenerator_Unregistered(t *testing.T) {
 		t.Errorf("Expected nil, false for unregistered kind, got %v, %v", gen, ok)
 	}
 }
+
+func TestResourceGenerators_StatefulSetAndHeadlessServiceValidation(t *testing.T) {
+	t.Run("Auto-enforce ClusterIP None when Service with default ClusterIP targets StatefulSet via edge", func(t *testing.T) {
+		rep := 2
+		ssNode := &k8s.FrontendNode{
+			ID:   "ss1",
+			Type: "StatefulSet",
+			Data: k8s.K8sNodeData{ID: "ss1", Label: "mysql-db", Replicas: &rep},
+		}
+		svcNode := &k8s.FrontendNode{
+			ID:   "svc1",
+			Type: "Service",
+			Data: k8s.K8sNodeData{ID: "svc1", Label: "mysql-service", ServiceType: "ClusterIP"},
+		}
+
+		ctx := &GenContext{
+			nodeMap: map[string]*k8s.FrontendNode{
+				"ss1":  ssNode,
+				"svc1": svcNode,
+			},
+			sourceEdgeMap: map[string][]k8s.FrontendEdge{
+				"svc1": {{Source: "svc1", Target: "ss1"}},
+			},
+			targetEdgeMap: map[string][]k8s.FrontendEdge{
+				"ss1": {{Source: "svc1", Target: "ss1"}},
+			},
+		}
+
+		resSvc := generateService(svcNode.Data, "mysql-service", "default", ctx)
+		svc, ok := resSvc.(k8s.Service)
+		if !ok {
+			t.Fatalf("Expected Service, got %v", resSvc)
+		}
+		if svc.Spec.Type != "ClusterIP" || svc.Spec.ClusterIP != "None" {
+			t.Errorf("Expected auto-governed Headless Service (ClusterIP: None), got Type=%s, ClusterIP=%s", svc.Spec.Type, svc.Spec.ClusterIP)
+		}
+
+		resSS := generateStatefulSet(ssNode.Data, "mysql-db", "default", ctx)
+		ss, okSS := resSS.(k8s.StatefulSet)
+		if !okSS {
+			t.Fatalf("Expected StatefulSet, got %v", resSS)
+		}
+		if ss.Spec.ServiceName != "mysql-service" {
+			t.Errorf("Expected StatefulSet ServiceName to resolve to mysql-service, got %s", ss.Spec.ServiceName)
+		}
+	})
+
+	t.Run("Auto-enforce ClusterIP None when Service targets StatefulSet via selector", func(t *testing.T) {
+		rep := 3
+		ssNode := &k8s.FrontendNode{
+			ID:   "ss-redis",
+			Type: "StatefulSet",
+			Data: k8s.K8sNodeData{ID: "ss-redis", Label: "redis-cluster", Replicas: &rep},
+		}
+		svcNode := &k8s.FrontendNode{
+			ID:   "svc-redis",
+			Type: "Service",
+			Data: k8s.K8sNodeData{ID: "svc-redis", Label: "redis-hs", Selector: "redis-cluster"},
+		}
+
+		ctx := &GenContext{
+			nodeMap: map[string]*k8s.FrontendNode{
+				"ss-redis":  ssNode,
+				"svc-redis": svcNode,
+			},
+			sourceEdgeMap: map[string][]k8s.FrontendEdge{},
+			targetEdgeMap: map[string][]k8s.FrontendEdge{},
+		}
+
+		resSvc := generateService(svcNode.Data, "redis-hs", "default", ctx)
+		svc := resSvc.(k8s.Service)
+		if svc.Spec.ClusterIP != "None" {
+			t.Errorf("Expected selector-targeted StatefulSet Service to have ClusterIP: None, got %s", svc.Spec.ClusterIP)
+		}
+
+		resSS := generateStatefulSet(ssNode.Data, "redis-cluster", "default", ctx)
+		ss := resSS.(k8s.StatefulSet)
+		if ss.Spec.ServiceName != "redis-hs" {
+			t.Errorf("Expected StatefulSet ServiceName to resolve to redis-hs via selector, got %s", ss.Spec.ServiceName)
+		}
+	})
+
+	t.Run("StatefulSet serviceName prefers Headless service when multiple services exist", func(t *testing.T) {
+		rep := 1
+		ssNode := &k8s.FrontendNode{
+			ID:   "ss-web",
+			Type: "StatefulSet",
+			Data: k8s.K8sNodeData{ID: "ss-web", Label: "web-ss", Replicas: &rep},
+		}
+		regularSvc := &k8s.FrontendNode{
+			ID:   "svc-lb",
+			Type: "Service",
+			Data: k8s.K8sNodeData{ID: "svc-lb", Label: "web-lb", ServiceType: "LoadBalancer"},
+		}
+		headlessSvc := &k8s.FrontendNode{
+			ID:   "svc-headless",
+			Type: "Service",
+			Data: k8s.K8sNodeData{ID: "svc-headless", Label: "web-headless", ServiceType: "Headless"},
+		}
+
+		ctx := &GenContext{
+			nodeMap: map[string]*k8s.FrontendNode{
+				"ss-web":       ssNode,
+				"svc-lb":       regularSvc,
+				"svc-headless": headlessSvc,
+			},
+			targetEdgeMap: map[string][]k8s.FrontendEdge{
+				"ss-web": {
+					{Source: "svc-lb", Target: "ss-web"},
+					{Source: "svc-headless", Target: "ss-web"},
+				},
+			},
+			sourceEdgeMap: map[string][]k8s.FrontendEdge{},
+		}
+
+		resSS := generateStatefulSet(ssNode.Data, "web-ss", "default", ctx)
+		ss := resSS.(k8s.StatefulSet)
+		if ss.Spec.ServiceName != "web-headless" {
+			t.Errorf("Expected StatefulSet to prefer web-headless, got %s", ss.Spec.ServiceName)
+		}
+	})
+
+	t.Run("StatefulSet serviceName respects explicit backendServiceName and disabled clusterIP yaml setting", func(t *testing.T) {
+		rep := 1
+		ssData := k8s.K8sNodeData{
+			ID:                 "ss-custom",
+			Label:              "custom-ss",
+			Replicas:           &rep,
+			BackendServiceName: "explicit-gov-svc",
+		}
+		resSS := generateStatefulSet(ssData, "custom-ss", "default", &GenContext{
+			nodeMap:       map[string]*k8s.FrontendNode{"ss-custom": {ID: "ss-custom", Data: ssData}},
+			targetEdgeMap: map[string][]k8s.FrontendEdge{},
+			sourceEdgeMap: map[string][]k8s.FrontendEdge{},
+		})
+		ss := resSS.(k8s.StatefulSet)
+		if ss.Spec.ServiceName != "explicit-gov-svc" {
+			t.Errorf("Expected explicit-gov-svc, got %s", ss.Spec.ServiceName)
+		}
+
+		svcData := k8s.K8sNodeData{
+			ServiceType: "Headless",
+			YamlSettings: map[string]bool{
+				"clusterIP": false,
+			},
+		}
+		resSvc := generateService(svcData, "my-svc", "default", &GenContext{})
+		svc := resSvc.(k8s.Service)
+		if svc.Spec.ClusterIP != "" {
+			t.Errorf("Expected empty ClusterIP when disabled in yamlSettings, got %s", svc.Spec.ClusterIP)
+		}
+	})
+}

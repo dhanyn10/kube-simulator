@@ -24,7 +24,7 @@ export const hasValidServiceSelectorTarget = (serviceNode: Node, nodes: Node[]):
     return false;
   }
   return nodes.some(node =>
-    (node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet') &&
+    (node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet' || node.type === 'StatefulSet') &&
     isServiceSelectorMatching(serviceNode, node)
   );
 };
@@ -120,7 +120,7 @@ const enqueueDynamicServiceTargets = (
 ) => {
   if (currentNode.type !== 'Service' || !nodes) return;
   const selectorTargets = nodes.filter(node =>
-    (node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet') &&
+    (node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet' || node.type === 'StatefulSet') &&
     isServiceSelectorMatching(currentNode, node) &&
     !isLocalPolicyBlocked(currentNode, node, nodes)
   );
@@ -224,13 +224,13 @@ export const calculateReachability = (
 
 const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolean => {
   if (!node) return true;
-  const isWorkload = node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet';
+  const isWorkload = node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet' || node.type === 'StatefulSet';
   if (isWorkload && node.data?.status !== 'ready') return true;
 
   if (node?.type === 'Service') {
     const serviceType = node?.data?.serviceType || 'ClusterIP';
     const outgoing = nodes.filter(n =>
-      (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') &&
+      (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet' || n.type === 'StatefulSet') &&
       isServiceSelectorMatching(node, n)
     );
     const hasIngressTarget = nodes.some(n => n.type === 'Ingress');
@@ -245,7 +245,7 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
     }
   }
 
-  if (node?.type === 'Deployment') {
+  if (node?.type === 'Deployment' || node?.type === 'StatefulSet') {
     const childPods = nodes.filter((n) => (String(n.parentId) === String(node.id) || String(n.data?.parentId) === String(node.id)) && n.type === 'Pod');
     if (childPods.some((pod) => pod.data?.status !== 'ready')) return true;
   }

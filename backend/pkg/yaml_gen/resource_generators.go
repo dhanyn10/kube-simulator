@@ -124,15 +124,62 @@ func buildStatefulSetVolumeClaims(targetIDs []string, ctx *GenContext) ([]k8s.PV
 	return volumeClaimTemplates, vctVolumeMounts
 }
 
+// isMatchingServiceSelector checks if Service node selector matches StatefulSet name or labels.
+func isMatchingServiceSelector(svcNode *k8s.FrontendNode, ssNode *k8s.FrontendNode, fallbackName string) bool {
+	sel := svcNode.Data.Selector
+	if sel == "" {
+		return false
+	}
+	if sel == ssNode.ID || sanitizeName(sel) == sanitizeName(fallbackName) {
+		return true
+	}
+	if ssNode.Data.Label != "" && (sel == ssNode.Data.Label || sanitizeName(sel) == sanitizeName(ssNode.Data.Label)) {
+		return true
+	}
+	return false
+}
+
 // findStatefulSetServiceName identifies connected Service name for a StatefulSet or falls back to name.
 func findStatefulSetServiceName(nodeID, fallbackName string, ctx *GenContext) string {
-	for _, edge := range ctx.targetEdgeMap[nodeID] {
-		sourceNode := ctx.nodeMap[edge.Source]
-		if sourceNode != nil && sourceNode.Type == "Service" {
-			return sanitizeName(sourceNode.Data.Label)
+	ssNode := ctx.nodeMap[nodeID]
+	if ssNode != nil && ssNode.Data.BackendServiceName != "" {
+		return sanitizeName(ssNode.Data.BackendServiceName)
+	}
+
+	var candidates []*k8s.FrontendNode
+	seen := make(map[string]bool)
+
+	addCandidate := func(n *k8s.FrontendNode) {
+		if n != nil && n.Type == "Service" && !seen[n.ID] {
+			seen[n.ID] = true
+			candidates = append(candidates, n)
 		}
 	}
-	return fallbackName
+
+	for _, edge := range ctx.targetEdgeMap[nodeID] {
+		addCandidate(ctx.nodeMap[edge.Source])
+	}
+	for _, edge := range ctx.sourceEdgeMap[nodeID] {
+		addCandidate(ctx.nodeMap[edge.Target])
+	}
+	if ssNode != nil {
+		for _, node := range ctx.nodeMap {
+			if node.Type == "Service" && isMatchingServiceSelector(node, ssNode, fallbackName) {
+				addCandidate(node)
+			}
+		}
+	}
+
+	if len(candidates) == 0 {
+		return fallbackName
+	}
+
+	for _, c := range candidates {
+		if c.Data.ServiceType == "Headless" {
+			return sanitizeName(c.Data.Label)
+		}
+	}
+	return sanitizeName(candidates[0].Data.Label)
 }
 
 // generateStatefulSet constructs a Kubernetes StatefulSet resource object.
@@ -488,6 +535,51 @@ func determineNodePort(data k8s.K8sNodeData, serviceType string) int {
 	return 0
 }
 
+// isStatefulSetWorkload checks if a node is a StatefulSet or child pod of a StatefulSet.
+func isStatefulSetWorkload(n *k8s.FrontendNode, ctx *GenContext) bool {
+	if n == nil {
+		return false
+	}
+	if n.Type == "StatefulSet" || n.Data.WorkloadType == "StatefulSet" {
+		return true
+	}
+	if n.ParentID != "" {
+		parent := ctx.nodeMap[n.ParentID]
+		if parent != nil && (parent.Type == "StatefulSet" || parent.Data.WorkloadType == "StatefulSet") {
+			return true
+		}
+	}
+	return false
+}
+
+// isTargetingStatefulSet checks if a Service targets a StatefulSet via edges or selector.
+func isTargetingStatefulSet(data k8s.K8sNodeData, targetWorkload *k8s.FrontendNode, ctx *GenContext) bool {
+	if isStatefulSetWorkload(targetWorkload, ctx) {
+		return true
+	}
+	for _, edge := range ctx.targetEdgeMap[data.ID] {
+		if isStatefulSetWorkload(ctx.nodeMap[edge.Source], ctx) {
+			return true
+		}
+	}
+	for _, edge := range ctx.sourceEdgeMap[data.ID] {
+		if isStatefulSetWorkload(ctx.nodeMap[edge.Target], ctx) {
+			return true
+		}
+	}
+	if data.Selector != "" {
+		sanitizedSel := sanitizeName(data.Selector)
+		for _, node := range ctx.nodeMap {
+			if isStatefulSetWorkload(node, ctx) {
+				if node.Data.Label == data.Selector || node.ID == data.Selector || sanitizeName(node.Data.Label) == sanitizedSel {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // generateService constructs a Kubernetes Service resource object.
 func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	targetWorkload := findTargetWorkload(data.ID, ctx)
@@ -520,13 +612,18 @@ func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 		},
 	}
 
+	isStatefulTarget := isTargetingStatefulSet(data, targetWorkload, ctx)
+
 	if val, ok := data.YamlSettings["serviceType"]; !ok || val {
-		if serviceType == "Headless" {
+		if serviceType == "Headless" || (isStatefulTarget && (serviceType == "ClusterIP" || serviceType == "")) {
 			svc.Spec.Type = "ClusterIP"
 			svc.Spec.ClusterIP = "None"
 		} else {
 			svc.Spec.Type = serviceType
 		}
+	}
+	if val, ok := data.YamlSettings["clusterIP"]; ok && !val {
+		svc.Spec.ClusterIP = ""
 	}
 
 	if val, ok := data.YamlSettings["selector"]; !ok || val {

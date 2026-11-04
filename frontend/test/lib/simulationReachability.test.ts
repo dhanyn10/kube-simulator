@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Node, Edge } from '@xyflow/react';
 import {
   hasValidIngressBackend,
+  hasValidServiceSelectorTarget,
   calculateReachability,
   isInternetConnectionRed,
 } from '@/lib/simulationReachability';
@@ -443,5 +444,98 @@ describe('simulationReachability', () => {
       [localSvc, deployNode, unrelatedPod, childOnWorker1]
     );
     expect(reachUnrelatedPod.has('dep-target')).toBe(true);
+  });
+  it('validates StatefulSet selector matching, dynamic reachability, and readiness checks', () => {
+    // 1. hasValidServiceSelectorTarget matching StatefulSet
+    const svcNode: Node = {
+      id: 'svc-stateful',
+      type: 'Service',
+      data: { selector: 'mysql-cluster', serviceType: 'ClusterIP' },
+      position: { x: 0, y: 0 },
+    };
+    const ssNode: Node = {
+      id: 'ss-1',
+      type: 'StatefulSet',
+      data: { label: 'mysql-cluster', status: 'ready' },
+      position: { x: 0, y: 0 },
+    };
+    const childPodReady: Node = {
+      id: 'pod-mysql-0',
+      type: 'Pod',
+      parentId: 'ss-1',
+      data: { label: 'mysql-cluster-0', status: 'ready' },
+      position: { x: 0, y: 0 },
+    };
+
+    const hasTarget = hasValidServiceSelectorTarget(svcNode, [ssNode]);
+    expect(hasTarget).toBe(true);
+
+    // 2. Dynamic reachability enqueues StatefulSet target without explicit canvas edge
+    const reachStateful = calculateReachability(
+      [svcNode],
+      new Map(),
+      [],
+      [svcNode, ssNode]
+    );
+    expect(reachStateful.has('ss-1')).toBe(true);
+
+    // 3. StatefulSet child pod unready causes downstream path unready (isInternetConnectionRed = true)
+    const internetNode: Node = {
+      id: 'internet-1',
+      type: 'Internet',
+      data: {},
+      position: { x: 0, y: 0 },
+    };
+    const lbSvc: Node = {
+      id: 'svc-lb-ss',
+      type: 'Service',
+      data: { serviceType: 'LoadBalancer', selector: 'mysql-cluster' },
+      position: { x: 0, y: 0 },
+    };
+    const unreadyChildPod: Node = {
+      id: 'pod-mysql-1',
+      type: 'Pod',
+      parentId: 'ss-1',
+      data: { label: 'mysql-cluster-1', status: 'pending' },
+      position: { x: 0, y: 0 },
+    };
+
+    const edgeMap = new Map<string, Edge[]>([
+      ['internet-1', [{ id: 'e-in', source: 'internet-1', target: 'svc-lb-ss' } as Edge]],
+      ['svc-lb-ss', [{ id: 'e-ss', source: 'svc-lb-ss', target: 'ss-1' } as Edge]],
+    ]);
+
+    const ctxUnready: SimulationContext = {
+      nodes: [internetNode, lbSvc, ssNode, childPodReady, unreadyChildPod],
+      edges: [
+        { id: 'e-in', source: 'internet-1', target: 'svc-lb-ss' },
+        { id: 'e-ss', source: 'svc-lb-ss', target: 'ss-1' },
+      ],
+      edgeMap,
+      nodeMap: new Map([
+        ['internet-1', internetNode],
+        ['svc-lb-ss', lbSvc],
+        ['ss-1', ssNode],
+        ['pod-mysql-0', childPodReady],
+        ['pod-mysql-1', unreadyChildPod],
+      ]),
+      activeSimulationEdges: ['e-in', 'e-ss'],
+      simulationMetrics: {},
+    };
+
+    expect(isInternetConnectionRed(internetNode, ctxUnready)).toBe(true);
+
+    // 4. When all child pods are ready and StatefulSet is ready, downstream is healthy
+    const ctxReady: SimulationContext = {
+      ...ctxUnready,
+      nodes: [internetNode, lbSvc, ssNode, childPodReady],
+      nodeMap: new Map([
+        ['internet-1', internetNode],
+        ['svc-lb-ss', lbSvc],
+        ['ss-1', ssNode],
+        ['pod-mysql-0', childPodReady],
+      ]),
+    };
+    expect(isInternetConnectionRed(internetNode, ctxReady)).toBe(false);
   });
 });
