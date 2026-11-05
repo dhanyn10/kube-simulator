@@ -728,11 +728,12 @@ describe('createFlowSlice', () => {
       expect(nonPvcEdge.data?.validationError).toBeFalsy();
 
       // 2. PVC as target, connecting to Deployment when PVC already has incoming edge from StatefulSet
-      // Also tests e.id === edge.id (continue) and missing node in nodes.find
+      // Also tests e.id === edge.id (continue), unrelated edges (return null), and missing node in nodes.find
       useFlowStore.setState({
         edges: [
           { id: 'e-existing-ss', source: 'ss-topo', target: 'pvc-topo' },
           { id: 'e-self', source: 'dep-topo', target: 'pvc-topo' },
+          { id: 'e-unrelated', source: 'svc-topo', target: 'dep-topo' },
           { id: 'e-ghost', source: 'ghost-node', target: 'pvc-topo' }, // node not in store
         ] as any,
       });

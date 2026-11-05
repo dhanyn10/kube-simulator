@@ -631,6 +631,43 @@ const updateConnectedNodeState = (
   return updated;
 };
 
+const getConnectedPvcEndpoint = (
+  edge: Edge,
+  pvcId: string,
+  workloadId: string
+): string | null => {
+  if (edge.source === pvcId && edge.target !== workloadId) {
+    return edge.target;
+  }
+  if (edge.target === pvcId && edge.source !== workloadId) {
+    return edge.source;
+  }
+  return null;
+};
+
+const collectExistingPvcWorkloads = (
+  currentEdgeId: string | undefined,
+  pvcId: string,
+  workloadId: string,
+  nodes: Node[],
+  edges: Edge[]
+): Node[] => {
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  const workloads: Node[] = [];
+
+  for (const e of edges) {
+    if (e.id === currentEdgeId) continue;
+    const otherId = getConnectedPvcEndpoint(e, pvcId, workloadId);
+    if (!otherId) continue;
+    const node = nodeMap.get(otherId);
+    if (node) {
+      workloads.push(node);
+    }
+  }
+
+  return workloads;
+};
+
 const checkPvcTopologyError = (
   edge: Edge,
   sourceNode: Node,
@@ -638,24 +675,21 @@ const checkPvcTopologyError = (
   nodes: Node[],
   edges: Edge[]
 ): string | null => {
-  const isSourcePvc = sourceNode.type === 'PVC';
-  const isTargetPvc = targetNode.type === 'PVC';
-  if (!isSourcePvc && !isTargetPvc) return null;
+  if (sourceNode.type !== 'PVC' && targetNode.type !== 'PVC') {
+    return null;
+  }
 
+  const isSourcePvc = sourceNode.type === 'PVC';
   const pvcNode = isSourcePvc ? sourceNode : targetNode;
   const workloadNode = isSourcePvc ? targetNode : sourceNode;
 
-  const existingWorkloads: Node[] = [];
-  for (const e of edges) {
-    if (e.id === edge.id) continue;
-    if (e.source === pvcNode.id && e.target !== workloadNode.id) {
-      const other = nodes.find((n) => n.id === e.target);
-      if (other) existingWorkloads.push(other);
-    } else if (e.target === pvcNode.id && e.source !== workloadNode.id) {
-      const other = nodes.find((n) => n.id === e.source);
-      if (other) existingWorkloads.push(other);
-    }
-  }
+  const existingWorkloads = collectExistingPvcWorkloads(
+    edge.id,
+    pvcNode.id,
+    workloadNode.id,
+    nodes,
+    edges
+  );
 
   return checkPvcTemplateTopologyConflict(pvcNode, workloadNode, existingWorkloads);
 };
