@@ -514,7 +514,7 @@ describe('pvcConfigHelpers test suite', () => {
     const ssEmpty: Node = {
       id: 'ss-no-pods',
       type: 'StatefulSet',
-      data: { label: 'empty-ss', replicas: 1 },
+      data: { label: 'empty-ss', replicas: 1, workloadType: 'StatefulSet' },
       position: { x: 0, y: 0 },
     };
     const edge: Edge = { id: 'e-ss', source: 'ss-no-pods', target: 'pvc-empty-ss' };

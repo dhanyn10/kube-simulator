@@ -41,7 +41,7 @@ const analyzeControllerWorkload = (
   node: Node,
   allNodes: Node[]
 ): { replicas: number; pods: Node[]; workers: string[] } => {
-  const isStatefulSet = node.type === 'StatefulSet' || node.data?.workloadType === 'StatefulSet';
+  const isStatefulSet = node.data?.workloadType === 'StatefulSet';
   const childPods = collectWorkloadChildPods(node, allNodes);
 
   if (isStatefulSet) {
