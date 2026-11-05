@@ -1118,6 +1118,107 @@ describe('nodeActions', () => {
     expect(transformed.data.baseName).toBe('custom-stateful');
   });
 
+  it('deleteNodes clears stale Volume Claim Template Conflict edge errors when conflicting workload is deleted', () => {
+    const pvcNode = {
+      id: 'html-storage',
+      type: 'PVC',
+      position: { x: 0, y: 0 },
+      data: { label: 'html-storage', pvcStatus: 'Multi-Attach Error', accessMode: 'ReadWriteOnce' },
+    };
+    const ssNode = {
+      id: 'web-app',
+      type: 'StatefulSet',
+      position: { x: 100, y: 0 },
+      data: { label: 'web-app', workloadType: 'StatefulSet', replicas: 1 },
+    };
+    const cloneDepNode = {
+      id: 'new-deployment',
+      type: 'Deployment',
+      position: { x: 200, y: 0 },
+      data: { label: 'new-deployment', workloadType: 'Deployment', replicas: 1 },
+    };
+    const edge1 = {
+      id: 'e1',
+      source: 'web-app',
+      target: 'html-storage',
+      data: {
+        validationError:
+          'Volume Claim Template Conflict: PVC "html-storage" is claimed as a StatefulSet volumeClaimTemplate by "web-app" and cannot be shared with "new-deployment"',
+      },
+    };
+    const edge2 = {
+      id: 'e2',
+      source: 'new-deployment',
+      target: 'html-storage',
+      data: {
+        validationError:
+          'Volume Claim Template Conflict: PVC "html-storage" is claimed as a StatefulSet volumeClaimTemplate by "web-app" and cannot be shared with "new-deployment"',
+      },
+    };
+
+    useFlowStore.setState({
+      nodes: [pvcNode, ssNode, cloneDepNode] as any,
+      edges: [edge1, edge2] as any,
+    });
+
+    const { deleteNodes } = useFlowStore.getState();
+    // User deletes the clone deployment
+    deleteNodes([cloneDepNode as any]);
+
+    const state = useFlowStore.getState();
+    // Edge e2 is removed with new-deployment
+    expect(state.edges.find((e) => e.id === 'e2')).toBeUndefined();
+
+    // Edge e1 between web-app and html-storage has its validationError cleared
+    const remainingEdge = state.edges.find((e) => e.id === 'e1');
+    expect(remainingEdge).toBeDefined();
+    expect(remainingEdge?.data?.validationError).toBeUndefined();
+
+    // PVC status is restored to Bound
+    const remainingPvc = state.nodes.find((n) => n.id === 'html-storage');
+    expect(remainingPvc?.data.pvcStatus).toBe('Bound');
+  });
+
+  it('updateNodeData clears Volume Claim Template Conflict when StatefulSet is switched back to Deployment', () => {
+    const pvcNode = {
+      id: 'html-storage',
+      type: 'PVC',
+      position: { x: 0, y: 0 },
+      data: { label: 'html-storage', pvcStatus: 'Multi-Attach Error', accessMode: 'ReadWriteOnce' },
+    };
+    const ssNode = {
+      id: 'web-app',
+      type: 'StatefulSet',
+      position: { x: 100, y: 0 },
+      data: { label: 'web-app', workloadType: 'StatefulSet', replicas: 1 },
+    };
+    const edge1 = {
+      id: 'e1',
+      source: 'web-app',
+      target: 'html-storage',
+      data: {
+        validationError:
+          'Volume Claim Template Conflict: PVC "html-storage" is claimed as a StatefulSet volumeClaimTemplate by "web-app" and cannot be shared with "new-deployment"',
+      },
+    };
+
+    useFlowStore.setState({
+      nodes: [pvcNode, ssNode] as any,
+      edges: [edge1] as any,
+    });
+
+    const { updateNodeData } = useFlowStore.getState();
+    // User switches web-app back to Deployment
+    updateNodeData('web-app', { workloadType: 'Deployment' });
+
+    const state = useFlowStore.getState();
+    const remainingEdge = state.edges.find((e) => e.id === 'e1');
+    expect(remainingEdge?.data?.validationError).toBeUndefined();
+
+    const remainingPvc = state.nodes.find((n) => n.id === 'html-storage');
+    expect(remainingPvc?.data.pvcStatus).toBe('Bound');
+  });
+
   it('onNodeClick handles forbidden access, StatefulSet selection, and pane/group actions', () => {
     const addLogSpy = vi.fn();
     useFlowStore.setState({

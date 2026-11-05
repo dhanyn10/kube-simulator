@@ -12,6 +12,7 @@ import type { FlowState } from '@/store/types';
 import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from './nodeDragUtils';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 import { calculateAlignmentGuides } from '@/activities/layout/canvasAlignmentHelpers';
+import { syncPvcRealtimeState } from '@/activities/config/pvcConfigHelpers';
 
 /**
  * Determines the interaction relationship between a dragging node and a target container.
@@ -310,7 +311,9 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
         get
       );
 
-      const pos = getAbsPos(node.id, nextNodes, finalNode);
+      const { nodes: syncedNodes, edges: syncedEdges } = syncPvcRealtimeState(nextNodes, state.edges);
+
+      const pos = getAbsPos(node.id, syncedNodes, finalNode);
       const x1 = Math.round(pos.x);
       const y1 = Math.round(pos.y);
       const w = Math.round(finalNode.width || finalNode.measured?.width || 150);
@@ -326,7 +329,8 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
         hoveredDeploymentId: null,
         detachingDeploymentId: null,
         alignmentGuideLines: null,
-        nodes: sortNodes(nextNodes.map(n => ({ ...n, data: { ...n.data, isHovered: false, isDetaching: false } }))),
+        nodes: sortNodes(syncedNodes.map(n => ({ ...n, data: { ...n.data, isHovered: false, isDetaching: false } }))),
+        edges: syncedEdges,
         lastActionId: `drag-${Date.now()}`,
         lastActionName: 'Move Element'
       };

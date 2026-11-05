@@ -19,7 +19,7 @@ import {
   syncWorkloadMetadata,
   ensureUniqueResourceName
 } from './nodeUtils';
-import { evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
+import { syncPvcRealtimeState } from '@/activities/config/pvcConfigHelpers';
 import { alignAllNodesToGrid as alignAllNodesToGridHelper } from '@/activities/layout/canvasAlignmentHelpers';
 import { formatPodName, sanitizeSlug } from '@/lib/utils';
 import {
@@ -741,9 +741,12 @@ const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => Fl
     }
   });
 
+  const remainingEdges = edges.filter((e: Edge) => !deleteIds.has(e.source) && !deleteIds.has(e.target));
+  const { nodes: syncedNodes, edges: syncedEdges } = syncPvcRealtimeState(nextNodes, remainingEdges);
+
   set({
-    nodes: nextNodes,
-    edges: edges.filter((e: Edge) => !deleteIds.has(e.source) && !deleteIds.has(e.target)),
+    nodes: syncedNodes,
+    edges: syncedEdges,
     lastActionId: `delete-${Date.now()}`, lastActionName: 'Delete Elements'
   });
 };
@@ -770,17 +773,6 @@ const sanitizeAndUpdateServiceSelector = (
     }
   }
   return updatedData;
-};
-
-const syncPvcRealtimeStatuses = (nodes: Node[], edges: Edge[]): Node[] => {
-  return nodes.map((n) => {
-    if (n.type !== 'PVC') return n;
-    const realTimeStatus = evaluatePvcRealtimeStatus(n, nodes, edges);
-    if (n.data?.pvcStatus !== realTimeStatus) {
-      return { ...n, data: { ...n.data, pvcStatus: realTimeStatus } };
-    }
-    return n;
-  });
 };
 
 const collectWorkloadPortSyncTargets = (
@@ -939,15 +931,15 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   }
 
   nextNodes = propagateWorkloadPortToServices(target, newData, updatedData, nextNodes, get().edges);
-  nextNodes = syncPvcRealtimeStatuses(nextNodes, get().edges);
 
   const currentTargetNode = nextNodes.find((n) => n.id === nodeId) || updatedNode;
   const nextEdges = syncEdgesFromFormSelection(currentTargetNode, newData, nextNodes, get().edges);
+  const { nodes: syncedNodes, edges: syncedEdges } = syncPvcRealtimeState(nextNodes, nextEdges);
 
-  const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, nodeId);
+  const collisionResolvedNodes = resolveGlobalCollisions(syncedNodes, nodeId);
   set({
     nodes: collisionResolvedNodes,
-    edges: nextEdges,
+    edges: syncedEdges,
     lastActionId: `update-${Date.now()}`,
     lastActionName: 'Update Node Data'
   });

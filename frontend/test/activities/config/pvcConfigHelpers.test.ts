@@ -6,6 +6,7 @@ import {
   syncPvcRealtimeState,
   analyzePvcWorkloadConnections,
   getPvcValidationErrorMsg,
+  isStatefulSetNode,
 } from '@/activities/config/pvcConfigHelpers';
 import { Node, Edge } from '@xyflow/react';
 
@@ -269,6 +270,23 @@ describe('pvcConfigHelpers test suite', () => {
     // Return original arrays unchanged if no PVC nodes exist
     const noPvcRes = syncPvcRealtimeState([depNode], edges);
     expect(noPvcRes.nodes).toEqual([depNode]);
+
+    // Clears stale PVC errors when all PVC nodes are removed
+    const stalePvcEdge: Edge = {
+      id: 'e-stale',
+      source: 'dep-1',
+      target: 'deleted-pvc',
+      data: { validationError: 'Volume Claim Template Conflict: old error' },
+    };
+    const clearedRes = syncPvcRealtimeState([depNode], [stalePvcEdge]);
+    expect(clearedRes.edges[0].data?.validationError).toBeUndefined();
+  });
+
+  it('isStatefulSetNode correctly identifies StatefulSets by node type or workloadType', () => {
+    expect(isStatefulSetNode({ id: 's1', type: 'StatefulSet', data: {}, position: { x: 0, y: 0 } })).toBe(true);
+    expect(isStatefulSetNode({ id: 's2', type: 'Deployment', data: { workloadType: 'StatefulSet' }, position: { x: 0, y: 0 } })).toBe(true);
+    expect(isStatefulSetNode({ id: 's3', type: 'Deployment', data: { workloadType: 'Deployment' }, position: { x: 0, y: 0 } })).toBe(false);
+    expect(isStatefulSetNode({ id: 's4', type: 'Deployment', data: {}, position: { x: 0, y: 0 } })).toBe(false);
   });
 
   it('covers connected Pod with parentId pointing to unconnected parent, pvcStatus undefined fallback in evaluatePvcRealtimeStatus, and clearing Multi-Attach Error edge error', () => {
