@@ -645,6 +645,31 @@ const buildPvcManifest = (node: any, metadata: any) => ({
   },
 });
 
+export const isStatefulSetVolumeClaimTemplate = (
+  pvcNodeId: string,
+  nodeMap: Map<string, any>,
+  targetEdgeMap: Map<string, any[]>,
+  sourceEdgeMap?: Map<string, any[]>
+): boolean => {
+  const incoming = targetEdgeMap.get(pvcNodeId) || [];
+  for (const edge of incoming) {
+    const sourceNode = nodeMap.get(edge.source);
+    if (sourceNode && (sourceNode.type === 'StatefulSet' || sourceNode.data?.workloadType === 'StatefulSet')) {
+      return true;
+    }
+  }
+  if (sourceEdgeMap) {
+    const outgoing = sourceEdgeMap.get(pvcNodeId) || [];
+    for (const edge of outgoing) {
+      const targetNode = nodeMap.get(edge.target);
+      if (targetNode && (targetNode.type === 'StatefulSet' || targetNode.data?.workloadType === 'StatefulSet')) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
+
 const HPA_SCALE_TARGET_TYPES = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
 
 const findHpaScaleTarget = (
@@ -782,6 +807,9 @@ const buildNodeManifest = (
     case 'Secret':
       return buildSecretManifest(node, metadata);
     case 'PVC':
+      if (isStatefulSetVolumeClaimTemplate(node.id, nodeMap, targetEdgeMap, sourceEdgeMap)) {
+        return null;
+      }
       return buildPvcManifest(node, metadata);
     case 'HPA':
       return buildHpaManifest(node, metadata, nodeMap, sourceEdgeMap);

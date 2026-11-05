@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getConnectionError, VALID_CONNECTIONS } from '@/constants/connections';
+import {
+  getConnectionError,
+  VALID_CONNECTIONS,
+  isStatefulSetResource,
+  checkPvcTemplateTopologyConflict,
+  checkNamespaceIsolation,
+} from '@/constants/connections';
 
 describe('connections constants', () => {
   it('should return null for valid connections', () => {
@@ -301,5 +307,99 @@ describe('connections constants', () => {
     expect(
       getConnectionError('HPA', 'Deployment', {}, {}, 'production', 'production')
     ).toBeNull();
+
+    // Check bidirectional namespace isolation helpers
+    expect(
+      checkNamespaceIsolation('Deployment', 'Service', {}, { serviceType: 'LoadBalancer' }, 'ns-a', 'ns-b')
+    ).toBeNull();
+    expect(
+      checkNamespaceIsolation('Deployment', 'Service', {}, {}, 'ns-a', 'ns-b')
+    ).toContain('Cross-namespace connection is not allowed: Service in namespace "ns-a" cannot connect to workload in namespace "ns-b".');
+    expect(
+      checkNamespaceIsolation('ConfigMap', 'Deployment', {}, {}, 'ns-a', 'ns-b')
+    ).toContain('Cross-namespace resource binding is not allowed: ConfigMap in namespace "ns-a" cannot bind to Deployment in namespace "ns-b".');
+    expect(
+      checkNamespaceIsolation('Deployment', 'HPA', {}, {}, 'ns-a', 'ns-b')
+    ).toContain('Cross-namespace scaling is not allowed: HPA in namespace "ns-a" cannot scale workload in namespace "ns-b".');
+  });
+
+  describe('PVC Volume Claim Template topology rules', () => {
+    it('identifies StatefulSet resources by type or workloadType', () => {
+      expect(isStatefulSetResource('StatefulSet', {})).toBe(true);
+      expect(isStatefulSetResource('Pod', { workloadType: 'StatefulSet' })).toBe(true);
+      expect(isStatefulSetResource('Deployment', {})).toBe(false);
+      expect(isStatefulSetResource(undefined, undefined)).toBe(false);
+    });
+
+    it('permits connecting PVC to a single workload without existing connections', () => {
+      const pvc = { id: 'pvc-1', type: 'PVC', data: { label: 'my-pvc' } };
+      const ss = { id: 'ss-1', type: 'StatefulSet', data: { label: 'my-ss' } };
+      expect(checkPvcTemplateTopologyConflict(pvc, ss, [])).toBeNull();
+
+      const dep = { id: 'dep-1', type: 'Deployment', data: { label: 'my-dep' } };
+      expect(checkPvcTemplateTopologyConflict(pvc, dep, [])).toBeNull();
+    });
+
+    it('rejects connecting StatefulSet when PVC is already connected to another workload', () => {
+      const pvc = { id: 'pvc-1', type: 'PVC', data: { label: 'shared-pvc' } };
+      const newSS = { id: 'ss-2', type: 'StatefulSet', data: { label: 'order-ss' } };
+      const existingDep = { id: 'dep-1', type: 'Deployment', data: { label: 'web-dep' } };
+
+      const error = checkPvcTemplateTopologyConflict(pvc, newSS, [existingDep]);
+      expect(error).toBe(
+        'Volume Claim Template Conflict: PVC "shared-pvc" cannot be connected to StatefulSet "order-ss" while already connected to "web-dep".'
+      );
+    });
+
+    it('rejects connecting Deployment or Pod when PVC is already claimed by a StatefulSet', () => {
+      const pvc = { id: 'pvc-1', type: 'PVC', data: { label: 'db-pvc' } };
+      const newDep = { id: 'dep-1', type: 'Deployment', data: { label: 'web-dep' } };
+      const existingSS = { id: 'ss-1', type: 'StatefulSet', data: { label: 'database-ss' } };
+
+      const error = checkPvcTemplateTopologyConflict(pvc, newDep, [existingSS]);
+      expect(error).toBe(
+        'Volume Claim Template Conflict: PVC "db-pvc" is claimed as a StatefulSet volumeClaimTemplate by "database-ss" and cannot be connected to "web-dep".'
+      );
+    });
+
+    it('rejects connecting second StatefulSet to the same PVC', () => {
+      const pvc = { id: 'pvc-1', type: 'PVC', data: { label: 'db-pvc' } };
+      const secondSS = { id: 'ss-2', type: 'StatefulSet', data: { label: 'backup-ss' } };
+      const firstSS = { id: 'ss-1', type: 'StatefulSet', data: { label: 'primary-ss' } };
+
+      const error = checkPvcTemplateTopologyConflict(pvc, secondSS, [firstSS]);
+      expect(error).toBe(
+        'Volume Claim Template Conflict: PVC "db-pvc" cannot be connected to StatefulSet "backup-ss" while already connected to "primary-ss".'
+      );
+    });
+
+    it('permits connecting multiple Deployments sharing a PVC without StatefulSets', () => {
+      const pvc = { id: 'pvc-1', type: 'PVC', data: { label: 'rwx-pvc' } };
+      const newDep = { id: 'dep-2', type: 'Deployment', data: { label: 'worker-dep' } };
+      const existingDep = { id: 'dep-1', type: 'Deployment', data: { label: 'web-dep' } };
+
+      expect(checkPvcTemplateTopologyConflict(pvc, newDep, [existingDep])).toBeNull();
+    });
+
+    it('falls back to node IDs when labels are missing and skips existing workload matching current workload id', () => {
+      const pvcNoLabel = { id: 'pvc-raw', type: 'PVC' };
+      const ssNoLabel = { id: 'ss-raw', type: 'StatefulSet' };
+      const depNoLabel = { id: 'dep-raw', type: 'Deployment' };
+
+      // 1. skips self if existing.id === workloadNode.id
+      expect(checkPvcTemplateTopologyConflict(pvcNoLabel, ssNoLabel, [ssNoLabel])).toBeNull();
+
+      // 2. target StatefulSet with ID fallbacks
+      const errTargetSS = checkPvcTemplateTopologyConflict(pvcNoLabel, ssNoLabel, [depNoLabel]);
+      expect(errTargetSS).toBe(
+        'Volume Claim Template Conflict: PVC "pvc-raw" cannot be connected to StatefulSet "ss-raw" while already connected to "dep-raw".'
+      );
+
+      // 3. existing StatefulSet with ID fallbacks
+      const errExistingSS = checkPvcTemplateTopologyConflict(pvcNoLabel, depNoLabel, [ssNoLabel]);
+      expect(errExistingSS).toBe(
+        'Volume Claim Template Conflict: PVC "pvc-raw" is claimed as a StatefulSet volumeClaimTemplate by "ss-raw" and cannot be connected to "dep-raw".'
+      );
+    });
   });
 });

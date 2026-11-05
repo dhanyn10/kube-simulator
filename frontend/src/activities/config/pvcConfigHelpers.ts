@@ -32,6 +32,7 @@ export interface PvcWorkloadAnalysis {
   distinctWorkerNodes: Set<string>;
   namespaceConflict?: { pvcNs: string; workloadNs: string; workloadLabel: string };
   workerNodeConflict?: { workerNodes: string[] };
+  templateConflict?: { statefulSetLabel: string; otherWorkloadLabel: string };
 }
 
 /**
@@ -92,7 +93,7 @@ const checkWorkloadNamespaceConflict = (
     return {
       pvcNs: pvcNamespace,
       workloadNs: workloadNamespace,
-      workloadLabel: workloadNode.data?.label || workloadNode.id,
+      workloadLabel: String(workloadNode.data?.label || workloadNode.id),
     };
   }
   return undefined;
@@ -154,6 +155,38 @@ const processConnectedWorkloadNode = (
   return 0;
 };
 
+const detectPvcTemplateConflict = (
+  connectedNodes: Node[]
+): PvcWorkloadAnalysis['templateConflict'] => {
+  const workloads = connectedNodes.filter(
+    (n) => isControllerWorkload(n) || n.type === 'Pod'
+  );
+  const statefulSets = workloads.filter((n) => n.data?.workloadType === 'StatefulSet');
+  if (statefulSets.length === 0) return undefined;
+
+  const firstSS = statefulSets[0];
+  const firstSsLabel = String(firstSS.data?.label || firstSS.id);
+
+  if (statefulSets.length > 1) {
+    const secondSS = statefulSets[1];
+    return {
+      statefulSetLabel: firstSsLabel,
+      otherWorkloadLabel: String(secondSS.data?.label || secondSS.id),
+    };
+  }
+
+  const nonStatefulSets = workloads.filter((n) => n.data?.workloadType !== 'StatefulSet');
+  if (nonStatefulSets.length > 0) {
+    const nonSS = nonStatefulSets[0];
+    return {
+      statefulSetLabel: firstSsLabel,
+      otherWorkloadLabel: String(nonSS.data?.label || nonSS.id),
+    };
+  }
+
+  return undefined;
+};
+
 /**
  * Analyzes all workloads, child pods, worker nodes, and namespaces connected to a PVC node.
  */
@@ -173,14 +206,18 @@ export const analyzePvcWorkloadConnections = (
     distinctWorkerNodes: new Set<string>(),
   };
   let totalReplicas = 0;
+  const connectedWorkloadNodes: Node[] = [];
 
   for (const connectedId of connectedIds) {
     const targetNode = nodes.find((candidateNode) => candidateNode.id === connectedId);
     if (!targetNode) continue;
 
+    connectedWorkloadNodes.push(targetNode);
     namespaceConflict = checkWorkloadNamespaceConflict(pvcNamespace, targetNode, nodes, namespaceConflict);
     totalReplicas += processConnectedWorkloadNode(targetNode, connectedIds, nodes, target);
   }
+
+  const templateConflict = detectPvcTemplateConflict(connectedWorkloadNodes);
 
   const workerNodeConflict =
     target.distinctWorkerNodes.size > 1
@@ -194,6 +231,7 @@ export const analyzePvcWorkloadConnections = (
     distinctWorkerNodes: target.distinctWorkerNodes,
     namespaceConflict,
     workerNodeConflict,
+    templateConflict,
   };
 };
 
@@ -209,6 +247,10 @@ export const getPvcValidationErrorMsg = (
 
   if (analysis.namespaceConflict) {
     return `Cross-Namespace Binding Error: PVC "${pvcLabel}" in namespace "${analysis.namespaceConflict.pvcNs}" cannot be claimed by workload "${analysis.namespaceConflict.workloadLabel}" in namespace "${analysis.namespaceConflict.workloadNs}"`;
+  }
+
+  if (analysis.templateConflict) {
+    return `Volume Claim Template Conflict: PVC "${pvcLabel}" is claimed as a StatefulSet volumeClaimTemplate by "${analysis.templateConflict.statefulSetLabel}" and cannot be shared with "${analysis.templateConflict.otherWorkloadLabel}"`;
   }
 
   if (accessMode === 'ReadWriteOnce') {
@@ -261,7 +303,7 @@ export const evaluatePvcRealtimeStatus = (
   const analysis = analyzePvcWorkloadConnections(pvcNode, nodes, edges);
   const accessMode = pvcNode.data?.accessMode || 'ReadWriteOnce';
 
-  if (analysis.namespaceConflict) {
+  if (analysis.namespaceConflict || analysis.templateConflict) {
     return 'Multi-Attach Error';
   }
 
@@ -302,7 +344,8 @@ const updatePvcEdges = (
     } else if (
       typeof edge.data?.validationError === 'string' &&
       (edge.data.validationError.includes('Multi-Attach Error') ||
-        edge.data.validationError.includes('Cross-Namespace Binding Error'))
+        edge.data.validationError.includes('Cross-Namespace Binding Error') ||
+        edge.data.validationError.includes('Volume Claim Template Conflict'))
     ) {
       edgesChanged = true;
       return { ...edge, data: { ...edge.data, validationError: undefined } };
@@ -363,6 +406,7 @@ export const handlePvcRwoAccessMode = (
 
   const isConflict = Boolean(
     analysis.namespaceConflict ||
+      analysis.templateConflict ||
       (isRWO && (analysis.workerNodeConflict || analysis.totalReplicas > 1))
   );
 

@@ -708,4 +708,122 @@ describe('createFlowSlice', () => {
     useFlowStore.getState().onQuickConnect('qc-svc', 'right');
     expect(useFlowStore.getState().edges[0]?.target).toBe('qc-dep-near');
   });
+
+  describe('validateEdge with PVC Volume Claim Template topology', () => {
+    it('covers all branch conditions in checkPvcTopologyError', () => {
+      const pvc = { id: 'pvc-topo', type: 'PVC', position: { x: 0, y: 0 }, data: { label: 'topo-pvc' } };
+      const ss = { id: 'ss-topo', type: 'StatefulSet', position: { x: 100, y: 0 }, data: { label: 'topo-ss', workloadType: 'StatefulSet' } };
+      const dep = { id: 'dep-topo', type: 'Deployment', position: { x: 200, y: 0 }, data: { label: 'topo-dep' } };
+      const svc = { id: 'svc-topo', type: 'Service', position: { x: 300, y: 0 }, data: { label: 'topo-svc' } };
+
+      useFlowStore.setState({
+        nodes: [pvc, ss, dep, svc] as any,
+        edges: [],
+      });
+
+      const { validateEdge } = useFlowStore.getState();
+
+      // 1. Non-PVC edge -> returns no PVC topology error
+      const nonPvcEdge = validateEdge({ id: 'e-non-pvc', source: 'svc-topo', target: 'dep-topo' } as any);
+      expect(nonPvcEdge.data?.validationError).toBeFalsy();
+
+      // 2. PVC as target, connecting to Deployment when PVC already has incoming edge from StatefulSet
+      // Also tests e.id === edge.id (continue), unrelated edges (return null), and missing node in nodes.find
+      useFlowStore.setState({
+        edges: [
+          { id: 'e-existing-ss', source: 'ss-topo', target: 'pvc-topo' },
+          { id: 'e-self', source: 'dep-topo', target: 'pvc-topo' },
+          { id: 'e-unrelated', source: 'svc-topo', target: 'dep-topo' },
+          { id: 'e-ghost', source: 'ghost-node', target: 'pvc-topo' }, // node not in store
+        ] as any,
+      });
+
+      const depEdge = validateEdge({ id: 'e-self', source: 'dep-topo', target: 'pvc-topo' } as any);
+      expect(depEdge.data?.validationError).toContain('Volume Claim Template Conflict');
+
+      // 3. Existing edge from PVC to StatefulSet (reversed edge direction where PVC is source)
+      useFlowStore.setState({
+        edges: [
+          { id: 'e-existing-out-ss', source: 'pvc-topo', target: 'ss-topo' },
+          { id: 'e-ghost-out', source: 'pvc-topo', target: 'ghost-out' }, // node not in store
+        ] as any,
+      });
+
+      const depEdgeReverse = validateEdge({ id: 'e-prop', source: 'dep-topo', target: 'pvc-topo' } as any);
+      expect(depEdgeReverse.data?.validationError).toContain('Volume Claim Template Conflict');
+    });
+  });
+
+  it('reroutes role connection when child pod is source and Role is target', () => {
+    const dep = { id: 'dep-parent', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'dep-parent' } };
+    const pod = { id: 'pod-child', type: 'Pod', parentId: 'dep-parent', position: { x: 0, y: 0 }, data: { label: 'pod-child' } };
+    const role = { id: 'role-1', type: 'Role', position: { x: 100, y: 0 }, data: { label: 'role-1' } };
+
+    useFlowStore.setState({
+      nodes: [dep, pod, role] as any,
+      edges: [],
+    });
+
+    useFlowStore.getState().onConnect({ source: 'pod-child', target: 'role-1' });
+
+    const edges = useFlowStore.getState().edges;
+    expect(edges).toHaveLength(1);
+    expect(edges[0].source).toBe('dep-parent');
+    expect(edges[0].target).toBe('role-1');
+  });
+
+  it('synchronizes realtime PVC state during onEdgesChange when PVC nodes exist', () => {
+    const pvc = { id: 'pvc-sync', type: 'PVC', position: { x: 0, y: 0 }, data: { pvcStatus: 'Pending' } };
+    const dep = { id: 'dep-sync', type: 'Deployment', position: { x: 100, y: 0 }, data: { label: 'dep-sync' } };
+    const edge = { id: 'e-sync', source: 'dep-sync', target: 'pvc-sync' };
+
+    useFlowStore.setState({
+      nodes: [pvc, dep] as any,
+      edges: [edge] as any,
+    });
+
+    useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-sync' }]);
+    expect(useFlowStore.getState().edges).toHaveLength(0);
+  });
+
+  it('keeps existing ingress config when target service is already present in ingressPaths', () => {
+    const ingressNode = {
+      id: 'ing-existing',
+      type: 'Ingress',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'my-ingress',
+        backendServiceName: 'svc-app',
+        ingressPaths: [{ path: '/api', serviceName: 'svc-app', port: 8080 }],
+      },
+    };
+    const svcNode = {
+      id: 'svc-app-id',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: { label: 'svc-app', serviceType: 'ClusterIP', port: 8080 },
+    };
+
+    useFlowStore.setState({
+      nodes: [ingressNode, svcNode] as any,
+      edges: [],
+    });
+
+    useFlowStore.getState().onConnect({ source: 'ing-existing', target: 'svc-app-id' });
+    const updatedIngress = useFlowStore.getState().nodes.find((n) => n.id === 'ing-existing');
+    expect(updatedIngress?.data?.backendServiceName).toBe('svc-app');
+  });
+
+  it('handles invalid direction in quick connect gracefully', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'qc-src', type: 'Service', position: { x: 0, y: 0 }, width: 100, height: 50, data: {} },
+        { id: 'qc-target', type: 'Deployment', position: { x: 100, y: 0 }, width: 100, height: 50, data: {} },
+      ] as any,
+      edges: [],
+    });
+
+    useFlowStore.getState().onQuickConnect('qc-src', 'unknown-dir' as any);
+    expect(useFlowStore.getState().edges).toHaveLength(0);
+  });
 });

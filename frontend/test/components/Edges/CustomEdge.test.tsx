@@ -125,7 +125,8 @@ describe('CustomEdge', () => {
         <CustomEdge {...props} />
       </svg>
     );
-    expect(screen.getByText('Invalid connection')).toBeDefined();
+    expect(screen.getByTestId('edge-alert-badge')).toBeDefined();
+    expect(screen.queryByText('Invalid connection')).toBeNull();
   });
 
   it('renders with simulation styles when active', () => {
@@ -278,7 +279,7 @@ describe('CustomEdge', () => {
     expect(getSettingsButtonClass(false, false)).toContain('hover:bg-slate-100');
   });
 
-  it('covers alert tooltip styling branch in dark mode', () => {
+  it('renders alert badge without canvas tooltip text in dark mode', () => {
     useFlowStore.setState({ colorMode: 'dark' });
 
     const props = {
@@ -294,12 +295,11 @@ describe('CustomEdge', () => {
 
     const badge = screen.getByTestId('edge-alert-badge');
     expect(badge).toBeDefined();
-
-    const tooltip = screen.getByText('Dark mode connection error');
-    expect(tooltip.getAttribute('class')).toContain('bg-slate-900');
+    expect(badge.getAttribute('title')).toBe('View logs in Kube Console');
+    expect(screen.queryByText('Dark mode connection error')).toBeNull();
   });
 
-  it('covers alert tooltip styling branch in light mode', () => {
+  it('renders alert badge without canvas tooltip text in light mode', () => {
     useFlowStore.setState({ colorMode: 'light' });
 
     const props = {
@@ -315,9 +315,8 @@ describe('CustomEdge', () => {
 
     const badge = screen.getByTestId('edge-alert-badge');
     expect(badge).toBeDefined();
-
-    const tooltip = screen.getByText('Light mode connection error');
-    expect(tooltip.getAttribute('class')).toContain('bg-white');
+    expect(badge.getAttribute('title')).toBe('View logs in Kube Console');
+    expect(screen.queryByText('Light mode connection error')).toBeNull();
   });
 
   it('covers unselected strokeWidth calculation and non-simulating traffic-line omission', () => {

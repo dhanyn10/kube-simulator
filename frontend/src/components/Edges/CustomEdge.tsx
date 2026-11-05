@@ -27,7 +27,6 @@ export default function CustomEdge(props: EdgeProps) {
     isSimulating,
     isDark,
     hasAlert,
-    alertTooltip,
     getStrokeColor,
     edgePath,
     labelX,
@@ -111,7 +110,7 @@ export default function CustomEdge(props: EdgeProps) {
           className="flex flex-col items-center gap-2"
         >
           {hasAlert && (
-            <div className="group relative flex items-center justify-center">
+            <div className="flex items-center justify-center">
               <button
                 type="button"
                 data-testid="edge-alert-badge"
@@ -121,16 +120,6 @@ export default function CustomEdge(props: EdgeProps) {
               >
                 <AlertCircle size={16} />
               </button>
-              <div
-                className={cn(
-                  'absolute bottom-full mb-2 hidden group-hover:block text-[10px] px-2 py-1 rounded whitespace-nowrap z-[4] shadow-md border',
-                  isDark
-                    ? 'bg-slate-900 text-slate-100 border-slate-700'
-                    : 'bg-white text-slate-800 border-slate-200'
-                )}
-              >
-                {alertTooltip}
-              </div>
             </div>
           )}
 

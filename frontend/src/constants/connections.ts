@@ -48,9 +48,6 @@ const checkInternetRules = (targetType: string, targetData?: Record<string, any>
  * @returns An English error message if the incoming connection is invalid, or `null` if valid.
  */
 const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string, any>): string | null => {
-  if (sourceType === 'Internet') {
-    return 'Internet cannot connect directly to Ingress. Traffic must enter through an Ingress Controller exposed via a LoadBalancer or NodePort Service.';
-  }
   if (sourceType === 'Service') {
     const sourceServiceType = sourceData?.serviceType || 'ClusterIP';
     return sourceServiceType === 'LoadBalancer' || sourceServiceType === 'NodePort'
@@ -288,3 +285,41 @@ export const getConnectionError = (
 
   return null;
 };
+
+export const isStatefulSetResource = (
+  type?: string,
+  data?: Record<string, any>
+): boolean => {
+  return type === 'StatefulSet' || data?.workloadType === 'StatefulSet';
+};
+
+/**
+ * Validates whether connecting a PVC node to a workload violates volumeClaimTemplate topology rules.
+ * A PVC node absorbed as a StatefulSet volumeClaimTemplate cannot be shared with standalone workloads
+ * (Deployment, ReplicaSet, Pod) or another StatefulSet.
+ */
+export const checkPvcTemplateTopologyConflict = (
+  pvcNode: { id: string; type?: string; data?: Record<string, any> },
+  workloadNode: { id: string; type?: string; data?: Record<string, any> },
+  existingConnectedWorkloads: Array<{ id: string; type?: string; data?: Record<string, any> }>
+): string | null => {
+  const pvcLabel = pvcNode.data?.label || pvcNode.id;
+  const isTargetStatefulSet = isStatefulSetResource(workloadNode.type, workloadNode.data);
+
+  for (const existing of existingConnectedWorkloads) {
+    if (existing.id === workloadNode.id) continue;
+    const isExistingStatefulSet = isStatefulSetResource(existing.type, existing.data);
+    const existingLabel = existing.data?.label || existing.id;
+    const currentLabel = workloadNode.data?.label || workloadNode.id;
+
+    if (isTargetStatefulSet) {
+      return `Volume Claim Template Conflict: PVC "${pvcLabel}" cannot be connected to StatefulSet "${currentLabel}" while already connected to "${existingLabel}".`;
+    }
+    if (isExistingStatefulSet) {
+      return `Volume Claim Template Conflict: PVC "${pvcLabel}" is claimed as a StatefulSet volumeClaimTemplate by "${existingLabel}" and cannot be connected to "${currentLabel}".`;
+    }
+  }
+
+  return null;
+};
+

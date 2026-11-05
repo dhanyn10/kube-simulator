@@ -155,6 +155,47 @@ func testPVCDisabledFields(t *testing.T) {
 	}
 }
 
+func TestIsStatefulSetPvc(t *testing.T) {
+	if isStatefulSetPvc("pvc1", nil) {
+		t.Errorf("Expected false for nil ctx")
+	}
+
+	ctx := &GenContext{
+		nodeMap: map[string]*k8s.FrontendNode{
+			"pvc1": {ID: "pvc1", Type: "PVC"},
+			"ss1":  {ID: "ss1", Type: "StatefulSet", Data: k8s.K8sNodeData{Label: "ss"}},
+			"ss2":  {ID: "ss2", Type: "Pod", Data: k8s.K8sNodeData{Label: "ss2", WorkloadType: "StatefulSet"}},
+			"dep1": {ID: "dep1", Type: "Deployment", Data: k8s.K8sNodeData{Label: "dep"}},
+		},
+		sourceEdgeMap: make(map[string][]k8s.FrontendEdge),
+		targetEdgeMap: make(map[string][]k8s.FrontendEdge),
+	}
+
+	// Unconnected
+	if isStatefulSetPvc("pvc1", ctx) {
+		t.Errorf("Expected false for unconnected PVC")
+	}
+
+	// Connected from Deployment
+	ctx.targetEdgeMap["pvc1"] = []k8s.FrontendEdge{{Source: "dep1", Target: "pvc1"}}
+	if isStatefulSetPvc("pvc1", ctx) {
+		t.Errorf("Expected false for Deployment connected PVC")
+	}
+
+	// Connected from StatefulSet
+	ctx.targetEdgeMap["pvc1"] = []k8s.FrontendEdge{{Source: "ss1", Target: "pvc1"}}
+	if !isStatefulSetPvc("pvc1", ctx) {
+		t.Errorf("Expected true for StatefulSet connected PVC")
+	}
+
+	// Outgoing edge to StatefulSet (reverse edge)
+	ctx.targetEdgeMap["pvc1"] = nil
+	ctx.sourceEdgeMap["pvc1"] = []k8s.FrontendEdge{{Source: "pvc1", Target: "ss2"}}
+	if !isStatefulSetPvc("pvc1", ctx) {
+		t.Errorf("Expected true for reverse edge to StatefulSet workloadType")
+	}
+}
+
 func testDeploymentDisabledReplicas(t *testing.T) {
 	rep := 5
 	data := k8s.K8sNodeData{

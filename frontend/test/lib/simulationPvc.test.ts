@@ -5,6 +5,8 @@ import {
   checkPvcReadiness,
   handleUnboundPvcs,
   handleBoundPvcs,
+  handlePvcMultiAttachError,
+  resolvePvcMultiAttachError,
 } from '@/lib/simulationPvc';
 import { SimulationContext } from '@/lib/simulationTypes';
 import * as utils from '@/lib/utils';
@@ -68,6 +70,33 @@ describe('simulationPvc', () => {
 
       expect(result.totalReplicas).toBe(1);
       expect(result.connectedEdges).toHaveLength(1);
+      expect(result.templateConflict).toBeUndefined();
+    });
+
+    it('identifies templateConflict when PVC is shared between StatefulSet and Deployment', () => {
+      const pvcNode: Node = { id: 'pvc-1', type: 'PVC', data: { label: 'my-vol' }, position: { x: 0, y: 0 } };
+      const ssNode: Node = {
+        id: 'workload-ss',
+        type: 'StatefulSet',
+        data: { label: 'my-ss', workloadType: 'StatefulSet', replicas: 2 },
+        position: { x: 0, y: 0 },
+      };
+      const depNode: Node = {
+        id: 'workload-dep',
+        type: 'Deployment',
+        data: { label: 'my-dep', replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const edge1: Edge = { id: 'e1', source: 'pvc-1', target: 'workload-ss' };
+      const edge2: Edge = { id: 'e2', source: 'pvc-1', target: 'workload-dep' };
+
+      const ctx = createMockCtx([pvcNode, ssNode, depNode], [edge1, edge2]);
+      const result = countConnectedPvcReplicas(pvcNode, ctx);
+
+      expect(result.templateConflict).toBeDefined();
+      expect(result.templateConflict?.statefulSetLabel).toBe('my-ss');
+      expect(result.templateConflict?.otherWorkloadLabel).toBe('my-dep');
+      expect(result.errorMsg).toContain('Volume Claim Template Conflict');
     });
 
     it('counts replicas for controllers with invalid or valid replica numbers', () => {
@@ -534,6 +563,160 @@ describe('simulationPvc', () => {
 
       const result = countConnectedPvcReplicas(pvcNode, ctx);
       expect(result.totalReplicas).toBe(0);
+    });
+
+    it('falls back to empty array when updatedNodes, nodes, and nodeMap are empty or undefined', () => {
+      const pvcNode: Node = {
+        id: 'pvc-fallback-empty',
+        type: 'PVC',
+        data: {},
+        position: { x: 0, y: 0 },
+      };
+      const ctx: any = {
+        updatedNodes: [],
+        nodes: [],
+        nodeMap: undefined,
+        edges: [],
+      };
+
+      const result = countConnectedPvcReplicas(pvcNode, ctx);
+      expect(result.totalReplicas).toBe(0);
+    });
+
+    it('blocks workloads and sets Multi-Attach Error when template conflict is detected on RWX PVC', () => {
+      const pvcNode: Node = {
+        id: 'pvc-rwx',
+        type: 'PVC',
+        data: { label: 'shared-rwx', accessMode: 'ReadWriteMany', pvcStatus: 'Bound' },
+        position: { x: 0, y: 0 },
+      };
+      const ssNode: Node = {
+        id: 'ss-workload',
+        type: 'StatefulSet',
+        data: { label: 'db-cluster', workloadType: 'StatefulSet', replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const depNode: Node = {
+        id: 'dep-workload',
+        type: 'Deployment',
+        data: { label: 'web-app', replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const podDep: Node = {
+        id: 'pod-web',
+        type: 'Pod',
+        parentId: 'dep-workload',
+        data: { status: 'ready', image: 'nginx:alpine' },
+        position: { x: 0, y: 0 },
+      };
+      const edge1: Edge = { id: 'e1', source: 'pvc-rwx', target: 'ss-workload', data: {} };
+      const edge2: Edge = { id: 'e2', source: 'pvc-rwx', target: 'dep-workload', data: {} };
+
+      const ctx = createMockCtx([pvcNode, ssNode, depNode, podDep], [edge1, edge2]);
+      const res = checkPvcReadiness(depNode, ctx);
+
+      expect(res.isBlocked).toBe(true);
+      expect(res.hasChanges).toBe(true);
+      expect(edge1.data?.validationError).toContain('Volume Claim Template Conflict');
+      expect(edge2.data?.validationError).toContain('Volume Claim Template Conflict');
+      expect(ctx.updatedNodes.find((n) => n.id === 'pvc-rwx')?.data.pvcStatus).toBe('Multi-Attach Error');
+      expect(ctx.updatedNodes.find((n) => n.id === 'pod-web')?.data.status).toBe('pending');
+    });
+  });
+
+  describe('handlePvcMultiAttachError helper directly', () => {
+    it('uses fallback message with pvc label when customErrorMsg is omitted', () => {
+      const pvc: Node = { id: 'pvc-1', type: 'PVC', data: { label: 'vol-test', pvcStatus: 'Pending' }, position: { x: 0, y: 0 } };
+      const edge: Edge = { id: 'e1', source: 'pvc-1', target: 'w1', data: {} };
+      const pod: Node = { id: 'pod-1', type: 'Pod', data: { status: 'ready' }, position: { x: 0, y: 0 } };
+      const ctx = createMockCtx([pvc, pod], [edge]);
+
+      const changed = handlePvcMultiAttachError(pvc, 3, [edge], [pod], ctx);
+
+      expect(changed).toBe(true);
+      expect(edge.data?.validationError).toContain('cannot be mounted by 3 replicas simultaneously');
+      expect(edge.data?.validationError).toContain('vol-test');
+      expect(ctx.updatedNodes.find((n) => n.id === 'pvc-1')?.data.pvcStatus).toBe('Multi-Attach Error');
+      expect(ctx.updatedNodes.find((n) => n.id === 'pod-1')?.data.status).toBe('pending');
+    });
+
+    it('uses fallback message with pvc id when label is missing', () => {
+      const pvc: Node = { id: 'pvc-no-label', type: 'PVC', data: { pvcStatus: 'Pending' }, position: { x: 0, y: 0 } };
+      const edge: Edge = { id: 'e1', source: 'pvc-no-label', target: 'w1', data: {} };
+      const ctx = createMockCtx([pvc], [edge]);
+
+      const changed = handlePvcMultiAttachError(pvc, 2, [edge], [], ctx);
+
+      expect(changed).toBe(true);
+      expect(edge.data?.validationError).toContain('Volume "pvc-no-label"');
+    });
+
+    it('does not re-update pvc status if already Multi-Attach Error and handles addLog exception safely', () => {
+      const pvc: Node = { id: 'pvc-already-err', type: 'PVC', data: { pvcStatus: 'Multi-Attach Error' }, position: { x: 0, y: 0 } };
+      const ctx = createMockCtx([pvc], []);
+      ctx.get = vi.fn().mockReturnValue({
+        addLog: vi.fn().mockImplementation(() => {
+          throw new Error('Log dispatch failure');
+        }),
+      });
+
+      const changed = handlePvcMultiAttachError(pvc, 2, [], [], ctx, 'Custom error');
+      expect(changed).toBe(false);
+    });
+
+    it('catches and logs when addLog throws during new Multi-Attach Error', () => {
+      const pvc: Node = { id: 'pvc-err-log', type: 'PVC', data: { pvcStatus: 'Pending' }, position: { x: 0, y: 0 } };
+      const ctx = createMockCtx([pvc], []);
+      ctx.get = vi.fn().mockReturnValue({
+        addLog: vi.fn().mockImplementation(() => {
+          throw new Error('Log error');
+        }),
+      });
+
+      const changed = handlePvcMultiAttachError(pvc, 2, [], [], ctx, 'Custom error');
+      expect(changed).toBe(true);
+      expect(ctx.updatedNodes.find((n) => n.id === 'pvc-err-log')?.data.pvcStatus).toBe('Multi-Attach Error');
+    });
+  });
+
+  describe('resolvePvcMultiAttachError helper directly', () => {
+    it('returns false when pvcStatus is not Multi-Attach Error', () => {
+      const pvc: Node = { id: 'pvc-bound', type: 'PVC', data: { pvcStatus: 'Bound' }, position: { x: 0, y: 0 } };
+      const ctx = createMockCtx([pvc], []);
+      const changed = resolvePvcMultiAttachError(pvc, [], ctx);
+      expect(changed).toBe(false);
+    });
+
+    it('resolves Multi-Attach Error and clears Volume Claim Template Conflict edge errors', () => {
+      const pvc: Node = { id: 'pvc-res', type: 'PVC', data: { label: 'res-vol', pvcStatus: 'Multi-Attach Error' }, position: { x: 0, y: 0 } };
+      const edge1: Edge = { id: 'e1', source: 'pvc-res', target: 'w1', data: { validationError: 'Multi-Attach Error: cannot be mounted' } };
+      const edge2: Edge = { id: 'e2', source: 'pvc-res', target: 'w2', data: { validationError: 'Cross-Namespace Binding Error: mismatch' } };
+      const edge3: Edge = { id: 'e3', source: 'pvc-res', target: 'w3', data: { validationError: 'Volume Claim Template Conflict: shared' } };
+      const edge4: Edge = { id: 'e4', source: 'pvc-res', target: 'w4', data: { validationError: 'Other Error' } };
+
+      const ctx = createMockCtx([pvc], [edge1, edge2, edge3, edge4]);
+      const changed = resolvePvcMultiAttachError(pvc, [edge1, edge2, edge3, edge4], ctx);
+
+      expect(changed).toBe(true);
+      expect(ctx.updatedNodes.find((n) => n.id === 'pvc-res')?.data.pvcStatus).toBe('Bound');
+      expect(edge1.data?.validationError).toBeUndefined();
+      expect(edge2.data?.validationError).toBeUndefined();
+      expect(edge3.data?.validationError).toBeUndefined();
+      expect(edge4.data?.validationError).toBe('Other Error');
+    });
+
+    it('catches and handles addLog failure when resolving conflict without label', () => {
+      const pvc: Node = { id: 'pvc-res-no-label', type: 'PVC', data: { pvcStatus: 'Multi-Attach Error' }, position: { x: 0, y: 0 } };
+      const ctx = createMockCtx([pvc], []);
+      ctx.get = vi.fn().mockReturnValue({
+        addLog: vi.fn().mockImplementation(() => {
+          throw new Error('Resolution log error');
+        }),
+      });
+
+      const changed = resolvePvcMultiAttachError(pvc, [], ctx);
+      expect(changed).toBe(true);
+      expect(ctx.updatedNodes.find((n) => n.id === 'pvc-res-no-label')?.data.pvcStatus).toBe('Bound');
     });
   });
 });

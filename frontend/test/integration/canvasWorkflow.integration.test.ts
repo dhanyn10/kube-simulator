@@ -166,6 +166,42 @@ describe('Canvas UI & Workflow Integration Tests', () => {
     expect(evaluatePvcRealtimeStatus(currentPvc, state.nodes, state.edges)).toBe('Bound');
   });
 
+  it('detects Volume Claim Template conflict when connecting StatefulSet and Deployment to the same PVC', () => {
+    const { addNode, onConnect, onEdgesChange } = useFlowStore.getState();
+
+    addNode('StatefulSet', { x: 50, y: 50 });
+    addNode('PVC', { x: 250, y: 50 });
+    addNode('Deployment', { x: 450, y: 50 });
+
+    const ssNode = useFlowStore.getState().nodes.find((n) => n.type === 'StatefulSet')!;
+    const pvcNode = useFlowStore.getState().nodes.find((n) => n.type === 'PVC')!;
+    const depNode = useFlowStore.getState().nodes.find((n) => n.type === 'Deployment')!;
+
+    // 1. Connect StatefulSet -> PVC: valid volumeClaimTemplate
+    onConnect({ source: ssNode.id, target: pvcNode.id, sourceHandle: null, targetHandle: null });
+
+    let state = useFlowStore.getState();
+    let currentPvc = state.nodes.find((n) => n.id === pvcNode.id)!;
+    expect(evaluatePvcRealtimeStatus(currentPvc, state.nodes, state.edges)).toBe('Bound');
+    expect(state.edges[0].data?.validationError).toBeFalsy();
+
+    // 2. Connect Deployment -> PVC: triggers volumeClaimTemplate conflict
+    onConnect({ source: depNode.id, target: pvcNode.id, sourceHandle: null, targetHandle: null });
+
+    state = useFlowStore.getState();
+    currentPvc = state.nodes.find((n) => n.id === pvcNode.id)!;
+    expect(currentPvc.data?.pvcStatus).toBe('Multi-Attach Error');
+    const conflictingEdge = state.edges.find((e) => e.source === depNode.id && e.target === pvcNode.id)!;
+    expect(conflictingEdge.data?.validationError).toContain('Volume Claim Template Conflict');
+
+    // 3. Remove conflicting edge -> PVC recovers to Bound
+    onEdgesChange([{ id: conflictingEdge.id, type: 'remove' }]);
+    state = useFlowStore.getState();
+    currentPvc = state.nodes.find((n) => n.id === pvcNode.id)!;
+    expect(currentPvc.data?.pvcStatus).toBe('Bound');
+    expect(state.edges[0].data?.validationError).toBeFalsy();
+  });
+
   it('cascades connected edge deletion when removing a central Service node', () => {
     const { addNode, onConnect, deleteNodes } = useFlowStore.getState();
 

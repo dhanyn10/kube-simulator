@@ -675,5 +675,130 @@ describe('pvcConfigHelpers test suite', () => {
       workerNodes: ['worker-1', 'worker-2'],
     });
     expect(rwmResult).toBeUndefined();
+
+    // 6. Template conflict
+    const templateMsg = getPvcValidationErrorMsg(pvcNode, {
+      totalReplicas: 2,
+      connectedPods: [],
+      workerNodes: ['worker-1'],
+      templateConflict: {
+        statefulSetLabel: 'db-ss',
+        otherWorkloadLabel: 'web-dep',
+      },
+    });
+    expect(templateMsg).toContain('Volume Claim Template Conflict');
+    expect(templateMsg).toContain('is claimed as a StatefulSet volumeClaimTemplate by "db-ss"');
+    expect(templateMsg).toContain('cannot be shared with "web-dep"');
+  });
+
+  describe('PVC volumeClaimTemplate conflict detection and lifecycle', () => {
+    it('detects conflict when PVC is connected to StatefulSet and Deployment', () => {
+      const pvcNode: Node = { id: 'pvc-shared', type: 'PVC', data: { label: 'data-pvc' }, position: { x: 0, y: 0 } };
+      const ssNode: Node = {
+        id: 'ss-1',
+        type: 'StatefulSet',
+        data: { label: 'redis-ss', workloadType: 'StatefulSet', replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const depNode: Node = {
+        id: 'dep-1',
+        type: 'Deployment',
+        data: { label: 'api-dep', replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const edges: Edge[] = [
+        { id: 'e1', source: 'ss-1', target: 'pvc-shared' },
+        { id: 'e2', source: 'dep-1', target: 'pvc-shared' },
+      ];
+
+      const analysis = analyzePvcWorkloadConnections(pvcNode, [pvcNode, ssNode, depNode], edges);
+      expect(analysis.templateConflict).toBeDefined();
+      expect(analysis.templateConflict?.statefulSetLabel).toBe('redis-ss');
+      expect(analysis.templateConflict?.otherWorkloadLabel).toBe('api-dep');
+
+      const status = evaluatePvcRealtimeStatus(pvcNode, [pvcNode, ssNode, depNode], edges);
+      expect(status).toBe('Multi-Attach Error');
+
+      const synced = handlePvcRwoAccessMode(pvcNode, [pvcNode, ssNode, depNode], edges);
+      expect(synced.edges[0].data?.validationError).toContain('Volume Claim Template Conflict');
+      expect(synced.edges[1].data?.validationError).toContain('Volume Claim Template Conflict');
+    });
+
+    it('detects conflict when PVC is connected to multiple StatefulSets', () => {
+      const pvcNode: Node = { id: 'pvc-multi-ss', type: 'PVC', data: { label: 'cluster-pvc' }, position: { x: 0, y: 0 } };
+      const ss1: Node = {
+        id: 'ss-1',
+        type: 'StatefulSet',
+        data: { label: 'primary-ss', workloadType: 'StatefulSet', replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const ss2: Node = {
+        id: 'ss-2',
+        type: 'StatefulSet',
+        data: { label: 'replica-ss', workloadType: 'StatefulSet', replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const edges: Edge[] = [
+        { id: 'e1', source: 'ss-1', target: 'pvc-multi-ss' },
+        { id: 'e2', source: 'ss-2', target: 'pvc-multi-ss' },
+      ];
+
+      const analysis = analyzePvcWorkloadConnections(pvcNode, [pvcNode, ss1, ss2], edges);
+      expect(analysis.templateConflict).toBeDefined();
+      expect(analysis.templateConflict?.statefulSetLabel).toBe('primary-ss');
+      expect(analysis.templateConflict?.otherWorkloadLabel).toBe('replica-ss');
+    });
+
+    it('falls back to node IDs when connected workloads lack labels in detectPvcTemplateConflict', () => {
+      const pvcNode: Node = { id: 'pvc-raw', type: 'PVC', data: {}, position: { x: 0, y: 0 } };
+      const ssRaw1: Node = { id: 'ss-raw-1', type: 'StatefulSet', data: { workloadType: 'StatefulSet' }, position: { x: 0, y: 0 } };
+      const ssRaw2: Node = { id: 'ss-raw-2', type: 'StatefulSet', data: { workloadType: 'StatefulSet' }, position: { x: 0, y: 0 } };
+      const depRaw: Node = { id: 'dep-raw-1', type: 'Deployment', data: {}, position: { x: 0, y: 0 } };
+
+      // 1. Multiple StatefulSets without labels
+      const analysisSS = analyzePvcWorkloadConnections(
+        pvcNode,
+        [pvcNode, ssRaw1, ssRaw2],
+        [
+          { id: 'e1', source: 'ss-raw-1', target: 'pvc-raw' },
+          { id: 'e2', source: 'ss-raw-2', target: 'pvc-raw' },
+        ]
+      );
+      expect(analysisSS.templateConflict?.statefulSetLabel).toBe('ss-raw-1');
+      expect(analysisSS.templateConflict?.otherWorkloadLabel).toBe('ss-raw-2');
+
+      // 2. StatefulSet and Deployment without labels
+      const analysisDep = analyzePvcWorkloadConnections(
+        pvcNode,
+        [pvcNode, ssRaw1, depRaw],
+        [
+          { id: 'e1', source: 'ss-raw-1', target: 'pvc-raw' },
+          { id: 'e2', source: 'dep-raw-1', target: 'pvc-raw' },
+        ]
+      );
+      expect(analysisDep.templateConflict?.statefulSetLabel).toBe('ss-raw-1');
+      expect(analysisDep.templateConflict?.otherWorkloadLabel).toBe('dep-raw-1');
+    });
+
+    it('clears template conflict validation error from edges when conflicting edge is removed', () => {
+      const pvcNode: Node = { id: 'pvc-resolved', type: 'PVC', data: { label: 'clean-pvc', pvcStatus: 'Multi-Attach Error' }, position: { x: 0, y: 0 } };
+      const ssNode: Node = {
+        id: 'ss-1',
+        type: 'StatefulSet',
+        data: { label: 'db-ss', workloadType: 'StatefulSet', replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const edgeWithOldError: Edge = {
+        id: 'e1',
+        source: 'ss-1',
+        target: 'pvc-resolved',
+        data: { validationError: 'Volume Claim Template Conflict: old error' },
+      };
+
+      const synced = handlePvcRwoAccessMode(pvcNode, [pvcNode, ssNode], [edgeWithOldError]);
+      expect(synced.edges[0].data?.validationError).toBeUndefined();
+      const updatedPvc = synced.nodes.find((n) => n.id === 'pvc-resolved');
+      expect(updatedPvc?.data?.pvcStatus).toBe('Bound');
+    });
   });
 });

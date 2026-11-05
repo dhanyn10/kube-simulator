@@ -37,6 +37,7 @@ export interface PvcSimulationCountResult {
   connectedPods: Node[];
   workerNodes: Set<string>;
   namespaceConflict?: PvcWorkloadAnalysis['namespaceConflict'];
+  templateConflict?: PvcWorkloadAnalysis['templateConflict'];
   errorMsg?: string;
 }
 
@@ -68,11 +69,12 @@ export const countConnectedPvcReplicas = (
     connectedPods: analysis.connectedPods,
     workerNodes: analysis.distinctWorkerNodes,
     namespaceConflict: analysis.namespaceConflict,
+    templateConflict: analysis.templateConflict,
     errorMsg,
   };
 };
 
-const handlePvcMultiAttachError = (
+export const handlePvcMultiAttachError = (
   pvc: Node,
   totalReplicas: number,
   connectedEdges: Edge[],
@@ -114,7 +116,7 @@ const handlePvcMultiAttachError = (
   return hasChanges;
 };
 
-const resolvePvcMultiAttachError = (
+export const resolvePvcMultiAttachError = (
   pvc: Node,
   connectedEdges: Edge[],
   ctx: SimulationContext
@@ -127,7 +129,8 @@ const resolvePvcMultiAttachError = (
     for (const edge of connectedEdges) {
       if (
         edge.data?.validationError?.includes('Multi-Attach Error') ||
-        edge.data?.validationError?.includes('Cross-Namespace Binding Error')
+        edge.data?.validationError?.includes('Cross-Namespace Binding Error') ||
+        edge.data?.validationError?.includes('Volume Claim Template Conflict')
       ) {
         edge.data = { ...edge.data, validationError: undefined };
         hasChanges = true;
@@ -151,11 +154,12 @@ const evaluateSingleConnectedPvc = (
   let isBlocked = false;
 
   const accessMode = pvc.data?.accessMode || 'ReadWriteOnce';
-  const { totalReplicas, connectedEdges, connectedPods, workerNodes, namespaceConflict, errorMsg } =
+  const { totalReplicas, connectedEdges, connectedPods, workerNodes, namespaceConflict, templateConflict, errorMsg } =
     countConnectedPvcReplicas(pvc, ctx);
 
   const isConflict = Boolean(
     namespaceConflict ||
+      templateConflict ||
       (accessMode === 'ReadWriteOnce' && (workerNodes.size > 1 || totalReplicas > 1))
   );
 
