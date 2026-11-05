@@ -416,4 +416,165 @@ describe('clipboardHandlers', () => {
     expect(clipboard?.nodes).toHaveLength(1);
     expect(clipboard?.edges).toHaveLength(0);
   });
+
+  it('copies and pastes Deployment without duplicating replicas or creating orphan free-floating pods', () => {
+    const depNode: Node = {
+      id: 'dep-orig',
+      type: 'Deployment',
+      selected: true,
+      position: { x: 100, y: 100 },
+      data: { label: 'web-api', baseName: 'web-api', replicas: 2 },
+    };
+    const pod1: Node = {
+      id: 'pod-orig-1',
+      type: 'Pod',
+      parentId: 'dep-orig',
+      selected: false,
+      position: { x: 20, y: 40 },
+      data: { label: 'web-api-pod-1', parentId: 'dep-orig' },
+    };
+    const pod2: Node = {
+      id: 'pod-orig-2',
+      type: 'Pod',
+      parentId: 'dep-orig',
+      selected: false,
+      position: { x: 20, y: 100 },
+      data: { label: 'web-api-pod-2', parentId: 'dep-orig' },
+    };
+
+    useFlowStore.setState({
+      nodes: [depNode, pod1, pod2] as any,
+      edges: [],
+    });
+
+    // 1. Copy the selected Deployment (which automatically copies its child pods)
+    useFlowStore.getState().copyNodes();
+    const clipboard = useFlowStore.getState().clipboard;
+    expect(clipboard?.nodes).toHaveLength(3);
+
+    // Deselect original nodes so tryIncrementPodReplicas doesn't trigger
+    useFlowStore.setState({
+      nodes: [
+        { ...depNode, selected: false },
+        { ...pod1, selected: false },
+        { ...pod2, selected: false },
+      ] as any,
+    });
+
+    // 2. Paste the Deployment
+    useFlowStore.getState().pasteNodes();
+    const nodesAfterPaste = useFlowStore.getState().nodes;
+
+    // Total nodes should be exactly 6: 1 old dep + 2 old pods + 1 new dep + 2 new pods inside it
+    expect(nodesAfterPaste).toHaveLength(6);
+
+    const deployments = nodesAfterPaste.filter((n) => n.type === 'Deployment');
+    expect(deployments).toHaveLength(2);
+
+    const newDep = deployments.find((n) => n.id !== 'dep-orig');
+    expect(newDep).toBeDefined();
+    expect(newDep!.data?.label).toBe('web-api-1'); // Unique label assigned
+    expect(newDep!.position.x).toBe(140); // 100 + offset 40
+    expect(newDep!.position.y).toBe(140);
+
+    // Check all pods in the canvas
+    const allPods = nodesAfterPaste.filter((n) => n.type === 'Pod');
+    expect(allPods).toHaveLength(4);
+
+    // Original deployment has exactly 2 child pods
+    const origChildPods = allPods.filter((n) => n.parentId === 'dep-orig');
+    expect(origChildPods).toHaveLength(2);
+
+    // New deployment has exactly 2 child pods
+    const newChildPods = allPods.filter((n) => n.parentId === newDep!.id);
+    expect(newChildPods).toHaveLength(2);
+
+    // Crucially: NO orphan/free-floating pods!
+    const orphanPods = allPods.filter((n) => !n.parentId);
+    expect(orphanPods).toHaveLength(0);
+  });
+
+  it('remaps groupId when copying grouped nodes to avoid moving original nodes on drag', () => {
+    const nodeA: Node = {
+      id: 'grp-a',
+      type: 'Service',
+      selected: true,
+      position: { x: 0, y: 0 },
+      data: { label: 'svc-grp', groupId: 'group-orig' },
+    };
+    const nodeB: Node = {
+      id: 'grp-b',
+      type: 'Service',
+      selected: true,
+      position: { x: 100, y: 0 },
+      data: { label: 'svc-grp-2', groupId: 'group-orig' },
+    };
+
+    useFlowStore.setState({
+      nodes: [nodeA, nodeB] as any,
+      edges: [],
+    });
+
+    useFlowStore.getState().copyNodes();
+
+    useFlowStore.setState({
+      nodes: [
+        { ...nodeA, selected: false },
+        { ...nodeB, selected: false },
+      ] as any,
+    });
+
+    useFlowStore.getState().pasteNodes();
+
+    const pastedServices = useFlowStore.getState().nodes.filter((n) => n.id !== 'grp-a' && n.id !== 'grp-b');
+    expect(pastedServices).toHaveLength(2);
+
+    const newGroupIdA = pastedServices[0].data?.groupId;
+    const newGroupIdB = pastedServices[1].data?.groupId;
+
+    expect(newGroupIdA).toBeDefined();
+    expect(newGroupIdA).not.toBe('group-orig'); // Unique new group
+    expect(newGroupIdA).toBe(newGroupIdB); // Still grouped together
+  });
+
+  it('pastes child pod standalone with absolute canvas position when its parent is not copied', () => {
+    const dep: Node = {
+      id: 'dep-parent',
+      type: 'Deployment',
+      position: { x: 200, y: 300 },
+      data: { label: 'dep' },
+    };
+    const childPod: Node = {
+      id: 'pod-to-copy',
+      type: 'Pod',
+      parentId: 'dep-parent',
+      selected: true,
+      position: { x: 50, y: 60 },
+      data: { label: 'child', parentId: 'dep-parent' },
+    };
+
+    useFlowStore.setState({
+      nodes: [dep, childPod] as any,
+      edges: [],
+    });
+
+    // Only child pod is selected and copied
+    useFlowStore.getState().copyNodes();
+
+    useFlowStore.setState({
+      nodes: [dep, { ...childPod, selected: false }] as any,
+    });
+
+    useFlowStore.getState().pasteNodes();
+
+    const nodes = useFlowStore.getState().nodes;
+    const pastedStandalone = nodes.find((n) => n.id !== 'pod-to-copy' && n.type === 'Pod');
+
+    expect(pastedStandalone).toBeDefined();
+    expect(pastedStandalone!.parentId).toBeUndefined();
+    expect(pastedStandalone!.extent).toBeUndefined();
+    // Absolute position should be (dep.x + child.x + offset, dep.y + child.y + offset) = (200 + 50 + 40, 300 + 60 + 40) = (290, 400)
+    expect(pastedStandalone!.position.x).toBe(290);
+    expect(pastedStandalone!.position.y).toBe(400);
+  });
 });
