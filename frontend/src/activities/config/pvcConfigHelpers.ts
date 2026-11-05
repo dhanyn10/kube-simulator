@@ -35,6 +35,10 @@ export interface PvcWorkloadAnalysis {
   templateConflict?: { statefulSetLabel: string; otherWorkloadLabel: string };
 }
 
+export const isStatefulSetNode = (node: Node): boolean => {
+  return node.type === 'StatefulSet' || node.data?.workloadType === 'StatefulSet';
+};
+
 /**
  * Analyzes a controller workload node (Deployment, StatefulSet, ReplicaSet) for PVC connection.
  */
@@ -42,7 +46,7 @@ const analyzeControllerWorkload = (
   node: Node,
   allNodes: Node[]
 ): { replicas: number; pods: Node[]; workers: string[] } => {
-  const isStatefulSet = node.data?.workloadType === 'StatefulSet';
+  const isStatefulSet = isStatefulSetNode(node);
   const childPods = collectWorkloadChildPods(node, allNodes);
 
   if (isStatefulSet) {
@@ -161,7 +165,7 @@ const detectPvcTemplateConflict = (
   const workloads = connectedNodes.filter(
     (n) => isControllerWorkload(n) || n.type === 'Pod'
   );
-  const statefulSets = workloads.filter((n) => n.data?.workloadType === 'StatefulSet');
+  const statefulSets = workloads.filter(isStatefulSetNode);
   if (statefulSets.length === 0) return undefined;
 
   const firstSS = statefulSets[0];
@@ -175,7 +179,11 @@ const detectPvcTemplateConflict = (
     };
   }
 
-  const nonStatefulSets = workloads.filter((n) => n.data?.workloadType !== 'StatefulSet');
+  const nonStatefulSets = workloads.filter(
+    (n) =>
+      !isStatefulSetNode(n) &&
+      !(n.type === 'Pod' && (n.parentId === firstSS.id || n.data?.parentId === firstSS.id))
+  );
   if (nonStatefulSets.length > 0) {
     const nonSS = nonStatefulSets[0];
     return {
@@ -450,7 +458,20 @@ export const syncPvcRealtimeState = (
 ): { nodes: Node[]; edges: Edge[] } => {
   const pvcNodes = nodes.filter((n) => n.type === 'PVC');
   if (pvcNodes.length === 0) {
-    return { nodes, edges };
+    let edgesChanged = false;
+    const cleanedEdges = edges.map((e) => {
+      if (
+        typeof e.data?.validationError === 'string' &&
+        (e.data.validationError.includes('Multi-Attach Error') ||
+          e.data.validationError.includes('Cross-Namespace Binding Error') ||
+          e.data.validationError.includes('Volume Claim Template Conflict'))
+      ) {
+        edgesChanged = true;
+        return { ...e, data: { ...e.data, validationError: undefined } };
+      }
+      return e;
+    });
+    return { nodes, edges: edgesChanged ? cleanedEdges : edges };
   }
 
   let currentNodes = [...nodes];

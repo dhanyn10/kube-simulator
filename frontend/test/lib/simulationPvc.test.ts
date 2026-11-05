@@ -109,7 +109,7 @@ describe('simulationPvc', () => {
       };
       const depValid: Node = {
         id: 'dep-valid',
-        type: 'StatefulSet',
+        type: 'Deployment',
         data: { replicas: 3 },
         position: { x: 0, y: 0 },
       };

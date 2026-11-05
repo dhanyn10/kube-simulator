@@ -2,6 +2,7 @@ import { Node } from '@xyflow/react';
 import { sortNodes, getNodeData, getAbsPos } from '@/store/helpers';
 import { hydrateNodes } from '@/store/nodeHelpers';
 import { ensureUniqueResourceName } from '@/store/handlers/nodeUtils';
+import { syncPvcRealtimeState } from '@/activities/config/pvcConfigHelpers';
 import type { FlowState } from '@/store/types';
 import { randomId, safeRandom } from '@/lib/utils';
 
@@ -205,10 +206,13 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
     });
 
     const hydratedPastedNodes = hydrateNodes(pastedNodes, get);
+    const combinedNodes = sortNodes([...nodes.map(n => ({ ...n, selected: false })), ...hydratedPastedNodes]);
+    const combinedEdges = [...get().edges.map(e => ({ ...e, selected: false })), ...pastedEdges];
+    const { nodes: syncedNodes, edges: syncedEdges } = syncPvcRealtimeState(combinedNodes, combinedEdges);
 
     set({
-      nodes: sortNodes([...nodes.map(n => ({ ...n, selected: false })), ...hydratedPastedNodes]),
-      edges: [...get().edges.map(e => ({ ...e, selected: false })), ...pastedEdges],
+      nodes: syncedNodes,
+      edges: syncedEdges,
       lastActionId: `paste-${Date.now()}`,
       lastActionName: 'Paste Elements'
     });
