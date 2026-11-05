@@ -48,9 +48,6 @@ const checkInternetRules = (targetType: string, targetData?: Record<string, any>
  * @returns An English error message if the incoming connection is invalid, or `null` if valid.
  */
 const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string, any>): string | null => {
-  if (sourceType === 'Internet') {
-    return 'Internet cannot connect directly to Ingress. Traffic must enter through an Ingress Controller exposed via a LoadBalancer or NodePort Service.';
-  }
   if (sourceType === 'Service') {
     const sourceServiceType = sourceData?.serviceType || 'ClusterIP';
     return sourceServiceType === 'LoadBalancer' || sourceServiceType === 'NodePort'

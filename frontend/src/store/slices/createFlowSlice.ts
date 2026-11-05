@@ -421,16 +421,6 @@ const getQuickConnectHandles = (direction: QuickConnectDirection) => {
   return { sourceHandle: 'bottom-s', targetHandle: 'top-t' };
 };
 
-const rerouteRoleConnection = (
-  podNode: Node | undefined,
-  nodes: Node[]
-): Node | undefined => {
-  if (podNode?.type === 'Pod' && podNode.parentId) {
-    return nodes.find((n) => n.id === podNode.parentId && (n.type === 'Deployment' || n.type === 'StatefulSet'));
-  }
-  return undefined;
-};
-
 const rerouteChildPodConnection = (
   podNode: Node | undefined,
   nodes: Node[]
@@ -534,20 +524,6 @@ const rerouteConnectionEndpoints = (
   if (targetChildParent) {
     targetId = targetChildParent.id;
     targetNode = targetChildParent;
-  }
-
-  if (sourceNode?.type === 'Role') {
-    const parentDep = rerouteRoleConnection(targetNode, nodes);
-    if (parentDep) {
-      targetId = parentDep.id;
-      targetNode = parentDep;
-    }
-  } else if (targetNode?.type === 'Role') {
-    const parentDep = rerouteRoleConnection(sourceNode, nodes);
-    if (parentDep) {
-      sourceId = parentDep.id;
-      sourceNode = parentDep;
-    }
   }
 
   return { sourceId, targetId, sourceNode, targetNode };

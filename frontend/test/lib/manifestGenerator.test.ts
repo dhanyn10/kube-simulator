@@ -1071,4 +1071,50 @@ describe('manifestGenerator test suite', () => {
       },
     ]);
   });
+
+  it('detects stateful workload for child pod under StatefulSet parent when targeted by Service', () => {
+    const nodes = [
+      { id: 'ss-parent', type: 'StatefulSet', data: { label: 'Stateful Parent' } },
+      { id: 'pod-child', type: 'Pod', parentId: 'ss-parent', data: { label: 'Child Pod' } },
+      { id: 'svc-headless', type: 'Service', data: { label: 'Headless Svc', serviceType: 'Headless' } },
+    ];
+    const edges = [
+      { id: 'e1', source: 'svc-headless', target: 'pod-child' },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    expect(yamlOutput).toContain('clusterIP: None');
+  });
+
+  it('sets namespace on attached HPA manifest when workload is nested inside a Namespace', () => {
+    const nodes = [
+      { id: 'ns1', type: 'Namespace', data: { label: 'production' } },
+      {
+        id: 'dep1',
+        type: 'Deployment',
+        parentId: 'ns1',
+        data: {
+          label: 'api-gateway',
+          replicas: 2,
+          hpas: [
+            {
+              id: 'hpa-item-ns',
+              name: 'api-hpa',
+              minReplicas: 2,
+              maxReplicas: 10,
+              targetCPU: 75,
+            },
+          ],
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const hpaDoc = docs.find((d) => d?.kind === 'HorizontalPodAutoscaler');
+
+    expect(hpaDoc).toBeDefined();
+    expect(hpaDoc.metadata.name).toBe('api-hpa');
+    expect(hpaDoc.metadata.namespace).toBe('production');
+  });
 });

@@ -749,6 +749,37 @@ describe('pvcConfigHelpers test suite', () => {
       expect(analysis.templateConflict?.otherWorkloadLabel).toBe('replica-ss');
     });
 
+    it('falls back to node IDs when connected workloads lack labels in detectPvcTemplateConflict', () => {
+      const pvcNode: Node = { id: 'pvc-raw', type: 'PVC', data: {}, position: { x: 0, y: 0 } };
+      const ssRaw1: Node = { id: 'ss-raw-1', type: 'StatefulSet', data: { workloadType: 'StatefulSet' }, position: { x: 0, y: 0 } };
+      const ssRaw2: Node = { id: 'ss-raw-2', type: 'StatefulSet', data: { workloadType: 'StatefulSet' }, position: { x: 0, y: 0 } };
+      const depRaw: Node = { id: 'dep-raw-1', type: 'Deployment', data: {}, position: { x: 0, y: 0 } };
+
+      // 1. Multiple StatefulSets without labels
+      const analysisSS = analyzePvcWorkloadConnections(
+        pvcNode,
+        [pvcNode, ssRaw1, ssRaw2],
+        [
+          { id: 'e1', source: 'ss-raw-1', target: 'pvc-raw' },
+          { id: 'e2', source: 'ss-raw-2', target: 'pvc-raw' },
+        ]
+      );
+      expect(analysisSS.templateConflict?.statefulSetLabel).toBe('ss-raw-1');
+      expect(analysisSS.templateConflict?.otherWorkloadLabel).toBe('ss-raw-2');
+
+      // 2. StatefulSet and Deployment without labels
+      const analysisDep = analyzePvcWorkloadConnections(
+        pvcNode,
+        [pvcNode, ssRaw1, depRaw],
+        [
+          { id: 'e1', source: 'ss-raw-1', target: 'pvc-raw' },
+          { id: 'e2', source: 'dep-raw-1', target: 'pvc-raw' },
+        ]
+      );
+      expect(analysisDep.templateConflict?.statefulSetLabel).toBe('ss-raw-1');
+      expect(analysisDep.templateConflict?.otherWorkloadLabel).toBe('dep-raw-1');
+    });
+
     it('clears template conflict validation error from edges when conflicting edge is removed', () => {
       const pvcNode: Node = { id: 'pvc-resolved', type: 'PVC', data: { label: 'clean-pvc', pvcStatus: 'Multi-Attach Error' }, position: { x: 0, y: 0 } };
       const ssNode: Node = {
