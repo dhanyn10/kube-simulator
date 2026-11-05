@@ -39,6 +39,9 @@ func Generate(nodesJson, edgesJson string) string {
 	}
 
 	for i := range nodes {
+		if nodes[i].Data.ID == "" {
+			nodes[i].Data.ID = nodes[i].ID
+		}
 		ctx.nodeMap[nodes[i].ID] = &nodes[i]
 	}
 	for _, edge := range edges {
@@ -51,6 +54,12 @@ func Generate(nodesJson, edgesJson string) string {
 		obj := generateNodeObject(node, ctx)
 		if obj != nil {
 			manifests = append(manifests, obj)
+		}
+		for _, hpaItem := range node.Data.Hpas {
+			hpaObj := generateAttachedHPA(hpaItem, node, ctx)
+			if hpaObj != nil {
+				manifests = append(manifests, hpaObj)
+			}
 		}
 	}
 
@@ -65,6 +74,9 @@ func Generate(nodesJson, edgesJson string) string {
 // generateNodeObject delegates generation of a single canvas node to its corresponding ResourceGenerator.
 func generateNodeObject(node k8s.FrontendNode, ctx *GenContext) interface{} {
 	data := node.Data
+	if data.ID == "" {
+		data.ID = node.ID
+	}
 	if data.Label == "" || node.Type == "" {
 		return nil
 	}

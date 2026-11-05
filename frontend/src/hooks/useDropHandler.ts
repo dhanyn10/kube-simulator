@@ -151,7 +151,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
         const targetNode = findRoleTargetNode(itemCenter, nodes, type);
 
         if (!targetNode) {
-          const targetCardText = (type === 'HPA' || type === 'ResourceLimit') ? 'Deployment or ReplicaSet' : 'Deployment, Pod, Service';
+          const targetCardText = (type === 'HPA' || type === 'ResourceLimit') ? 'Deployment, StatefulSet, or ReplicaSet' : 'Deployment, Pod, Service';
           useFlowStore.getState().addLog('warn', `[Canvas Action] ${type} must be dropped onto an existing card (e.g. ${targetCardText}) to attach ${type.toLowerCase()}s!`, 'UI');
         } else if (type === 'Role') {
           useFlowStore.setState({

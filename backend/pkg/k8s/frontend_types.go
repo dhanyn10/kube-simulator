@@ -33,6 +33,16 @@ type ResourceLimitItem struct {
 	MemoryLimit   string `json:"memoryLimit,omitempty"`
 }
 
+// HpaItem represents a HorizontalPodAutoscaler configuration attached to a workload node.
+type HpaItem struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	MinReplicas  int    `json:"minReplicas"`
+	MaxReplicas  int    `json:"maxReplicas"`
+	TargetCPU    int    `json:"targetCPU"`
+	TargetMemory *int   `json:"targetMemory,omitempty"`
+}
+
 // K8sNodeData encapsulates configuration attributes for a canvas node.
 type K8sNodeData struct {
 	ID              string                 `json:"id"`
@@ -71,6 +81,7 @@ type K8sNodeData struct {
 	StorageClass    string                 `json:"storageClass,omitempty"`
 	ConfigData      []ConfigDataItem       `json:"configData,omitempty"`
 	ResourceLimits  []ResourceLimitItem    `json:"resourceLimits,omitempty"`
+	Hpas            []HpaItem              `json:"hpas,omitempty"`
 }
 
 // FrontendNode represents a node object received from the frontend canvas payload.

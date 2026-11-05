@@ -792,4 +792,233 @@ describe('manifestGenerator test suite', () => {
     expect(ssDoc5.spec.serviceName).toBe('user-defined-svc');
     expect(svcDoc5.spec.clusterIP).toBeUndefined();
   });
+
+  it('generates HorizontalPodAutoscaler manifests targeting Deployment, StatefulSet, and ReplicaSet', () => {
+    // 1. HPA targeting Deployment
+    const nodesDep = [
+      {
+        id: 'hpa-1',
+        type: 'HPA',
+        data: {
+          label: 'web-hpa',
+          minReplicas: 2,
+          maxReplicas: 8,
+          targetCPU: 60,
+          targetMemory: 80,
+        },
+      },
+      {
+        id: 'dep-1',
+        type: 'Deployment',
+        data: { label: 'web-deployment', replicas: 2 },
+      },
+    ];
+    const edgesDep = [{ id: 'e-hpa-dep', source: 'hpa-1', target: 'dep-1' }];
+    const yaml1 = generateYamlClientSide(nodesDep, edgesDep);
+    const docs1 = yaml.loadAll(yaml1) as any[];
+
+    const hpaDoc1 = docs1.find((d) => d?.kind === 'HorizontalPodAutoscaler');
+    expect(hpaDoc1).toBeDefined();
+    expect(hpaDoc1.apiVersion).toBe('autoscaling/v2');
+    expect(hpaDoc1.metadata.name).toBe('web-hpa');
+    expect(hpaDoc1.spec.scaleTargetRef).toEqual({
+      apiVersion: 'apps/v1',
+      kind: 'Deployment',
+      name: 'web-deployment',
+    });
+    expect(hpaDoc1.spec.minReplicas).toBe(2);
+    expect(hpaDoc1.spec.maxReplicas).toBe(8);
+    expect(hpaDoc1.spec.metrics).toEqual([
+      {
+        type: 'Resource',
+        resource: {
+          name: 'cpu',
+          target: { type: 'Utilization', averageUtilization: 60 },
+        },
+      },
+      {
+        type: 'Resource',
+        resource: {
+          name: 'memory',
+          target: { type: 'Utilization', averageUtilization: 80 },
+        },
+      },
+    ]);
+
+    // 2. HPA targeting StatefulSet
+    const nodesSS = [
+      {
+        id: 'hpa-ss',
+        type: 'HPA',
+        data: {
+          label: 'db-hpa',
+          minReplicas: 3,
+          maxReplicas: 6,
+          targetCPU: 75,
+        },
+      },
+      {
+        id: 'ss-1',
+        type: 'StatefulSet',
+        data: { label: 'db-cluster', replicas: 3 },
+      },
+    ];
+    const edgesSS = [{ id: 'e-hpa-ss', source: 'hpa-ss', target: 'ss-1' }];
+    const yamlSS = generateYamlClientSide(nodesSS, edgesSS);
+    const docsSS = yaml.loadAll(yamlSS) as any[];
+
+    const hpaDocSS = docsSS.find((d) => d?.kind === 'HorizontalPodAutoscaler');
+    expect(hpaDocSS).toBeDefined();
+    expect(hpaDocSS.spec.scaleTargetRef).toEqual({
+      apiVersion: 'apps/v1',
+      kind: 'StatefulSet',
+      name: 'db-cluster',
+    });
+    expect(hpaDocSS.spec.minReplicas).toBe(3);
+    expect(hpaDocSS.spec.maxReplicas).toBe(6);
+    expect(hpaDocSS.spec.metrics).toHaveLength(1);
+    expect(hpaDocSS.spec.metrics[0].resource.name).toBe('cpu');
+
+    // 3. HPA targeting ReplicaSet with empty label fallback to ID
+    const nodesRS = [
+      {
+        id: 'hpa-rs',
+        type: 'HPA',
+        data: { label: 'rs-hpa' },
+      },
+      {
+        id: 'rs-target-id',
+        type: 'ReplicaSet',
+        data: { label: '' },
+      },
+    ];
+    const edgesRS = [{ id: 'e-hpa-rs', source: 'hpa-rs', target: 'rs-target-id' }];
+    const yamlRS = generateYamlClientSide(nodesRS, edgesRS);
+    const docsRS = yaml.loadAll(yamlRS) as any[];
+
+    const hpaDocRS = docsRS.find((d) => d?.kind === 'HorizontalPodAutoscaler');
+    expect(hpaDocRS).toBeDefined();
+    expect(hpaDocRS.spec.scaleTargetRef).toEqual({
+      apiVersion: 'apps/v1',
+      kind: 'ReplicaSet',
+      name: 'rs-target-id',
+    });
+    expect(hpaDocRS.spec.minReplicas).toBe(1);
+    expect(hpaDocRS.spec.maxReplicas).toBe(10);
+
+    // 4. Standalone unattached HPA fallback to Deployment / tbd-deployment
+    const nodesStandalone = [
+      {
+        id: 'hpa-unattached',
+        type: 'HPA',
+        data: { label: 'unattached-hpa' },
+      },
+    ];
+    const yamlStandalone = generateYamlClientSide(nodesStandalone, []);
+    const docsStandalone = yaml.loadAll(yamlStandalone) as any[];
+
+    const hpaDocUnattached = docsStandalone.find((d) => d?.kind === 'HorizontalPodAutoscaler');
+    expect(hpaDocUnattached.spec.scaleTargetRef).toEqual({
+      apiVersion: 'apps/v1',
+      kind: 'Deployment',
+      name: 'tbd-deployment',
+    });
+
+    // 5. HPA with disabled yamlSettings
+    const nodesDisabled = [
+      {
+        id: 'hpa-disabled',
+        type: 'HPA',
+        data: {
+          label: 'disabled-hpa',
+          minReplicas: 5,
+          maxReplicas: 20,
+          targetCPU: 80,
+          targetMemory: 90,
+          yamlSettings: {
+            replicas: false,
+            targetCPU: false,
+            targetMemory: false,
+          },
+        },
+      },
+    ];
+    const yamlDisabled = generateYamlClientSide(nodesDisabled, []);
+    const docsDisabled = yaml.loadAll(yamlDisabled) as any[];
+
+    const hpaDocDisabled = docsDisabled.find((d) => d?.kind === 'HorizontalPodAutoscaler');
+    expect(hpaDocDisabled.spec.minReplicas).toBe(1);
+    expect(hpaDocDisabled.spec.maxReplicas).toBe(10);
+    expect(hpaDocDisabled.spec.metrics).toBeUndefined();
+
+    // 6. HPA within a Namespace
+    const nodesNs = [
+      { id: 'ns-prod', type: 'Namespace', data: { label: 'production' } },
+      {
+        id: 'hpa-in-ns',
+        type: 'HPA',
+        parentId: 'ns-prod',
+        data: { label: 'prod-hpa' },
+      },
+    ];
+    const yamlNs = generateYamlClientSide(nodesNs, []);
+    const docsNs = yaml.loadAll(yamlNs) as any[];
+
+    const hpaDocNs = docsNs.find((d) => d?.kind === 'HorizontalPodAutoscaler');
+    expect(hpaDocNs.metadata.namespace).toBe('production');
+
+    // 7. Attached HPA item on StatefulSet card
+    const nodesAttachedSS = [
+      {
+        id: 'ss-with-hpa',
+        type: 'StatefulSet',
+        data: {
+          label: 'redis-cluster',
+          replicas: 3,
+          hpas: [
+            {
+              id: 'hpa-item-1',
+              name: 'redis-autoscale',
+              minReplicas: 3,
+              maxReplicas: 9,
+              targetCPU: 70,
+              targetMemory: 85,
+            },
+          ],
+        },
+      },
+    ];
+    const yamlAttached = generateYamlClientSide(nodesAttachedSS, []);
+    const docsAttached = yaml.loadAll(yamlAttached) as any[];
+
+    const ssDoc = docsAttached.find((d) => d?.kind === 'StatefulSet');
+    const hpaAttachedDoc = docsAttached.find((d) => d?.kind === 'HorizontalPodAutoscaler');
+
+    expect(ssDoc).toBeDefined();
+    expect(hpaAttachedDoc).toBeDefined();
+    expect(hpaAttachedDoc.metadata.name).toBe('redis-autoscale');
+    expect(hpaAttachedDoc.spec.scaleTargetRef).toEqual({
+      apiVersion: 'apps/v1',
+      kind: 'StatefulSet',
+      name: 'redis-cluster',
+    });
+    expect(hpaAttachedDoc.spec.minReplicas).toBe(3);
+    expect(hpaAttachedDoc.spec.maxReplicas).toBe(9);
+    expect(hpaAttachedDoc.spec.metrics).toEqual([
+      {
+        type: 'Resource',
+        resource: {
+          name: 'cpu',
+          target: { type: 'Utilization', averageUtilization: 70 },
+        },
+      },
+      {
+        type: 'Resource',
+        resource: {
+          name: 'memory',
+          target: { type: 'Utilization', averageUtilization: 85 },
+        },
+      },
+    ]);
+  });
 });

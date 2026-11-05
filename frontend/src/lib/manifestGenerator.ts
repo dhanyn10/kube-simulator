@@ -645,6 +645,101 @@ const buildPvcManifest = (node: any, metadata: any) => ({
   },
 });
 
+const HPA_SCALE_TARGET_TYPES = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
+
+const findHpaScaleTarget = (
+  hpaId: string,
+  nodeMap: Map<string, any>,
+  sourceEdgeMap: Map<string, any[]>
+) => {
+  const outgoing = sourceEdgeMap.get(hpaId) || [];
+  for (const edge of outgoing) {
+    const target = nodeMap.get(edge.target);
+    if (target && HPA_SCALE_TARGET_TYPES.has(target.type)) {
+      return target;
+    }
+  }
+  return null;
+};
+
+const buildHpaMetrics = (data: any) => {
+  const metrics: any[] = [];
+
+  if (data?.yamlSettings?.targetCPU !== false) {
+    const targetCpuUtilization = data?.targetCPU != null ? Number(data.targetCPU) : 50;
+    metrics.push({
+      type: 'Resource',
+      resource: {
+        name: 'cpu',
+        target: {
+          type: 'Utilization',
+          averageUtilization: targetCpuUtilization,
+        },
+      },
+    });
+  }
+
+  if (data?.yamlSettings?.targetMemory !== false && data?.targetMemory != null) {
+    metrics.push({
+      type: 'Resource',
+      resource: {
+        name: 'memory',
+        target: {
+          type: 'Utilization',
+          averageUtilization: Number(data.targetMemory),
+        },
+      },
+    });
+  }
+
+  return metrics;
+};
+
+const buildHpaManifest = (
+  node: any,
+  metadata: any,
+  nodeMap: Map<string, any>,
+  sourceEdgeMap: Map<string, any[]>
+) => {
+  const targetWorkload = findHpaScaleTarget(node.id, nodeMap, sourceEdgeMap);
+  let workloadKind = 'Deployment';
+  let workloadName = 'tbd-deployment';
+
+  if (targetWorkload) {
+    workloadKind = targetWorkload.type;
+    workloadName = sanitizeName(targetWorkload.data?.label) || targetWorkload.id;
+  }
+
+  let minReplicas = node.data?.minReplicas ?? 1;
+  let maxReplicas = node.data?.maxReplicas ?? 10;
+  if (node.data?.yamlSettings?.replicas === false) {
+    minReplicas = 1;
+    maxReplicas = 10;
+  }
+
+  const spec: Record<string, any> = {
+    scaleTargetRef: {
+      apiVersion: 'apps/v1',
+      kind: workloadKind,
+      name: workloadName,
+    },
+    minReplicas,
+    maxReplicas,
+  };
+
+  const metrics = buildHpaMetrics(node.data);
+  if (metrics.length > 0) {
+    spec.metrics = metrics;
+  }
+
+  return {
+    apiVersion: 'autoscaling/v2',
+    kind: 'HorizontalPodAutoscaler',
+    metadata,
+    spec,
+  };
+};
+
 const buildNodeManifest = (
   node: any,
   nodeMap: Map<string, any>,
@@ -688,9 +783,73 @@ const buildNodeManifest = (
       return buildSecretManifest(node, metadata);
     case 'PVC':
       return buildPvcManifest(node, metadata);
+    case 'HPA':
+      return buildHpaManifest(node, metadata, nodeMap, sourceEdgeMap);
     default:
       return null;
   }
+};
+
+const buildAttachedHpaManifest = (
+  hpaItem: any,
+  node: any,
+  nodeMap: Map<string, any>
+) => {
+  const hpaName = sanitizeName(hpaItem.name) || `${sanitizeName(node.data?.label || node.id)}-hpa`;
+  const namespace = getNamespace(node, nodeMap);
+  const metadata: Record<string, string> = { name: hpaName };
+  if (namespace) {
+    metadata.namespace = namespace;
+  }
+
+  const workloadKind = node.type === 'Pod' ? 'Deployment' : node.type;
+  const workloadName = sanitizeName(node.data?.label) || node.id;
+
+  const minReplicas = Math.max(1, Number(hpaItem.minReplicas) || 1);
+  const maxReplicas = Math.max(minReplicas, Number(hpaItem.maxReplicas) || 10);
+  const targetCpu = Math.max(1, Number(hpaItem.targetCPU) || 80);
+
+  const metrics: any[] = [
+    {
+      type: 'Resource',
+      resource: {
+        name: 'cpu',
+        target: {
+          type: 'Utilization',
+          averageUtilization: targetCpu,
+        },
+      },
+    },
+  ];
+
+  if (hpaItem.targetMemory != null && Number(hpaItem.targetMemory) > 0) {
+    metrics.push({
+      type: 'Resource',
+      resource: {
+        name: 'memory',
+        target: {
+          type: 'Utilization',
+          averageUtilization: Number(hpaItem.targetMemory),
+        },
+      },
+    });
+  }
+
+  return {
+    apiVersion: 'autoscaling/v2',
+    kind: 'HorizontalPodAutoscaler',
+    metadata,
+    spec: {
+      scaleTargetRef: {
+        apiVersion: 'apps/v1',
+        kind: workloadKind,
+        name: workloadName,
+      },
+      minReplicas,
+      maxReplicas,
+      metrics,
+    },
+  };
 };
 
 export const generateYamlClientSide = (nodes: any[], edges: any[]): string => {
@@ -702,6 +861,14 @@ export const generateYamlClientSide = (nodes: any[], edges: any[]): string => {
     const manifest = buildNodeManifest(node, nodeMap, sourceEdgeMap, targetEdgeMap);
     if (manifest) {
       manifests.push(manifest);
+    }
+    if (Array.isArray(node.data?.hpas)) {
+      node.data.hpas.forEach((hpaItem: any) => {
+        const attachedHpaManifest = buildAttachedHpaManifest(hpaItem, node, nodeMap);
+        if (attachedHpaManifest) {
+          manifests.push(attachedHpaManifest);
+        }
+      });
     }
   });
 

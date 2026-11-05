@@ -742,11 +742,11 @@ func generateIngress(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 	}
 }
 
-// findTargetDeployment identifies the target Deployment node connected to an HPA.
-func findTargetDeployment(hpaID string, ctx *GenContext) *k8s.FrontendNode {
+// findTargetScaleWorkload identifies the target workload node (Deployment, StatefulSet, or ReplicaSet) connected to an HPA.
+func findTargetScaleWorkload(hpaID string, ctx *GenContext) *k8s.FrontendNode {
 	for _, edge := range ctx.sourceEdgeMap[hpaID] {
 		target := ctx.nodeMap[edge.Target]
-		if target != nil && target.Type == "Deployment" {
+		if target != nil && (target.Type == "Deployment" || target.Type == "StatefulSet" || target.Type == "ReplicaSet") {
 			return target
 		}
 	}
@@ -791,10 +791,15 @@ func buildHPAMetrics(data k8s.K8sNodeData) []k8s.HPAMetric {
 
 // generateHPA constructs a Kubernetes HorizontalPodAutoscaler resource object.
 func generateHPA(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
-	targetDeployment := findTargetDeployment(data.ID, ctx)
-	deploymentName := "tbd-deployment"
-	if targetDeployment != nil {
-		deploymentName = sanitizeName(targetDeployment.Data.Label)
+	targetWorkload := findTargetScaleWorkload(data.ID, ctx)
+	workloadKind := "Deployment"
+	workloadName := "tbd-deployment"
+	if targetWorkload != nil {
+		workloadKind = targetWorkload.Type
+		workloadName = sanitizeName(targetWorkload.Data.Label)
+		if workloadName == "" {
+			workloadName = targetWorkload.ID
+		}
 	}
 
 	minReplicas := 1
@@ -818,12 +823,85 @@ func generateHPA(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) 
 		Spec: k8s.HPASpec{
 			ScaleTargetRef: k8s.CrossVersionObjectReference{
 				ApiVersion: appsApiVersion,
-				Kind:       "Deployment",
-				Name:       deploymentName,
+				Kind:       workloadKind,
+				Name:       workloadName,
 			},
 			MinReplicas: minReplicas,
 			MaxReplicas: maxReplicas,
 			Metrics:     buildHPAMetrics(data),
+		},
+	}
+}
+
+// generateAttachedHPA constructs an HPA manifest from an attached HpaItem on a workload node.
+func generateAttachedHPA(item k8s.HpaItem, node k8s.FrontendNode, ctx *GenContext) interface{} {
+	hpaName := sanitizeName(item.Name)
+	if hpaName == "" {
+		hpaName = fmt.Sprintf("%s-hpa", sanitizeName(node.Data.Label))
+	}
+	namespace := getNamespace(node, ctx)
+
+	workloadKind := node.Type
+	if workloadKind == "Pod" {
+		workloadKind = "Deployment"
+	}
+	workloadName := sanitizeName(node.Data.Label)
+	if workloadName == "" {
+		workloadName = node.ID
+	}
+
+	minReplicas := item.MinReplicas
+	if minReplicas <= 0 {
+		minReplicas = 1
+	}
+	maxReplicas := item.MaxReplicas
+	if maxReplicas <= 0 {
+		maxReplicas = 10
+	}
+	targetCPU := item.TargetCPU
+	if targetCPU <= 0 {
+		targetCPU = 80
+	}
+
+	metrics := []k8s.HPAMetric{
+		{
+			Type: "Resource",
+			Resource: &k8s.ResourceMetricSource{
+				Name: "cpu",
+				Target: k8s.MetricTarget{
+					Type:               "Utilization",
+					AverageUtilization: targetCPU,
+				},
+			},
+		},
+	}
+
+	if item.TargetMemory != nil && *item.TargetMemory > 0 {
+		metrics = append(metrics, k8s.HPAMetric{
+			Type: "Resource",
+			Resource: &k8s.ResourceMetricSource{
+				Name: "memory",
+				Target: k8s.MetricTarget{
+					Type:               "Utilization",
+					AverageUtilization: *item.TargetMemory,
+				},
+			},
+		})
+	}
+
+	return k8s.HPA{
+		ApiVersion: "autoscaling/v2",
+		Kind:       "HorizontalPodAutoscaler",
+		Metadata:   k8s.ObjectMeta{Name: hpaName, Namespace: namespace},
+		Spec: k8s.HPASpec{
+			ScaleTargetRef: k8s.CrossVersionObjectReference{
+				ApiVersion: appsApiVersion,
+				Kind:       workloadKind,
+				Name:       workloadName,
+			},
+			MinReplicas: minReplicas,
+			MaxReplicas: maxReplicas,
+			Metrics:     metrics,
 		},
 	}
 }
