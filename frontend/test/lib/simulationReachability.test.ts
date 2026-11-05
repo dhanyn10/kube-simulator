@@ -30,6 +30,37 @@ describe('simulationReachability', () => {
     expect(result).toBe(true);
   });
 
+  it('covers hasValidIngressBackend skipping edges with validationError', () => {
+    const ingressNode: Node = {
+      id: 'ing-err',
+      type: 'Ingress',
+      data: {},
+      position: { x: 0, y: 0 },
+    };
+    const svcNode: Node = {
+      id: 'svc-1',
+      type: 'Service',
+      data: { serviceType: 'ClusterIP' },
+      position: { x: 0, y: 0 },
+    };
+    const edgeMap = new Map<string, Edge[]>([
+      [
+        'ing-err',
+        [
+          {
+            id: 'e-err',
+            source: 'ing-err',
+            target: 'svc-1',
+            data: { validationError: 'Target service port mismatch' },
+          },
+        ],
+      ],
+    ]);
+
+    const result = hasValidIngressBackend(ingressNode, [svcNode], edgeMap);
+    expect(result).toBe(false);
+  });
+
   it('covers calculateReachability without allNodes argument (nodes || [] fallback)', () => {
     const startNode: Node = {
       id: 'start-1',

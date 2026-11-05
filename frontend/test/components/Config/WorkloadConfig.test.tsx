@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { WorkloadConfig, isControllerPodNode } from '@/components/Config/WorkloadConfig';
+import { WorkloadConfig, isControllerPodNode, WorkloadRestartPolicySection } from '@/components/Config/WorkloadConfig';
 import { useFlowStore } from '@/store';
 
 describe('WorkloadConfig', () => {
@@ -816,5 +816,23 @@ describe('WorkloadConfig', () => {
     );
     const lightHint = screen.getByTestId('controller-restart-policy-hint');
     expect(lightHint.className).toContain('bg-blue-50');
+  });
+
+  it('covers WorkloadRestartPolicySection when selectedNode.data is undefined', () => {
+    const podNoData = {
+      id: 'p-no-data',
+      type: 'Pod',
+    };
+    render(
+      <WorkloadRestartPolicySection
+        selectedNode={podNoData}
+        isControllerPod={false}
+        colorMode="dark"
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    expect(screen.getByText('Restart Policy')).toBeDefined();
   });
 });

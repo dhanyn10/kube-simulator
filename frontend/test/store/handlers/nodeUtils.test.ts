@@ -107,6 +107,26 @@ describe('nodeUtils', () => {
       baseName: "pod",
       label: "pod",
     });
+
+    // Test onRename on Pod with StatefulSet parent when name sanitizes to empty string (fallback to 'statefulset')
+    updateNodeDataMock.mockClear();
+    const storeWithStatefulSet = () =>
+      ({
+        nodes: [
+          { id: "ss-1", type: "StatefulSet", data: { label: "old-ss" } },
+          { id: "pod-ss", type: "Pod", parentId: "ss-1", data: {} },
+        ],
+        updateNodeData: updateNodeDataMock,
+      } as any);
+
+    const podSsHandlers = createNodeHandlers("pod-ss", storeWithStatefulSet);
+    podSsHandlers.onRename("   !!!   ");
+    expect(updateNodeDataMock).toHaveBeenCalledWith("ss-1", { label: "statefulset" });
+
+    // Test ordinal suffix stripping on StatefulSet parent
+    updateNodeDataMock.mockClear();
+    podSsHandlers.onRename("my-cluster-0");
+    expect(updateNodeDataMock).toHaveBeenCalledWith("ss-1", { label: "my-cluster" });
   });
 
   it('getInitialData returns correct defaults for various types', () => {

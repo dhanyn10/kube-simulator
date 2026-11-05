@@ -47,7 +47,7 @@ interface WorkloadRestartPolicySectionProps {
   readonly performUpdate: (updates: any) => void;
 }
 
-const WorkloadRestartPolicySection: React.FC<WorkloadRestartPolicySectionProps> = ({
+export const WorkloadRestartPolicySection: React.FC<WorkloadRestartPolicySectionProps> = ({
   selectedNode,
   isControllerPod,
   colorMode,
@@ -72,9 +72,7 @@ const WorkloadRestartPolicySection: React.FC<WorkloadRestartPolicySectionProps> 
         options={RESTART_POLICIES}
         currentValue={currentVal}
         onSelect={(val) => {
-          if (!isControllerPod || val === 'Always') {
-            performUpdate({ restartPolicy: val });
-          }
+          performUpdate({ restartPolicy: val });
         }}
         disabledOption={(val) => isControllerPod && val !== 'Always'}
         colorMode={colorMode}
