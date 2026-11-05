@@ -398,6 +398,22 @@ func TestGeneratePVC(t *testing.T) {
 	if strings.Contains(result2, "storageClassName") {
 		t.Errorf("Generate failed to respect PVC YamlSettings: %s", result2)
 	}
+
+	// Suppression when connected to StatefulSet
+	nodesJson3 := `[{"id":"ss1","type":"StatefulSet","data":{"label":"My SS","replicas":2,"workloadType":"StatefulSet"}},{"id":"pvc1","type":"PVC","data":{"label":"My PVC","storageCapacity":"5Gi"}}]`
+	edgesJson3 := `[{"id":"e1","source":"ss1","target":"pvc1"}]`
+	result3 := Generate(nodesJson3, edgesJson3)
+
+	var parsed []map[string]interface{}
+	if err := json.Unmarshal([]byte(result3), &parsed); err != nil {
+		t.Fatalf("Failed to parse JSON result: %v", err)
+	}
+	if len(parsed) != 1 {
+		t.Fatalf("Expected only 1 manifest (StatefulSet), got %d manifests: %s", len(parsed), result3)
+	}
+	if parsed[0]["kind"] != "StatefulSet" {
+		t.Fatalf("Expected kind StatefulSet, got %v", parsed[0]["kind"])
+	}
 }
 
 func TestGenerateReplicaSet(t *testing.T) {

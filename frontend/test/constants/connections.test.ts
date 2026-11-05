@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { getConnectionError, VALID_CONNECTIONS } from '@/constants/connections';
+import {
+  getConnectionError,
+  VALID_CONNECTIONS,
+  isStatefulSetResource,
+  checkPvcTemplateTopologyConflict,
+} from '@/constants/connections';
 
 describe('connections constants', () => {
   it('should return null for valid connections', () => {
@@ -301,5 +306,64 @@ describe('connections constants', () => {
     expect(
       getConnectionError('HPA', 'Deployment', {}, {}, 'production', 'production')
     ).toBeNull();
+  });
+
+  describe('PVC Volume Claim Template topology rules', () => {
+    it('identifies StatefulSet resources by type or workloadType', () => {
+      expect(isStatefulSetResource('StatefulSet', {})).toBe(true);
+      expect(isStatefulSetResource('Pod', { workloadType: 'StatefulSet' })).toBe(true);
+      expect(isStatefulSetResource('Deployment', {})).toBe(false);
+      expect(isStatefulSetResource(undefined, undefined)).toBe(false);
+    });
+
+    it('permits connecting PVC to a single workload without existing connections', () => {
+      const pvc = { id: 'pvc-1', type: 'PVC', data: { label: 'my-pvc' } };
+      const ss = { id: 'ss-1', type: 'StatefulSet', data: { label: 'my-ss' } };
+      expect(checkPvcTemplateTopologyConflict(pvc, ss, [])).toBeNull();
+
+      const dep = { id: 'dep-1', type: 'Deployment', data: { label: 'my-dep' } };
+      expect(checkPvcTemplateTopologyConflict(pvc, dep, [])).toBeNull();
+    });
+
+    it('rejects connecting StatefulSet when PVC is already connected to another workload', () => {
+      const pvc = { id: 'pvc-1', type: 'PVC', data: { label: 'shared-pvc' } };
+      const newSS = { id: 'ss-2', type: 'StatefulSet', data: { label: 'order-ss' } };
+      const existingDep = { id: 'dep-1', type: 'Deployment', data: { label: 'web-dep' } };
+
+      const error = checkPvcTemplateTopologyConflict(pvc, newSS, [existingDep]);
+      expect(error).toBe(
+        'Volume Claim Template Conflict: PVC "shared-pvc" cannot be connected to StatefulSet "order-ss" while already connected to "web-dep".'
+      );
+    });
+
+    it('rejects connecting Deployment or Pod when PVC is already claimed by a StatefulSet', () => {
+      const pvc = { id: 'pvc-1', type: 'PVC', data: { label: 'db-pvc' } };
+      const newDep = { id: 'dep-1', type: 'Deployment', data: { label: 'web-dep' } };
+      const existingSS = { id: 'ss-1', type: 'StatefulSet', data: { label: 'database-ss' } };
+
+      const error = checkPvcTemplateTopologyConflict(pvc, newDep, [existingSS]);
+      expect(error).toBe(
+        'Volume Claim Template Conflict: PVC "db-pvc" is claimed as a StatefulSet volumeClaimTemplate by "database-ss" and cannot be connected to "web-dep".'
+      );
+    });
+
+    it('rejects connecting second StatefulSet to the same PVC', () => {
+      const pvc = { id: 'pvc-1', type: 'PVC', data: { label: 'db-pvc' } };
+      const secondSS = { id: 'ss-2', type: 'StatefulSet', data: { label: 'backup-ss' } };
+      const firstSS = { id: 'ss-1', type: 'StatefulSet', data: { label: 'primary-ss' } };
+
+      const error = checkPvcTemplateTopologyConflict(pvc, secondSS, [firstSS]);
+      expect(error).toBe(
+        'Volume Claim Template Conflict: PVC "db-pvc" cannot be connected to StatefulSet "backup-ss" while already connected to "primary-ss".'
+      );
+    });
+
+    it('permits connecting multiple Deployments sharing a PVC without StatefulSets', () => {
+      const pvc = { id: 'pvc-1', type: 'PVC', data: { label: 'rwx-pvc' } };
+      const newDep = { id: 'dep-2', type: 'Deployment', data: { label: 'worker-dep' } };
+      const existingDep = { id: 'dep-1', type: 'Deployment', data: { label: 'web-dep' } };
+
+      expect(checkPvcTemplateTopologyConflict(pvc, newDep, [existingDep])).toBeNull();
+    });
   });
 });

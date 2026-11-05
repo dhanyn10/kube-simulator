@@ -113,6 +113,9 @@ func (g *HPAGenerator) Generate(data k8s.K8sNodeData, name, namespace string, ct
 type PVCGenerator struct{}
 
 func (g *PVCGenerator) Generate(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
+	if isStatefulSetPvc(data.ID, ctx) {
+		return nil
+	}
 	return generatePVC(data, name, namespace)
 }
 

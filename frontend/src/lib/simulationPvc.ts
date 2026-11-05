@@ -37,6 +37,7 @@ export interface PvcSimulationCountResult {
   connectedPods: Node[];
   workerNodes: Set<string>;
   namespaceConflict?: PvcWorkloadAnalysis['namespaceConflict'];
+  templateConflict?: PvcWorkloadAnalysis['templateConflict'];
   errorMsg?: string;
 }
 
@@ -68,6 +69,7 @@ export const countConnectedPvcReplicas = (
     connectedPods: analysis.connectedPods,
     workerNodes: analysis.distinctWorkerNodes,
     namespaceConflict: analysis.namespaceConflict,
+    templateConflict: analysis.templateConflict,
     errorMsg,
   };
 };

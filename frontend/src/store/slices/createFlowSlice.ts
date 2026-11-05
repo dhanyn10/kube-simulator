@@ -11,7 +11,7 @@ import {
   addEdge,
 } from '@xyflow/react';
 import type { FlowState } from '@/store/types';
-import { getConnectionError } from '@/constants/connections';
+import { getConnectionError, checkPvcTemplateTopologyConflict } from '@/constants/connections';
 import { resolveNodeNamespace } from '@/lib/namespaceUtils';
 import { getAbsPos, ejectLoadBalancersFromNamespaces } from '@/store/helpers';
 import { safeRandom } from '@/lib/utils';
@@ -655,6 +655,35 @@ const updateConnectedNodeState = (
   return updated;
 };
 
+const checkPvcTopologyError = (
+  edge: Edge,
+  sourceNode: Node,
+  targetNode: Node,
+  nodes: Node[],
+  edges: Edge[]
+): string | null => {
+  const isSourcePvc = sourceNode.type === 'PVC';
+  const isTargetPvc = targetNode.type === 'PVC';
+  if (!isSourcePvc && !isTargetPvc) return null;
+
+  const pvcNode = isSourcePvc ? sourceNode : targetNode;
+  const workloadNode = isSourcePvc ? targetNode : sourceNode;
+
+  const existingWorkloads: Node[] = [];
+  for (const e of edges) {
+    if (e.id === edge.id) continue;
+    if (e.source === pvcNode.id && e.target !== workloadNode.id) {
+      const other = nodes.find((n) => n.id === e.target);
+      if (other) existingWorkloads.push(other);
+    } else if (e.target === pvcNode.id && e.source !== workloadNode.id) {
+      const other = nodes.find((n) => n.id === e.source);
+      if (other) existingWorkloads.push(other);
+    }
+  }
+
+  return checkPvcTemplateTopologyConflict(pvcNode, workloadNode, existingWorkloads);
+};
+
 export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set, get) => ({
   nodes: [],
   edges: [],
@@ -713,14 +742,14 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     });
   },
   validateEdge: (edge: Edge) => {
-    const { nodes } = get();
+    const { nodes, edges } = get();
     const sourceNode = nodes.find((n) => n.id === edge.source);
     const targetNode = nodes.find((n) => n.id === edge.target);
     if (!sourceNode || !targetNode) return edge;
 
     const sourceNamespace = resolveNodeNamespace(sourceNode, nodes);
     const targetNamespace = resolveNodeNamespace(targetNode, nodes);
-    const error = getConnectionError(
+    let error = getConnectionError(
       sourceNode.type || '',
       targetNode.type || '',
       sourceNode.data,
@@ -728,6 +757,9 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       sourceNamespace,
       targetNamespace
     );
+    if (!error) {
+      error = checkPvcTopologyError(edge, sourceNode, targetNode, nodes, edges);
+    }
     return {
       ...edge,
       data: { ...edge.data, validationError: error },

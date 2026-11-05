@@ -68,6 +68,33 @@ describe('simulationPvc', () => {
 
       expect(result.totalReplicas).toBe(1);
       expect(result.connectedEdges).toHaveLength(1);
+      expect(result.templateConflict).toBeUndefined();
+    });
+
+    it('identifies templateConflict when PVC is shared between StatefulSet and Deployment', () => {
+      const pvcNode: Node = { id: 'pvc-1', type: 'PVC', data: { label: 'my-vol' }, position: { x: 0, y: 0 } };
+      const ssNode: Node = {
+        id: 'workload-ss',
+        type: 'StatefulSet',
+        data: { label: 'my-ss', workloadType: 'StatefulSet', replicas: 2 },
+        position: { x: 0, y: 0 },
+      };
+      const depNode: Node = {
+        id: 'workload-dep',
+        type: 'Deployment',
+        data: { label: 'my-dep', replicas: 1 },
+        position: { x: 0, y: 0 },
+      };
+      const edge1: Edge = { id: 'e1', source: 'pvc-1', target: 'workload-ss' };
+      const edge2: Edge = { id: 'e2', source: 'pvc-1', target: 'workload-dep' };
+
+      const ctx = createMockCtx([pvcNode, ssNode, depNode], [edge1, edge2]);
+      const result = countConnectedPvcReplicas(pvcNode, ctx);
+
+      expect(result.templateConflict).toBeDefined();
+      expect(result.templateConflict?.statefulSetLabel).toBe('my-ss');
+      expect(result.templateConflict?.otherWorkloadLabel).toBe('my-dep');
+      expect(result.errorMsg).toContain('Volume Claim Template Conflict');
     });
 
     it('counts replicas for controllers with invalid or valid replica numbers', () => {

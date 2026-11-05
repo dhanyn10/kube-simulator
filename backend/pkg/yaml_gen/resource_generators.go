@@ -309,6 +309,26 @@ func generateSecret(data k8s.K8sNodeData, name, namespace string) interface{} {
 	return secret
 }
 
+// isStatefulSetPvc checks if the PVC is connected to a StatefulSet workload and thus converted into VolumeClaimTemplates.
+func isStatefulSetPvc(nodeID string, ctx *GenContext) bool {
+	if ctx == nil {
+		return false
+	}
+	for _, edge := range ctx.targetEdgeMap[nodeID] {
+		sourceNode := ctx.nodeMap[edge.Source]
+		if sourceNode != nil && (sourceNode.Type == "StatefulSet" || sourceNode.Data.WorkloadType == "StatefulSet") {
+			return true
+		}
+	}
+	for _, edge := range ctx.sourceEdgeMap[nodeID] {
+		targetNode := ctx.nodeMap[edge.Target]
+		if targetNode != nil && (targetNode.Type == "StatefulSet" || targetNode.Data.WorkloadType == "StatefulSet") {
+			return true
+		}
+	}
+	return false
+}
+
 // generatePVC constructs a Kubernetes PersistentVolumeClaim resource object.
 func generatePVC(data k8s.K8sNodeData, name, namespace string) interface{} {
 	accessMode := "ReadWriteOnce"

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateYamlClientSide } from '@/lib/manifestGenerator';
+import { generateYamlClientSide, isStatefulSetVolumeClaimTemplate } from '@/lib/manifestGenerator';
 import yaml from 'js-yaml';
 
 describe('manifestGenerator test suite', () => {
@@ -68,6 +68,56 @@ describe('manifestGenerator test suite', () => {
 
     expect(yamlOutput).toContain('kind: Service');
     expect(yamlOutput).toContain('clusterIP: None');
+
+    // Standalone PVC manifest must be suppressed because it was absorbed into volumeClaimTemplates
+    const documents = yamlOutput.split('\n---\n');
+    expect(documents).toHaveLength(2);
+    expect(documents.some((doc) => doc.startsWith('kind: PersistentVolumeClaim'))).toBe(false);
+  });
+
+  it('generates standalone PVC when connected to Deployment or when unconnected', () => {
+    const nodes = [
+      { id: 'dep1', type: 'Deployment', data: { label: 'Web Dep', replicas: 1, image: 'nginx:alpine' } },
+      { id: 'pvc1', type: 'PVC', data: { label: 'Web Storage', accessMode: 'ReadWriteOnce', storageCapacity: '5Gi' } },
+      { id: 'pvc2', type: 'PVC', data: { label: 'Orphan Storage', accessMode: 'ReadWriteMany', storageCapacity: '10Gi' } },
+    ];
+    const edges = [{ id: 'e1', source: 'dep1', target: 'pvc1' }];
+
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    const documents = yamlOutput.split('\n---\n');
+    expect(documents).toHaveLength(3);
+    expect(yamlOutput).toContain('name: web-storage');
+    expect(yamlOutput).toContain('name: orphan-storage');
+  });
+
+  it('tests isStatefulSetVolumeClaimTemplate helper across incoming and outgoing edges', () => {
+    const nodeMap = new Map<string, any>([
+      ['ss1', { id: 'ss1', type: 'StatefulSet', data: { label: 'ss' } }],
+      ['ss2', { id: 'ss2', type: 'Pod', data: { label: 'ss-workload', workloadType: 'StatefulSet' } }],
+      ['dep1', { id: 'dep1', type: 'Deployment', data: { label: 'dep' } }],
+      ['pvc1', { id: 'pvc1', type: 'PVC', data: { label: 'pvc1' } }],
+    ]);
+
+    const targetEdgeMap = new Map<string, any[]>([
+      ['pvc1', [{ source: 'ss1', target: 'pvc1' }]],
+    ]);
+    expect(isStatefulSetVolumeClaimTemplate('pvc1', nodeMap, targetEdgeMap)).toBe(true);
+
+    // Empty incoming
+    expect(isStatefulSetVolumeClaimTemplate('unknown', nodeMap, targetEdgeMap)).toBe(false);
+
+    // Connected to Deployment
+    const depTargetEdgeMap = new Map<string, any[]>([
+      ['pvc1', [{ source: 'dep1', target: 'pvc1' }]],
+    ]);
+    expect(isStatefulSetVolumeClaimTemplate('pvc1', nodeMap, depTargetEdgeMap)).toBe(false);
+
+    // Outgoing edge to StatefulSet (reversed edge direction)
+    const emptyTargetMap = new Map<string, any[]>();
+    const sourceEdgeMap = new Map<string, any[]>([
+      ['pvc1', [{ source: 'pvc1', target: 'ss2' }]],
+    ]);
+    expect(isStatefulSetVolumeClaimTemplate('pvc1', nodeMap, emptyTargetMap, sourceEdgeMap)).toBe(true);
   });
 
   it('generates Pod and Deployment YAML manifests correctly with custom ports and restart policies', () => {
