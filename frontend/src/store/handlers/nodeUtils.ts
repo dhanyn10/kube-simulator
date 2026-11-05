@@ -69,13 +69,14 @@ export const createNodeHandlers = (id: string, get: () => FlowState) => ({
     if (node) get().deleteNodes([node]);
   },
   onRename: (newName: string) => {
-    let cleanBase = sanitizeSlug(newName) || 'pod';
+    const rawClean = sanitizeSlug(newName);
+    let cleanBase = rawClean || 'pod';
     const node = get().nodes.find((n: Node) => n.id === id);
     if (node?.type === 'Pod') {
       const currentParent = node.parentId ? get().nodes.find(n => n.id === node.parentId) : null;
       if (currentParent && (currentParent.type === 'Deployment' || currentParent.type === 'StatefulSet' || currentParent.type === 'ReplicaSet')) {
         if (currentParent.type === 'StatefulSet' || currentParent.data?.workloadType === 'StatefulSet') {
-          cleanBase = cleanBase.replace(/-\d+$/, '') || 'statefulset';
+          cleanBase = rawClean.replace(/-\d+$/, '') || 'statefulset';
         }
         get().updateNodeData(currentParent.id, { label: cleanBase });
       } else {

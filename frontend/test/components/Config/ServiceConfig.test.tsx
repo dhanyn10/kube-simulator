@@ -276,6 +276,39 @@ describe('ServiceConfig', () => {
     expect(screen.queryByText('ns1-pod')).toBeNull();
   });
 
+  it('covers candidate Pod with parentId only in data.parentId matching Namespace parent', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'ns-1', type: 'Namespace', data: { label: 'default' } },
+        {
+          id: 'pod-nested-data',
+          type: 'Pod',
+          parentId: undefined,
+          data: { parentId: 'ns-1', label: 'nested-data-pod' },
+        },
+      ] as any,
+    });
+
+    const nsServiceProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's1',
+        parentId: 'ns-1',
+        data: {
+          serviceType: 'ClusterIP',
+          port: 80,
+          targetPort: 8080,
+          selector: 'nested-data-pod',
+        },
+      },
+    };
+
+    render(<ServiceConfig {...nsServiceProps} />);
+
+    const selectorDropdownBtn = screen.getByRole('button', { name: /nested-data-pod/i });
+    expect(selectorDropdownBtn).toBeInTheDocument();
+  });
+
   it('strictly limits selector dropdown options to workloads inside the same namespace container', () => {
     useFlowStore.setState({
       nodes: [

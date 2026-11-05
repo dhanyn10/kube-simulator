@@ -5,6 +5,7 @@ import {
   handlePvcRwoAccessMode,
   syncPvcRealtimeState,
   analyzePvcWorkloadConnections,
+  getPvcValidationErrorMsg,
 } from '@/activities/config/pvcConfigHelpers';
 import { Node, Edge } from '@xyflow/react';
 
@@ -523,6 +524,34 @@ describe('pvcConfigHelpers test suite', () => {
     expect(analysis.connectedPods).toHaveLength(0);
   });
 
+  it('covers StatefulSet with child pods in countWorkloadReplicasAndPods', () => {
+    const pvcNode: Node = {
+      id: 'pvc-ss-pods',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+      position: { x: 0, y: 0 },
+    };
+    const ssNode: Node = {
+      id: 'ss-with-pods',
+      type: 'StatefulSet',
+      data: { label: 'my-ss', replicas: 2, workloadType: 'StatefulSet' },
+      position: { x: 0, y: 0 },
+    };
+    const childPod: Node = {
+      id: 'my-ss-0',
+      type: 'Pod',
+      parentId: 'ss-with-pods',
+      data: { label: 'my-ss-0', assignedNode: 'worker-1' },
+      position: { x: 0, y: 0 },
+    };
+    const edge: Edge = { id: 'e-ss-pod', source: 'ss-with-pods', target: 'pvc-ss-pods' };
+
+    const analysis = analyzePvcWorkloadConnections(pvcNode, [pvcNode, ssNode, childPod], [edge]);
+    expect(analysis.totalReplicas).toBe(1);
+    expect(analysis.connectedPods).toHaveLength(1);
+    expect(analysis.connectedPods[0].id).toBe('my-ss-0');
+  });
+
   it('preserves existing namespace conflict when multiple conflicting workloads connect to PVC', () => {
     const nsMain: Node = { id: 'ns-main', type: 'Namespace', data: { label: 'main' }, position: { x: 0, y: 0 } };
     const nsOther1: Node = { id: 'ns-o1', type: 'Namespace', data: { label: 'other-1' }, position: { x: 0, y: 0 } };
@@ -540,5 +569,111 @@ describe('pvcConfigHelpers test suite', () => {
     expect(analysis.namespaceConflict).toBeDefined();
     expect(analysis.namespaceConflict?.pvcNs).toBe('main');
   });
-});
 
+  it('handles duplicate pod encountered across multiple connected workloads without duplicating in podIdsSeen', () => {
+    const pvcNode: Node = {
+      id: 'pvc-dup',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteMany' },
+      position: { x: 0, y: 0 },
+    };
+    const childPod: Node = {
+      id: 'pod-shared',
+      type: 'Pod',
+      parentId: 'dep-1',
+      data: { label: 'child-shared' },
+      position: { x: 0, y: 0 },
+    };
+    const dep1: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { label: 'dep-1', replicas: 1 },
+      position: { x: 0, y: 0 },
+    };
+    const dep2: Node = {
+      id: 'dep-2',
+      type: 'Deployment',
+      data: { label: 'dep-2', replicas: 1 },
+      position: { x: 0, y: 0 },
+    };
+    // childPod also parented under dep-2 to produce duplicate pod entry
+    const childPodDup: Node = {
+      id: 'pod-shared',
+      type: 'Pod',
+      parentId: 'dep-2',
+      data: { label: 'child-shared' },
+      position: { x: 0, y: 0 },
+    };
+    const edges: Edge[] = [
+      { id: 'e1', source: 'dep-1', target: 'pvc-dup' },
+      { id: 'e2', source: 'dep-2', target: 'pvc-dup' },
+    ];
+
+    const analysis = analyzePvcWorkloadConnections(pvcNode, [pvcNode, dep1, dep2, childPod, childPodDup], edges);
+    expect(analysis.connectedPods).toHaveLength(1);
+    expect(analysis.connectedPods[0].id).toBe('pod-shared');
+  });
+
+  it('covers getPvcValidationErrorMsg for various conflict and non-conflict scenarios', () => {
+    const pvcNode: Node = {
+      id: 'pvc-msg',
+      type: 'PVC',
+      data: { label: 'data-vol', accessMode: 'ReadWriteOnce' },
+      position: { x: 0, y: 0 },
+    };
+
+    // 1. Namespace conflict
+    const nsMsg = getPvcValidationErrorMsg(pvcNode, {
+      totalReplicas: 1,
+      connectedPods: [],
+      workerNodes: ['worker-1'],
+      namespaceConflict: {
+        pvcNs: 'prod',
+        workloadNs: 'dev',
+        workloadLabel: 'web-app',
+      },
+    });
+    expect(nsMsg).toContain('Cross-Namespace Binding Error');
+
+    // 2. Multi-Attach worker node conflict
+    const workerConflictMsg = getPvcValidationErrorMsg(pvcNode, {
+      totalReplicas: 2,
+      connectedPods: [],
+      workerNodes: ['worker-1', 'worker-2'],
+      workerNodeConflict: {
+        workerNodes: ['worker-1', 'worker-2'],
+      },
+    });
+    expect(workerConflictMsg).toContain('cannot be mounted on multiple worker nodes');
+
+    // 3. Multi-Attach total replicas conflict (single node, multiple replicas)
+    const replicaConflictMsg = getPvcValidationErrorMsg(pvcNode, {
+      totalReplicas: 3,
+      connectedPods: [],
+      workerNodes: ['worker-1'],
+    });
+    expect(replicaConflictMsg).toContain('cannot be mounted by 3 replicas simultaneously');
+
+    // 4. No conflict under ReadWriteOnce
+    const noConflictRwo = getPvcValidationErrorMsg(pvcNode, {
+      totalReplicas: 1,
+      connectedPods: [],
+      workerNodes: ['worker-1'],
+    });
+    expect(noConflictRwo).toBeUndefined();
+
+    // 5. ReadWriteMany access mode without conflicts
+    const pvcRwm: Node = {
+      id: 'pvc-rwm',
+      type: 'PVC',
+      data: { label: 'shared-vol', accessMode: 'ReadWriteMany' },
+      position: { x: 0, y: 0 },
+    };
+    const rwmResult = getPvcValidationErrorMsg(pvcRwm, {
+      totalReplicas: 5,
+      connectedPods: [],
+      workerNodes: ['worker-1', 'worker-2'],
+    });
+    expect(rwmResult).toBeUndefined();
+  });
+});
