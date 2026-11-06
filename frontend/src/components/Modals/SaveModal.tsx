@@ -50,6 +50,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
     newProjectName,
     setNewProjectName,
     recentFiles,
+    hasAutosaves,
     isLoading,
     loadingFileId,
     activeLocation,
@@ -62,6 +63,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
     handleRestoreFile,
     handleDeleteFile,
     handleOpenFolder,
+    handleClearAllAutosaves,
   } = useSaveModal({ isOpen, onClose });
 
   const position = useContextMenuPosition(contextMenu?.x ?? 0, contextMenu?.y ?? 0, contextMenuRef);
@@ -168,7 +170,21 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                 </span>
               )}
             </div>
-            <span className="text-[10px] text-slate-500 font-mono">Right-click profile for menu (Change Theme, Restore, Close)</span>
+            <div className="flex items-center gap-2.5">
+              {hasAutosaves && (
+                <button
+                  type="button"
+                  data-testid="clean-autosaves-btn"
+                  onClick={() => { void handleClearAllAutosaves(); }}
+                  title="Clean up autosave backups"
+                  className="px-2 py-0.5 rounded text-[10px] font-medium text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-slate-700/50 flex items-center gap-1 transition-colors"
+                >
+                  <Trash2 size={11} />
+                  <span>Clean Autosaves</span>
+                </button>
+              )}
+              <span className="text-[10px] text-slate-500 font-mono">Right-click project for menu (Change Theme, Restore, Close)</span>
+            </div>
           </div>
 
           <div className="overflow-x-auto max-h-56 overflow-y-auto rounded-xl border custom-scrollbar">

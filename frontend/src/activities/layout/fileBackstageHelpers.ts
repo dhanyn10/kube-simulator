@@ -36,7 +36,12 @@ const fetchAutosaveProfiles = async (app: any): Promise<RecentFileItem[]> => {
   if (!app?.GetAutosaveProfiles) return [];
   const autosaves = await app.GetAutosaveProfiles();
   if (!Array.isArray(autosaves)) return [];
-  return autosaves.map((a) => ({
+
+  // Sort descending by timestamp and only retain the 1 most recent autosaved session in Recent Projects
+  const sorted = [...autosaves].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  const latestOnly = sorted.slice(0, 1);
+
+  return latestOnly.map((a) => ({
     id: `autosave-${a.key}`,
     name: a.key,
     location: a.location,
@@ -136,6 +141,24 @@ export const deleteRecentFile = async (
     if (app.DeleteProject) {
       await app.DeleteProject(item.id);
     }
+  }
+  await reloadFiles();
+};
+
+/**
+ * Execute cleanup of all autosave files and settings
+ */
+export const clearAllAutosaves = async (
+  reloadFiles: () => Promise<void>
+): Promise<void> => {
+  const app = globalThis.go?.main?.App;
+  if (!app) return;
+
+  if (app.ClearAllAutosaves) {
+    await app.ClearAllAutosaves();
+  } else if (app.SaveSetting) {
+    await app.SaveSetting('auto_saved_profile_latest', '');
+    await app.SaveSetting('auto_saved_profile_content', '');
   }
   await reloadFiles();
 };

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -86,6 +87,48 @@ func writePhysicalProjectFile(id int64, content string) {
 	_ = os.WriteFile(filePath, []byte(content), 0644)
 }
 
+const maxAutosaveFiles = 5
+
+type autosaveFileInfo struct {
+	name    string
+	modTime time.Time
+}
+
+func pruneAutosaveFiles(dir string, maxToKeep int) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+
+	var autosaves []autosaveFileInfo
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".infra") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		autosaves = append(autosaves, autosaveFileInfo{
+			name:    entry.Name(),
+			modTime: info.ModTime(),
+		})
+	}
+
+	if len(autosaves) <= maxToKeep {
+		return
+	}
+
+	sort.Slice(autosaves, func(i, j int) bool {
+		return autosaves[i].modTime.Before(autosaves[j].modTime)
+	})
+
+	excess := len(autosaves) - maxToKeep
+	for i := 0; i < excess; i++ {
+		_ = os.Remove(filepath.Join(dir, autosaves[i].name))
+	}
+}
+
 // writePhysicalAutosaveFile writes or deletes an autosave snapshot file (.infra) in ~/.kube-simulator/autosaves/.
 func writePhysicalAutosaveFile(key, content string) {
 	if !strings.HasPrefix(key, "autosave-") {
@@ -102,6 +145,7 @@ func writePhysicalAutosaveFile(key, content string) {
 		_ = os.Remove(filePath)
 	} else {
 		_ = os.WriteFile(filePath, []byte(content), 0644)
+		pruneAutosaveFiles(dir, maxAutosaveFiles)
 	}
 }
 

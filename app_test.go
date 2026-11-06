@@ -850,6 +850,15 @@ func TestApp_AutosaveProfiles_EdgeCases(t *testing.T) {
 			t.Errorf("Expected profile1 timestamp 1712345678000, got %d", p.Timestamp)
 		}
 	}
+
+	// Test ClearAllAutosaves
+	cleared := app.ClearAllAutosaves()
+	if !cleared {
+		t.Error("Expected ClearAllAutosaves to return true")
+	}
+	if remaining := app.GetAutosaveProfiles(); len(remaining) != 0 {
+		t.Errorf("Expected 0 profiles after ClearAllAutosaves, got %d", len(remaining))
+	}
 }
 
 func TestApp_SanitizeProfileFilename_Symbols(t *testing.T) {

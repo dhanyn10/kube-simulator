@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useFlowStore } from '@/store';
 import { generateTimestampedProjectName } from '@/components/Modals/resource-manager/resourceManagerHelpers';
 import { useFitView } from '@/hooks/useFitView';
-import { restoreRecentFile, deleteRecentFile, openRecentFileFolder } from '@/activities/layout/fileBackstageHelpers';
+import { restoreRecentFile, deleteRecentFile, openRecentFileFolder, clearAllAutosaves } from '@/activities/layout/fileBackstageHelpers';
 import { useRecentFilesState } from '@/activities/layout/useRecentFilesState';
 
 export interface UseSaveModalParams {
@@ -90,6 +90,16 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     await openRecentFileFolder(item);
   };
 
+  const hasAutosaves = recentFiles.some((f) => f.isAutosave);
+
+  const handleClearAllAutosaves = async () => {
+    const confirmClear = globalThis.confirm(
+      'Clean up all autosave backups? Your saved projects will not be deleted.'
+    );
+    if (!confirmClear) return;
+    await clearAllAutosaves(loadRecentFiles);
+  };
+
   return {
     colorMode,
     toggleColorMode,
@@ -97,6 +107,7 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     newProjectName,
     setNewProjectName,
     recentFiles,
+    hasAutosaves,
     isLoading,
     loadingFileId,
     activeLocation,
@@ -109,5 +120,6 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     handleRestoreFile,
     handleDeleteFile,
     handleOpenFolder,
+    handleClearAllAutosaves,
   };
 }

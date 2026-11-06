@@ -120,6 +120,7 @@ export const initWailsMocks = () => {
                 OpenFileFolder: () => Promise.resolve(true),
                 FileExists: () => Promise.resolve(true),
                 GetAutosaveProfiles: () => Promise.resolve([]),
+                ClearAllAutosaves: () => Promise.resolve(true),
                 GetInternetProfiles: () => Promise.resolve(JSON.parse(localStorage.getItem('mock_internet_profiles') || '[]')),
                 SaveInternetProfile: (name: string, profileJson: string) => {
                     const profiles = JSON.parse(localStorage.getItem('mock_internet_profiles') || '[]');

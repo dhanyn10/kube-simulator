@@ -15,6 +15,7 @@ vi.mock('@/activities/layout/fileBackstageHelpers', async (importOriginal) => {
     restoreRecentFile: vi.fn(),
     deleteRecentFile: vi.fn(),
     openRecentFileFolder: vi.fn(),
+    clearAllAutosaves: vi.fn(),
   };
 });
 
@@ -231,5 +232,24 @@ describe('useSaveModal', () => {
       await result.current.handleOpenFolder(mockItem);
     });
     expect(fileBackstageHelpers.openRecentFileFolder).toHaveBeenCalledWith(mockItem);
+  });
+
+  it('handles clearAllAutosaves when confirmed and when cancelled', async () => {
+    const { result } = renderHook(() => useSaveModal({ isOpen: true, onClose }));
+
+    // 1. Cancelled
+    const confirmSpy = vi.spyOn(globalThis, 'confirm').mockReturnValue(false);
+    await act(async () => {
+      await result.current.handleClearAllAutosaves();
+    });
+    expect(fileBackstageHelpers.clearAllAutosaves).not.toHaveBeenCalled();
+
+    // 2. Confirmed
+    confirmSpy.mockReturnValue(true);
+    await act(async () => {
+      await result.current.handleClearAllAutosaves();
+    });
+    expect(fileBackstageHelpers.clearAllAutosaves).toHaveBeenCalledWith(expect.any(Function));
+    confirmSpy.mockRestore();
   });
 });

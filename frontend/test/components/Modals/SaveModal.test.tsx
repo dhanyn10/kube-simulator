@@ -502,4 +502,20 @@ describe('SaveModal', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
     expect(screen.getByText('Loading file...')).toBeInTheDocument();
   });
+
+  it('renders Clean Autosaves button when hasAutosaves is true and handles clicking it', () => {
+    const handleClearAllAutosaves = vi.fn();
+    customOverrides = {
+      hasAutosaves: true,
+      handleClearAllAutosaves,
+      recentFiles: [
+        { id: 'autosave-1', name: 'autosave-1', location: 'loc', fullPath: 'path', updatedAt: 'now', isAutosave: true },
+      ],
+    };
+    render(<SaveModal {...defaultProps} />);
+    const cleanBtn = screen.getByTestId('clean-autosaves-btn');
+    expect(cleanBtn).toBeInTheDocument();
+    fireEvent.click(cleanBtn);
+    expect(handleClearAllAutosaves).toHaveBeenCalled();
+  });
 });

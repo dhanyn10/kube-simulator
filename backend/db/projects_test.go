@@ -1,9 +1,12 @@
 package db
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -194,5 +197,22 @@ func TestProjectManager_AutosaveFiles(t *testing.T) {
 	err = pm.SaveSetting("theme", "dark")
 	if err != nil {
 		t.Fatalf("Failed to save regular setting: %v", err)
+	}
+
+	// 4. Test pruning when exceeding maxAutosaveFiles (5)
+	for i := 1; i <= 7; i++ {
+		_ = pm.SaveSetting(fmt.Sprintf("autosave-prune-%d", i), fmt.Sprintf(`{"val":%d}`, i))
+		time.Sleep(10 * time.Millisecond)
+	}
+	autosavesDir := filepath.Join(tmpDir, appDirName, "autosaves")
+	entries, _ := os.ReadDir(autosavesDir)
+	var count int
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".infra") {
+			count++
+		}
+	}
+	if count > 5 {
+		t.Errorf("Expected at most 5 autosave files after pruning, got %d", count)
 	}
 }

@@ -6,6 +6,7 @@ import {
   restoreRecentFile,
   deleteRecentFile,
   openRecentFileFolder,
+  clearAllAutosaves,
   getBackstageTabClass,
   getSettingsSubmenuClass,
   getSidebarContainerClass,
@@ -147,6 +148,59 @@ describe('fileBackstageHelpers', () => {
       expect(items).toHaveLength(2); // 1 autosave profile + 1 existing project (deleted project returned null)
       expect(items[0].name).toBe('autosave-profile-1');
       expect(items[1].name).toBe('Existing Project');
+    });
+
+    it('sorts multiple autosaves descending and retains only the single latest autosaved session', async () => {
+      const mockGetAutosaveProfiles = vi.fn().mockResolvedValue([
+        { key: 'autosave-old', location: 'loc1', timestamp: 1000 },
+        { key: 'autosave-newest', location: 'loc2', timestamp: 5000 },
+        { key: 'autosave-middle', location: 'loc3', timestamp: 3000 },
+      ]);
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GetAutosaveProfiles: mockGetAutosaveProfiles,
+            GetProjects: vi.fn().mockResolvedValue([]),
+          },
+        },
+      };
+
+      const items = await fetchRecentFiles();
+      expect(items).toHaveLength(1);
+      expect(items[0].name).toBe('autosave-newest');
+    });
+
+    it('clearAllAutosaves calls ClearAllAutosaves and reloads files', async () => {
+      const mockClearAllAutosaves = vi.fn().mockResolvedValue(true);
+      const reloadFiles = vi.fn().mockResolvedValue(undefined);
+      (globalThis as any).go = {
+        main: {
+          App: {
+            ClearAllAutosaves: mockClearAllAutosaves,
+          },
+        },
+      };
+
+      await clearAllAutosaves(reloadFiles);
+      expect(mockClearAllAutosaves).toHaveBeenCalled();
+      expect(reloadFiles).toHaveBeenCalled();
+    });
+
+    it('clearAllAutosaves falls back to SaveSetting when ClearAllAutosaves is not available', async () => {
+      const mockSaveSetting = vi.fn().mockResolvedValue(true);
+      const reloadFiles = vi.fn().mockResolvedValue(undefined);
+      (globalThis as any).go = {
+        main: {
+          App: {
+            SaveSetting: mockSaveSetting,
+          },
+        },
+      };
+
+      await clearAllAutosaves(reloadFiles);
+      expect(mockSaveSetting).toHaveBeenCalledWith('auto_saved_profile_latest', '');
+      expect(mockSaveSetting).toHaveBeenCalledWith('auto_saved_profile_content', '');
+      expect(reloadFiles).toHaveBeenCalled();
     });
 
     it('handles non-array GetAutosaveProfiles, missing latest autosave key/content, and missing or false FileExists in fallback autosave', async () => {

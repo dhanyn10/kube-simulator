@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -539,7 +540,31 @@ func (a *App) GetAutosaveProfiles() []AutosaveProfileItem {
 			Location:  locationPath,
 		})
 	}
+
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Timestamp > items[j].Timestamp
+	})
+
 	return items
+}
+
+func (a *App) ClearAllAutosaves() bool {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+	dir := filepath.Join(userHome, kubeSimulatorDir, "autosaves")
+	entries, err := os.ReadDir(dir)
+	if err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".infra") {
+				_ = os.Remove(filepath.Join(dir, entry.Name()))
+			}
+		}
+	}
+	_ = a.SaveSetting("auto_saved_profile_latest", "")
+	_ = a.SaveSetting("auto_saved_profile_content", "")
+	return true
 }
 
 type InternetProfile struct {
