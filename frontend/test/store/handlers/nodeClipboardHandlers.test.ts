@@ -577,4 +577,54 @@ describe('clipboardHandlers', () => {
     expect(pastedStandalone!.position.x).toBe(290);
     expect(pastedStandalone!.position.y).toBe(400);
   });
+
+  it('covers fallback branches: undefined node position when parent copied, missing node type for label sanitization, and missing validateEdge', () => {
+    const parentNode: Node = {
+      id: 'parent-1',
+      type: 'Deployment',
+      position: { x: 100, y: 100 },
+      data: { label: 'parent-dep' },
+    };
+    const childWithoutPos: Node = {
+      id: 'child-no-pos',
+      type: 'Pod',
+      parentId: 'parent-1',
+      position: undefined as any,
+      data: { label: 'child-pod' },
+    };
+    const topLevelUntyped: Node = {
+      id: 'top-untyped',
+      type: '' as any,
+      position: { x: 200, y: 200 },
+      data: { label: 'untyped-node' },
+    };
+    const edge: Edge = {
+      id: 'edge-to-paste',
+      source: 'parent-1',
+      target: 'child-no-pos',
+    };
+
+    useFlowStore.setState({
+      nodes: [],
+      edges: [],
+      clipboard: {
+        nodes: [parentNode, childWithoutPos, topLevelUntyped],
+        edges: [edge],
+      },
+      validateEdge: undefined as any,
+    });
+
+    useFlowStore.getState().pasteNodes();
+
+    const nodes = useFlowStore.getState().nodes;
+    const pastedChild = nodes.find((n) => n.parentId);
+    expect(pastedChild).toBeDefined();
+
+    const pastedUntyped = nodes.find((n) => n.data?.label?.startsWith('untyped-node'));
+    expect(pastedUntyped).toBeDefined();
+
+    const edges = useFlowStore.getState().edges;
+    expect(edges).toHaveLength(1);
+    expect(edges[0].id).toBeDefined();
+  });
 });

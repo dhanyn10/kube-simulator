@@ -289,6 +289,28 @@ describe('pvcConfigHelpers test suite', () => {
     expect(isStatefulSetNode({ id: 's4', type: 'Deployment', data: {}, position: { x: 0, y: 0 } })).toBe(false);
   });
 
+  it('excludes child pods of StatefulSet from nonStatefulSets template conflict via parentId and data.parentId', () => {
+    const pvcNode: Node = { id: 'pvc-child', type: 'PVC', data: { label: 'pvc-data' }, position: { x: 0, y: 0 } };
+    const ssNode: Node = { id: 'ss-main', type: 'StatefulSet', data: { label: 'ss-main', workloadType: 'StatefulSet' }, position: { x: 0, y: 0 } };
+    const childPod1: Node = { id: 'pod-child-1', type: 'Pod', parentId: 'ss-main', data: {}, position: { x: 0, y: 0 } };
+    const edges1: Edge[] = [
+      { id: 'e1', source: 'pvc-child', target: 'ss-main' },
+      { id: 'e2', source: 'pvc-child', target: 'pod-child-1' },
+    ];
+
+    const analysis1 = analyzePvcWorkloadConnections(pvcNode, [pvcNode, ssNode, childPod1], edges1);
+    expect(analysis1.templateConflict).toBeUndefined();
+
+    // With data.parentId instead of node.parentId
+    const childPod2: Node = { id: 'pod-child-2', type: 'Pod', data: { parentId: 'ss-main' }, position: { x: 0, y: 0 } };
+    const edges2: Edge[] = [
+      { id: 'e1', source: 'pvc-child', target: 'ss-main' },
+      { id: 'e3', source: 'pvc-child', target: 'pod-child-2' },
+    ];
+    const analysis2 = analyzePvcWorkloadConnections(pvcNode, [pvcNode, ssNode, childPod2], edges2);
+    expect(analysis2.templateConflict).toBeUndefined();
+  });
+
   it('covers connected Pod with parentId pointing to unconnected parent, pvcStatus undefined fallback in evaluatePvcRealtimeStatus, and clearing Multi-Attach Error edge error', () => {
     // 1. calculatePvcConnectedReplicas with connected Pod having parentId pointing to an unconnected parent
     const pvcId = 'pvc-1';

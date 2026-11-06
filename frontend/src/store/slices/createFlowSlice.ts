@@ -68,7 +68,7 @@ const reconcileIngressOnRemovedEdges = (
   removedEdges: Edge[],
   allNodes: Node[]
 ): Node => {
-  if (node.type !== 'Ingress' || removedEdges.length === 0) return node;
+  if (removedEdges.length === 0) return node;
 
   const removedLabels = collectRemovedIngressServices(node.id, removedEdges, allNodes);
   if (removedLabels.size === 0) return node;
@@ -497,7 +497,7 @@ const syncParentContainersOnDimensionChange = (
       const { updatedDeployment, laidOut } = syncDeployment(parent, containerSyncedNodes, 0, get);
       const others = containerSyncedNodes.filter((n) => n.id !== parent.id && !isChildPodOf(n, parent.id));
       containerSyncedNodes = [...others, updatedDeployment, ...laidOut];
-    } else if (parentId) {
+    } else {
       containerSyncedNodes = syncContainerSize(parentId, containerSyncedNodes);
     }
   }
@@ -668,7 +668,7 @@ const collectExistingPvcWorkloads = (
   return workloads;
 };
 
-const checkPvcTopologyError = (
+export const checkPvcTopologyError = (
   edge: Edge,
   sourceNode: Node,
   targetNode: Node,
