@@ -54,4 +54,52 @@ describe('CanvasControlsPanel', () => {
     const autofocusBtn = screen.getByTitle('Disable Autofocus');
     expect(autofocusBtn).toBeInTheDocument();
   });
+
+  it('toggles canvas profile popover and controls grid pattern, opacity, autosave and card alignment', () => {
+    const setCanvasBgVariant = vi.spyOn(useFlowStore.getState(), 'setCanvasBgVariant');
+    const setCanvasBgOpacity = vi.spyOn(useFlowStore.getState(), 'setCanvasBgOpacity');
+    const toggleAutosave = vi.spyOn(useFlowStore.getState(), 'toggleAutosave');
+    const alignAllNodesToGrid = vi.spyOn(useFlowStore.getState(), 'alignAllNodesToGrid');
+
+    useFlowStore.setState({
+      canvasBgVariant: 'dots',
+      canvasBgOpacity: 0.4,
+      isAutosaveEnabled: false,
+    });
+
+    render(
+      <ReactFlowProvider>
+        <CanvasControlsPanel />
+      </ReactFlowProvider>
+    );
+
+    const profileBtn = screen.getByTestId('canvas-profile-btn');
+    fireEvent.click(profileBtn);
+
+    expect(screen.getByTestId('canvas-profile-popover')).toBeInTheDocument();
+
+    // Pattern change
+    fireEvent.click(screen.getByTestId('pattern-btn-lines'));
+    expect(setCanvasBgVariant).toHaveBeenCalledWith('lines');
+
+    // Opacity change
+    const opacitySlider = screen.getByLabelText('Grid Opacity');
+    fireEvent.change(opacitySlider, { target: { value: '0.8' } });
+    expect(setCanvasBgOpacity).toHaveBeenCalledWith(0.8);
+
+    // Autosave toggle
+    const autosaveBtn = screen.getByTestId('canvas-autosave-toggle');
+    fireEvent.click(autosaveBtn);
+    expect(toggleAutosave).toHaveBeenCalledTimes(1);
+
+    // Align cards button
+    const alignCardsBtn = screen.getByTestId('canvas-popover-align-btn');
+    fireEvent.click(alignCardsBtn);
+    expect(alignAllNodesToGrid).toHaveBeenCalled();
+
+    // Close button
+    const closeBtn = screen.getByLabelText('Close Canvas Profile');
+    fireEvent.click(closeBtn);
+    expect(screen.queryByTestId('canvas-profile-popover')).toBeNull();
+  });
 });

@@ -152,47 +152,35 @@ describe('MenuBar', () => {
     });
   });
 
-  it('handles Resource > Save on existing project vs null currentProject', async () => {
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+  it('handles File menu actions like Open Project and New Architecture', async () => {
+    const onNewArchitecture = vi.fn();
+    const { rerender } = render(<MenuBar {...defaultProps} onNewArchitecture={onNewArchitecture} />);
 
-    // Case 1: UpdateProject returns true
-    await act(async () => {
-      useFlowStore.setState({
-        currentProject: { id: 10, name: "Active Proj" },
-        nodes: [{ id: "n1", type: "Pod", position: { x: 0, y: 0 }, data: {} }],
-      });
-    });
-
-    const { rerender } = render(<MenuBar {...defaultProps} />);
-
-    fireEvent.click(screen.getByText("Resource"));
-    const saveItems = screen.getAllByText("Save");
-    fireEvent.click(saveItems[saveItems.length - 1]);
-
-    await waitFor(() => {
-      expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(10, expect.any(String));
-      expect(alertSpy).toHaveBeenCalledWith("Resource architecture saved successfully!");
-    });
-
-    // Case 2: Null currentProject opens projects modal to save as new
-    await act(async () => {
-      useFlowStore.setState({ currentProject: null });
-    });
-    rerender(<MenuBar {...defaultProps} />);
-
-    fireEvent.click(screen.getByText("Resource"));
-    const saveItems2 = screen.getAllByText("Save");
-    fireEvent.click(saveItems2[saveItems2.length - 1]);
+    fireEvent.click(screen.getByText('File'));
+    const openProjItem = screen.getByText('Open Project...');
+    fireEvent.click(openProjItem);
     expect(defaultProps.onOpenProjects).toHaveBeenCalled();
 
-    alertSpy.mockRestore();
+    fireEvent.click(screen.getByText('File'));
+    const newArchItem = screen.getByText('New Architecture');
+    fireEvent.click(newArchItem);
+    expect(onNewArchitecture).toHaveBeenCalled();
+
+    // Default fallback when onNewArchitecture is not provided
+    rerender(<MenuBar {...defaultProps} onNewArchitecture={undefined} />);
+    fireEvent.click(screen.getByText('File'));
+    fireEvent.click(screen.getByText('New Architecture'));
+    expect(useFlowStore.getState().nodes).toEqual([]);
   });
 
-  it('triggers onSave to open FileBackstageView overlay when File menu is clicked', async () => {
+  it('opens File dropdown menu when File menu is clicked and calls onSave when Save is clicked', async () => {
     render(<MenuBar {...defaultProps} />);
 
-    // Clicking 'File' menu header triggers onSave (FileBackstageView overlay)
+    // Clicking 'File' menu header opens dropdown menu
     fireEvent.click(screen.getByText('File'));
+    const saveItem = screen.getByText('Save');
+    expect(saveItem).toBeInTheDocument();
+    fireEvent.click(saveItem);
     expect(defaultProps.onSave).toHaveBeenCalled();
   });
 
@@ -350,11 +338,12 @@ describe('MenuBar', () => {
     expect(badge).toHaveTextContent('5');
   });
 
-  it('handles non-File label in onMenuClick callback without calling onSave', async () => {
+  it('opens Resource menu dropdown without calling onSave', async () => {
     render(<MenuBar {...defaultProps} />);
 
     fireEvent.click(screen.getByText('Resource'));
     expect(defaultProps.onSave).not.toHaveBeenCalled();
+    expect(screen.getByText('Resource Manager')).toBeInTheDocument();
   });
 
   it('toggles theme mode, sidebar, and autofocus', () => {

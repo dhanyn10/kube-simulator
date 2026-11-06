@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Panel, useReactFlow } from '@xyflow/react';
-import { Plus, Minus, Maximize, Minimize, LayoutGrid } from 'lucide-react';
+import { Plus, Minus, Maximize, Minimize, LayoutGrid, Grid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { useFitView } from '@/hooks/useFitView';
+import { CanvasProfilePopover } from './CanvasProfilePopover';
 
 export const CanvasControlsPanel: React.FC = () => {
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const colorMode = useFlowStore((state) => state.colorMode);
   const isAutofocusEnabled = useFlowStore((state) => state.isAutofocusEnabled);
   const toggleAutofocus = useFlowStore((state) => state.toggleAutofocus);
@@ -22,7 +24,7 @@ export const CanvasControlsPanel: React.FC = () => {
   );
 
   return (
-    <Panel position="top-left" className="m-4 flex flex-col gap-2">
+    <Panel position="top-left" className="m-4 flex flex-col gap-2 relative">
       <button type="button" onClick={() => zoomIn()} className={btnClass} title="Zoom In">
         <Plus size={16} />
       </button>
@@ -53,6 +55,25 @@ export const CanvasControlsPanel: React.FC = () => {
       >
         <LayoutGrid size={16} />
       </button>
+      <button
+        type="button"
+        data-testid="canvas-profile-btn"
+        onClick={() => setIsProfileOpen(!isProfileOpen)}
+        className={cn(
+          btnClass,
+          isProfileOpen &&
+            (colorMode === 'dark' ? 'bg-blue-600/30 text-blue-400 border-blue-500/50' : 'bg-blue-100 text-blue-600 border-blue-300')
+        )}
+        title="Canvas Profile & Display Settings"
+      >
+        <Grid size={16} />
+      </button>
+
+      <CanvasProfilePopover
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        colorMode={colorMode}
+      />
     </Panel>
   );
 };

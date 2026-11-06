@@ -20,9 +20,11 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
 
   const [newProjectName, setNewProjectName] = useState('');
   const [activeLocation, setActiveLocation] = useState<string>('~/.kube-simulator/app_settings_json');
+  const [loadingFileId, setLoadingFileId] = useState<number | string | null>(null);
 
   const {
     recentFiles,
+    isLoading,
     contextMenu,
     setContextMenu,
     contextMenuRef,
@@ -72,7 +74,12 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
   };
 
   const handleRestoreFile = async (item: Parameters<typeof restoreRecentFile>[0]) => {
-    await restoreRecentFile(item, onClose, fitView);
+    setLoadingFileId(item.id);
+    try {
+      await restoreRecentFile(item, onClose, fitView);
+    } finally {
+      setLoadingFileId(null);
+    }
   };
 
   const handleDeleteFile = async (item: Parameters<typeof deleteRecentFile>[0]) => {
@@ -90,6 +97,8 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     newProjectName,
     setNewProjectName,
     recentFiles,
+    isLoading,
+    loadingFileId,
     activeLocation,
     contextMenu,
     setContextMenu,

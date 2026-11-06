@@ -54,9 +54,9 @@ describe('menuBarDropdownHelpers', () => {
       expect(onMenuClick).toHaveBeenCalledWith('Edit');
     });
 
-    it('returns null for File menu label', () => {
+    it('toggles File menu open when closed and closes when open', () => {
+      expect(resolveNextActiveMenu('File', null)).toBe('File');
       expect(resolveNextActiveMenu('File', 'File')).toBeNull();
-      expect(resolveNextActiveMenu('File', null)).toBeNull();
     });
 
     it('toggles menu closed if currently open', () => {

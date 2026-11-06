@@ -10,6 +10,7 @@ vi.mock('@/hooks/useFitView', () => ({
 }));
 
 let customContextMenu: { x: number; y: number; item: any } | null = null;
+let customOverrides: Record<string, any> = {};
 
 vi.mock('@/activities/modals/useSaveModal', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/activities/modals/useSaveModal')>();
@@ -17,13 +18,20 @@ vi.mock('@/activities/modals/useSaveModal', async (importOriginal) => {
     ...actual,
     useSaveModal: (params: any) => {
       const res = actual.useSaveModal(params);
+      let merged = res;
       if (customContextMenu) {
-        return {
-          ...res,
+        merged = {
+          ...merged,
           contextMenu: customContextMenu,
         };
       }
-      return res;
+      if (Object.keys(customOverrides).length > 0) {
+        merged = {
+          ...merged,
+          ...customOverrides,
+        };
+      }
+      return merged;
     },
   };
 });
@@ -38,6 +46,7 @@ describe('SaveModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     customContextMenu = null;
+    customOverrides = {};
     useFlowStore.setState({
       colorMode: 'dark',
       nodes: [{ id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: {} }],
@@ -456,5 +465,41 @@ describe('SaveModal', () => {
     });
     expect((globalThis as any).go.main.App.DeleteProject).not.toHaveBeenCalled();
     unmount3();
+  });
+
+  it('renders preloader animation when isLoading is true in dark and light modes', () => {
+    customOverrides = {
+      isLoading: true,
+      recentFiles: [],
+      colorMode: 'dark',
+    };
+    const { unmount } = render(<SaveModal {...defaultProps} />);
+    expect(screen.getByTestId('recent-files-loading')).toBeInTheDocument();
+    expect(screen.getByText('Reading current profiles...')).toBeInTheDocument();
+    expect(screen.getByText('Scanning saved architectures and recent backups')).toBeInTheDocument();
+    expect(screen.getByTestId('recent-files-loading-badge')).toBeInTheDocument();
+    unmount();
+
+    // In light mode
+    customOverrides = {
+      isLoading: true,
+      recentFiles: [],
+      colorMode: 'light',
+    };
+    render(<SaveModal {...defaultProps} />);
+    expect(screen.getByTestId('recent-files-loading')).toBeInTheDocument();
+  });
+
+  it('renders loading badge and row spinner when loadingFileId matches a file', () => {
+    customOverrides = {
+      isLoading: false,
+      loadingFileId: 10,
+      recentFiles: [
+        { id: 10, name: 'Active Project', location: 'loc', fullPath: 'path', updatedAt: 'now' },
+      ],
+    };
+    render(<SaveModal {...defaultProps} />);
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByText('Loading file...')).toBeInTheDocument();
   });
 });

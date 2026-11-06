@@ -215,9 +215,11 @@ describe('useSaveModal', () => {
       updatedAt: 'now',
     };
 
+    expect(result.current.loadingFileId).toBeNull();
     await act(async () => {
       await result.current.handleRestoreFile(mockItem);
     });
+    expect(result.current.loadingFileId).toBeNull();
     expect(fileBackstageHelpers.restoreRecentFile).toHaveBeenCalledWith(mockItem, onClose, expect.any(Function));
 
     await act(async () => {

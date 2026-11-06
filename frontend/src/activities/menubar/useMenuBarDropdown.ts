@@ -25,7 +25,7 @@ export const useMenuBarDropdown = ({
   };
 
   const handleMouseEnter = () => {
-    if (activeMenu && menu.label !== 'File') {
+    if (activeMenu) {
       setActiveMenu(menu.label);
     }
   };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Home, Save, FilePlus, FileText, Check } from 'lucide-react';
+import { Clock, Home, Save, FilePlus, FileText, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RecentFileItem, getTableRowClass, getAutosaveSwitchBgClass } from '@/activities/layout/fileBackstageHelpers';
 
@@ -18,6 +18,7 @@ export interface BackstageHomeTabProps {
   readonly onSaveAs: () => void;
   readonly handleRowContextMenu: (e: React.MouseEvent, item: RecentFileItem) => void;
   readonly handleRestoreFile: (item: RecentFileItem) => void;
+  readonly isLoading?: boolean;
 }
 
 /**
@@ -38,6 +39,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
   onSaveAs,
   handleRowContextMenu,
   handleRestoreFile,
+  isLoading,
 }) => {
   const isDark = colorMode === 'dark';
 
@@ -130,7 +132,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between">
           <h3 className="text-xs uppercase font-bold text-slate-400 tracking-wider">
-            Recent Files & Auto-Saved Profiles
+            Recent Projects
           </h3>
           <span className="text-[11px] text-slate-500 font-mono">Right-click profile for context options</span>
         </div>
@@ -150,7 +152,30 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y text-xs font-medium">
-              {recentFiles.length === 0 ? (
+              {isLoading && recentFiles.length === 0 ? (
+                <tr data-testid="backstage-recent-files-loading">
+                  <td colSpan={2} className="py-10 text-center select-none">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="relative flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
+                        <Loader2 size={18} className="text-blue-400 absolute animate-spin" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className={cn("text-xs font-semibold", isDark ? "text-slate-200" : "text-slate-700")}>
+                          Reading current profiles...
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-mono">
+                          Scanning saved architectures and recent backups
+                        </p>
+                      </div>
+                      <div className="w-full max-w-xs space-y-1.5 pt-1 opacity-70">
+                        <div className={cn("h-5 rounded-md animate-pulse", isDark ? "bg-slate-800" : "bg-slate-200")} />
+                        <div className={cn("h-5 rounded-md animate-pulse", isDark ? "bg-slate-800/60" : "bg-slate-200/60")} />
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : recentFiles.length === 0 ? (
                 <tr>
                   <td colSpan={2} className="text-center py-10 text-slate-500">
                     No recent files or auto-saved profiles found
