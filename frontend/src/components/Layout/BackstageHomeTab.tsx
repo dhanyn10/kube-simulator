@@ -1,7 +1,8 @@
 import React from 'react';
-import { Clock, Home, Save, FilePlus, FileText, Check, Loader2 } from 'lucide-react';
+import { Clock, Home, Save, FilePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { RecentFileItem, getTableRowClass, getAutosaveSwitchBgClass } from '@/activities/layout/fileBackstageHelpers';
+import { RecentFileItem, getAutosaveSwitchBgClass } from '@/activities/layout/fileBackstageHelpers';
+import { renderRecentProjectsBody } from './RecentProjectsRow';
 
 export interface BackstageHomeTabProps {
   readonly colorMode: 'dark' | 'light';
@@ -20,136 +21,6 @@ export interface BackstageHomeTabProps {
   readonly handleRestoreFile: (item: RecentFileItem) => void;
   readonly isLoading?: boolean;
 }
-
-const BackstageLoadingRow: React.FC<{ readonly isDark: boolean }> = ({ isDark }) => (
-  <tr data-testid="backstage-recent-files-loading">
-    <td colSpan={2} className="py-10 text-center select-none">
-      <div className="flex flex-col items-center justify-center gap-3">
-        <div className="relative flex items-center justify-center">
-          <div className="w-10 h-10 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
-          <Loader2 size={18} className="text-blue-400 absolute animate-spin" />
-        </div>
-        <div className="space-y-1">
-          <p className={cn("text-xs font-semibold", isDark ? "text-slate-200" : "text-slate-700")}>
-            Reading current profiles...
-          </p>
-          <p className="text-[10px] text-slate-400 font-mono">
-            Scanning saved architectures and recent backups
-          </p>
-        </div>
-        <div className="w-full max-w-xs space-y-1.5 pt-1 opacity-70">
-          <div className={cn("h-5 rounded-md animate-pulse", isDark ? "bg-slate-800" : "bg-slate-200")} />
-          <div className={cn("h-5 rounded-md animate-pulse", isDark ? "bg-slate-800/60" : "bg-slate-200/60")} />
-        </div>
-      </div>
-    </td>
-  </tr>
-);
-
-const BackstageEmptyRow: React.FC = () => (
-  <tr>
-    <td colSpan={2} className="text-center py-10 text-slate-500">
-      No recent files or auto-saved profiles found
-    </td>
-  </tr>
-);
-
-const getBackstageRowHighlightClass = (isContextMenuActive: boolean, isDark: boolean): string => {
-  if (!isContextMenuActive) return '';
-  return isDark
-    ? "bg-blue-900/40 ring-1 ring-blue-500/50"
-    : "bg-blue-100/80 ring-1 ring-blue-400/50";
-};
-
-interface BackstageProjectRowProps {
-  readonly file: RecentFileItem;
-  readonly isDark: boolean;
-  readonly isCurrentActive: boolean;
-  readonly isContextMenuActive: boolean;
-  readonly onContextMenu: (e: React.MouseEvent, item: RecentFileItem) => void;
-  readonly onRestore: (item: RecentFileItem) => void;
-}
-
-const BackstageProjectRow: React.FC<BackstageProjectRowProps> = ({
-  file,
-  isDark,
-  isCurrentActive,
-  isContextMenuActive,
-  onContextMenu,
-  onRestore,
-}) => {
-  const rowClass = getTableRowClass(Boolean(file.isAutosave), isDark);
-  const contextHighlightClass = getBackstageRowHighlightClass(isContextMenuActive, isDark);
-
-  return (
-    <tr
-      onContextMenu={(e) => onContextMenu(e, file)}
-      onDoubleClick={() => onRestore(file)}
-      className={cn(
-        "transition-colors cursor-pointer select-none",
-        rowClass,
-        contextHighlightClass
-      )}
-    >
-      <td className="py-3 px-4">
-        <div className="flex items-start gap-3">
-          <div className={cn(
-            "p-2 rounded-lg shrink-0 mt-0.5",
-            file.isAutosave ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500"
-          )}>
-            {file.isAutosave ? <Clock size={16} /> : <FileText size={16} />}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-bold truncate max-w-[320px]">{file.name}</span>
-              {file.isAutosave && (
-                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
-                  Auto-Save
-                </span>
-              )}
-              {isCurrentActive && (
-                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0 flex items-center gap-1">
-                  <Check size={9} /> Active
-                </span>
-              )}
-            </div>
-            <div className={cn(
-              "mt-1 px-2 py-0.5 rounded border inline-flex items-center gap-1.5 text-[10px] font-mono max-w-full",
-              isDark
-                ? "bg-slate-950 border-slate-800 text-slate-400"
-                : "bg-slate-100 border-slate-200 text-slate-600"
-            )}>
-              <span className="opacity-60 font-semibold shrink-0">Location:</span>
-              <span title={file.fullPath} className="truncate hover:text-blue-400 cursor-help">
-                {file.location}
-              </span>
-            </div>
-          </div>
-        </div>
-      </td>
-      <td className="py-3 px-4 text-right text-xs font-mono text-slate-400 align-top pt-3.5">
-        <div className="flex items-center justify-end gap-2.5">
-          <span>{file.updatedAt}</span>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRestore(file);
-            }}
-            className={cn(
-              "px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer shadow-sm",
-              isDark
-                ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200"
-                : "bg-white hover:bg-slate-100 border-slate-200 text-slate-700"
-            )}
-          >
-            Open
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-};
 
 /**
  * Home tab content displaying active profile quick save input and recent files list.
@@ -173,25 +44,17 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
 }) => {
   const isDark = colorMode === 'dark';
 
-  const renderTableBody = () => {
-    if (isLoading && recentFiles.length === 0) {
-      return <BackstageLoadingRow isDark={isDark} />;
-    }
-    if (recentFiles.length === 0) {
-      return <BackstageEmptyRow />;
-    }
-    return recentFiles.map((file) => (
-      <BackstageProjectRow
-        key={String(file.id)}
-        file={file}
-        isDark={isDark}
-        isCurrentActive={currentProjectId === file.id}
-        isContextMenuActive={activeContextItem?.id === file.id}
-        onContextMenu={handleRowContextMenu}
-        onRestore={handleRestoreFile}
-      />
-    ));
-  };
+  const renderTableBody = () =>
+    renderRecentProjectsBody({
+      isLoading,
+      recentFiles,
+      isDark,
+      currentProjectId,
+      activeContextId: activeContextItem?.id,
+      onContextMenu: handleRowContextMenu,
+      onRestoreFile: handleRestoreFile,
+      loadingTestId: 'backstage-recent-files-loading',
+    });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">

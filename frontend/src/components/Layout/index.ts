@@ -9,4 +9,5 @@ export * from './CanvasControlsPanel';
 export * from './CanvasProfilePopover';
 export * from './CanvasMiniMap';
 export * from './AlignmentGuideOverlay';
+export * from './RecentProjectsRow';
 export * from '../Terminal';
