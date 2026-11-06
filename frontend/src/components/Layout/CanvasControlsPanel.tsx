@@ -58,13 +58,14 @@ export const CanvasControlsPanel: React.FC = () => {
       <button
         type="button"
         data-testid="canvas-profile-btn"
+        aria-label="Canvas Grid Settings"
         onClick={() => setIsProfileOpen(!isProfileOpen)}
         className={cn(
           btnClass,
           isProfileOpen &&
             (colorMode === 'dark' ? 'bg-blue-600/30 text-blue-400 border-blue-500/50' : 'bg-blue-100 text-blue-600 border-blue-300')
         )}
-        title="Canvas Profile & Display Settings"
+        title="Canvas Grid & Visual Settings"
       >
         <Grid size={16} />
       </button>

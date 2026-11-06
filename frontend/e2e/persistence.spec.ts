@@ -11,32 +11,36 @@ test.describe('Persistence & Projects', () => {
     await page.getByRole('button', { name: 'Pod Atomic unit of K8s' }).click();
     await expect(page.locator('.react-flow__node-Pod')).toBeVisible();
 
-    // 2. Save project via File Backstage View
+    // 2. Save project via File menu -> Save
     await page.getByRole('button', { name: 'File', exact: true }).click();
-    await expect(page.getByTestId('file-backstage-view')).toBeVisible();
+    await page.getByTestId('menubar-item-Save').click();
+    await expect(page.getByText('Save Architecture & Recent Files')).toBeVisible();
 
     const projectName = `TS-Test-${Date.now()}`;
-    await page.getByPlaceholder('Enter project/architecture name...').fill(projectName);
-    await page.getByTestId('backstage-save-btn').click();
-    await expect(page.getByTestId('file-backstage-view')).not.toBeVisible();
+    await page.getByPlaceholder('Enter architecture name...').fill(projectName);
+    await page.locator('dialog.modal-overlay').getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.locator('dialog.modal-overlay')).not.toBeVisible();
 
-    // Verify saved project is active in File Backstage View
+    // Verify saved project is active in File -> Open Project...
     await page.getByRole('button', { name: 'File', exact: true }).click();
-    await expect(page.getByText(projectName)).toBeVisible();
+    await page.getByTestId('menubar-item-Open Project...').click();
+    await expect(page.getByText('Save Architecture & Recent Files')).toBeVisible();
+    await expect(page.locator('tr', { hasText: projectName })).toBeVisible();
     await expect(page.locator('tr', { hasText: projectName }).getByText('Active')).toBeVisible();
 
     // Return to canvas
-    await page.getByTestId('file-backstage-back-btn').click();
-    await expect(page.getByTestId('file-backstage-view')).not.toBeVisible();
+    await page.locator('dialog.modal-overlay').getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('dialog.modal-overlay')).not.toBeVisible();
 
     // 3. Reload and Load
     await page.reload();
     await expect(page.locator('.react-flow__node-Pod')).not.toBeVisible();
 
     await page.getByRole('button', { name: 'File', exact: true }).click();
-    await expect(page.getByTestId('file-backstage-view')).toBeVisible();
+    await page.getByTestId('menubar-item-Open Project...').click();
+    await expect(page.getByText('Save Architecture & Recent Files')).toBeVisible();
     await page.locator('tr', { hasText: projectName }).getByRole('button', { name: 'Open' }).click();
-    await expect(page.getByTestId('file-backstage-view')).not.toBeVisible();
+    await expect(page.locator('dialog.modal-overlay')).not.toBeVisible();
 
     await expect(page.locator('.react-flow__node-Pod')).toBeVisible();
   });

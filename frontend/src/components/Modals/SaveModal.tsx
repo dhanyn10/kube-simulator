@@ -265,8 +265,25 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                       </td>
 
                       {/* Date Modified Column */}
-                      <td className="py-2.5 px-3 text-right text-[11px] font-mono text-slate-300 whitespace-nowrap align-top pt-3">
-                        {file.updatedAt}
+                      <td className="py-2.5 px-3 text-right text-[11px] font-mono text-slate-300 whitespace-nowrap align-top pt-2">
+                        <div className="flex items-center justify-end gap-2.5">
+                          <span>{file.updatedAt}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleRestoreFile(file);
+                            }}
+                            className={cn(
+                              "px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer shadow-sm",
+                              colorMode === 'dark'
+                                ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200"
+                                : "bg-white hover:bg-slate-100 border-slate-200 text-slate-700"
+                            )}
+                          >
+                            Open
+                          </button>
+                        </div>
                       </td>
                       </tr>
                     );
