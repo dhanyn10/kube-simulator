@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFlowStore } from '@/store';
 import { Node, Edge } from '@xyflow/react';
+import { syncRoleRulesFromConnections, checkPvcTopologyError } from '@/store/slices/createFlowSlice';
 
 describe('createFlowSlice', () => {
   beforeEach(() => {
@@ -825,5 +826,956 @@ describe('createFlowSlice', () => {
 
     useFlowStore.getState().onQuickConnect('qc-src', 'unknown-dir' as any);
     expect(useFlowStore.getState().edges).toHaveLength(0);
+  });
+
+  describe('uncovered branch conditions in createFlowSlice', () => {
+    it('covers Ingress and Service edge removal reconciliation branches', () => {
+      // 1. collectRemovedIngressServices with target service having no data.label (fallback to tNode.id)
+      const ingNode: Node = {
+        id: 'ing-1',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: {
+          backendServiceName: 'svc-no-lbl',
+          ingressPaths: [
+            { path: '/api', serviceName: 'svc-no-lbl' },
+            { path: '/web', serviceName: 'svc-remaining' },
+          ],
+        },
+      };
+      const svcNoLbl: Node = {
+        id: 'svc-no-lbl',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: {}, // no label
+      };
+      const edgeIng = { id: 'e-ing-svc', source: 'ing-1', target: 'svc-no-lbl' };
+
+      useFlowStore.setState({
+        nodes: [ingNode, svcNoLbl] as any,
+        edges: [edgeIng] as any,
+      });
+
+      useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-ing-svc' }]);
+      const updatedIng = useFlowStore.getState().nodes.find((n) => n.id === 'ing-1');
+      expect(updatedIng?.data?.backendServiceName).toBe('svc-remaining');
+
+      // 2. clearRemovedIngressServicesFromPaths when rawPaths is not an array
+      const ingNonArrayPaths: Node = {
+        id: 'ing-non-arr',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: { backendServiceName: 'svc-del', ingressPaths: 'invalid-paths' as any },
+      };
+      const svcDel: Node = { id: 'svc-del', type: 'Service', position: { x: 0, y: 0 }, data: { label: 'svc-del' } };
+      useFlowStore.setState({
+        nodes: [ingNonArrayPaths, svcDel] as any,
+        edges: [{ id: 'e-del', source: 'ing-non-arr', target: 'svc-del' }] as any,
+      });
+      useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-del' }]);
+      const resNonArr = useFlowStore.getState().nodes.find((n) => n.id === 'ing-non-arr');
+      expect(resNonArr?.data?.backendServiceName).toBe('');
+
+      // 3. reconcileIngressOnRemovedEdges when no backend match and no paths match
+      const ingNoMatch: Node = {
+        id: 'ing-nomatch',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: { backendServiceName: 'other-svc', ingressPaths: [{ path: '/', serviceName: 'other-svc' }] },
+      };
+      useFlowStore.setState({
+        nodes: [ingNoMatch, svcDel] as any,
+        edges: [{ id: 'e-del2', source: 'ing-nomatch', target: 'svc-del' }] as any,
+      });
+      useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-del2' }]);
+      const resNoMatch = useFlowStore.getState().nodes.find((n) => n.id === 'ing-nomatch');
+      expect(resNoMatch?.data?.backendServiceName).toBe('other-svc');
+
+      // 4. reconcileIngressOnRemovedEdges with backend match only (no paths match) and empty remaining paths
+      const ingBackendOnly: Node = {
+        id: 'ing-bo',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: { backendServiceName: 'svc-del', ingressPaths: [] },
+      };
+      useFlowStore.setState({
+        nodes: [ingBackendOnly, svcDel] as any,
+        edges: [{ id: 'e-bo', source: 'ing-bo', target: 'svc-del' }] as any,
+      });
+      useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-bo' }]);
+      const resBo = useFlowStore.getState().nodes.find((n) => n.id === 'ing-bo');
+      expect(resBo?.data?.backendServiceName).toBe('');
+
+      // 5. isServiceEdgeMatching fallback to baseName and id
+      const svcNode: Node = {
+        id: 'svc-matching',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { selector: 'target-basename', ingressTargets: ['target-basename', 'target-id-only'] },
+      };
+      const targetBaseNameNode: Node = {
+        id: 't-bn-id',
+        type: 'Deployment',
+        position: { x: 100, y: 0 },
+        data: { baseName: 'target-basename' }, // no label
+      };
+      const targetIdOnlyNode: Node = {
+        id: 'target-id-only',
+        type: 'Deployment',
+        position: { x: 200, y: 0 },
+        data: {}, // no label, no baseName
+      };
+      useFlowStore.setState({
+        nodes: [svcNode, targetBaseNameNode, targetIdOnlyNode] as any,
+        edges: [
+          { id: 'e-bn', source: 'svc-matching', target: 't-bn-id' },
+          { id: 'e-id', source: 'svc-matching', target: 'target-id-only' },
+          { id: 'e-other-source', source: 'other-node', target: 't-bn-id' },
+          { id: 'e-missing-target', source: 'svc-matching', target: 'non-existent-node' },
+        ] as any,
+      });
+
+      // Remove e-bn, leaving target-id-only
+      useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-bn' }]);
+      const updatedSvc = useFlowStore.getState().nodes.find((n) => n.id === 'svc-matching');
+      expect(updatedSvc?.data?.selector).toBe('target-id-only');
+
+      // Remove e-id, leaving 0 targets (covers remainingTargets[0] || '' and ingressTargets: undefined)
+      useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-id' }]);
+      const emptySvc = useFlowStore.getState().nodes.find((n) => n.id === 'svc-matching');
+      expect(emptySvc?.data?.selector).toBe('');
+      expect(emptySvc?.data?.ingressTargets).toBeUndefined();
+
+      // 6. Service with plain selector without match in nextEdges
+      const svcSgl: Node = {
+        id: 'svc-sgl',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { selector: 'missing-app' },
+      };
+      useFlowStore.setState({
+        nodes: [svcSgl] as any,
+        edges: [{ id: 'e-dummy', source: 'other', target: 'other' }] as any,
+      });
+      useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-dummy' }]);
+      expect(useFlowStore.getState().nodes.find((n) => n.id === 'svc-sgl')?.data?.selector).toBe('');
+    });
+
+    it('covers emitRemovedEdgeCommands edge cases: missing id, missing removed edge, missing sNode/label', () => {
+      const mockEdge = { id: 'e-valid', source: 's-missing-label', target: 't-node' };
+      const sNodeNoLabel = { id: 's-missing-label', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+      const tNode = { id: 't-node', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'target-lbl' } };
+
+      useFlowStore.setState({
+        nodes: [sNodeNoLabel, tNode] as any,
+        edges: [mockEdge] as any,
+      });
+
+      // Pass change without id, change with missing edge id, and valid change with sNode missing label
+      useFlowStore.getState().onEdgesChange([
+        { type: 'remove' } as any, // missing 'id'
+        { type: 'remove', id: 'e-nonexistent' } as any,
+        { type: 'remove', id: 'e-valid' },
+      ]);
+      expect(useFlowStore.getState().edges).toHaveLength(0);
+    });
+
+    it('covers Ingress connection endpoint updates: fallback to id/tgtId, existing backend preservation, and default path/port', () => {
+      // 1. Ingress with existing backendServiceName preserved
+      const ingNode: Node = {
+        id: 'ing-target',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: { backendServiceName: 'pre-existing-svc', ingressPath: '', servicePort: undefined },
+      };
+      // Target service without label in store
+      const svcIdOnly: Node = {
+        id: 'svc-id-only',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: {}, // no label
+      };
+      useFlowStore.setState({
+        nodes: [ingNode, svcIdOnly] as any,
+        edges: [],
+      });
+
+      useFlowStore.getState().onConnect({ source: 'ing-target', target: 'svc-id-only' });
+      const updatedIng = useFlowStore.getState().nodes.find((n) => n.id === 'ing-target');
+      expect(updatedIng?.data?.backendServiceName).toBe('pre-existing-svc');
+      // Default ingressPath '/' and port 80 are applied
+      expect(updatedIng?.data?.ingressPaths?.[0]?.path).toBe('/');
+      expect(updatedIng?.data?.ingressPaths?.[0]?.servicePort).toBe(80);
+
+      // 2. Ingress with undefined data connecting to Service without label (fallback to id)
+      const ingNodeNoData: Node = {
+        id: 'ing-nodata',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: undefined as any,
+      };
+      const svcWithPortNoLabel: Node = {
+        id: 'svc-custom-port',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: { port: 8080 },
+      };
+      useFlowStore.setState({
+        nodes: [ingNodeNoData, svcWithPortNoLabel] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'ing-nodata', target: 'svc-custom-port' });
+      const updatedIngNoData = useFlowStore.getState().nodes.find((n) => n.id === 'ing-nodata');
+      expect(updatedIngNoData?.data?.backendServiceName).toBe('svc-custom-port');
+      expect(updatedIngNoData?.data?.servicePort).toBe(8080);
+    });
+
+    it('covers deriveRoleResources and syncRoleRulesFromConnections branches: StatefulSet, 0 replicas workload, untyped nodes, empty rules', () => {
+      // Role node with empty rules
+      const roleNode: Node = {
+        id: 'role-empty',
+        type: 'Role',
+        position: { x: 0, y: 0 },
+        data: { rules: [] },
+      };
+      // StatefulSet controller
+      const ssNode: Node = {
+        id: 'ss-ctrl',
+        type: 'StatefulSet',
+        position: { x: 100, y: 0 },
+        data: { replicas: 1 },
+      };
+      // Deployment with 0 replicas and 0 child pods
+      const zeroRepDep: Node = {
+        id: 'zero-dep',
+        type: 'Deployment',
+        position: { x: 200, y: 0 },
+        data: { replicas: 0 },
+      };
+      // Node with unknown type
+      const unknownNode: Node = {
+        id: 'untyped-node',
+        type: undefined as any,
+        position: { x: 300, y: 0 },
+        data: {},
+      };
+
+      const edges: Edge[] = [
+        { id: 'e1', source: 'role-empty', target: 'ss-ctrl' },
+        { id: 'e2', source: 'role-empty', target: 'zero-dep' },
+        { id: 'e3', source: 'role-empty', target: 'untyped-node' },
+      ];
+
+      useFlowStore.setState({
+        nodes: [roleNode, ssNode, zeroRepDep, unknownNode] as any,
+        edges,
+      });
+
+      // Trigger syncRoleRulesFromConnections via setEdges
+      useFlowStore.getState().setEdges(edges);
+
+      const updatedRole = useFlowStore.getState().nodes.find((n) => n.id === 'role-empty');
+      const rules = updatedRole?.data?.rules;
+      expect(rules).toBeDefined();
+      expect(rules[0].resources).toContain('statefulsets');
+      expect(rules[0].resources).toContain('pods');
+    });
+
+    it('covers computeAutoLayout fallback dimensions when measured and width/height are missing', () => {
+      const nodeNoDim1: Node = {
+        id: 'dim1',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        width: undefined,
+        height: undefined,
+        measured: undefined,
+        data: {},
+      };
+      const nodeNoDim2: Node = {
+        id: 'dim2',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        width: undefined,
+        height: undefined,
+        measured: undefined,
+        data: {},
+      };
+      const childPodNoDim: Node = {
+        id: 'child-dim',
+        type: 'Pod',
+        parentId: 'dim1',
+        position: { x: 0, y: 0 },
+        width: undefined,
+        height: undefined,
+        measured: undefined,
+        data: {},
+      };
+
+      useFlowStore.setState({
+        nodes: [nodeNoDim1, nodeNoDim2, childPodNoDim] as any,
+        edges: [{ id: 'e-dim', source: 'dim1', target: 'dim2' }] as any,
+      });
+
+      useFlowStore.getState().autoLayout('LR');
+      const nodes = useFlowStore.getState().nodes;
+      expect(nodes[0].position.x).toBeDefined();
+      expect(nodes[1].position.x).toBeDefined();
+    });
+
+    it('covers getGroupDragExtraChanges when multiple members of the same group are moved', () => {
+      const gNode1 = { id: 'g1', position: { x: 0, y: 0 }, data: { groupId: 'shared-grp' } };
+      const gNode2 = { id: 'g2', position: { x: 50, y: 50 }, data: { groupId: 'shared-grp' } };
+
+      useFlowStore.setState({
+        nodes: [gNode1, gNode2] as any,
+      });
+
+      // Move both nodes of the same group simultaneously
+      useFlowStore.getState().onNodesChange([
+        { id: 'g1', type: 'position', position: { x: 10, y: 10 } },
+        { id: 'g2', type: 'position', position: { x: 60, y: 60 } },
+      ]);
+
+      const state = useFlowStore.getState();
+      expect(state.nodes.find((n) => n.id === 'g1')?.position).toEqual({ x: 10, y: 10 });
+      expect(state.nodes.find((n) => n.id === 'g2')?.position).toEqual({ x: 60, y: 60 });
+    });
+
+    it('covers HPA connection prerequisite branches: Deployment -> HPA direction, missing label, and missing targetNode in ResourceLimit check', () => {
+      const addLogSpy = vi.fn();
+      const depWithoutLimits: Node = {
+        id: 'dep-no-limits',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        data: {}, // no label, no limits
+      };
+      const depWithLabelNoLimits: Node = {
+        id: 'dep-with-label',
+        type: 'Deployment',
+        position: { x: 50, y: 0 },
+        data: { label: 'my-dep-label' }, // has label, no limits
+      };
+      const hpaNode: Node = {
+        id: 'hpa-target',
+        type: 'HPA',
+        position: { x: 100, y: 0 },
+        data: {},
+      };
+
+      useFlowStore.setState({
+        nodes: [depWithoutLimits, depWithLabelNoLimits, hpaNode] as any,
+        edges: [],
+        addLog: addLogSpy,
+      });
+
+      // Connect Deployment (source) -> HPA (target) without ResourceLimit
+      useFlowStore.getState().onConnect({ source: 'dep-no-limits', target: 'hpa-target' });
+      expect(addLogSpy).toHaveBeenCalledWith(
+        'error',
+        expect.stringContaining('[HPA Prerequisite] Cannot connect HPA to dep-no-limits'),
+        'UI'
+      );
+      expect(useFlowStore.getState().edges).toHaveLength(0);
+
+      // Connect HPA (source) -> Deployment (target) with label
+      useFlowStore.getState().onConnect({ source: 'hpa-target', target: 'dep-with-label' });
+      expect(addLogSpy).toHaveBeenCalledWith(
+        'error',
+        expect.stringContaining('[HPA Prerequisite] Cannot connect HPA to my-dep-label'),
+        'UI'
+      );
+      expect(useFlowStore.getState().edges).toHaveLength(0);
+
+      // Connect HPA -> Non-workload (e.g. ConfigMap) -> isHpaConnection is false, not blocked
+      const cmNode: Node = {
+        id: 'cm-node',
+        type: 'ConfigMap',
+        position: { x: 200, y: 0 },
+        data: {},
+      };
+      useFlowStore.setState({
+        nodes: [cmNode, hpaNode] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'hpa-target', target: 'cm-node' });
+      expect(useFlowStore.getState().edges).toHaveLength(1);
+    });
+
+    it('covers updateServiceSelector branches: undefined serviceType/data, id/tgtId fallbacks, Ingress selector, existing baseTargets, and empty nextTargets', () => {
+      // 1. Service with undefined serviceType and selector matching an Ingress
+      const ingressTargetNode: Node = {
+        id: 'ing-sel-target',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: { label: 'ing-app' },
+      };
+      const svcNodeWithIngressSel: Node = {
+        id: 'svc-ing-sel',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: { selector: 'ing-app', serviceType: undefined },
+      };
+      const depTarget: Node = {
+        id: 'dep-new-target',
+        type: 'Deployment',
+        position: { x: 200, y: 0 },
+        data: { label: 'dep-new-app' },
+      };
+
+      useFlowStore.setState({
+        nodes: [ingressTargetNode, svcNodeWithIngressSel, depTarget] as any,
+        edges: [],
+      });
+
+      // Connect service to deployment -> updates ingressTargets and selector
+      useFlowStore.getState().onConnect({ source: 'svc-ing-sel', target: 'dep-new-target' });
+      const updatedSvc = useFlowStore.getState().nodes.find((n) => n.id === 'svc-ing-sel');
+      expect(updatedSvc?.data?.selector).toBe('dep-new-app');
+
+      // 2. Connect again to same target (baseTargets.includes(targetLabel) is true)
+      useFlowStore.getState().onConnect({ source: 'svc-ing-sel', target: 'dep-new-target' });
+
+      // 3. Service with undefined data connecting to target without label (fallback to id/tgtId)
+      const svcNodata: Node = {
+        id: 'svc-nodata',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: undefined as any,
+      };
+      const targetNoLabel: Node = {
+        id: 'target-no-lbl',
+        type: 'Deployment',
+        position: { x: 100, y: 0 },
+        data: {},
+      };
+      useFlowStore.setState({
+        nodes: [svcNodata, targetNoLabel] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'svc-nodata', target: 'target-no-lbl' });
+      const resSvcNodata = useFlowStore.getState().nodes.find((n) => n.id === 'svc-nodata');
+      expect(resSvcNodata?.data?.selector).toBe('target-no-lbl');
+
+      // Target node not in store -> fallback to tgtId
+      useFlowStore.getState().onConnect({ source: 'svc-nodata', target: 'ghost-target-id' });
+    });
+
+    it('covers updateConnectedNodeState type fallbacks and checkPvcTopologyError reverse connection (Deployment -> PVC)', () => {
+      // 1. PVC topology error when source is Deployment and target is PVC (isSourcePvc = false)
+      const depWorkload: Node = {
+        id: 'dep-rev',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        data: { label: 'dep-rev' },
+      };
+      const ssExisting: Node = {
+        id: 'ss-existing',
+        type: 'StatefulSet',
+        position: { x: 100, y: 0 },
+        data: { label: 'ss-existing', workloadType: 'StatefulSet' },
+      };
+      const pvcNode: Node = {
+        id: 'pvc-rev',
+        type: 'PVC',
+        position: { x: 200, y: 0 },
+        data: { label: 'pvc-rev' },
+      };
+      const existingEdge: Edge = {
+        id: 'e-ss-pvc',
+        source: 'ss-existing',
+        target: 'pvc-rev',
+      };
+
+      useFlowStore.setState({
+        nodes: [depWorkload, ssExisting, pvcNode] as any,
+        edges: [existingEdge],
+      });
+
+      const { validateEdge } = useFlowStore.getState();
+      // Reverse connection: dep -> pvc
+      const validatedRev = validateEdge({ id: 'e-rev', source: 'dep-rev', target: 'pvc-rev' } as any);
+      expect(validatedRev.data?.validationError).toContain('Volume Claim Template Conflict');
+
+      // 2. updateConnectedNodeState with node having data.type fallback and missing srcNode/tgtNode types
+      const srcNodeNoType: Node = {
+        id: 'src-notype',
+        type: undefined as any,
+        position: { x: 0, y: 0 },
+        data: { type: 'Service' },
+      };
+      const tgtNodeNoType: Node = {
+        id: 'tgt-notype',
+        type: undefined as any,
+        position: { x: 100, y: 0 },
+        data: { type: 'Pod' },
+      };
+      useFlowStore.setState({
+        nodes: [srcNodeNoType, tgtNodeNoType] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'src-notype', target: 'tgt-notype' });
+      expect(useFlowStore.getState().edges).toHaveLength(1);
+    });
+
+    it('covers store slice edge cases: missing iamUsers, duplicate onConnect, validateEdge untyped nodes, and onReconnect unmatched edges', () => {
+      // 1. iamUsers is undefined in onNodesChange and onConnect
+      const podNode = { id: 'pod-u', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'pod-u' } };
+      const svcNode = { id: 'svc-u', type: 'Service', position: { x: 100, y: 0 }, data: { label: 'svc-u' } };
+      useFlowStore.setState({
+        nodes: [podNode, svcNode] as any,
+        edges: [],
+        iamUsers: undefined as any,
+        activeIdentity: 'system:admin',
+      });
+
+      useFlowStore.getState().onNodesChange([{ id: 'pod-u', type: 'position', position: { x: 10, y: 10 } }]);
+      expect(useFlowStore.getState().nodes.find((n) => n.id === 'pod-u')?.position).toEqual({ x: 10, y: 10 });
+
+      // 2. onConnect when edge already exists (duplicate connection early return)
+      useFlowStore.getState().onConnect({ source: 'pod-u', target: 'svc-u' });
+      expect(useFlowStore.getState().edges).toHaveLength(1);
+      // Attempt duplicate connect
+      useFlowStore.getState().onConnect({ source: 'pod-u', target: 'svc-u' });
+      expect(useFlowStore.getState().edges).toHaveLength(1);
+
+      // 3. validateEdge when nodes lack type property (covers sourceNode.type || '' and targetNode.type || '')
+      const untypedSource: Node = { id: 'u-src', type: undefined as any, position: { x: 0, y: 0 }, data: {} };
+      const untypedTarget: Node = { id: 'u-tgt', type: undefined as any, position: { x: 0, y: 0 }, data: {} };
+      useFlowStore.setState({
+        nodes: [untypedSource, untypedTarget] as any,
+      });
+      const validatedUntyped = useFlowStore.getState().validateEdge({ id: 'e-untyped', source: 'u-src', target: 'u-tgt' } as any);
+      expect(validatedUntyped).toBeDefined();
+
+      // 4. onReconnect when multiple edges exist (covers e.id !== oldEdge.id in map)
+      const edgeA: Edge = { id: 'e-a', source: 'u-src', target: 'u-tgt' };
+      const edgeB: Edge = { id: 'e-b', source: 'u-src', target: 'u-tgt' };
+      useFlowStore.setState({
+        edges: [edgeA, edgeB],
+      });
+      useFlowStore.getState().onReconnect(edgeA, { source: 'u-src', target: 'u-tgt' });
+      expect(useFlowStore.getState().edges).toHaveLength(2);
+    });
+
+    it('covers Ingress and Service edge removal branches: non-Service target, non-Ingress node, empty backend, and preserved selector', () => {
+      // 1. collectRemovedIngressServices with non-Service target (Branch 1 idx 1)
+      const ingNode: Node = {
+        id: 'ing-rem-test',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: {
+          backendServiceName: 'svc-main',
+          ingressPaths: [{ id: 'p1', serviceName: 'svc-sub', servicePort: 80 }],
+        },
+      };
+      const podTarget: Node = {
+        id: 'pod-non-svc',
+        type: 'Pod',
+        position: { x: 100, y: 0 },
+        data: { label: 'pod-target' },
+      };
+      const edgeToPod: Edge = {
+        id: 'e-ing-pod',
+        source: 'ing-rem-test',
+        target: 'pod-non-svc',
+      };
+      useFlowStore.setState({
+        nodes: [ingNode, podTarget] as any,
+        edges: [edgeToPod],
+      });
+      // Edge selection change on Ingress (removedEdges.length === 0 early return)
+      useFlowStore.getState().onEdgesChange([{ type: 'select', id: 'e-ing-pod', selected: true }]);
+      useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-ing-pod' }]);
+
+      // 2. reconcileRemovedIngressEndpoints on non-Ingress node (Branch 5 idx 0)
+      const depNode: Node = {
+        id: 'dep-rem-test',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        data: { label: 'dep-label' },
+      };
+      const edgeToDep: Edge = {
+        id: 'e-dep-pod',
+        source: 'dep-rem-test',
+        target: 'pod-non-svc',
+      };
+      useFlowStore.setState({
+        nodes: [depNode, podTarget] as any,
+        edges: [edgeToDep],
+      });
+      useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-dep-pod' }]);
+
+      // 3. Ingress with empty backendServiceName but hasPathsMatch, and hasBackendMatch is false (Branches 8 idx 1 & 13 idx 1)
+      const ingNoBackend: Node = {
+        id: 'ing-no-backend',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: {
+          backendServiceName: undefined,
+          ingressPaths: [
+            { id: 'p1', serviceName: 'svc-alpha', servicePort: 80 },
+            { id: 'p2', serviceName: 'svc-beta', servicePort: 80 },
+          ],
+        },
+      };
+      const svcAlpha: Node = {
+        id: 'svc-alpha',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: { label: 'svc-alpha' },
+      };
+      const svcBeta: Node = {
+        id: 'svc-beta',
+        type: 'Service',
+        position: { x: 200, y: 0 },
+        data: { label: 'svc-beta' },
+      };
+      const edgeToAlpha: Edge = {
+        id: 'e-ing-alpha',
+        source: 'ing-no-backend',
+        target: 'svc-alpha',
+      };
+      const edgeToBeta: Edge = {
+        id: 'e-ing-beta',
+        source: 'ing-no-backend',
+        target: 'svc-beta',
+      };
+      useFlowStore.setState({
+        nodes: [ingNoBackend, svcAlpha, svcBeta] as any,
+        edges: [edgeToAlpha, edgeToBeta],
+      });
+      useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-ing-alpha' }]);
+      const updatedIngNoBackend = useFlowStore.getState().nodes.find((n) => n.id === 'ing-no-backend');
+      expect(updatedIngNoBackend?.data?.ingressPaths).toHaveLength(2);
+      expect(updatedIngNoBackend?.data?.ingressPaths?.[0]?.serviceName).toBe('');
+      expect(updatedIngNoBackend?.data?.ingressPaths?.[1]?.serviceName).toBe('svc-beta');
+
+      // 4. Service with multiple outgoing edges: remove 1, hasMatch remains true (Branch 24 idx 1)
+      const multiSvc: Node = {
+        id: 'svc-multi',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { selector: 'shared-pod' },
+      };
+      const pod1: Node = {
+        id: 'pod-1',
+        type: 'Pod',
+        position: { x: 100, y: 0 },
+        data: { label: 'shared-pod' },
+      };
+      const pod2: Node = {
+        id: 'pod-2',
+        type: 'Pod',
+        position: { x: 200, y: 0 },
+        data: { label: 'shared-pod' },
+      };
+      const edgeSvcPod1: Edge = { id: 'e-svc-p1', source: 'svc-multi', target: 'pod-1' };
+      const edgeSvcPod2: Edge = { id: 'e-svc-p2', source: 'svc-multi', target: 'pod-2' };
+      useFlowStore.setState({
+        nodes: [multiSvc, pod1, pod2] as any,
+        edges: [edgeSvcPod1, edgeSvcPod2],
+      });
+      useFlowStore.getState().onEdgesChange([{ type: 'remove', id: 'e-svc-p1' }]);
+      const updatedMultiSvc = useFlowStore.getState().nodes.find((n) => n.id === 'svc-multi');
+      expect(updatedMultiSvc?.data?.selector).toBe('shared-pod');
+    });
+
+    it('covers buildConnectedIngressData branches: existingPaths without existingBackend, and tgtId fallback', () => {
+      // 1. existingPaths without existingBackend where alreadyExists is true (Branch 37 idx 1)
+      const ingWithPathsNoBackend: Node = {
+        id: 'ing-paths-nobackend',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: {
+          ingressPaths: [{ id: 'p1', serviceName: 'svc-exist', servicePort: 80 }],
+        },
+      };
+      const svcExist: Node = {
+        id: 'svc-exist',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: { label: 'svc-exist' },
+      };
+      useFlowStore.setState({
+        nodes: [ingWithPathsNoBackend, svcExist] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'ing-paths-nobackend', target: 'svc-exist' });
+      const updated1 = useFlowStore.getState().nodes.find((n) => n.id === 'ing-paths-nobackend');
+      expect(updated1?.data?.backendServiceName).toBe('svc-exist');
+
+      // 2. existingPaths without existingBackend where alreadyExists is false (Branch 38 idx 1)
+      const ingWithPathsNoBackend2: Node = {
+        id: 'ing-paths-nobackend-2',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: {
+          ingressPaths: [{ id: 'p1', serviceName: 'svc-exist', servicePort: 80 }],
+        },
+      };
+      const svcNew: Node = {
+        id: 'svc-new',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: { label: 'svc-new' },
+      };
+      useFlowStore.setState({
+        nodes: [ingWithPathsNoBackend2, svcNew] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'ing-paths-nobackend-2', target: 'svc-new' });
+      const updated2 = useFlowStore.getState().nodes.find((n) => n.id === 'ing-paths-nobackend-2');
+      expect(updated2?.data?.backendServiceName).toBe('svc-new');
+      expect(updated2?.data?.ingressPaths).toHaveLength(2);
+
+      // 3. targetNode has empty label and empty id (Branch 32 idx 2)
+      const ingTargetFallback: Node = {
+        id: 'ing-tgt-fallback',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: {},
+      };
+      const svcEmptyIdAndLabel: Node = {
+        id: '',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: {},
+      };
+      useFlowStore.setState({
+        nodes: [ingTargetFallback, svcEmptyIdAndLabel] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'ing-tgt-fallback', target: '' });
+      const updated3 = useFlowStore.getState().nodes.find((n) => n.id === 'ing-tgt-fallback');
+      expect(updated3?.data?.backendServiceName).toBe('');
+    });
+
+    it('covers Role rule sync with unrelated edge, undefined resources, and autoLayout non-toplevel edge', () => {
+      // 1. Role rule sync with unrelated edge (Branch 52 idx 1)
+      // 2. Role node with rules[0].resources undefined (Branch 57 idx 1)
+      const roleNode: Node = {
+        id: 'role-test',
+        type: 'Role',
+        position: { x: 0, y: 0 },
+        data: {
+          rules: [{ apiGroups: [''], resources: undefined, verbs: ['get'] }],
+        },
+      };
+      const podA: Node = { id: 'pod-a', type: 'Pod', position: { x: 100, y: 0 }, data: {} };
+      const podB: Node = { id: 'pod-b', type: 'Pod', position: { x: 200, y: 0 }, data: {} };
+      const unrelatedEdge: Edge = { id: 'e-a-b', source: 'pod-a', target: 'pod-b' };
+      const resNodes = syncRoleRulesFromConnections([roleNode, podA, podB], [unrelatedEdge]);
+      expect(resNodes).toBeDefined();
+
+      // 3. autoLayout with edge connecting to child pod (Branch 63 idx 1)
+      const depContainer: Node = { id: 'dep-parent', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+      const childPod: Node = { id: 'child-pod-edge', parentId: 'dep-parent', type: 'Pod', position: { x: 10, y: 10 }, data: {} };
+      const standaloneNode: Node = { id: 'standalone-svc', type: 'Service', position: { x: 200, y: 0 }, data: {} };
+      const edgeToChild: Edge = { id: 'e-to-child', source: 'standalone-svc', target: 'child-pod-edge' };
+      useFlowStore.setState({
+        nodes: [depContainer, childPod, standaloneNode] as any,
+        edges: [edgeToChild],
+      });
+      useFlowStore.getState().autoLayout('LR');
+      expect(useFlowStore.getState().nodes).toHaveLength(3);
+    });
+
+    it('covers quick connect untyped nodes and child pod parentId in data fallback', () => {
+      // 1. canQuickConnect with sourceNode.type or targetNode.type undefined (Branches 80 & 81 idx 1)
+      const untypedSrc: Node = { id: 'untyped-s', position: { x: 0, y: 0 }, data: {} };
+      const untypedTgt: Node = { id: 'untyped-t', position: { x: 200, y: 0 }, data: {} };
+      useFlowStore.setState({
+        nodes: [untypedSrc, untypedTgt] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onQuickConnect('untyped-s', 'right');
+
+      // 2. rerouteChildPodConnection with pod.data.parentId when pod.parentId is undefined (Branch 95 idx 1)
+      const parentDep: Node = { id: 'dep-parent-data', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+      const podWithDataParent: Node = {
+        id: 'pod-data-parent',
+        type: 'Pod',
+        parentId: undefined,
+        position: { x: 10, y: 10 },
+        data: { parentId: 'dep-parent-data' },
+      };
+      const testRole: Node = { id: 'role-reroute', type: 'Role', position: { x: 200, y: 0 }, data: {} };
+      useFlowStore.setState({
+        nodes: [parentDep, podWithDataParent, testRole] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'role-reroute', target: 'pod-data-parent' });
+      expect(useFlowStore.getState().edges[0]?.target).toBe('dep-parent-data');
+    });
+
+    it('covers onNodesChange with unknown node id and dimension sync non-dimensions changes', () => {
+      // 1. filterAllowedNodeChanges when targetNode is not found (Branch 104 idx 0)
+      useFlowStore.setState({
+        nodes: [{ id: 'existing-n', type: 'Pod', position: { x: 0, y: 0 }, data: {} }] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onNodesChange([
+        { type: 'position', id: 'unknown-node-id', position: { x: 50, y: 50 } },
+      ]);
+
+      // 2. syncParentContainersOnDimensionChange with mixed dimension and select changes (Branch 106 idx 1)
+      const parentCont: Node = { id: 'parent-dep', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+      const childItem: Node = { id: 'child-item', parentId: 'parent-dep', type: 'Pod', position: { x: 10, y: 10 }, data: {} };
+      useFlowStore.setState({
+        nodes: [parentCont, childItem] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onNodesChange([
+        { type: 'select', id: 'parent-dep', selected: true },
+        { type: 'dimensions', id: 'child-item', dimensions: { width: 120, height: 80 } },
+      ]);
+    });
+
+    it('covers updateServiceSelector branches: id fallback in targetLabel, id match in isCurrentSelIngress, and already-included target', () => {
+      // 1. targetLabel falls back to tgtId when target node has no label, no baseName, and empty id (Branch 121 idx 3)
+      // 2. isCurrentSelIngress matches on item.id when item has no label (Branch 127 idx 1)
+      const currentIngress: Node = {
+        id: 'ing-sel-id-only',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: {},
+      };
+      const secondIngress: Node = {
+        id: 'ing-sel-2',
+        type: 'Ingress',
+        position: { x: 100, y: 0 },
+        data: { label: 'ing-2-label' },
+      };
+      const serviceNode: Node = {
+        id: 'svc-sel-test',
+        type: 'Service',
+        position: { x: 200, y: 0 },
+        data: { serviceType: 'LoadBalancer', selector: 'ing-sel-id-only' },
+      };
+      useFlowStore.setState({
+        nodes: [currentIngress, secondIngress, serviceNode] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'svc-sel-test', target: 'ing-sel-2' });
+      const updatedSvc = useFlowStore.getState().nodes.find((n) => n.id === 'svc-sel-test');
+      expect(updatedSvc?.data?.ingressTargets).toContain('ing-2-label');
+
+      // 3. baseTargets already includes targetLabel (Branch 130 idx 0)
+      const svcWithTargets: Node = {
+        id: 'svc-existing-targets',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { serviceType: 'LoadBalancer', ingressTargets: ['ing-2-label'], selector: 'ing-2-label' },
+      };
+      useFlowStore.setState({
+        nodes: [secondIngress, svcWithTargets] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'svc-existing-targets', target: 'ing-sel-2' });
+      const updatedSvc2 = useFlowStore.getState().nodes.find((n) => n.id === 'svc-existing-targets');
+      expect(updatedSvc2?.data?.ingressTargets).toHaveLength(1);
+
+      // 4. nextTargets[0] is empty fallback to targetLabel (Branch 131 idx 1)
+      const ingEmptyName: Node = {
+        id: '',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: { label: '' },
+      };
+      const svcFallback: Node = {
+        id: 'svc-fb',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: { serviceType: 'LoadBalancer', ingressTargets: [''] },
+      };
+      useFlowStore.setState({
+        nodes: [ingEmptyName, svcFallback] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'svc-fb', target: '' });
+    });
+
+    it('covers PVC status unchanged branch, updateConnectedNodeState srcNode.type fallback, and checkPvcTopologyError PVC -> Deployment connection', () => {
+      // 1. PVC status unchanged when already equals realTimeStatus (Branch 138 idx 1)
+      const unboundPvc: Node = {
+        id: 'pvc-bound-test',
+        type: 'PVC',
+        position: { x: 0, y: 0 },
+        data: { label: 'pvc-bound', pvcStatus: 'Pending' },
+      };
+      const dummyWorkload: Node = {
+        id: 'dummy-w',
+        type: 'Deployment',
+        position: { x: 100, y: 0 },
+        data: { label: 'dummy-w', resourceLimits: { memory: '256Mi' } },
+      };
+      const dummyWorkload2: Node = {
+        id: 'dummy-w2',
+        type: 'Deployment',
+        position: { x: 200, y: 0 },
+        data: { label: 'dummy-w2', resourceLimits: { memory: '256Mi' } },
+      };
+      useFlowStore.setState({
+        nodes: [unboundPvc, dummyWorkload, dummyWorkload2] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'dummy-w', target: 'dummy-w2' });
+
+      // 2. updateConnectedNodeState with sType falling back to srcNode.type or empty (Branch 140 idx 2 & 3)
+      const nodeNoType: Node = {
+        id: 'node-no-type',
+        type: undefined as any,
+        position: { x: 0, y: 0 },
+        data: {},
+      };
+      const nodeTargetType: Node = {
+        id: 'node-target-type',
+        type: 'Deployment',
+        position: { x: 100, y: 0 },
+        data: { resourceLimits: { memory: '256Mi' } },
+      };
+      useFlowStore.setState({
+        nodes: [nodeNoType, nodeTargetType] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onConnect({ source: 'node-no-type', target: 'node-target-type' });
+
+      // 3. checkPvcTopologyError when source is PVC and target is Deployment (Branches 155 & 156 idx 0)
+      const ssForConflict: Node = {
+        id: 'ss-for-conflict',
+        type: 'StatefulSet',
+        position: { x: 0, y: 0 },
+        data: { label: 'ss-for-conflict', workloadType: 'StatefulSet' },
+      };
+      const pvcShared: Node = {
+        id: 'pvc-shared',
+        type: 'PVC',
+        position: { x: 100, y: 0 },
+        data: { label: 'pvc-shared' },
+      };
+      const depTarget: Node = {
+        id: 'dep-target-conflict',
+        type: 'Deployment',
+        position: { x: 200, y: 0 },
+        data: { label: 'dep-target-conflict' },
+      };
+      const edgeSsPvc: Edge = {
+        id: 'e-ss-pvc-shared',
+        source: 'ss-for-conflict',
+        target: 'pvc-shared',
+      };
+      useFlowStore.setState({
+        nodes: [ssForConflict, pvcShared, depTarget] as any,
+        edges: [edgeSsPvc],
+      });
+      const err = checkPvcTopologyError(
+        { id: 'e-pvc-dep', source: 'pvc-shared', target: 'dep-target-conflict' } as any,
+        pvcShared as any,
+        depTarget as any,
+        [ssForConflict, pvcShared, depTarget] as any,
+        [edgeSsPvc]
+      );
+      expect(err).toContain('Volume Claim Template Conflict');
+    });
   });
 });

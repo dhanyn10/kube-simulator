@@ -87,6 +87,74 @@ describe('HPAConfig', () => {
     expect(screen.getByText('LINKED TO MY DEP')).toBeDefined();
   });
 
+  it('covers fallback branches: untyped target node, label fallback to id, and empty id fallback to empty string', () => {
+    // 1. Target node without type (covers targetNode.type || '')
+    const untypedNode = {
+      id: 'untyped-1',
+      type: undefined as any,
+      data: {}
+    };
+    useFlowStore.setState({
+      nodes: [selectedNode, untypedNode],
+      edges: [{ id: 'e-untyped', source: 'hpa1', target: 'untyped-1' }]
+    });
+
+    const { unmount: unmount1 } = render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    expect(screen.getByText('MISSING RESOURCE REQUESTS')).toBeDefined();
+    unmount1();
+
+    // 2. Target workload with requests but missing label (covers fallback to targetWorkload.id)
+    const depWithRequestsNoLabel = {
+      id: 'dep-id-linked',
+      type: 'Deployment',
+      data: { cpuRequest: '100m', memoryRequest: '128Mi' }
+    };
+    useFlowStore.setState({
+      nodes: [selectedNode, depWithRequestsNoLabel],
+      edges: [{ id: 'e-id-only', source: 'hpa1', target: 'dep-id-linked' }]
+    });
+
+    const { unmount: unmount2 } = render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    expect(screen.getByText('LINKED TO DEP-ID-LINKED')).toBeDefined();
+    unmount2();
+
+    // 3. Target workload with requests, empty label, and empty id (covers fallback to '')
+    const depEmptyIdAndLabel = {
+      id: '',
+      type: 'Deployment',
+      data: { label: '', cpuRequest: '100m', memoryRequest: '128Mi' }
+    };
+    useFlowStore.setState({
+      nodes: [selectedNode, depEmptyIdAndLabel],
+      edges: [{ id: 'e-empty-id', source: 'hpa1', target: '' }]
+    });
+
+    const { unmount: unmount3 } = render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    expect(screen.getByText('LINKED TO')).toBeDefined();
+    unmount3();
+  });
+
   it('handles replica range and CPU/Mem updates and toggles after opening advanced section', () => {
     render(
       <HPAConfig
