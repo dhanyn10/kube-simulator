@@ -1,7 +1,8 @@
 import React from 'react';
-import { Clock, Home, Save, FilePlus, FileText, Check } from 'lucide-react';
+import { Clock, Home, Save, FilePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { RecentFileItem, getTableRowClass, getAutosaveSwitchBgClass } from '@/activities/layout/fileBackstageHelpers';
+import { RecentFileItem, getAutosaveSwitchBgClass } from '@/activities/layout/fileBackstageHelpers';
+import { renderRecentProjectsBody } from './RecentProjectsRow';
 
 export interface BackstageHomeTabProps {
   readonly colorMode: 'dark' | 'light';
@@ -18,6 +19,7 @@ export interface BackstageHomeTabProps {
   readonly onSaveAs: () => void;
   readonly handleRowContextMenu: (e: React.MouseEvent, item: RecentFileItem) => void;
   readonly handleRestoreFile: (item: RecentFileItem) => void;
+  readonly isLoading?: boolean;
 }
 
 /**
@@ -38,8 +40,21 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
   onSaveAs,
   handleRowContextMenu,
   handleRestoreFile,
+  isLoading,
 }) => {
   const isDark = colorMode === 'dark';
+
+  const renderTableBody = () =>
+    renderRecentProjectsBody({
+      isLoading,
+      recentFiles,
+      isDark,
+      currentProjectId,
+      activeContextId: activeContextItem?.id,
+      onContextMenu: handleRowContextMenu,
+      onRestoreFile: handleRestoreFile,
+      loadingTestId: 'backstage-recent-files-loading',
+    });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -130,7 +145,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between">
           <h3 className="text-xs uppercase font-bold text-slate-400 tracking-wider">
-            Recent Files & Auto-Saved Profiles
+            Recent Projects
           </h3>
           <span className="text-[11px] text-slate-500 font-mono">Right-click profile for context options</span>
         </div>
@@ -150,88 +165,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y text-xs font-medium">
-              {recentFiles.length === 0 ? (
-                <tr>
-                  <td colSpan={2} className="text-center py-10 text-slate-500">
-                    No recent files or auto-saved profiles found
-                  </td>
-                </tr>
-              ) : (
-                recentFiles.map((file) => {
-                  const rowClass = getTableRowClass(Boolean(file.isAutosave), isDark);
-                  const isCurrentActive = currentProjectId === file.id;
-                  const isContextMenuActive = activeContextItem?.id === file.id;
-                  return (
-                    <tr
-                      key={String(file.id)}
-                      onContextMenu={(e) => handleRowContextMenu(e, file)}
-                        onDoubleClick={() => handleRestoreFile(file)}
-                      className={cn(
-                        "transition-colors cursor-pointer select-none",
-                        rowClass,
-                        isContextMenuActive && (isDark ? "bg-blue-900/40 ring-1 ring-blue-500/50" : "bg-blue-100/80 ring-1 ring-blue-400/50")
-                      )}
-                    >
-                      <td className="py-3 px-4">
-                        <div className="flex items-start gap-3">
-                          <div className={cn(
-                            "p-2 rounded-lg shrink-0 mt-0.5",
-                            file.isAutosave ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500"
-                          )}>
-                            {file.isAutosave ? <Clock size={16} /> : <FileText size={16} />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold truncate max-w-[320px]">{file.name}</span>
-                              {file.isAutosave && (
-                                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
-                                  Auto-Save
-                                </span>
-                              )}
-                              {isCurrentActive && (
-                                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0 flex items-center gap-1">
-                                  <Check size={9} /> Active
-                                </span>
-                              )}
-                            </div>
-                            <div className={cn(
-                              "mt-1 px-2 py-0.5 rounded border inline-flex items-center gap-1.5 text-[10px] font-mono max-w-full",
-                              isDark
-                                ? "bg-slate-950 border-slate-800 text-slate-400"
-                                : "bg-slate-100 border-slate-200 text-slate-600"
-                            )}>
-                              <span className="opacity-60 font-semibold shrink-0">Location:</span>
-                              <span title={file.fullPath} className="truncate hover:text-blue-400 cursor-help">
-                                {file.location}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-right text-xs font-mono text-slate-400 align-top pt-3.5">
-                        <div className="flex items-center justify-end gap-2.5">
-                          <span>{file.updatedAt}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRestoreFile(file);
-                            }}
-                            className={cn(
-                              "px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer shadow-sm",
-                              isDark
-                                ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200"
-                                : "bg-white hover:bg-slate-100 border-slate-200 text-slate-700"
-                            )}
-                          >
-                            Open
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+              {renderTableBody()}
             </tbody>
           </table>
         </div>

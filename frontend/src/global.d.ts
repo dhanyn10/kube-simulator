@@ -29,6 +29,7 @@ interface WailsApp {
   OpenFileFolder(location: string): Promise<boolean>;
   FileExists(location: string): Promise<boolean>;
   GetAutosaveProfiles(): Promise<Array<{ key: string; timestamp: number; location: string }>>;
+  ClearAllAutosaves(): Promise<boolean>;
   GetInternetProfiles(): Promise<Array<{ name: string; hourly?: Record<string, number>; daily?: Record<string, number>; timestamp?: number }>>;
   SaveInternetProfile(name: string, profileJson: string): Promise<boolean>;
   DeleteInternetProfile(name: string): Promise<boolean>;

@@ -230,9 +230,9 @@ describe('MenuBarDropdown', () => {
 
     const fileBtn = screen.getByRole('button', { name: 'File' });
 
-    // Hovering over File menu button when activeMenu is set should NOT call setActiveMenu('File')
+    // Hovering over File menu button when activeMenu is set should call setActiveMenu('File')
     fireEvent.mouseEnter(fileBtn);
-    expect(setActiveMenu).not.toHaveBeenCalledWith('File');
+    expect(setActiveMenu).toHaveBeenCalledWith('File');
 
     // Clicking File menu header calls onMenuClick and sets activeMenu to null
     fireEvent.click(fileBtn);

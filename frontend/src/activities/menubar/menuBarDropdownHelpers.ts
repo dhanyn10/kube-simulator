@@ -56,9 +56,6 @@ export const resolveNextActiveMenu = (
   if (onMenuClick) {
     onMenuClick(menuLabel);
   }
-  if (menuLabel === 'File') {
-    return null;
-  }
   return currentActiveMenu === menuLabel ? null : menuLabel;
 };
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug,
-  Activity, ExternalLink, Bell, PlayCircle, Sliders, Terminal
+  Activity, ExternalLink, Bell, PlayCircle, Sliders, Terminal, FilePlus
 } from 'lucide-react';
 import { useFlowStore, FlowState } from '@/store';
 import { validateHpaTargets } from '@/store/slices/simulationManager';
@@ -16,6 +16,7 @@ export interface MenuBarStateOptions {
   readonly onOpenScenarios: () => void;
   readonly onOpenAbout: () => void;
   readonly onOpenSettings: () => void;
+  readonly onNewArchitecture?: () => void;
 }
 
 export const useMenuBarState = ({
@@ -27,6 +28,7 @@ export const useMenuBarState = ({
   onOpenScenarios,
   onOpenAbout,
   onOpenSettings,
+  onNewArchitecture,
 }: MenuBarStateOptions) => {
   const colorMode = useFlowStore((state: FlowState) => state.colorMode);
   const toggleColorMode = useFlowStore((state: FlowState) => state.toggleColorMode);
@@ -118,10 +120,25 @@ export const useMenuBarState = ({
       {
         label: 'File',
         items: [
+          {
+            label: 'New Architecture',
+            icon: FilePlus,
+            onClick: () => {
+              if (onNewArchitecture) {
+                onNewArchitecture();
+              } else {
+                useFlowStore.setState({ nodes: [], edges: [], currentProject: null, lastSavedSnapshot: '' });
+              }
+            },
+            shortcut: 'Ctrl+N',
+          },
+          { label: 'Open Project...', icon: FolderOpen, onClick: onOpenProjects, shortcut: 'Ctrl+O' },
           { label: 'Save', icon: Save, onClick: onSave, shortcut: 'Ctrl+S' },
-          { label: 'Save As...', icon: Save, onClick: onSaveAs },
-          { label: 'Import', icon: Upload, onClick: onImportFile },
+          { label: 'Save As...', icon: Save, onClick: onSaveAs, shortcut: 'Ctrl+Shift+S' },
+          { type: 'separator' as const },
+          { label: 'Import File...', icon: Upload, onClick: onImportFile },
           { label: 'Export YAML', icon: FileCode, onClick: onExportYaml },
+          { type: 'separator' as const },
           { label: 'Settings', icon: Sliders, onClick: onOpenSettings },
         ]
       },
@@ -144,7 +161,7 @@ export const useMenuBarState = ({
                     alert("Resource architecture saved successfully!");
                   }
                 } else {
-                  onOpenProjects(); // Open manager to save as new
+                  onOpenProjects();
                 }
               };
               void performSave();
@@ -159,6 +176,11 @@ export const useMenuBarState = ({
             label: monitoringLabel,
             icon: isMonitoringDetached ? ExternalLink : Activity,
             onClick: () => !isMonitoringDetached && setMonitoringOpen(!isMonitoringOpen)
+          },
+          {
+            label: 'Canvas Settings...',
+            icon: Sliders,
+            onClick: onOpenSettings,
           },
           {
             label: 'Components',
@@ -213,7 +235,7 @@ export const useMenuBarState = ({
       }
     ];
   }, [
-    onSave, onSaveAs, onImportFile, onExportYaml, onOpenProjects, onOpenScenarios, onOpenAbout, onOpenSettings,
+    onSave, onSaveAs, onImportFile, onExportYaml, onOpenProjects, onOpenScenarios, onOpenAbout, onOpenSettings, onNewArchitecture,
     currentProject, nodes, edges, colorMode,
     isMonitoringDetached, isMonitoringOpen, setMonitoringOpen,
     isSidebarVisible, isRightSidebarVisible, isHistoryViewOpen, setHistoryViewOpen,

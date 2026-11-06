@@ -7,7 +7,7 @@ test.describe('Traffic Simulation', () => {
   });
 
   test('Play/Stop simulation controls', async ({ page }) => {
-    const playButton = page.getByRole('button', { name: 'Play' });
+    const playButton = page.getByRole('button', { name: 'Play', exact: true });
     await expect(playButton).toBeDisabled();
 
     await page.getByRole('button', { name: 'Others' }).click();
@@ -15,10 +15,10 @@ test.describe('Traffic Simulation', () => {
     await expect(playButton).toBeEnabled();
 
     await playButton.click();
-    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Stop' }).click();
-    await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+    await page.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
   });
 
   test('Simulation metrics and dashboard', async ({ page }) => {
@@ -49,7 +49,7 @@ test.describe('Traffic Simulation', () => {
     });
 
     // 4. Start Simulation
-    await page.getByRole('button', { name: 'Play' }).click();
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
 
     // 5. Check Dashboard
     await page.getByText('View', { exact: true }).click();
@@ -95,7 +95,7 @@ test.describe('Traffic Simulation', () => {
       }
     });
 
-    await page.getByRole('button', { name: 'Play' }).click();
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
 
     // Observe scaling
     await expect(async () => {

@@ -7,12 +7,18 @@ import { useOutsideContextMenu } from '@/hooks/useOutsideContextMenu';
  */
 export function useRecentFilesState(isOpen: boolean) {
   const [recentFiles, setRecentFiles] = useState<RecentFileItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(isOpen);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: RecentFileItem | null } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const loadRecentFiles = useCallback(async () => {
-    const items = await fetchRecentFiles();
-    setRecentFiles(items);
+    setIsLoading(true);
+    try {
+      const items = await fetchRecentFiles();
+      setRecentFiles(items);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
@@ -20,6 +26,8 @@ export function useRecentFilesState(isOpen: boolean) {
   useEffect(() => {
     if (isOpen) {
       void loadRecentFiles();
+    } else {
+      setIsLoading(false);
     }
   }, [isOpen, loadRecentFiles]);
 
@@ -34,6 +42,8 @@ export function useRecentFilesState(isOpen: boolean) {
   return {
     recentFiles,
     setRecentFiles,
+    isLoading,
+    setIsLoading,
     contextMenu,
     setContextMenu,
     contextMenuRef,

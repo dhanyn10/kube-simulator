@@ -7,6 +7,7 @@ interface UseKeyboardShortcutsOptions {
   onPaste: () => void;
   onGroup?: () => void;
   onUngroup?: () => void;
+  onSave?: () => void;
 }
 
 const handleUndoRedo = (event: KeyboardEvent, key: string, onUndo: () => void, onRedo: () => void) => {
@@ -42,6 +43,12 @@ const handleGroupShortcut = (event: KeyboardEvent, key: string, onGroup?: () => 
 
 const dispatchShortcutKey = (event: KeyboardEvent, options: UseKeyboardShortcutsOptions) => {
   const key = event.key.toLowerCase();
+  if (key === 's') {
+    event.preventDefault();
+    event.stopPropagation();
+    options.onSave?.();
+    return;
+  }
   if (key === 'c') {
     options.onCopy();
     return;

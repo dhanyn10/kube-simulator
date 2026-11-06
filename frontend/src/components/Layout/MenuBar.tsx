@@ -14,6 +14,7 @@ interface MenuBarProps {
   onOpenScenarios: () => void;
   onOpenAbout: () => void;
   onOpenSettings: () => void;
+  onNewArchitecture?: () => void;
 }
 
 export const MenuBar = ({
@@ -24,7 +25,8 @@ export const MenuBar = ({
   onOpenProjects,
   onOpenScenarios,
   onOpenAbout,
-  onOpenSettings
+  onOpenSettings,
+  onNewArchitecture,
 }: MenuBarProps) => {
   const {
     colorMode,
@@ -52,6 +54,7 @@ export const MenuBar = ({
     onOpenScenarios,
     onOpenAbout,
     onOpenSettings,
+    onNewArchitecture,
   });
 
   let themeClasses = "";
@@ -86,11 +89,6 @@ export const MenuBar = ({
             activeMenu={activeMenu}
             setActiveMenu={setActiveMenu}
             colorMode={colorMode}
-            onMenuClick={(label) => {
-              if (label === 'File') {
-                onSave(); // Opens full screen MS Word 2021 FileBackstageView
-              }
-            }}
           />
         ))}
 

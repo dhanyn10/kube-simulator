@@ -9,7 +9,8 @@ describe('useKeyboardShortcuts', () => {
     onCopy: vi.fn(),
     onPaste: vi.fn(),
     onGroup: vi.fn(),
-    onUngroup: vi.fn()
+    onUngroup: vi.fn(),
+    onSave: vi.fn(),
   };
 
   beforeEach(() => {
@@ -34,6 +35,12 @@ describe('useKeyboardShortcuts', () => {
     renderHook(() => useKeyboardShortcuts(options));
     fireKey('c');
     expect(options.onCopy).toHaveBeenCalled();
+  });
+
+  it('triggers save on Ctrl+S', () => {
+    renderHook(() => useKeyboardShortcuts(options));
+    fireKey('s');
+    expect(options.onSave).toHaveBeenCalled();
   });
 
   it('triggers paste on Ctrl+V', () => {

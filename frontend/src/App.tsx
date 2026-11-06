@@ -86,6 +86,18 @@ const defaultEdgeOptions = {
   reconnectable: 'target' as const,
 };
 
+const getCanvasBackgroundVariant = (variant: string): BackgroundVariant => {
+  if (variant === 'lines') return BackgroundVariant.Lines;
+  if (variant === 'cross') return BackgroundVariant.Cross;
+  return BackgroundVariant.Dots;
+};
+
+const getCanvasBackgroundSize = (variant: string): number => {
+  if (variant === 'lines') return 1.5;
+  if (variant === 'cross') return 6;
+  return 2;
+};
+
 export default function App() {
   useThemeSync();
   const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
@@ -207,6 +219,33 @@ export default function App() {
 
   useCanvasNavigation({ disabled: isModalOverlayActive });
 
+  const handleSave = async () => {
+    const { currentProject, nodes: currentNodes, edges: currentEdges, addLog } = useFlowStore.getState();
+    if (currentProject && currentProject.id !== -1 && globalThis.go?.main?.App?.UpdateProject) {
+      const content = JSON.stringify({ nodes: currentNodes, edges: currentEdges });
+      const success = await globalThis.go.main.App.UpdateProject(currentProject.id, content);
+      if (success) {
+        useFlowStore.setState({ lastSavedSnapshot: content });
+        addLog('info', `Architecture "${currentProject.name}" saved successfully.`, 'System');
+        return;
+      }
+    }
+    setIsSaveModalOpen(true);
+  };
+
+  const handleNewArchitecture = () => {
+    const { nodes: currentNodes, setNodes, setEdges } = useFlowStore.getState();
+    if (currentNodes.length > 0) {
+      const confirmNew = globalThis.confirm(
+        'Create a new architecture? Any unsaved changes on the current canvas will be cleared.'
+      );
+      if (!confirmNew) return;
+    }
+    setNodes([]);
+    setEdges([]);
+    useFlowStore.setState({ currentProject: null, lastSavedSnapshot: '' });
+  };
+
   useKeyboardShortcuts({
     onUndo: handleUndo,
     onRedo: handleRedo,
@@ -220,6 +259,7 @@ export default function App() {
       const selectedIds = nodes.filter((n) => n.selected).map((n) => n.id);
       if (selectedIds.length > 0) ungroupNodes(selectedIds);
     },
+    onSave: handleSave,
   });
 
   if (isDetachedMode) {
@@ -236,12 +276,13 @@ export default function App() {
       <MenuBar
         onExportYaml={handleExport}
         onImportFile={handleImportFile}
-        onSave={() => setIsFileBackstageOpen(true)}
-        onSaveAs={handleExportFile}
-        onOpenProjects={() => setIsProjectOpen(true)}
+        onSave={handleSave}
+        onSaveAs={() => setIsSaveModalOpen(true)}
+        onOpenProjects={() => setIsSaveModalOpen(true)}
         onOpenScenarios={() => setIsScenarioOpen(true)}
         onOpenAbout={() => setIsAboutDialogOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onNewArchitecture={handleNewArchitecture}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -287,9 +328,9 @@ export default function App() {
           >
             <Background
               color={finalCanvasBgColor}
-              variant={canvasBgVariant === 'lines' ? BackgroundVariant.Lines : BackgroundVariant.Dots}
+              variant={getCanvasBackgroundVariant(canvasBgVariant)}
               gap={24}
-              size={canvasBgVariant === 'lines' ? 1.5 : 2}
+              size={getCanvasBackgroundSize(canvasBgVariant)}
               style={{ opacity: canvasBgOpacity }}
             />
 

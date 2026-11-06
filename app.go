@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -33,6 +34,7 @@ const (
 	testFilePathKey  contextKey = "test_file_path"
 	testMaximisedKey contextKey = "test_maximised"
 	kubeSimulatorDir            = ".kube-simulator"
+	infraExtension              = ".infra"
 )
 
 var infraProjectFilters = []wailsRuntime.FileFilter{
@@ -407,7 +409,7 @@ func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
 	if appCtx == nil {
 		return false
 	}
-	filePath, err := a.selectProjectFileDialog(true, fmt.Sprintf("%s.infra", name), "Export Infrastructure Project")
+	filePath, err := a.selectProjectFileDialog(true, fmt.Sprintf("%s%s", name, infraExtension), "Export Infrastructure Project")
 	if err != nil || filePath == "" {
 		return false
 	}
@@ -511,10 +513,10 @@ func (a *App) GetAutosaveProfiles() []AutosaveProfileItem {
 
 	items := make([]AutosaveProfileItem, 0)
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".infra") {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), infraExtension) {
 			continue
 		}
-		key := strings.TrimSuffix(entry.Name(), ".infra")
+		key := strings.TrimSuffix(entry.Name(), infraExtension)
 		fullPath := filepath.Join(dir, entry.Name())
 		info, err := entry.Info()
 		ts := time.Now().UnixMilli()
@@ -539,7 +541,31 @@ func (a *App) GetAutosaveProfiles() []AutosaveProfileItem {
 			Location:  locationPath,
 		})
 	}
+
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Timestamp > items[j].Timestamp
+	})
+
 	return items
+}
+
+func (a *App) ClearAllAutosaves() bool {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+	dir := filepath.Join(userHome, kubeSimulatorDir, "autosaves")
+	entries, err := os.ReadDir(dir)
+	if err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), infraExtension) {
+				_ = os.Remove(filepath.Join(dir, entry.Name()))
+			}
+		}
+	}
+	_ = a.SaveSetting("auto_saved_profile_latest", "")
+	_ = a.SaveSetting("auto_saved_profile_content", "")
+	return true
 }
 
 type InternetProfile struct {

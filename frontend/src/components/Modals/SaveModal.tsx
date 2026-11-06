@@ -1,14 +1,14 @@
 import React from 'react';
-import { Save, Folder, Clock, FileText, Check, FilePlus, Sun, Moon, PackageOpen, FolderOpen, Trash2, X } from 'lucide-react';
+import { Save, Folder, FilePlus, Sun, Moon, PackageOpen, FolderOpen, Trash2, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from '@/components/Modals/Modal';
 import { useSaveModal } from '@/activities/modals/useSaveModal';
 import { useContextMenuPosition } from '@/lib/contextMenuUtils';
 import {
   formatDateModified,
-  getSaveRowBgClass,
   getHeaderProfileName,
 } from '@/activities/layout/fileBackstageHelpers';
+import { renderRecentProjectsBody } from '@/components/Layout/RecentProjectsRow';
 
 export interface SaveModalProps {
   readonly isOpen: boolean;
@@ -24,6 +24,9 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
     newProjectName,
     setNewProjectName,
     recentFiles,
+    hasAutosaves,
+    isLoading,
+    loadingFileId,
     activeLocation,
     contextMenu,
     setContextMenu,
@@ -34,11 +37,25 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
     handleRestoreFile,
     handleDeleteFile,
     handleOpenFolder,
+    handleClearAllAutosaves,
   } = useSaveModal({ isOpen, onClose });
 
   const position = useContextMenuPosition(contextMenu?.x ?? 0, contextMenu?.y ?? 0, contextMenuRef);
 
   if (!isOpen) return null;
+
+  const renderRecentFilesBody = () =>
+    renderRecentProjectsBody({
+      isLoading,
+      recentFiles,
+      isDark: colorMode === 'dark',
+      currentProjectId: currentProject?.id,
+      activeContextId: contextMenu?.item?.id,
+      loadingFileId,
+      onContextMenu: handleRowContextMenu,
+      onRestoreFile: (f) => { void handleRestoreFile(f); },
+      loadingTestId: 'recent-files-loading',
+    });
 
   return (
     <Modal
@@ -126,10 +143,35 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
         {/* Recent Files Table (MS Word Style) */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h4 className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
-              Recent Files & Auto-Saved Profiles
-            </h4>
-            <span className="text-[10px] text-slate-500 font-mono">Right-click profile for menu (Change Theme, Restore, Close)</span>
+            <div className="flex items-center gap-2">
+              <h4 className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
+                Recent Projects
+              </h4>
+              {(isLoading || loadingFileId !== null) && (
+                <span
+                  data-testid="recent-files-loading-badge"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono text-blue-400 bg-blue-500/10 border border-blue-500/20 animate-pulse"
+                >
+                  <Loader2 size={10} className="animate-spin" />
+                  <span>{loadingFileId !== null ? 'Loading file...' : 'Reading profiles...'}</span>
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2.5">
+              {hasAutosaves && (
+                <button
+                  type="button"
+                  data-testid="clean-autosaves-btn"
+                  onClick={() => { void handleClearAllAutosaves(); }}
+                  title="Clean up autosave backups"
+                  className="px-2 py-0.5 rounded text-[10px] font-medium text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-slate-700/50 flex items-center gap-1 transition-colors"
+                >
+                  <Trash2 size={11} />
+                  <span>Clean Autosaves</span>
+                </button>
+              )}
+              <span className="text-[10px] text-slate-500 font-mono">Right-click project for menu (Change Theme, Restore, Close)</span>
+            </div>
           </div>
 
           <div className="overflow-x-auto max-h-56 overflow-y-auto rounded-xl border custom-scrollbar">
@@ -144,76 +186,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                 </tr>
               </thead>
               <tbody className="divide-y text-xs font-medium">
-                {recentFiles.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="text-center py-8 text-slate-500">
-                      No recent files or auto-saved profiles found
-                    </td>
-                  </tr>
-                ) : (
-                  recentFiles.map((file) => {
-                    const isContextMenuActive = contextMenu?.item?.id === file.id;
-                    return (
-                      <tr
-                        key={String(file.id)}
-                        onContextMenu={(e) => handleRowContextMenu(e, file)}
-                        onDoubleClick={() => { void handleRestoreFile(file); }}
-                        className={cn(
-                          "transition-colors group cursor-pointer select-none",
-                          getSaveRowBgClass(Boolean(file.isAutosave), colorMode === 'dark'),
-                          isContextMenuActive && (colorMode === 'dark' ? "bg-blue-900/40 ring-1 ring-blue-500/50" : "bg-blue-100/80 ring-1 ring-blue-400/50")
-                        )}
-                      >
-                      {/* Name Column with Sub-block for Location */}
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-start gap-2.5">
-                          <div className={cn(
-                            "p-1.5 rounded-md shrink-0 mt-0.5",
-                            file.isAutosave ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500"
-                          )}>
-                            {file.isAutosave ? <Clock size={15} /> : <FileText size={15} />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-200 truncate max-w-[280px]">{file.name}</span>
-                              {file.isAutosave && (
-                                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
-                                  Auto-Save
-                                </span>
-                              )}
-                              {currentProject?.id === file.id && (
-                                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0 flex items-center gap-1">
-                                  <Check size={9} /> Active
-                                </span>
-                              )}
-                            </div>
-                            {/* Sub-block displaying clean location path */}
-                            <div className={cn(
-                              "mt-1 px-2 py-0.5 rounded border inline-flex items-center gap-1.5 text-[10px] font-mono max-w-full",
-                              colorMode === 'dark'
-                                ? "bg-slate-900/80 border-slate-800 text-slate-400"
-                                : "bg-slate-100 border-slate-200 text-slate-600"
-                            )}>
-                              <span className="text-slate-500 font-semibold shrink-0">Location:</span>
-                              <span
-                                title={file.fullPath}
-                                className="truncate hover:text-blue-400 cursor-help"
-                              >
-                                {file.location}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Date Modified Column */}
-                      <td className="py-2.5 px-3 text-right text-[11px] font-mono text-slate-300 whitespace-nowrap align-top pt-3">
-                        {file.updatedAt}
-                      </td>
-                      </tr>
-                    );
-                  })
-                )}
+                {renderRecentFilesBody()}
               </tbody>
             </table>
           </div>

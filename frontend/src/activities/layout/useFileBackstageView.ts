@@ -136,6 +136,7 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
 
   const {
     recentFiles,
+    isLoading,
     contextMenu,
     setContextMenu,
     contextMenuRef,
@@ -217,6 +218,7 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
     newProjectName,
     setNewProjectName,
     recentFiles,
+    isLoading,
     contextMenu,
     setContextMenu,
     contextMenuRef,
