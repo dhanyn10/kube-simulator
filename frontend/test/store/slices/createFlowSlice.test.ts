@@ -1589,6 +1589,7 @@ describe('createFlowSlice', () => {
         edges: [],
       });
       useFlowStore.getState().onQuickConnect('untyped-s', 'right');
+      expect(useFlowStore.getState().edges).toHaveLength(0);
 
       // 2. rerouteChildPodConnection with pod.data.parentId when pod.parentId is undefined (Branch 95 idx 1)
       const parentDep: Node = { id: 'dep-parent-data', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
@@ -1617,6 +1618,7 @@ describe('createFlowSlice', () => {
       useFlowStore.getState().onNodesChange([
         { type: 'position', id: 'unknown-node-id', position: { x: 50, y: 50 } },
       ]);
+      expect(useFlowStore.getState().nodes.find((n) => n.id === 'existing-n')?.position).toEqual({ x: 0, y: 0 });
 
       // 2. syncParentContainersOnDimensionChange with mixed dimension and select changes (Branch 106 idx 1)
       const parentCont: Node = { id: 'parent-dep', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
@@ -1629,6 +1631,7 @@ describe('createFlowSlice', () => {
         { type: 'select', id: 'parent-dep', selected: true },
         { type: 'dimensions', id: 'child-item', dimensions: { width: 120, height: 80 } },
       ]);
+      expect(useFlowStore.getState().nodes.find((n) => n.id === 'parent-dep')?.selected).toBe(true);
     });
 
     it('covers updateServiceSelector branches: id fallback in targetLabel, id match in isCurrentSelIngress, and already-included target', () => {
@@ -1693,6 +1696,7 @@ describe('createFlowSlice', () => {
         edges: [],
       });
       useFlowStore.getState().onConnect({ source: 'svc-fb', target: '' });
+      expect(useFlowStore.getState().nodes.find((n) => n.id === 'svc-fb')?.data?.selector).toBe('');
     });
 
     it('covers PVC status unchanged branch, updateConnectedNodeState srcNode.type fallback, and checkPvcTopologyError PVC -> Deployment connection', () => {
@@ -1720,6 +1724,7 @@ describe('createFlowSlice', () => {
         edges: [],
       });
       useFlowStore.getState().onConnect({ source: 'dummy-w', target: 'dummy-w2' });
+      expect(useFlowStore.getState().nodes.find((n) => n.id === 'pvc-bound-test')?.data?.pvcStatus).toBe('Pending');
 
       // 2. updateConnectedNodeState with sType falling back to srcNode.type or empty (Branch 140 idx 2 & 3)
       const nodeNoType: Node = {
@@ -1739,6 +1744,7 @@ describe('createFlowSlice', () => {
         edges: [],
       });
       useFlowStore.getState().onConnect({ source: 'node-no-type', target: 'node-target-type' });
+      expect(useFlowStore.getState().edges).toHaveLength(1);
 
       // 3. checkPvcTopologyError when source is PVC and target is Deployment (Branches 155 & 156 idx 0)
       const ssForConflict: Node = {
