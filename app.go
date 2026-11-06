@@ -34,6 +34,7 @@ const (
 	testFilePathKey  contextKey = "test_file_path"
 	testMaximisedKey contextKey = "test_maximised"
 	kubeSimulatorDir            = ".kube-simulator"
+	infraExtension              = ".infra"
 )
 
 var infraProjectFilters = []wailsRuntime.FileFilter{
@@ -408,7 +409,7 @@ func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
 	if appCtx == nil {
 		return false
 	}
-	filePath, err := a.selectProjectFileDialog(true, fmt.Sprintf("%s.infra", name), "Export Infrastructure Project")
+	filePath, err := a.selectProjectFileDialog(true, fmt.Sprintf("%s%s", name, infraExtension), "Export Infrastructure Project")
 	if err != nil || filePath == "" {
 		return false
 	}
@@ -512,10 +513,10 @@ func (a *App) GetAutosaveProfiles() []AutosaveProfileItem {
 
 	items := make([]AutosaveProfileItem, 0)
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".infra") {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), infraExtension) {
 			continue
 		}
-		key := strings.TrimSuffix(entry.Name(), ".infra")
+		key := strings.TrimSuffix(entry.Name(), infraExtension)
 		fullPath := filepath.Join(dir, entry.Name())
 		info, err := entry.Info()
 		ts := time.Now().UnixMilli()
@@ -557,7 +558,7 @@ func (a *App) ClearAllAutosaves() bool {
 	entries, err := os.ReadDir(dir)
 	if err == nil {
 		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".infra") {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), infraExtension) {
 				_ = os.Remove(filepath.Join(dir, entry.Name()))
 			}
 		}

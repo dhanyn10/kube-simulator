@@ -86,6 +86,18 @@ const defaultEdgeOptions = {
   reconnectable: 'target' as const,
 };
 
+const getCanvasBackgroundVariant = (variant: string): BackgroundVariant => {
+  if (variant === 'lines') return BackgroundVariant.Lines;
+  if (variant === 'cross') return BackgroundVariant.Cross;
+  return BackgroundVariant.Dots;
+};
+
+const getCanvasBackgroundSize = (variant: string): number => {
+  if (variant === 'lines') return 1.5;
+  if (variant === 'cross') return 6;
+  return 2;
+};
+
 export default function App() {
   useThemeSync();
   const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
@@ -316,15 +328,9 @@ export default function App() {
           >
             <Background
               color={finalCanvasBgColor}
-              variant={
-                canvasBgVariant === 'lines'
-                  ? BackgroundVariant.Lines
-                  : canvasBgVariant === 'cross'
-                  ? BackgroundVariant.Cross
-                  : BackgroundVariant.Dots
-              }
+              variant={getCanvasBackgroundVariant(canvasBgVariant)}
               gap={24}
-              size={canvasBgVariant === 'lines' ? 1.5 : canvasBgVariant === 'cross' ? 6 : 2}
+              size={getCanvasBackgroundSize(canvasBgVariant)}
               style={{ opacity: canvasBgOpacity }}
             />
 

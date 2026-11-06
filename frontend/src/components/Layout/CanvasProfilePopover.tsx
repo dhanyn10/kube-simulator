@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Grid, X, LayoutGrid, Check, Clock } from 'lucide-react';
+import { Grid, X, LayoutGrid, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 
@@ -14,6 +14,16 @@ const PATTERNS = [
   { id: 'lines', label: 'Lines' },
   { id: 'cross', label: 'Cross' },
 ] as const;
+
+const getPatternButtonClass = (active: boolean, isDark: boolean): string => {
+  if (active) {
+    return 'bg-blue-600 text-white shadow-sm font-bold';
+  }
+  if (isDark) {
+    return 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50';
+  }
+  return 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50';
+};
 
 export const CanvasProfilePopover: React.FC<CanvasProfilePopoverProps> = ({
   isOpen,
@@ -98,11 +108,7 @@ export const CanvasProfilePopover: React.FC<CanvasProfilePopoverProps> = ({
                   onClick={() => setCanvasBgVariant(p.id)}
                   className={cn(
                     "py-1 px-1.5 text-center text-[11px] font-semibold rounded-md transition-all",
-                    active
-                      ? "bg-blue-600 text-white shadow-sm font-bold"
-                      : isDark
-                      ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                    getPatternButtonClass(active, isDark)
                   )}
                 >
                   {p.label}
@@ -129,7 +135,7 @@ export const CanvasProfilePopover: React.FC<CanvasProfilePopoverProps> = ({
             step="0.05"
             aria-label="Grid Opacity"
             value={canvasBgOpacity}
-            onChange={(e) => setCanvasBgOpacity(parseFloat(e.target.value))}
+            onChange={(e) => setCanvasBgOpacity(Number.parseFloat(e.target.value))}
             className="w-full h-1.5 bg-slate-700/30 rounded-lg appearance-none cursor-pointer accent-blue-500"
           />
         </div>
