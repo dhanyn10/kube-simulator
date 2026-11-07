@@ -126,10 +126,15 @@ describe('Clean Architecture Backend Gateway', () => {
     });
 
     it('handles window and system diagnostic methods', async () => {
+      expect(mock.windowState).toBe('normal');
       await mock.minimizeWindow();
+      expect(mock.windowState).toBe('minimized');
       await mock.maximizeWindow();
+      expect(mock.windowState).toBe('maximized');
       await mock.closeWindow();
+      expect(mock.windowState).toBe('closed');
       await mock.setInitialFile('/test/path');
+      expect(mock.initialFile).toBe('/test/path');
 
       expect(await mock.calculateAppHeight(1000)).toBe(850);
       expect(await mock.getTargetScreen([])).toBe(false);

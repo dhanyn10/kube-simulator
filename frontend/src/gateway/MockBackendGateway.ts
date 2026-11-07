@@ -14,15 +14,17 @@ import { BaseBackendGateway } from './BaseBackendGateway';
  * Used for deterministic unit testing and browser preview environments.
  */
 export class MockBackendGateway extends BaseBackendGateway {
-  public projects: Map<number, ProjectItem> = new Map();
-  public settings: Map<string, string> = new Map();
+  public readonly projects: Map<number, ProjectItem> = new Map();
+  public readonly settings: Map<string, string> = new Map();
   public autosaves: AutosaveItem[] = [];
-  public internetProfiles: Map<string, InternetProfileItem> = new Map();
-  public historyLogs: HistoryItem[] = [];
-  public historySnapshots: string[] = [];
+  public readonly internetProfiles: Map<string, InternetProfileItem> = new Map();
+  public readonly historyLogs: HistoryItem[] = [];
+  public readonly historySnapshots: string[] = [];
   public currentHistoryIndex: number = -1;
-  public loggedMessages: Array<{ category: string; level: string; message: string }> = [];
-  private eventListeners: Map<string, Set<(...args: any[]) => void>> = new Map();
+  public readonly loggedMessages: Array<{ category: string; level: string; message: string }> = [];
+  public windowState: 'normal' | 'minimized' | 'maximized' | 'closed' = 'normal';
+  public initialFile: string = '';
+  private readonly eventListeners: Map<string, Set<(...args: any[]) => void>> = new Map();
 
   // --- Project Operations ---
 
@@ -170,9 +172,17 @@ export class MockBackendGateway extends BaseBackendGateway {
 
   // --- Window Operations ---
 
-  async minimizeWindow(): Promise<void> {}
-  async maximizeWindow(): Promise<void> {}
-  async closeWindow(): Promise<void> {}
+  async minimizeWindow(): Promise<void> {
+    this.windowState = 'minimized';
+  }
+
+  async maximizeWindow(): Promise<void> {
+    this.windowState = 'maximized';
+  }
+
+  async closeWindow(): Promise<void> {
+    this.windowState = 'closed';
+  }
 
   async calculateAppHeight(screenHeight: number): Promise<number> {
     return Math.round(screenHeight * 0.85);
@@ -225,7 +235,9 @@ export class MockBackendGateway extends BaseBackendGateway {
     return `Hello ${name}!`;
   }
 
-  async setInitialFile(_filePath: string): Promise<void> {}
+  async setInitialFile(filePath: string): Promise<void> {
+    this.initialFile = filePath;
+  }
 
   // --- DockerHub & YAML Operations ---
 
