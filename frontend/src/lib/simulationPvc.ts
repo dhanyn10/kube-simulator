@@ -7,7 +7,7 @@ import {
   analyzePvcWorkloadConnections,
   getPvcValidationErrorMsg,
   PvcWorkloadAnalysis,
-} from '@/activities/config/pvcConfigHelpers';
+} from './pvcAnalysis';
 
 const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);

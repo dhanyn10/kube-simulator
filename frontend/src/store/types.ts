@@ -15,16 +15,7 @@ export interface LogEntry {
   timestamp: number;
 }
 
-export interface SimulationMetricPoint {
-  cpuPercent: number;
-  memoryPercent: number;
-  cpuValue: number;
-  memoryValue: number;
-  cpuLimit: number;
-  memoryLimit: number;
-  isThrottled: boolean;
-  isOOM: boolean;
-}
+export type { SimulationMetricPoint } from '@/types';
 
 export interface BaseFlowState {
   clipboard: { nodes: any[]; edges: any[] } | null;

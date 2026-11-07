@@ -1,9 +1,10 @@
+import { generateYaml } from '@/lib/utils';
 import { logger } from '@/lib/logger';
 import React, { useCallback } from 'react';
 import { useFlowStore } from '@/store';
-import { generateYaml } from '@/lib/utils';
 import { hydrateNodes } from '@/store/nodeHelpers';
 import { Node, Edge } from '@xyflow/react';
+import { getBackendGateway } from '@/gateway';
 
 const parseAndHydrateProject = (json: string) => {
   if (!json) return;
@@ -41,20 +42,18 @@ export const useFileSystem = (nodes: Node[], edges: Edge[]) => {
 
   const handleExportFile = useCallback(async () => {
     const currentProject = useFlowStore.getState().currentProject;
-    if (globalThis.go?.main?.App?.ExportProjectFile) {
-      const canvasContent = JSON.stringify({ nodes, edges });
-      const yamlContent = await generateYaml(nodes, edges);
-      await globalThis.go.main.App.ExportProjectFile(
-        currentProject?.name || 'unnamed-project',
-        canvasContent,
-        yamlContent
-      );
-    }
+    const canvasContent = JSON.stringify({ nodes, edges });
+    const yamlContent = await generateYaml(nodes, edges);
+    await getBackendGateway().exportProjectFile(
+      currentProject?.name || 'unnamed-project',
+      canvasContent,
+      yamlContent
+    );
   }, [nodes, edges]);
 
   const handleImportFile = useCallback(async () => {
-    if (globalThis.go?.main?.App?.ImportProjectFile) {
-      const json = await globalThis.go.main.App.ImportProjectFile();
+    const json = await getBackendGateway().importProjectFile();
+    if (json) {
       parseAndHydrateProject(json);
     }
   }, []);
@@ -64,15 +63,12 @@ export const useFileSystem = (nodes: Node[], edges: Edge[]) => {
 
 function useEffectExternalFileListener() {
   React.useEffect(() => {
-    const runtime = globalThis.runtime;
-    if (!runtime?.EventsOn) return;
-
-    const off = runtime.EventsOn('open-infra-file', (json: string) => {
+    const off = getBackendGateway().onEvent('open-infra-file', (json: string) => {
       parseAndHydrateProject(json);
     });
 
     return () => {
-      if (typeof off === 'function') (off as () => void)();
+      if (typeof off === 'function') off();
     };
   }, []);
 }

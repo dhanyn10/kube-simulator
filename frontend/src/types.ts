@@ -204,3 +204,14 @@ export interface HistoryLog {
   actionName: string;
   timestamp: number;
 }
+
+export interface SimulationMetricPoint {
+  cpuPercent: number;
+  memoryPercent: number;
+  cpuValue: number;
+  memoryValue: number;
+  cpuLimit: number;
+  memoryLimit: number;
+  isThrottled: boolean;
+  isOOM: boolean;
+}

@@ -4,6 +4,7 @@ import { generateTimestampedProjectName } from '@/components/Modals/resource-man
 import { useFitView } from '@/hooks/useFitView';
 import { restoreRecentFile, deleteRecentFile, openRecentFileFolder, clearAllAutosaves } from '@/activities/layout/fileBackstageHelpers';
 import { useRecentFilesState } from '@/activities/layout/useRecentFilesState';
+import { getBackendGateway } from '@/gateway';
 
 export interface UseSaveModalParams {
   readonly isOpen: boolean;
@@ -48,10 +49,10 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
 
   const handleQuickSaveCurrent = async () => {
     const content = JSON.stringify({ nodes, edges });
-    const app = globalThis.go?.main?.App;
+    const gateway = getBackendGateway();
 
-    if (currentProject && currentProject.id !== -1 && app?.UpdateProject) {
-      const success = await app.UpdateProject(currentProject.id, content);
+    if (currentProject && currentProject.id !== -1) {
+      const success = await gateway.updateProject(currentProject.id, content);
       if (success) {
         useFlowStore.setState({ lastSavedSnapshot: content });
         await loadRecentFiles();
@@ -60,8 +61,8 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
       }
     }
 
-    if (newProjectName.trim() && app?.SaveProject) {
-      const id = await app.SaveProject(newProjectName.trim(), content);
+    if (newProjectName.trim()) {
+      const id = await gateway.saveProject(newProjectName.trim(), content);
       if (id !== undefined) {
         useFlowStore.setState({
           currentProject: { id, name: newProjectName.trim() },

@@ -1,4 +1,5 @@
-import { logger } from '@/lib/logger';
+import { logger, setLogConsumer } from '@/lib/logger';
+import { getBackendGateway, WailsBackendGateway } from '@/gateway';
 import { createStore, useStore } from 'zustand';
 import type { FlowState } from '@/store/types';
 import { createFlowSlice } from '@/store/slices/createFlowSlice';
@@ -42,6 +43,18 @@ const flowStore = createStore<FlowState>()(
   })
 );
 
+// Register application log store with the library logger
+if (typeof setLogConsumer === 'function') {
+  setLogConsumer((level, message, scope) => {
+    const store = flowStore.getState();
+    if (scope !== undefined) {
+      store.addLog?.(level, message, scope);
+    } else {
+      store.addLog?.(level, message);
+    }
+  });
+}
+
 // Session autosave key generated when activity begins
 let currentSessionAutosaveKey: string | null = null;
 let isApplyingHistory = false;
@@ -73,8 +86,9 @@ setTimeout(() => {
     actionName: 'Initial State',
     timestamp: Date.now()
   });
-  if (globalThis.go?.main?.App?.PushHistory) {
-    void globalThis.go.main.App.PushHistory(snapshot);
+  const initGw = getBackendGateway();
+  if (globalThis.go?.main?.App?.PushHistory || !(initGw instanceof WailsBackendGateway)) {
+    void initGw.pushHistory(snapshot);
     logger.info('[History] Initial state recorded to Go database');
   }
 }, 500);
@@ -140,23 +154,25 @@ const executeAutosave = (state: FlowState) => {
     timestamp: Date.now(),
   });
 
-  const app = globalThis.go?.main?.App;
-  if (app?.SaveSetting) {
-    void app.SaveSetting(currentSessionAutosaveKey, content);
-    void app.SaveSetting('auto_saved_profile_latest', currentSessionAutosaveKey);
-    void app.SaveSetting('auto_saved_profile_content', content);
+  const autoGw = getBackendGateway();
+  if (globalThis.go?.main?.App?.SaveSetting || !(autoGw instanceof WailsBackendGateway)) {
+    void autoGw.saveSetting(currentSessionAutosaveKey, content);
+    void autoGw.saveSetting('auto_saved_profile_latest', currentSessionAutosaveKey);
+    void autoGw.saveSetting('auto_saved_profile_content', content);
     logger.info(`[Autosave] Profile saved under key: ${currentSessionAutosaveKey}`);
   }
 
   syncConfigMapsOnAutosave(state);
   syncSecretsOnAutosave(state);
 
-  if (state.currentProject && state.currentProject.id !== -1 && app?.UpdateProject) {
-    void app.UpdateProject(state.currentProject.id, content).then((success) => {
-      if (success) {
-        flowStore.setState({ lastSavedSnapshot: content });
-      }
-    });
+  if (state.currentProject && state.currentProject.id !== -1) {
+    if (globalThis.go?.main?.App?.UpdateProject || !(autoGw instanceof WailsBackendGateway)) {
+      void autoGw.updateProject(state.currentProject.id, content).then((success) => {
+        if (success) {
+          flowStore.setState({ lastSavedSnapshot: content });
+        }
+      });
+    }
   }
 };
 
@@ -182,8 +198,9 @@ flowStore.subscribe((state, prevState) => {
     logger.info(`[History] Recording event: ${state.lastActionName} (${state.lastActionId})`);
     
     // Push to Go Backend "Database"
-    if (globalThis.go?.main?.App?.PushHistory) {
-      void Promise.resolve(globalThis.go.main.App.PushHistory(snapshot))
+    const subGw = getBackendGateway();
+    if (globalThis.go?.main?.App?.PushHistory || !(subGw instanceof WailsBackendGateway)) {
+      void Promise.resolve(subGw.pushHistory(snapshot))
         .then(() => {
           void state.fetchHistoryLogs?.();
         })

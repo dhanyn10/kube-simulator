@@ -3,6 +3,7 @@ import { setCurrentSessionAutosaveKey } from '@/store/useFlowStore';
 import { mapProjectNodes, mapProjectEdges } from '@/components/Modals/resource-manager/resourceManagerHelpers';
 import { hydrateNodes } from '@/store/nodeHelpers';
 import { logger } from '@/lib/logger';
+import { getBackendGateway, WailsBackendGateway, IBackendGateway } from '@/gateway';
 
 export type BackstageTab = 'home' | 'settings-view' | 'settings-canvas';
 
@@ -32,9 +33,15 @@ export const formatDateModified = (val?: string | number): string => {
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 };
 
-const fetchAutosaveProfiles = async (app: any): Promise<RecentFileItem[]> => {
-  if (!app?.GetAutosaveProfiles) return [];
-  const autosaves = await app.GetAutosaveProfiles();
+const isBackendAvailable = (gateway: IBackendGateway): boolean => {
+  if (gateway instanceof WailsBackendGateway) {
+    return Boolean((globalThis as any).go?.main?.App);
+  }
+  return true;
+};
+
+const fetchAutosaveProfiles = async (gateway: IBackendGateway): Promise<RecentFileItem[]> => {
+  const autosaves = await gateway.getAutosaveProfiles();
   if (!Array.isArray(autosaves)) return [];
 
   // Sort descending by timestamp and only retain the 1 most recent autosaved session in Recent Projects
@@ -51,10 +58,9 @@ const fetchAutosaveProfiles = async (app: any): Promise<RecentFileItem[]> => {
   }));
 };
 
-const fetchFallbackAutosaveProfile = async (app: any): Promise<RecentFileItem[]> => {
-  if (!app?.GetSetting) return [];
-  const latestAutosaveKey = await app.GetSetting('auto_saved_profile_latest');
-  const latestAutosaveContent = await app.GetSetting('auto_saved_profile_content');
+const fetchFallbackAutosaveProfile = async (gateway: IBackendGateway): Promise<RecentFileItem[]> => {
+  const latestAutosaveKey = await gateway.getSetting('auto_saved_profile_latest');
+  const latestAutosaveContent = await gateway.getSetting('auto_saved_profile_content');
   if (!latestAutosaveKey || !latestAutosaveContent) return [];
 
   let ts = Date.now();
@@ -65,7 +71,7 @@ const fetchFallbackAutosaveProfile = async (app: any): Promise<RecentFileItem[]>
     logger.error('[FileBackstage] Failed to parse latest autosave timestamp', err);
   }
   const autosaveLocation = `~/.kube-simulator/autosaves/${latestAutosaveKey}.infra`;
-  const exists = app.FileExists ? await app.FileExists(autosaveLocation) : true;
+  const exists = await gateway.fileExists(autosaveLocation);
   if (!exists) return [];
 
   return [{
@@ -78,21 +84,20 @@ const fetchFallbackAutosaveProfile = async (app: any): Promise<RecentFileItem[]>
   }];
 };
 
-const fetchSavedProjects = async (app: any): Promise<RecentFileItem[]> => {
-  if (!app?.GetProjects) return [];
-  const projects = await app.GetProjects();
+const fetchSavedProjects = async (gateway: IBackendGateway): Promise<RecentFileItem[]> => {
+  const projects = await gateway.getProjects();
   if (!Array.isArray(projects)) return [];
 
   const projectChecks = projects.map(async (p) => {
     const fullPath = `~/.kube-simulator/projects/project_${p.id}.infra`;
-    const exists = app.FileExists ? await app.FileExists(fullPath) : true;
+    const exists = await gateway.fileExists(fullPath);
     if (exists) {
       return {
         id: p.id,
         name: p.name,
         location: fullPath,
         fullPath,
-        updatedAt: formatDateModified(p.updated_at || p.created_at || Date.now()),
+        updatedAt: formatDateModified(p.updatedAt || (p as any).updated_at || (p as any).created_at || Date.now()),
       } as RecentFileItem;
     }
     return null;
@@ -106,18 +111,17 @@ const fetchSavedProjects = async (app: any): Promise<RecentFileItem[]> => {
  * Load recent projects and auto-saved profiles from Wails backend
  */
 export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
-  const app = globalThis.go?.main?.App;
-  let items = await fetchAutosaveProfiles(app);
+  const gateway = getBackendGateway();
+  if (!isBackendAvailable(gateway)) return [];
+
+  let items = await fetchAutosaveProfiles(gateway);
   if (items.length === 0) {
-    items = await fetchFallbackAutosaveProfile(app);
+    items = await fetchFallbackAutosaveProfile(gateway);
   }
-  const savedProjects = await fetchSavedProjects(app);
+  const savedProjects = await fetchSavedProjects(gateway);
   return [...items, ...savedProjects];
 };
 
-/**
- * Execute restore operation for selected recent file item
- */
 /**
  * Execute delete operation for selected recent file item
  */
@@ -125,22 +129,18 @@ export const deleteRecentFile = async (
   item: RecentFileItem,
   reloadFiles: () => Promise<void>
 ): Promise<void> => {
-  const app = globalThis.go?.main?.App;
-  if (!app) return;
+  const gateway = getBackendGateway();
+  if (!isBackendAvailable(gateway)) return;
 
   if (item.isAutosave) {
-    if (app.SaveSetting) {
-      await app.SaveSetting(item.name, '');
-      const latest = await app.GetSetting('auto_saved_profile_latest');
-      if (latest === item.name) {
-        await app.SaveSetting('auto_saved_profile_latest', '');
-        await app.SaveSetting('auto_saved_profile_content', '');
-      }
+    await gateway.saveSetting(item.name, '');
+    const latest = await gateway.getSetting('auto_saved_profile_latest');
+    if (latest === item.name) {
+      await gateway.saveSetting('auto_saved_profile_latest', '');
+      await gateway.saveSetting('auto_saved_profile_content', '');
     }
   } else if (typeof item.id === 'number') {
-    if (app.DeleteProject) {
-      await app.DeleteProject(item.id);
-    }
+    await gateway.deleteProject(item.id);
   }
   await reloadFiles();
 };
@@ -151,15 +151,10 @@ export const deleteRecentFile = async (
 export const clearAllAutosaves = async (
   reloadFiles: () => Promise<void>
 ): Promise<void> => {
-  const app = globalThis.go?.main?.App;
-  if (!app) return;
+  const gateway = getBackendGateway();
+  if (!isBackendAvailable(gateway)) return;
 
-  if (app.ClearAllAutosaves) {
-    await app.ClearAllAutosaves();
-  } else if (app.SaveSetting) {
-    await app.SaveSetting('auto_saved_profile_latest', '');
-    await app.SaveSetting('auto_saved_profile_content', '');
-  }
+  await gateway.clearAllAutosaves();
   await reloadFiles();
 };
 
@@ -167,9 +162,9 @@ export const clearAllAutosaves = async (
  * Execute open folder operation in OS file explorer for selected recent file item
  */
 export const openRecentFileFolder = async (item: RecentFileItem): Promise<void> => {
-  const app = globalThis.go?.main?.App;
-  if (!app?.OpenFileFolder) return;
-  await app.OpenFileFolder(item.location || item.fullPath);
+  const gateway = getBackendGateway();
+  if (!isBackendAvailable(gateway)) return;
+  await gateway.openFileFolder(item.location || item.fullPath);
 };
 
 export const restoreRecentFile = async (
@@ -177,13 +172,13 @@ export const restoreRecentFile = async (
   onClose: () => void,
   fitView: (opts?: any) => void
 ): Promise<void> => {
-  const app = globalThis.go?.main?.App;
-  if (!app) return;
+  const gateway = getBackendGateway();
+  if (!isBackendAvailable(gateway)) return;
 
   if (item.isAutosave) {
-    let content = await app.GetSetting(item.name);
+    let content = await gateway.getSetting(item.name);
     if (!content) {
-      content = await app.GetSetting('auto_saved_profile_content');
+      content = await gateway.getSetting('auto_saved_profile_content');
     }
     if (content) {
       try {
@@ -207,7 +202,7 @@ export const restoreRecentFile = async (
       }
     }
   } else if (typeof item.id === 'number') {
-    const res = await app.LoadProject(item.id);
+    const res = await gateway.loadProject(item.id);
     if (res?.content) {
       try {
         const data = JSON.parse(res.content);

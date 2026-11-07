@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { applyHistoryState, useFlowStore } from '@/store';
+import { getBackendGateway } from '@/gateway';
 
 export function useHistory() {
   const historyLogs = useFlowStore((state) => state.historyLogs);
@@ -16,39 +17,27 @@ export function useHistory() {
 
   const handleUndo = useCallback(async () => {
     openHistoryTab();
-    // @ts-ignore
-    if (globalThis.go?.main?.App?.Undo) {
-      // @ts-ignore
-      const state = await globalThis.go.main.App.Undo();
-      if (state) {
-        applyHistoryState(state);
-        await fetchHistoryLogs();
-      }
+    const state = await getBackendGateway().undo();
+    if (state) {
+      applyHistoryState(state);
+      await fetchHistoryLogs();
     }
   }, [openHistoryTab, fetchHistoryLogs]);
 
   const handleRedo = useCallback(async () => {
     openHistoryTab();
-    // @ts-ignore
-    if (globalThis.go?.main?.App?.Redo) {
-      // @ts-ignore
-      const state = await globalThis.go.main.App.Redo();
-      if (state) {
-        applyHistoryState(state);
-        await fetchHistoryLogs();
-      }
+    const state = await getBackendGateway().redo();
+    if (state) {
+      applyHistoryState(state);
+      await fetchHistoryLogs();
     }
   }, [openHistoryTab, fetchHistoryLogs]);
 
   const handleJumpToHistory = useCallback(async (index: number) => {
-    // @ts-ignore
-    if (globalThis.go?.main?.App?.JumpToHistory) {
-      // @ts-ignore
-      const state = await globalThis.go.main.App.JumpToHistory(index);
-      if (state) {
-        applyHistoryState(state);
-        await fetchHistoryLogs();
-      }
+    const state = await getBackendGateway().jumpToHistory(index);
+    if (state) {
+      applyHistoryState(state);
+      await fetchHistoryLogs();
     }
   }, [fetchHistoryLogs]);
 

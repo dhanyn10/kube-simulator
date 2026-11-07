@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFileSystem } from '@/hooks/useFileSystem';
 import { useFlowStore } from '@/store';
+import { setBackendGateway, resetBackendGateway, MockBackendGateway } from '@/gateway';
 
 describe('useFileSystem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetBackendGateway();
     useFlowStore.setState({ nodes: [], edges: [], currentProject: null });
 
     // Reset Wails globals
@@ -171,5 +173,22 @@ describe('useFileSystem', () => {
 
     unmount2();
     expect(cleanupFn).toHaveBeenCalled();
+  });
+
+  it('works with decoupled MockBackendGateway directly', async () => {
+    const mockGw = new MockBackendGateway();
+    const spyExport = vi.spyOn(mockGw, 'exportProjectFile');
+    const spyImport = vi.spyOn(mockGw, 'importProjectFile');
+    setBackendGateway(mockGw);
+
+    const { result, unmount } = renderHook(() => useFileSystem([], []));
+    await act(async () => {
+      await result.current.handleExportFile();
+      await result.current.handleImportFile();
+    });
+
+    expect(spyExport).toHaveBeenCalled();
+    expect(spyImport).toHaveBeenCalled();
+    unmount();
   });
 });

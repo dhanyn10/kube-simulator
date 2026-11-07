@@ -7,7 +7,9 @@ vi.mock('@/lib/logger', () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn()
-  }
+  },
+  setLogConsumer: vi.fn(),
+  getLogConsumer: vi.fn(),
 }));
 
 describe('useFlowStore', () => {

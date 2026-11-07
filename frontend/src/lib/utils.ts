@@ -305,7 +305,8 @@ export function validateResourceLimits(data: any) {
 
 /**
  * Asynchronously converts active canvas nodes and edges into valid Kubernetes YAML specifications.
- * Invokes the Wails Go backend `GenerateYaml` method when running in the Wails runtime environment.
+ * Invokes the Wails Go backend `GenerateYaml` method when running in the Wails runtime environment,
+ * otherwise falls back to client-side manifest generation.
  *
  * @param nodes - Array of React Flow canvas nodes.
  * @param edges - Array of React Flow canvas edges.
@@ -323,7 +324,7 @@ export async function generateYaml(nodes: any[], edges: any[]): Promise<string> 
         try {
           const objects = JSON.parse(jsonStr);
           if (Array.isArray(objects)) {
-            return objects.map(obj => yaml.dump(obj, { indent: 2, noRefs: true })).join('---\n');
+            return objects.map((obj: any) => yaml.dump(obj, { indent: 2, noRefs: true })).join('---\n');
           }
           return jsonStr;
         } catch {
