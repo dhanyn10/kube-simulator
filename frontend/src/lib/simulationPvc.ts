@@ -2,7 +2,7 @@ import { Node, Edge } from '@xyflow/react';
 import { K8sNodeData } from '@/types';
 import { safeRandom } from './utils';
 import { logger } from './logger';
-import { SimulationContext, updateNodeData } from './simulationTypes';
+import { SimulationContext, updateNodeData, emitSimulationLog } from './simulationTypes';
 import {
   analyzePvcWorkloadConnections,
   getPvcValidationErrorMsg,
@@ -91,11 +91,13 @@ export const handlePvcMultiAttachError = (
     if (updateNodeData(ctx, pvc.id, { pvcStatus: 'Multi-Attach Error' })) {
       hasChanges = true;
     }
-    try {
-      ctx.get()?.addLog?.('error', `[PVC Multi-Attach Error] ${errorMsg}. Workload pods set to Pending!`, 'Simulation');
-    } catch (error) {
-      logger.error('[PVC Simulation] Failed to add log', error);
-    }
+    emitSimulationLog(
+      ctx,
+      'error',
+      `[PVC Multi-Attach Error] ${errorMsg}. Workload pods set to Pending!`,
+      'Simulation',
+      '[PVC Simulation] Failed to add log'
+    );
   }
 
   for (const edge of connectedEdges) {
@@ -136,11 +138,13 @@ export const resolvePvcMultiAttachError = (
         hasChanges = true;
       }
     }
-    try {
-      ctx.get()?.addLog?.('info', `[PVC Multi-Attach Resolved] Multi-Attach conflict resolved for volume "${pvc.data?.label || pvc.id}".`, 'Simulation');
-    } catch (error) {
-      logger.error('[PVC Simulation] Failed to add log', error);
-    }
+    emitSimulationLog(
+      ctx,
+      'info',
+      `[PVC Multi-Attach Resolved] Multi-Attach conflict resolved for volume "${pvc.data?.label || pvc.id}".`,
+      'Simulation',
+      '[PVC Simulation] Failed to add log'
+    );
   }
   return hasChanges;
 };

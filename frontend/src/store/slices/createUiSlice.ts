@@ -404,6 +404,9 @@ const runSimulationTick = (params: {
     ticks,
     get,
     set,
+    onLog: (level, message, category) => {
+      get()?.addLog?.(level, message, category);
+    },
     syncDeployment,
     nodeMap,
     edgeMap,
