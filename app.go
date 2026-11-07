@@ -9,18 +9,17 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
-	"strings"
 	"time"
 
 	"build-wails/backend/db"
+	"build-wails/backend/domain"
 	"build-wails/backend/explorer"
 	"build-wails/backend/logger"
 	"build-wails/backend/pkg/dockerhub"
 	"build-wails/backend/pkg/yaml_gen"
+	"build-wails/backend/service"
 	"build-wails/backend/system"
 
-	"github.com/dgraph-io/badger/v4"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -33,9 +32,13 @@ const (
 	isTestKey        contextKey = "is_test"
 	testFilePathKey  contextKey = "test_file_path"
 	testMaximisedKey contextKey = "test_maximised"
-	kubeSimulatorDir            = ".kube-simulator"
-	infraExtension              = ".infra"
+	kubeSimulatorDir            = service.KubeSimulatorDir
+	infraExtension              = service.InfraExtension
 )
+
+// Type aliases to preserve complete backward compatibility for main package and callers.
+type AutosaveProfileItem = domain.AutosaveProfileItem
+type InternetProfile = domain.InternetProfile
 
 var infraProjectFilters = []wailsRuntime.FileFilter{
 	{DisplayName: "Kube Simulator Project (*.infra)", Pattern: "*.infra"},
@@ -66,34 +69,37 @@ func setAppWindowTitle(title string) {
 }
 
 func expandHomePath(targetPath, homeDir string) string {
-	if targetPath == "~" {
-		return homeDir
-	}
-	if strings.HasPrefix(targetPath, "~/") {
-		return filepath.Join(homeDir, targetPath[2:])
-	}
-	return targetPath
+	return service.ExpandHomePath(targetPath, homeDir)
 }
 
-// App struct
+func sanitizeProfileFilename(name string) string {
+	return service.SanitizeProfileFilename(name)
+}
+
+// App acts as the primary Wails application facade and IPC controller.
 type App struct {
-	history         *db.HistoryManager
-	projects        *db.ProjectManager
+	history         *service.HistoryService
+	projects        *service.ProjectService
+	autosave        *service.AutosaveService
+	internetProfile *service.InternetProfileService
+	window          *service.WindowService
 	dockerHub       *dockerhub.Client
 	initialFilePath string
 }
 
-// NewApp creates a new App application struct
+// NewApp creates a new App application struct with domain services initialized.
 func NewApp() *App {
 	return &App{
-		history:   db.NewHistoryManager(),
-		projects:  db.NewProjectManager(),
-		dockerHub: dockerhub.NewClient(),
+		history:         service.NewHistoryService(nil),
+		projects:        service.NewProjectService(nil),
+		autosave:        service.NewAutosaveService(),
+		internetProfile: service.NewInternetProfileService(),
+		window:          service.NewWindowService(),
+		dockerHub:       dockerhub.NewClient(),
 	}
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
+// startup is called when the app starts. The context is saved so we can call the runtime methods.
 func (a *App) startup(ctx context.Context) {
 	if ctx.Value(isTestKey) == nil {
 		appCtx = ctx
@@ -182,26 +188,17 @@ func (a *App) handleInitialFileOpen(ctx context.Context) {
 
 // GetTargetScreen selects the target screen: either the primary screen or the first fallback screen.
 func (a *App) GetTargetScreen(screens []wailsRuntime.Screen) (wailsRuntime.Screen, bool) {
-	if len(screens) == 0 {
-		return wailsRuntime.Screen{}, false
-	}
-	for _, s := range screens {
-		if s.IsPrimary {
-			return s, true
-		}
-	}
-	return screens[0], true
+	return a.window.GetTargetScreen(screens)
 }
 
 // GetTargetScreenHeight selects the target screen's height: either the primary screen or the first fallback screen.
 func (a *App) GetTargetScreenHeight(screens []wailsRuntime.Screen) (int, bool) {
-	s, ok := a.GetTargetScreen(screens)
-	return s.Height, ok
+	return a.window.GetTargetScreenHeight(screens)
 }
 
 // CalculateAppHeight returns 90% of the given screen height.
 func (a *App) CalculateAppHeight(screenHeight int) int {
-	return int(float64(screenHeight) * 0.9)
+	return a.window.CalculateAppHeight(screenHeight)
 }
 
 func (a *App) shutdown(ctx context.Context) {
@@ -232,45 +229,7 @@ func (a *App) GetCurrentHistoryIndex() int {
 }
 
 func (a *App) GetHistoryLogs() []db.HistoryLog {
-	badgerDB := a.history.GetDB()
-	if badgerDB == nil {
-		return []db.HistoryLog{}
-	}
-
-	logs := make([]db.HistoryLog, 0)
-	maxIndex := a.history.GetMaxIndex()
-
-	_ = badgerDB.View(func(txn *badger.Txn) error {
-		for i := 0; i <= maxIndex; i++ {
-			key := []byte(fmt.Sprintf("hist:%d", i))
-			item, err := txn.Get(key)
-			if err != nil {
-				continue
-			}
-			_ = item.Value(func(val []byte) error {
-				var data struct {
-					ActionName string `json:"actionName"`
-					Timestamp  int64  `json:"timestamp"`
-				}
-				if err := json.Unmarshal(val, &data); err == nil {
-					logs = append(logs, db.HistoryLog{
-						Index:      i,
-						ActionName: data.ActionName,
-						Timestamp:  data.Timestamp,
-					})
-				} else {
-					logs = append(logs, db.HistoryLog{
-						Index:      i,
-						ActionName: fmt.Sprintf("Activity #%d", i),
-						Timestamp:  0,
-					})
-				}
-				return nil
-			})
-		}
-		return nil
-	})
-	return logs
+	return a.history.GetHistoryLogs()
 }
 
 // Project actions
@@ -298,7 +257,7 @@ func (a *App) UpdateProject(id int64, content string) bool {
 	return true
 }
 
-// WriteLog receives frontend logs and persists them into category-specific log files on disk
+// WriteLog receives frontend logs and persists them into category-specific log files on disk.
 func (a *App) WriteLog(category, level, message string) bool {
 	logger.AppendCategorizedLog(category, level, message)
 	return true
@@ -339,53 +298,11 @@ func (a *App) OpenLogFile() bool {
 }
 
 func (a *App) FileExists(location string) bool {
-	if location == "" {
-		return false
-	}
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return false
-	}
-	targetPath := expandHomePath(location, homeDir)
-	stat, err := os.Stat(targetPath)
-	if err != nil || stat.IsDir() {
-		return false
-	}
-	return true
+	return a.projects.FileExists(location)
 }
 
 func (a *App) OpenFileFolder(location string) bool {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		logger.Error("Failed to resolve user home dir: %v", err)
-		return false
-	}
-
-	var targetPath string
-	if location == "" {
-		targetPath = filepath.Join(homeDir, kubeSimulatorDir)
-	} else {
-		targetPath = expandHomePath(location, homeDir)
-		if !filepath.IsAbs(targetPath) {
-			targetPath = filepath.Join(homeDir, targetPath)
-		}
-	}
-
-	folderPath := targetPath
-	if stat, err := os.Stat(targetPath); err == nil && !stat.IsDir() {
-		folderPath = filepath.Dir(targetPath)
-	} else if err != nil && os.IsNotExist(err) {
-		folderPath = filepath.Dir(targetPath)
-		_ = os.MkdirAll(folderPath, 0755)
-	}
-
-	if shouldOpenInExplorer() {
-		if err := explorer.OpenInExplorer(folderPath); err != nil {
-			logger.Error("Failed to open folder %s: %v", folderPath, err)
-			return false
-		}
-	}
-	return true
+	return a.projects.OpenFileFolder(location, shouldOpenInExplorer())
 }
 
 func (a *App) selectProjectFileDialog(saveDialog bool, defaultFilename, title string) (string, error) {
@@ -414,14 +331,7 @@ func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
 		return false
 	}
 
-	data := map[string]string{
-		"name":   name,
-		"canvas": canvasContent,
-		"yaml":   yamlContent,
-	}
-
-	fileData, _ := json.MarshalIndent(data, "", "  ")
-	err = os.WriteFile(filePath, fileData, 0644)
+	err = a.projects.ExportProjectFile(filePath, name, canvasContent, yamlContent)
 	if err != nil {
 		logger.Error("Error writing file: %v", err)
 		return false
@@ -439,13 +349,13 @@ func (a *App) ImportProjectFile() string {
 		return ""
 	}
 
-	fileData, err := os.ReadFile(filePath)
+	fileData, err := a.projects.ImportProjectFile(filePath)
 	if err != nil {
 		logger.Error("Error reading file: %v", err)
 		return ""
 	}
 
-	return string(fileData)
+	return fileData
 }
 
 func (a *App) GetProjects() []db.Project {
@@ -493,202 +403,46 @@ func (a *App) GetSetting(key string) string {
 	return val
 }
 
-type AutosaveProfileItem struct {
-	Key       string `json:"key"`
-	Timestamp int64  `json:"timestamp"`
-	Location  string `json:"location"`
-}
-
 func (a *App) GetAutosaveProfiles() []AutosaveProfileItem {
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return []AutosaveProfileItem{}
-	}
-
-	dir := filepath.Join(userHome, kubeSimulatorDir, "autosaves")
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return []AutosaveProfileItem{}
-	}
-
-	items := make([]AutosaveProfileItem, 0)
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), infraExtension) {
-			continue
-		}
-		key := strings.TrimSuffix(entry.Name(), infraExtension)
-		fullPath := filepath.Join(dir, entry.Name())
-		info, err := entry.Info()
-		ts := time.Now().UnixMilli()
-		if err == nil {
-			ts = info.ModTime().UnixMilli()
-		}
-
-		// Also check inside JSON if timestamp is recorded
-		if contentBytes, errRead := os.ReadFile(fullPath); errRead == nil {
-			var parsed struct {
-				Timestamp int64 `json:"timestamp"`
-			}
-			if errJson := json.Unmarshal(contentBytes, &parsed); errJson == nil && parsed.Timestamp > 0 {
-				ts = parsed.Timestamp
-			}
-		}
-
-		locationPath := fmt.Sprintf("~/%s/autosaves/%s", kubeSimulatorDir, entry.Name())
-		items = append(items, AutosaveProfileItem{
-			Key:       key,
-			Timestamp: ts,
-			Location:  locationPath,
-		})
-	}
-
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].Timestamp > items[j].Timestamp
-	})
-
-	return items
+	return a.autosave.GetAutosaveProfiles()
 }
 
 func (a *App) ClearAllAutosaves() bool {
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return false
-	}
-	dir := filepath.Join(userHome, kubeSimulatorDir, "autosaves")
-	entries, err := os.ReadDir(dir)
-	if err == nil {
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), infraExtension) {
-				_ = os.Remove(filepath.Join(dir, entry.Name()))
-			}
-		}
-	}
-	_ = a.SaveSetting("auto_saved_profile_latest", "")
-	_ = a.SaveSetting("auto_saved_profile_content", "")
-	return true
-}
-
-type InternetProfile struct {
-	Name      string         `json:"name"`
-	Hourly    map[string]int `json:"hourly,omitempty"`
-	Daily     map[string]int `json:"daily,omitempty"`
-	Timestamp int64          `json:"timestamp,omitempty"`
-}
-
-func sanitizeProfileFilename(name string) string {
-	sanitized := strings.ToLower(name)
-	sanitized = strings.ReplaceAll(sanitized, " ", "_")
-	var builder strings.Builder
-	for _, r := range sanitized {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
-			builder.WriteRune(r)
-		}
-	}
-	filename := builder.String()
-	if filename == "" {
-		return "profile"
-	}
-	return filename
+	return a.autosave.ClearAllAutosaves(func(k, v string) error {
+		return a.projects.SaveSetting(k, v)
+	})
 }
 
 func (a *App) getInternetProfilesDir() (string, error) {
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(userHome, kubeSimulatorDir, "internet_profiles"), nil
+	return a.internetProfile.GetProfilesDir()
 }
 
 func (a *App) getInternetProfilePath(dir, name string) string {
-	return filepath.Join(dir, fmt.Sprintf("%s.json", sanitizeProfileFilename(name)))
+	return a.internetProfile.GetProfilePath(dir, name)
 }
 
 func (a *App) GetInternetProfiles() []InternetProfile {
-	dir, err := a.getInternetProfilesDir()
-	if err != nil {
-		return []InternetProfile{}
-	}
-	_ = os.MkdirAll(dir, 0755)
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return []InternetProfile{}
-	}
-
-	profiles := make([]InternetProfile, 0)
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
-			continue
-		}
-		filePath := filepath.Join(dir, entry.Name())
-		contentBytes, errRead := os.ReadFile(filePath)
-		if errRead != nil {
-			continue
-		}
-		var p InternetProfile
-		if errJson := json.Unmarshal(contentBytes, &p); errJson == nil && p.Name != "" {
-			profiles = append(profiles, p)
-		}
-	}
-	return profiles
+	return a.internetProfile.GetProfiles()
 }
 
 func (a *App) SaveInternetProfile(name, profileJson string) bool {
-	if name == "" || profileJson == "" {
-		return false
-	}
-	dir, err := a.getInternetProfilesDir()
-	if err != nil {
-		logger.Error("Failed to resolve user home dir: %v", err)
-		return false
-	}
-
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		logger.Error("Failed to create internet profiles dir: %v", err)
-		return false
-	}
-
-	filePath := a.getInternetProfilePath(dir, name)
-	if err := os.WriteFile(filePath, []byte(profileJson), 0644); err != nil {
-		logger.Error("Error writing internet profile file: %v", err)
-		return false
-	}
-	return true
+	return a.internetProfile.SaveProfile(name, profileJson)
 }
 
 func (a *App) DeleteInternetProfile(name string) bool {
-	if name == "" {
-		return false
-	}
-	dir, err := a.getInternetProfilesDir()
-	if err != nil {
-		return false
-	}
-
-	filePath := a.getInternetProfilePath(dir, name)
-	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
-		logger.Error("Error deleting internet profile file: %v", err)
-		return false
-	}
-	return true
+	return a.internetProfile.DeleteProfile(name)
 }
 
 // Window Control Actions
 
 func (a *App) MinimizeWindow() {
-	if isLiveRuntime() {
-		wailsRuntime.WindowMinimise(appCtx)
-	}
+	a.window.Minimize(appCtx, isLiveRuntime())
 }
 
 func (a *App) MaximizeWindow() {
 	if appCtx != nil {
 		if appCtx.Value(isTestKey) == nil {
-			if wailsRuntime.WindowIsMaximised(appCtx) {
-				wailsRuntime.WindowUnmaximise(appCtx)
-			} else {
-				wailsRuntime.WindowMaximise(appCtx)
-			}
+			a.window.Maximize(appCtx, true)
 		} else {
 			// In tests, simulate branch coverage by reading from the test context
 			if val, ok := appCtx.Value(testMaximisedKey).(bool); ok && val {
@@ -701,9 +455,7 @@ func (a *App) MaximizeWindow() {
 }
 
 func (a *App) CloseWindow() {
-	if isLiveRuntime() {
-		wailsRuntime.Quit(appCtx)
-	}
+	a.window.Close(appCtx, isLiveRuntime())
 }
 
 // Greet returns a greeting for the given name
