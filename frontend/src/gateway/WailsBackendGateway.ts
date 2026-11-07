@@ -1,5 +1,4 @@
 import {
-  IBackendGateway,
   ProjectItem,
   AutosaveItem,
   HistoryItem,
@@ -8,14 +7,14 @@ import {
   SystemResourceInfo,
   UpdateInfoData,
 } from './IBackendGateway';
-import { generateYamlClientSide } from '@/lib/manifestGenerator';
+import { BaseBackendGateway } from './BaseBackendGateway';
 
 /**
  * Concrete Wails Adapter for IBackendGateway.
  * Dynamically binds to `globalThis.go.main.App` and `globalThis.runtime`,
  * providing graceful fallbacks when executed in a pure browser or test environment.
  */
-export class WailsBackendGateway implements IBackendGateway {
+export class WailsBackendGateway extends BaseBackendGateway {
   private get app(): any {
     if (typeof globalThis !== 'undefined') {
       return (globalThis as any).go?.main?.App;
@@ -289,13 +288,7 @@ export class WailsBackendGateway implements IBackendGateway {
     if (typeof this.app?.CheckForUpdates === 'function') {
       return this.app.CheckForUpdates(currentVersion);
     }
-    return {
-      currentVersion,
-      latestVersion: currentVersion,
-      updateAvailable: false,
-      releaseUrl: '',
-      isPrerelease: false,
-    };
+    return this.createDefaultUpdateInfo(currentVersion);
   }
 
   async greet(name: string): Promise<string> {
@@ -317,13 +310,7 @@ export class WailsBackendGateway implements IBackendGateway {
     if (typeof this.app?.GenerateYaml === 'function') {
       return this.app.GenerateYaml(nodesJson, edgesJson);
     }
-    try {
-      const nodes = JSON.parse(nodesJson || '[]');
-      const edges = JSON.parse(edgesJson || '[]');
-      return generateYamlClientSide(nodes, edges);
-    } catch {
-      return '';
-    }
+    return this.generateYamlClientSideFallback(nodesJson, edgesJson);
   }
 
   async fetchDockerHubPopular(): Promise<string> {
@@ -361,45 +348,4 @@ export class WailsBackendGateway implements IBackendGateway {
       this.runtime.EventsEmit(eventName, ...args);
     }
   }
-
-  // --- PascalCase Parity Aliases ---
-  CalculateAppHeight(s: number) { return this.calculateAppHeight(s); }
-  CheckForUpdates(v: string) { return this.checkForUpdates(v); }
-  ClearAllAutosaves() { return this.clearAllAutosaves(); }
-  CloseWindow() { return this.closeWindow(); }
-  DeleteInternetProfile(n: string) { return this.deleteInternetProfile(n); }
-  DeleteProject(id: number) { return this.deleteProject(id); }
-  ExportProjectFile(p: string, c: string, y: string) { return this.exportProjectFile(p, c, y); }
-  FetchDockerHubPopular() { return this.fetchDockerHubPopular(); }
-  FetchDockerHubTags(i: string) { return this.fetchDockerHubTags(i); }
-  FileExists(p: string) { return this.fileExists(p); }
-  GenerateYaml(n: string, e: string) { return this.generateYaml(n, e); }
-  GetAutosaveProfiles() { return this.getAutosaveProfiles(); }
-  GetCurrentHistoryIndex() { return this.getCurrentHistoryIndex(); }
-  GetHistoryLogs() { return this.getHistoryLogs(); }
-  GetInternetProfiles() { return this.getInternetProfiles(); }
-  GetProjects() { return this.getProjects(); }
-  GetSetting(k: string) { return this.getSetting(k); }
-  GetSystemInfo() { return this.getSystemInfo(); }
-  GetSystemResources() { return this.getSystemResources(); }
-  GetTargetScreen(s: any[]) { return this.getTargetScreen(s); }
-  GetTargetScreenHeight(s: any[]) { return this.getTargetScreenHeight(s); }
-  Greet(n: string) { return this.greet(n); }
-  ImportProjectFile() { return this.importProjectFile(); }
-  JumpToHistory(i: number) { return this.jumpToHistory(i); }
-  LoadProject(id: number) { return this.loadProject(id); }
-  MaximizeWindow() { return this.maximizeWindow(); }
-  MinimizeWindow() { return this.minimizeWindow(); }
-  OpenFileFolder(p: string) { return this.openFileFolder(p); }
-  OpenLogFile(p?: string) { return this.openLogFile(p); }
-  PushHistory(s: string) { return this.pushHistory(s); }
-  Redo() { return this.redo(); }
-  SaveInternetProfile(n: string, p: string) { return this.saveInternetProfile(n, p); }
-  SaveProject(n: string, c: string) { return this.saveProject(n, c); }
-  SaveSetting(k: string, v: string) { return this.saveSetting(k, v); }
-  SearchDockerHub(q: string) { return this.searchDockerHub(q); }
-  SetInitialFile(p: string) { return this.setInitialFile(p); }
-  Undo() { return this.undo(); }
-  UpdateProject(id: number, c: string) { return this.updateProject(id, c); }
-  WriteLog(c: string, l: string, m: string) { return this.writeLog(c, l, m); }
 }

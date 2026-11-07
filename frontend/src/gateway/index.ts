@@ -2,6 +2,7 @@ import { IBackendGateway } from './IBackendGateway';
 import { WailsBackendGateway } from './WailsBackendGateway';
 
 export * from './IBackendGateway';
+export * from './BaseBackendGateway';
 export * from './WailsBackendGateway';
 export * from './MockBackendGateway';
 

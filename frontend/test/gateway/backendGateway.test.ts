@@ -344,4 +344,54 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(mockRuntime.EventsEmit).toHaveBeenCalledWith('test', 'arg1', 2);
     });
   });
+
+  describe('BaseBackendGateway PascalCase Parity Aliases', () => {
+    it('delegates PascalCase aliases correctly to camelCase methods on MockBackendGateway', async () => {
+      const mock = new MockBackendGateway();
+      expect(await mock.GetProjects()).toEqual([]);
+      const id = await mock.SaveProject('Alias Project', '{}');
+      expect(typeof id).toBe('number');
+      expect(await mock.LoadProject(id)).not.toBeNull();
+      expect(await mock.UpdateProject(id, '{"updated":true}')).toBe(true);
+      expect(await mock.DeleteProject(id)).toBe(true);
+
+      expect(await mock.GetSetting('k')).toBe('');
+      expect(await mock.SaveSetting('k', 'v')).toBe(true);
+      expect(await mock.GetSetting('k')).toBe('v');
+
+      expect(await mock.CalculateAppHeight(1000)).toBe(850);
+      expect(await mock.GetTargetScreen([])).toBe(false);
+      expect(await mock.GetTargetScreenHeight([])).toBe(1080);
+      expect(await mock.CheckForUpdates('0.4.0')).toHaveProperty('updateAvailable', false);
+      expect(await mock.Greet('User')).toBe('Hello User!');
+      expect(await mock.FileExists('/path')).toBe(true);
+      expect(await mock.OpenFileFolder('/path')).toBe(true);
+      expect(await mock.OpenLogFile('/path')).toBe(true);
+      expect(await mock.ExportProjectFile('p', 'c', 'y')).toBe(true);
+      expect(await mock.ImportProjectFile()).toBe('');
+      expect(await mock.GetAutosaveProfiles()).toEqual([]);
+      expect(await mock.ClearAllAutosaves()).toBe(true);
+      expect(await mock.GetInternetProfiles()).toEqual([]);
+      expect(await mock.SaveInternetProfile('prof', '{"hourly":{}}')).toBe(true);
+      expect(await mock.DeleteInternetProfile('prof')).toBe(true);
+      expect(await mock.GetHistoryLogs()).toEqual([]);
+      expect(await mock.GetCurrentHistoryIndex()).toBe(-1);
+      await mock.PushHistory('{"actionName":"Step 1"}');
+      expect(await mock.GetCurrentHistoryIndex()).toBe(0);
+      expect(await mock.JumpToHistory(0)).toContain('Step 1');
+      expect(await mock.Undo()).toBeNull();
+      expect(await mock.Redo()).toBeNull();
+      await mock.MinimizeWindow();
+      await mock.MaximizeWindow();
+      await mock.CloseWindow();
+      await mock.SetInitialFile('/init');
+      expect(await mock.WriteLog('cat', 'info', 'msg')).toBe(true);
+      expect(await mock.GetSystemInfo()).toHaveProperty('version');
+      expect(await mock.GetSystemResources()).toHaveProperty('cpuCores');
+      expect(await mock.GenerateYaml('[]', '[]')).toBe('');
+      expect(await mock.FetchDockerHubPopular()).toContain('nginx');
+      expect(await mock.FetchDockerHubTags('nginx')).toContain('latest');
+      expect(await mock.SearchDockerHub('query')).toContain('query');
+    });
+  });
 });
