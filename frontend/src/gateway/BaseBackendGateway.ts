@@ -1,3 +1,4 @@
+import yaml from 'js-yaml';
 import {
   IBackendGateway,
   ProjectItem,
@@ -73,6 +74,22 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   // Event handling
   abstract onEvent(eventName: string, callback: (...args: any[]) => void): () => void;
   abstract emitEvent(eventName: string, ...args: any[]): void;
+
+  /**
+   * Converts a JSON string containing manifest objects into formatted YAML with '---' separators.
+   */
+  protected convertJsonManifestsToYaml(jsonStr: string): string {
+    if (!jsonStr) return '';
+    try {
+      const objects = JSON.parse(jsonStr);
+      if (Array.isArray(objects)) {
+        return objects.map((obj) => yaml.dump(obj, { indent: 2, noRefs: true })).join('---\n');
+      }
+      return jsonStr;
+    } catch {
+      return jsonStr;
+    }
+  }
 
   /**
    * Generates YAML manifest client-side from nodes and edges JSON strings.

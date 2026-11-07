@@ -225,21 +225,35 @@ describe('utils', () => {
   });
 
   describe('generateYaml', () => {
-    it('generates Kubernetes YAML manifests client-side', () => {
+    it('generates Kubernetes YAML manifests client-side when backend is absent', async () => {
       const mockNode = {
         id: 'pod-1',
         type: 'Pod',
         data: { label: 'my-pod', namespace: 'default' },
         position: { x: 0, y: 0 }
       };
-      const result = generateYaml([mockNode], []);
+      const result = await generateYaml([mockNode], []);
       expect(result).toContain('kind: Pod');
       expect(result).toContain('name: my-pod');
     });
 
-    it('returns empty string for empty canvas', () => {
-      const result = generateYaml([], []);
+    it('returns empty string for empty canvas', async () => {
+      const result = await generateYaml([], []);
       expect(result).toBe('');
+    });
+
+    it('calls backend GenerateYaml when available and converts JSON array to YAML', async () => {
+      const mockYaml = JSON.stringify([{ kind: 'Pod', metadata: { name: 'backend-pod' } }]);
+      (globalThis as any).go = {
+        main: { App: { GenerateYaml: vi.fn().mockResolvedValue(mockYaml) } }
+      };
+      try {
+        const result = await generateYaml([], []);
+        expect(result).toContain('kind: Pod');
+        expect(result).toContain('name: backend-pod');
+      } finally {
+        delete (globalThis as any).go;
+      }
     });
   });
 
