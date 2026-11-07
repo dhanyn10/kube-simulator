@@ -1,8 +1,7 @@
 import { Node, Edge } from '@xyflow/react';
 import { K8sNodeData, K8sConfigMapItem, K8sSecretItem } from '@/types';
 import { safeRandom } from './utils';
-import { logger } from './logger';
-import { SimulationContext, updateNodeData } from './simulationTypes';
+import { SimulationContext, updateNodeData, emitSimulationLog } from './simulationTypes';
 import { checkPvcReadiness } from './simulationPvc';
 import { calculateIncomingTraffic, calculateResourceMetrics, handleHpaScaling } from './simulationTraffic';
 import { handleOomCrashes } from './simulationRecovery';
@@ -66,11 +65,13 @@ const applyPodSimulatedFailure = (
   if (!updateNodeData(ctx, pod.id, { status: 'crashing', simulatedFailureCM: failingCmName })) {
     return false;
   }
-  try {
-    ctx.get()?.addLog?.('warning', `[ConfigMap Chaos] CHAOS_MODE enabled in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`, 'Simulation');
-  } catch (error) {
-    logger.error('[ConfigMap Simulation] Failed to add log', error);
-  }
+  emitSimulationLog(
+    ctx,
+    'warning',
+    `[ConfigMap Chaos] CHAOS_MODE enabled in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`,
+    'Simulation',
+    '[ConfigMap Simulation] Failed to add log'
+  );
   return true;
 };
 
@@ -101,11 +102,13 @@ const recoverSinglePod = (pod: Node, ctx: SimulationContext): boolean => {
   if (!updateNodeData(ctx, pod.id, { status: nextStatus, simulatedFailureCM: undefined })) {
     return false;
   }
-  try {
-    ctx.get()?.addLog?.('info', `[ConfigMap Recovered] CHAOS_MODE disabled. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`, 'Simulation');
-  } catch (error) {
-    logger.error('[ConfigMap Simulation] Failed to add log', error);
-  }
+  emitSimulationLog(
+    ctx,
+    'info',
+    `[ConfigMap Recovered] CHAOS_MODE disabled. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`,
+    'Simulation',
+    '[ConfigMap Simulation] Failed to add log'
+  );
   return true;
 };
 
@@ -149,15 +152,13 @@ const logPortMismatchError = (
   podId: string,
   cmPort: number
 ) => {
-  try {
-    ctx.get()?.addLog?.(
-      'error',
-      `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNodeId}" (port ${srvTargetPort}) -> Pod "${podLabel || podId}" (listening on PORT ${cmPort})`,
-      'Simulation'
-    );
-  } catch (error) {
-    logger.error('[ConfigMap Simulation] Failed to add log', error);
-  }
+  emitSimulationLog(
+    ctx,
+    'error',
+    `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNodeId}" (port ${srvTargetPort}) -> Pod "${podLabel || podId}" (listening on PORT ${cmPort})`,
+    'Simulation',
+    '[ConfigMap Simulation] Failed to add log'
+  );
 };
 
 const validateEdgePortMismatch = (
@@ -234,13 +235,9 @@ const getLogMessageForLevel = (logLevel: string, podLabel: string): { type: 'inf
 export const logLogLevelStream = (dep: Node, ctx: SimulationContext, logLevel: string) => {
   if (ctx.ticks % 3 !== 0 || safeRandom() <= 0.4) return;
 
-  try {
-    const podLabel = dep.data?.label || dep.id;
-    const { type, message } = getLogMessageForLevel(logLevel, podLabel);
-    ctx.get()?.addLog?.(type, message, 'App');
-  } catch (error) {
-    logger.error('[ConfigMap Simulation] Failed to add log', error);
-  }
+  const podLabel = dep.data?.label || dep.id;
+  const { type, message } = getLogMessageForLevel(logLevel, podLabel);
+  emitSimulationLog(ctx, type, message, 'App', '[ConfigMap Simulation] Failed to add log');
 };
 
 /**
@@ -286,11 +283,7 @@ const applySecretPodFailure = (
     }
   }
   if (ctx.ticks % 3 === 0) {
-    try {
-      ctx.get()?.addLog?.('warning', logMsg, 'Simulation');
-    } catch (error) {
-      logger.error('[Secret Simulation] Failed to add log', error);
-    }
+    emitSimulationLog(ctx, 'warning', logMsg, 'Simulation', '[Secret Simulation] Failed to add log');
   }
   return changed;
 };
@@ -319,11 +312,13 @@ const recoverSinglePodFromSecret = (pod: Node, ctx: SimulationContext): boolean 
   if (!updateNodeData(ctx, pod.id, { status: nextStatus, simulatedFailureSecret: undefined })) {
     return false;
   }
-  try {
-    ctx.get()?.addLog?.('info', `[Secret Recovered] Credentials verified. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`, 'Simulation');
-  } catch (error) {
-    logger.error('[Secret Simulation] Failed to add log', error);
-  }
+  emitSimulationLog(
+    ctx,
+    'info',
+    `[Secret Recovered] Credentials verified. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`,
+    'Simulation',
+    '[Secret Simulation] Failed to add log'
+  );
   return true;
 };
 
@@ -409,11 +404,13 @@ const handleTrafficThrottling = (
 
   const droppedCount = traffic - limit;
   if (ctx.ticks % 2 === 0) {
-    try {
-      ctx.get()?.addLog?.('warning', `[ConfigMap Capacity Limit] HTTP 503 Service Unavailable: ${droppedCount} requests/sec dropped on "${dep.data?.label || dep.id}" (MAX_CONNECTIONS=${limit})`, 'Simulation');
-    } catch (error) {
-      logger.error('[ConfigMap Simulation] Failed to add log', error);
-    }
+    emitSimulationLog(
+      ctx,
+      'warning',
+      `[ConfigMap Capacity Limit] HTTP 503 Service Unavailable: ${droppedCount} requests/sec dropped on "${dep.data?.label || dep.id}" (MAX_CONNECTIONS=${limit})`,
+      'Simulation',
+      '[ConfigMap Simulation] Failed to add log'
+    );
   }
   return limit;
 };

@@ -1,5 +1,13 @@
 import { Node, Edge } from '@xyflow/react';
 import { SimulationMetricPoint } from '@/types';
+import {
+  SimulationLogEntry,
+  ISimulationEventSink,
+  K8sClusterGraph,
+} from '@/domain/k8s';
+import { logger } from './logger';
+
+export * from '@/domain/k8s';
 
 export interface SimulationContext {
   nodes: Node[];
@@ -10,6 +18,10 @@ export interface SimulationContext {
   ticks: number;
   get?: () => any;
   set?: (state: any) => void;
+  logs?: SimulationLogEntry[];
+  onLog?: (level: string, message: string, category: string) => void;
+  eventSink?: ISimulationEventSink;
+  clusterGraph?: K8sClusterGraph;
   syncDeployment?: (
     deployment: Node,
     currentNodes: Node[],
@@ -29,6 +41,7 @@ export interface SimulationContext {
 
 /**
  * Updates data properties of a node in the active simulation context.
+ * Automatically synchronizes with domain clusterGraph if attached.
  */
 export const updateNodeData = (ctx: SimulationContext, id: string, newData: any) => {
   let nodeIndex = ctx.nodeIndexMap?.get(id);
@@ -42,7 +55,46 @@ export const updateNodeData = (ctx: SimulationContext, id: string, newData: any)
       ...ctx.updatedNodes[nodeIndex],
       data: { ...ctx.updatedNodes[nodeIndex].data, ...newData }
     };
+    if (ctx.clusterGraph) {
+      ctx.clusterGraph.updateNodeData(id, newData);
+    }
     return true;
   }
   return false;
+};
+
+/**
+ * Emits a simulation log entry in a pure and decoupled way.
+ * Appends to ctx.logs when provided, calls onLog/eventSink when available,
+ * and falls back safely to ctx.get()?.addLog for backward compatibility.
+ */
+export const emitSimulationLog = (
+  ctx: {
+    logs?: SimulationLogEntry[];
+    onLog?: (level: string, message: string, category: string) => void;
+    eventSink?: ISimulationEventSink;
+    get?: () => any;
+  },
+  level: string,
+  message: string,
+  category = 'Simulation',
+  logErrorScope?: string
+): void => {
+  if (ctx.logs) {
+    ctx.logs.push({ level, message, category, timestamp: Date.now() });
+  }
+
+  try {
+    if (typeof ctx.onLog === 'function') {
+      ctx.onLog(level, message, category);
+    } else if (ctx.eventSink?.addLog) {
+      ctx.eventSink.addLog(level, message, category);
+    } else if (typeof ctx.get === 'function') {
+      ctx.get()?.addLog?.(level, message, category);
+    }
+  } catch (error) {
+    if (logErrorScope) {
+      logger.error(logErrorScope, error);
+    }
+  }
 };
