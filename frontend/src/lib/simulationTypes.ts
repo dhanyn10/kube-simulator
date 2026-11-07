@@ -1,8 +1,6 @@
 import { Node, Edge } from '@xyflow/react';
 import { SimulationMetricPoint } from '@/types';
 import {
-  ClusterResourceNode,
-  ClusterConnection,
   SimulationLogEntry,
   ISimulationEventSink,
   K8sClusterGraph,

@@ -1,7 +1,6 @@
 import { Node } from '@xyflow/react';
 import { K8sNodeData } from '@/types';
 import { safeRandom } from './utils';
-import { logger } from './logger';
 import { SimulationContext, updateNodeData, emitSimulationLog } from './simulationTypes';
 import { getImageCharacteristics } from './imageCharacteristics';
 

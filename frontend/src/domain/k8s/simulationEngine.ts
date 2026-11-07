@@ -97,7 +97,7 @@ export const runDomainSimulationStep = (
   }));
 
   const updatedNodes = [...rfNodes];
-  const newMetrics = { ...(options.metrics || {}) };
+  const newMetrics = { ...options.metrics };
   const activeEdges = options.activeSimulationEdges || [];
 
   const { edgeMap, targetEdgeMap } = buildDomainEdgeMaps(rfEdges);

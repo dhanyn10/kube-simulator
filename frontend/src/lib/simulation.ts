@@ -1,7 +1,6 @@
 import { Node, Edge } from '@xyflow/react';
 import { K8sNodeData, K8sConfigMapItem, K8sSecretItem } from '@/types';
 import { safeRandom } from './utils';
-import { logger } from './logger';
 import { SimulationContext, updateNodeData, emitSimulationLog } from './simulationTypes';
 import { checkPvcReadiness } from './simulationPvc';
 import { calculateIncomingTraffic, calculateResourceMetrics, handleHpaScaling } from './simulationTraffic';
