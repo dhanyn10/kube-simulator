@@ -1,8 +1,7 @@
 import { Node } from '@xyflow/react';
 import { K8sNodeData } from '@/types';
 import { parseCPU, parseMemory, safeRandom } from './utils';
-import { syncDeployment } from '@/store/nodeHelpers';
-import { evaluateImageResourceConsumption } from '@/activities/ui/imageCharacteristicsHelpers';
+import { evaluateImageResourceConsumption } from './imageCharacteristics';
 import { SimulationContext, updateNodeData } from './simulationTypes';
 import { isInternetConnectionRed } from './simulationReachability';
 
@@ -287,10 +286,53 @@ const scaleDeploymentReplicas = (dep: Node, diff: number, ctx: SimulationContext
   const nodeIndex = ctx.nodeIndexMap?.get(dep.id) ?? ctx.updatedNodes.findIndex(node => node.id === dep.id);
   if (nodeIndex === -1) return false;
 
-  const { updatedDeployment, laidOut } = syncDeployment(ctx.updatedNodes[nodeIndex], ctx.updatedNodes, diff, ctx.get);
-  const filteredNodes = ctx.updatedNodes.filter(node => node.id !== dep.id && node.parentId !== dep.id);
+  const targetNode = ctx.updatedNodes[nodeIndex];
+  if (ctx.syncDeployment) {
+    const { updatedDeployment, laidOut } = ctx.syncDeployment(targetNode, ctx.updatedNodes, diff, ctx.get);
+    const filteredNodes = ctx.updatedNodes.filter(node => node.id !== dep.id && node.parentId !== dep.id);
+    ctx.updatedNodes.length = 0;
+    ctx.updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
+    ctx.nodeIndexMap?.clear();
+    return true;
+  }
+
+  // Pure standalone replica and child pod scaling without store dependencies
+  const currentReplicas = Number(targetNode.data?.replicas) || 1;
+  const newReplicas = Math.max(1, currentReplicas + diff);
+  const updatedDeployment = {
+    ...targetNode,
+    data: {
+      ...targetNode.data,
+      replicas: newReplicas,
+    },
+  };
+
+  const childPods = ctx.updatedNodes.filter(n => (n.parentId === dep.id || n.data?.parentId === dep.id) && n.type === 'Pod');
+  const templatePod = childPods[0];
+  let updatedChildPods = [...childPods];
+
+  if (diff > 0 && templatePod) {
+    for (let i = 0; i < diff; i++) {
+      const newIndex = childPods.length + i;
+      const newPodId = `${dep.id}-pod-${newIndex}`;
+      updatedChildPods.push({
+        ...templatePod,
+        id: newPodId,
+        parentId: dep.id,
+        data: {
+          ...templatePod.data,
+          parentId: dep.id,
+          label: `${templatePod.data?.label || 'pod'}-${newIndex}`,
+        },
+      });
+    }
+  } else if (diff < 0) {
+    updatedChildPods = updatedChildPods.slice(0, newReplicas);
+  }
+
+  const nonChildNodes = ctx.updatedNodes.filter(node => node.id !== dep.id && node.parentId !== dep.id && node.data?.parentId !== dep.id);
   ctx.updatedNodes.length = 0;
-  ctx.updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
+  ctx.updatedNodes.push(...nonChildNodes, updatedDeployment, ...updatedChildPods);
   ctx.nodeIndexMap?.clear();
   return true;
 };

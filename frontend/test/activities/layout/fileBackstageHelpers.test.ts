@@ -645,4 +645,31 @@ describe('fileBackstageHelpers', () => {
       expect(getHeaderProfileName(null, '')).toBe('Auto-Saved Profile');
     });
   });
+
+  describe('Clean Architecture Gateway Decoupling', () => {
+    it('seamlessly works with MockBackendGateway without globalThis.go', async () => {
+      const { setBackendGateway, resetBackendGateway, MockBackendGateway } = await import('@/gateway');
+      const mockGateway = new MockBackendGateway();
+      mockGateway.autosaves = [
+        { key: 'session-clean-arch', location: '/mock/path.infra', timestamp: Date.now() },
+      ];
+      await mockGateway.saveProject('Clean Arch Project', '{"nodes":[]}');
+      setBackendGateway(mockGateway);
+
+      try {
+        const files = await fetchRecentFiles();
+        expect(files.length).toBeGreaterThanOrEqual(2);
+        expect(files.some((f) => f.name === 'session-clean-arch')).toBe(true);
+        expect(files.some((f) => f.name === 'Clean Arch Project')).toBe(true);
+
+        // Test clearAllAutosaves
+        const reloadFn = vi.fn().mockResolvedValue(undefined);
+        await clearAllAutosaves(reloadFn);
+        expect(mockGateway.autosaves).toHaveLength(0);
+        expect(reloadFn).toHaveBeenCalled();
+      } finally {
+        resetBackendGateway();
+      }
+    });
+  });
 });

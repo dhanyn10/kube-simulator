@@ -1,5 +1,6 @@
 import { CommandContext } from './terminalCommands';
 import { KubeIAMUser } from '@/types';
+import { getBackendGateway } from '@/gateway';
 
 /**
  * Evaluates whether an IAM user's policies allow a specific verb and resource.
@@ -204,9 +205,7 @@ const handleUseContextSubcommand = (
   const targetUser = availableUsers.find((u) => u.toLowerCase() === arg.toLowerCase());
   if (targetUser) {
     ctx.setStoreState({ activeIdentity: targetUser });
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('active_identity', targetUser);
-    }
+    void getBackendGateway().saveSetting('active_identity', targetUser);
     ctx.addActivityLog(`[API Server Auth] Certificate / Token Verified for User: "${targetUser}"`);
     ctx.addActivityLog(`Switched to context "${targetUser}".`);
   } else {

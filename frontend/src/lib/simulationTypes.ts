@@ -1,5 +1,5 @@
 import { Node, Edge } from '@xyflow/react';
-import { SimulationMetricPoint, FlowState } from '@/store/types';
+import { SimulationMetricPoint } from '@/types';
 
 export interface SimulationContext {
   nodes: Node[];
@@ -8,8 +8,16 @@ export interface SimulationContext {
   updatedNodes: Node[];
   newMetrics: Record<string, SimulationMetricPoint[]>;
   ticks: number;
-  get: () => FlowState;
-  set: (state: Partial<FlowState>) => void;
+  get?: () => any;
+  set?: (state: any) => void;
+  syncDeployment?: (
+    deployment: Node,
+    currentNodes: Node[],
+    replicasChange: number,
+    get?: () => any,
+    podToInclude?: Node,
+    forceRandomize?: boolean
+  ) => { updatedDeployment: Node; laidOut: Node[] };
   edgeMap?: Map<string, Edge[]>;
   targetEdgeMap?: Map<string, Edge[]>;
   nodeMap?: Map<string, Node>;

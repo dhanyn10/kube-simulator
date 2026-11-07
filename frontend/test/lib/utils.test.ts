@@ -225,56 +225,22 @@ describe('utils', () => {
   });
 
   describe('generateYaml', () => {
-      it('calls backend and parses JSON results', async () => {
-          const mockYaml = JSON.stringify([{ kind: 'Pod', metadata: { name: 'test' } }]);
-          (globalThis as any).go = {
-              main: { App: { GenerateYaml: vi.fn().mockResolvedValue(mockYaml) } }
-          };
+    it('generates Kubernetes YAML manifests client-side', () => {
+      const mockNode = {
+        id: 'pod-1',
+        type: 'Pod',
+        data: { label: 'my-pod', namespace: 'default' },
+        position: { x: 0, y: 0 }
+      };
+      const result = generateYaml([mockNode], []);
+      expect(result).toContain('kind: Pod');
+      expect(result).toContain('name: my-pod');
+    });
 
-          const result = await generateYaml([], []);
-          expect(result).toContain('kind: Pod');
-          expect(result).toContain('name: test');
-      });
-
-      it('handles empty string, non-array, and invalid JSON from backend', async () => {
-        (globalThis as any).go = {
-            main: { App: { GenerateYaml: vi.fn().mockResolvedValue('') } }
-        };
-        expect(await generateYaml([], [])).toBe('');
-
-        (globalThis as any).go = {
-            main: { App: { GenerateYaml: vi.fn().mockResolvedValue('raw string') } }
-        };
-        expect(await generateYaml([], [])).toBe('raw string');
-
-        (globalThis as any).go = {
-            main: { App: { GenerateYaml: vi.fn().mockResolvedValue('{"kind": "Pod"}') } }
-        };
-        expect(await generateYaml([], [])).toBe('{"kind": "Pod"}');
-
-        (globalThis as any).go = {
-            main: { App: { GenerateYaml: vi.fn().mockResolvedValue('{ invalid json') } }
-        };
-        expect(await generateYaml([], [])).toBe('{ invalid json');
-      });
-
-      it('returns empty string if backend missing', async () => {
-        (globalThis as any).go = {};
-        const result = await generateYaml([], []);
-        expect(result).toBe("");
-      });
-
-      it('handles null/undefined response and backend error throwing with fallback to client-side', async () => {
-        (globalThis as any).go = {
-          main: { App: { GenerateYaml: vi.fn().mockResolvedValue(null) } }
-        };
-        expect(await generateYaml([], [])).toBe("");
-
-        (globalThis as any).go = {
-          main: { App: { GenerateYaml: vi.fn().mockRejectedValue(new Error('Backend error')) } }
-        };
-        expect(await generateYaml([], [])).toBe("");
-      });
+    it('returns empty string for empty canvas', () => {
+      const result = generateYaml([], []);
+      expect(result).toBe('');
+    });
   });
 
   describe('beautifyYaml', () => {

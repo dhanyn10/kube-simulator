@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { logger } from '@/lib/logger';
+import { logger, setLogConsumer, getLogConsumer } from '@/lib/logger';
 import { useFlowStore } from '@/store';
 
 describe('Frontend logger', () => {
@@ -73,6 +73,22 @@ describe('Frontend logger', () => {
       }).not.toThrow();
     } finally {
       (globalThis as any).useFlowStore = originalStore;
+    }
+  });
+  it('supports registering and unregistering custom log consumer', () => {
+    const mockConsumer = vi.fn();
+    const prevConsumer = getLogConsumer();
+    try {
+      setLogConsumer(mockConsumer);
+      expect(getLogConsumer()).toBe(mockConsumer);
+
+      logger.info('consumer test');
+      expect(mockConsumer).toHaveBeenCalledWith('info', 'consumer test');
+
+      logger.withScope('Custom').warn('scoped consumer test');
+      expect(mockConsumer).toHaveBeenCalledWith('warn', 'scoped consumer test', 'Custom');
+    } finally {
+      setLogConsumer(prevConsumer);
     }
   });
 });

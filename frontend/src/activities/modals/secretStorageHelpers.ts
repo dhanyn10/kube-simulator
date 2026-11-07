@@ -1,5 +1,6 @@
 import { K8sSecretItem } from '@/types';
 import { logger } from '@/lib/logger';
+import { getBackendGateway } from '@/gateway';
 
 export const SECRETS_STORAGE_KEY = 'kube_simulator_secrets';
 export const SECRETS_SETTING_KEY = 'kube_secrets_data';
@@ -16,9 +17,7 @@ export const saveSecretsToLocal = async (secrets: K8sSecretItem[]): Promise<bool
     if (globalThis.localStorage !== undefined) {
       globalThis.localStorage.setItem(SECRETS_STORAGE_KEY, json);
     }
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      await globalThis.go.main.App.SaveSetting(SECRETS_SETTING_KEY, json);
-    }
+    await getBackendGateway().saveSetting(SECRETS_SETTING_KEY, json);
     return true;
   } catch (err) {
     logger.error('[SecretStorage] Failed to save Secrets locally:', err);
@@ -33,10 +32,7 @@ export const saveSecretsToLocal = async (secrets: K8sSecretItem[]): Promise<bool
  */
 export const loadSecretsFromLocal = async (): Promise<K8sSecretItem[]> => {
   try {
-    let dataStr = '';
-    if (globalThis.go?.main?.App?.GetSetting) {
-      dataStr = await globalThis.go.main.App.GetSetting(SECRETS_SETTING_KEY);
-    }
+    let dataStr = await getBackendGateway().getSetting(SECRETS_SETTING_KEY);
     if (!dataStr && globalThis.localStorage !== undefined) {
       dataStr = globalThis.localStorage.getItem(SECRETS_STORAGE_KEY) || '';
     }
@@ -53,18 +49,18 @@ export const loadSecretsFromLocal = async (): Promise<K8sSecretItem[]> => {
 /**
  * Merges a Secret item into the locally persisted list and returns the updated list.
  *
- * @param secItem - Secret item to add or update.
+ * @param secretItem - Secret item to add or update.
  * @returns Updated array of Secret items.
  */
-export const persistSecretItem = async (secItem: K8sSecretItem): Promise<K8sSecretItem[]> => {
+export const persistSecretItem = async (secretItem: K8sSecretItem): Promise<K8sSecretItem[]> => {
   const current = await loadSecretsFromLocal();
-  const idx = current.findIndex((s) => s.id === secItem.id || s.name === secItem.name);
+  const idx = current.findIndex((s) => s.id === secretItem.id || s.name === secretItem.name);
   let updated: K8sSecretItem[];
   if (idx >= 0) {
     updated = [...current];
-    updated[idx] = secItem;
+    updated[idx] = secretItem;
   } else {
-    updated = [...current, secItem];
+    updated = [...current, secretItem];
   }
   await saveSecretsToLocal(updated);
   return updated;

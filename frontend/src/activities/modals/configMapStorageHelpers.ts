@@ -1,5 +1,6 @@
 import { K8sConfigMapItem } from '@/types';
 import { logger } from '@/lib/logger';
+import { getBackendGateway } from '@/gateway';
 
 export const CONFIG_MAPS_STORAGE_KEY = 'kube_simulator_configmaps';
 export const CONFIG_MAPS_SETTING_KEY = 'kube_configmaps_data';
@@ -16,9 +17,7 @@ export const saveConfigMapsToLocal = async (configMaps: K8sConfigMapItem[]): Pro
     if (globalThis.localStorage !== undefined) {
       globalThis.localStorage.setItem(CONFIG_MAPS_STORAGE_KEY, json);
     }
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      await globalThis.go.main.App.SaveSetting(CONFIG_MAPS_SETTING_KEY, json);
-    }
+    await getBackendGateway().saveSetting(CONFIG_MAPS_SETTING_KEY, json);
     return true;
   } catch (err) {
     logger.error('[ConfigMapStorage] Failed to save ConfigMaps locally:', err);
@@ -33,10 +32,7 @@ export const saveConfigMapsToLocal = async (configMaps: K8sConfigMapItem[]): Pro
  */
 export const loadConfigMapsFromLocal = async (): Promise<K8sConfigMapItem[]> => {
   try {
-    let dataStr = '';
-    if (globalThis.go?.main?.App?.GetSetting) {
-      dataStr = await globalThis.go.main.App.GetSetting(CONFIG_MAPS_SETTING_KEY);
-    }
+    let dataStr = await getBackendGateway().getSetting(CONFIG_MAPS_SETTING_KEY);
     if (!dataStr && globalThis.localStorage !== undefined) {
       dataStr = globalThis.localStorage.getItem(CONFIG_MAPS_STORAGE_KEY) || '';
     }

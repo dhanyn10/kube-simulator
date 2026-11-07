@@ -1,16 +1,16 @@
-export function useWindowControls() {
-  const getWindowApp = () => (globalThis as any).go?.main?.App;
+import { getBackendGateway } from '@/gateway';
 
+export function useWindowControls() {
   const handleMinimize = () => {
-    getWindowApp()?.MinimizeWindow?.();
+    void getBackendGateway().minimizeWindow();
   };
 
   const handleMaximize = () => {
-    getWindowApp()?.MaximizeWindow?.();
+    void getBackendGateway().maximizeWindow();
   };
 
   const handleClose = () => {
-    getWindowApp()?.CloseWindow?.();
+    void getBackendGateway().closeWindow();
   };
 
   return { handleMinimize, handleMaximize, handleClose };

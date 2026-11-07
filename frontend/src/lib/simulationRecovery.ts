@@ -3,7 +3,7 @@ import { K8sNodeData } from '@/types';
 import { safeRandom } from './utils';
 import { logger } from './logger';
 import { SimulationContext, updateNodeData } from './simulationTypes';
-import { getImageCharacteristics } from '@/activities/ui/imageCharacteristicsHelpers';
+import { getImageCharacteristics } from './imageCharacteristics';
 
 /**
  * Schedules automated recovery for crashing pods after a delay based on restartPolicy.

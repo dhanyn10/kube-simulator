@@ -1,4 +1,6 @@
+import { syncDeployment } from '@/store/nodeHelpers';
 import { logger } from '@/lib/logger';
+import { getBackendGateway, WailsBackendGateway } from '@/gateway';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import type { FlowState, SimulationMetricPoint } from '@/store/types';
@@ -402,6 +404,7 @@ const runSimulationTick = (params: {
     ticks,
     get,
     set,
+    syncDeployment,
     nodeMap,
     edgeMap,
     targetEdgeMap,
@@ -630,14 +633,19 @@ const handleStopSimulation = (
   }));
 };
 
+
+const saveSettingIfAvailable = (key: string, value: string): void => {
+  const gw = getBackendGateway();
+  if (globalThis.go?.main?.App?.SaveSetting || !(gw instanceof WailsBackendGateway)) {
+    void gw.saveSetting(key, value);
+  }
+};
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
   minimapPosition: 'bottom-right',
   setMinimapPosition: (position) => {
     set({ minimapPosition: position });
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('minimap_position', position);
-    }
+    saveSettingIfAvailable('minimap_position', position);
   },
   roleModalTargetNode: null,
   setRoleModalTargetNode: (target) => set({ roleModalTargetNode: target }),
@@ -740,9 +748,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   activeIdentity: 'system:admin',
   setActiveIdentity: (identity) => {
     set({ activeIdentity: identity });
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('active_identity', identity);
-    }
+    saveSettingIfAvailable('active_identity', identity);
   },
 
   // Kube IAM initial state & actions
@@ -750,9 +756,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setClusterWorkerCount: (count) => {
     const validCount = Math.max(1, Math.min(100, Math.round(count) || 1));
     set({ clusterWorkerCount: validCount });
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('cluster_worker_count', String(validCount));
-    }
+    saveSettingIfAvailable('cluster_worker_count', String(validCount));
   },
   isWorkerBudgetModalOpen: false,
   setWorkerBudgetModalOpen: (open) => set({ isWorkerBudgetModalOpen: open }),
@@ -766,9 +770,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       createdAt: Date.now(),
     };
     const updatedUsers = [...state.iamUsers, newUser];
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
-    }
+    saveSettingIfAvailable('kube_iam_users', JSON.stringify(updatedUsers));
     return { iamUsers: updatedUsers };
   }),
   updateIamUser: (id, updatedData) => set((state) => {
@@ -787,9 +789,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       };
     });
 
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
-    }
+    saveSettingIfAvailable('kube_iam_users', JSON.stringify(updatedUsers));
 
     // If username changed, update assignedUsers in canvas node roles
     let updatedNodes = state.nodes;
@@ -802,9 +802,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   deleteIamUser: (id) => set((state) => {
     const deletedUser = state.iamUsers.find((u) => u.id === id);
     const updatedUsers = state.iamUsers.filter((u) => u.id !== id);
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
-    }
+    saveSettingIfAvailable('kube_iam_users', JSON.stringify(updatedUsers));
 
     const updatedNodes = deletedUser
       ? purgeUserFromNodes(state.nodes, deletedUser.username)
@@ -840,14 +838,15 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   fetchHistoryLogs: async () => {
     set({ isHistoryLoading: true });
     try {
-      if (globalThis.go?.main?.App?.GetHistoryLogs) {
-        const logs = await globalThis.go.main.App.GetHistoryLogs();
+      const gw = getBackendGateway();
+      if (globalThis.go?.main?.App?.GetHistoryLogs || !(gw instanceof WailsBackendGateway)) {
+        const logs = await gw.getHistoryLogs();
         if (Array.isArray(logs)) {
           set({ historyLogs: [...logs].reverse() });
         }
       }
-      if (globalThis.go?.main?.App?.GetCurrentHistoryIndex) {
-        const idx = await globalThis.go.main.App.GetCurrentHistoryIndex();
+      if (globalThis.go?.main?.App?.GetCurrentHistoryIndex || !(gw instanceof WailsBackendGateway)) {
+        const idx = await gw.getCurrentHistoryIndex();
         set({ currentHistoryIndex: idx });
       }
     } finally {
@@ -887,8 +886,9 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     };
   }),
   addActivityLog: (line) => {
-    if (globalThis.go?.main?.App?.WriteLog) {
-      globalThis.go.main.App.WriteLog('history', 'info', line).catch(() => {});
+    const gw = getBackendGateway();
+    if (globalThis.go?.main?.App?.WriteLog || !(gw instanceof WailsBackendGateway)) {
+      gw.writeLog('history', 'info', line).catch(() => {});
     }
     set((state) => ({
       activityLogs: [...state.activityLogs, line].slice(-200)
@@ -929,9 +929,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       canvasBgColor: state.canvasBgColor,
       canvasBgOpacity: state.canvasBgOpacity,
     };
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('app_settings_json', JSON.stringify(settings));
-    }
+    saveSettingIfAvailable('app_settings_json', JSON.stringify(settings));
   },
   loadSettingsJson: () => {
     void loadConfigMapsFromLocal().then((savedCMs) => {
@@ -944,15 +942,16 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
         set({ savedSecrets: savedSecs });
       }
     });
-    if (globalThis.go?.main?.App?.GetSetting) {
-      void globalThis.go.main.App.GetSetting('app_settings_json').then((val: string) => {
+    const gw = getBackendGateway();
+    if (globalThis.go?.main?.App?.GetSetting || !(gw instanceof WailsBackendGateway)) {
+      void gw.getSetting('app_settings_json').then((val: string) => {
         if (val) {
           applyParsedSettings(val, set);
         } else {
           fallbackToLegacySettings(set);
         }
       });
-      void globalThis.go.main.App.GetSetting('auto_saved_profile_content').then((content: string) => {
+      void gw.getSetting('auto_saved_profile_content').then((content: string) => {
         if (content) {
           try {
             const parsed = JSON.parse(content);
@@ -968,17 +967,17 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           }
         }
       });
-      void globalThis.go.main.App.GetSetting('active_identity').then((val: string) => {
+      void gw.getSetting('active_identity').then((val: string) => {
         if (val) {
           set({ activeIdentity: val });
         }
       });
-      void globalThis.go.main.App.GetSetting('minimap_position').then((val: string) => {
+      void gw.getSetting('minimap_position').then((val: string) => {
         if (val === 'bottom-left' || val === 'bottom-right' || val === 'top-right') {
           set({ minimapPosition: val });
         }
       });
-      void globalThis.go.main.App.GetSetting('kube_iam_users').then((val: string) => {
+      void gw.getSetting('kube_iam_users').then((val: string) => {
         if (val) {
           try {
             const parsedUsers = JSON.parse(val);
@@ -1018,10 +1017,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   },
   setGlobalEdgeColors: (color, errorColor) => {
     set({ globalEdgeColor: color, globalEdgeErrorColor: errorColor });
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('globalEdgeColor', color);
-      void globalThis.go.main.App.SaveSetting('globalEdgeErrorColor', errorColor);
-    }
+    saveSettingIfAvailable('globalEdgeColor', color);
+    saveSettingIfAvailable('globalEdgeErrorColor', errorColor);
   },
   setDraggingSidebarItem: (item) => {
     set({ draggingSidebarItem: item });
@@ -1033,9 +1030,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   },
   toggleAutosave: () => set((state: FlowState) => {
     const nextVal = !state.isAutosaveEnabled;
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('isAutosaveEnabled', String(nextVal));
-    }
+    saveSettingIfAvailable('isAutosaveEnabled', String(nextVal));
     return { isAutosaveEnabled: nextVal };
   }),
   toggleAutofocus: () => {
@@ -1044,16 +1039,12 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   },
   setSidebarVisible: (visible) => {
     set({ isSidebarVisible: visible });
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('isSidebarVisible', String(visible));
-    }
+    saveSettingIfAvailable('isSidebarVisible', String(visible));
     get().saveSettingsJson();
   },
   setRightSidebarVisible: (visible) => {
     set({ isRightSidebarVisible: visible });
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      void globalThis.go.main.App.SaveSetting('isRightSidebarVisible', String(visible));
-    }
+    saveSettingIfAvailable('isRightSidebarVisible', String(visible));
     get().saveSettingsJson();
   },
   setMonitoringOpen: (open) => {

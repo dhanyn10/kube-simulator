@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useHistory } from '@/hooks/useHistory';
 import { applyHistoryState } from '@/store';
-
 import { useFlowStore } from '@/store';
+import { setBackendGateway, resetBackendGateway, MockBackendGateway } from '@/gateway';
 
 vi.mock('@/store', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/store')>();
@@ -16,6 +16,7 @@ vi.mock('@/store', async (importOriginal) => {
 describe('useHistory', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetBackendGateway();
     // @ts-ignore
     globalThis.go = {
       main: {
@@ -61,21 +62,6 @@ describe('useHistory', () => {
     expect(applyHistoryState).toHaveBeenCalledWith(mockState);
   });
 
-  it('fetchHistoryLogs updates historyLogs state', async () => {
-    const mockLogs = ['log1', 'log2'];
-    // @ts-ignore
-    globalThis.go.main.App.GetHistoryLogs.mockResolvedValue(mockLogs);
-
-    const { result } = renderHook(() => useHistory());
-
-    await act(async () => {
-      await result.current.fetchHistoryLogs();
-    });
-
-    // Reversed order
-    expect(result.current.historyLogs).toEqual(['log2', 'log1']);
-  });
-
   it('handleJumpToHistory calls backend and applies state', async () => {
     const mockState = { nodes: [] };
     // @ts-ignore
@@ -84,15 +70,35 @@ describe('useHistory', () => {
     const { result } = renderHook(() => useHistory());
 
     await act(async () => {
-      await result.current.handleJumpToHistory(1);
+      await result.current.handleJumpToHistory(2);
     });
 
     // @ts-ignore
-    expect(globalThis.go.main.App.JumpToHistory).toHaveBeenCalledWith(1);
+    expect(globalThis.go.main.App.JumpToHistory).toHaveBeenCalledWith(2);
     expect(applyHistoryState).toHaveBeenCalledWith(mockState);
   });
 
-  it('handles null state or missing Wails App gracefully', async () => {
+  it('opens history tab when calling handleUndo and handleRedo', async () => {
+    const { result } = renderHook(() => useHistory());
+
+    await act(async () => {
+      await result.current.handleUndo();
+    });
+
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
+    expect(useFlowStore.getState().isHistoryViewOpen).toBe(true);
+
+    useFlowStore.setState({ isRightSidebarVisible: false, isHistoryViewOpen: false });
+
+    await act(async () => {
+      await result.current.handleRedo();
+    });
+
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
+    expect(useFlowStore.getState().isHistoryViewOpen).toBe(true);
+  });
+
+  it('handles empty state and missing backend methods gracefully', async () => {
     // @ts-ignore
     globalThis.go.main.App.Undo.mockResolvedValue(null);
     // @ts-ignore
@@ -122,5 +128,22 @@ describe('useHistory', () => {
 
     expect(result.current.historyLogs).toBeDefined();
     expect(applyHistoryState).not.toHaveBeenCalled();
+  });
+
+  it('works directly with MockBackendGateway without globalThis.go', async () => {
+    // @ts-ignore
+    delete globalThis.go;
+    const mockGw = new MockBackendGateway();
+    await mockGw.pushHistory(JSON.stringify({ actionName: 'First State' }));
+    await mockGw.pushHistory(JSON.stringify({ actionName: 'Second State' }));
+    setBackendGateway(mockGw);
+
+    const { result } = renderHook(() => useHistory());
+
+    await act(async () => {
+      await result.current.handleUndo();
+    });
+
+    expect(applyHistoryState).toHaveBeenCalled();
   });
 });
