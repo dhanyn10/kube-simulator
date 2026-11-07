@@ -1059,3 +1059,47 @@ func TestApp_ConfigureStartupWindow_EdgeCases(t *testing.T) {
 		t.Errorf("Unexpected calculated height: %d", h)
 	}
 }
+
+func TestApp_PathUtilsAndWindowBridge(t *testing.T) {
+	app := NewApp()
+
+	// 1. expandHomePath
+	home := "/home/user"
+	if expandHomePath("~", home) != home {
+		t.Errorf("Expected %s, got %s", home, expandHomePath("~", home))
+	}
+	if expandHomePath("~/test.infra", home) != filepath.Join(home, "test.infra") {
+		t.Errorf("Expected path expansion for ~/")
+	}
+	if expandHomePath("/abs/path", home) != "/abs/path" {
+		t.Errorf("Expected unchanged absolute path")
+	}
+
+	// 2. sanitizeProfileFilename
+	if sanitizeProfileFilename("Hello World") != "hello_world" {
+		t.Errorf("Expected hello_world, got %s", sanitizeProfileFilename("Hello World"))
+	}
+	if sanitizeProfileFilename("") != "profile" {
+		t.Errorf("Expected fallback profile, got %s", sanitizeProfileFilename(""))
+	}
+
+	// 3. getInternetProfilePath
+	ipPath := app.getInternetProfilePath("/profiles", "E-Commerce Load")
+	if !strings.HasSuffix(ipPath, "e-commerce_load.json") {
+		t.Errorf("Expected path to end with e-commerce_load.json, got %s", ipPath)
+	}
+
+	// 4. setAppWindowTitle in non-live context (safe no-op)
+	setAppWindowTitle("Test Title")
+
+	// 5. selectProjectFileDialog with test context
+	ctx := context.WithValue(context.WithValue(context.Background(), isTestKey, true), testFilePathKey, "/test/path.infra")
+	oldCtx := appCtx
+	appCtx = ctx
+	defer func() { appCtx = oldCtx }()
+
+	selPath, err := app.selectProjectFileDialog(true, "default.infra", "Title")
+	if err != nil || selPath != "/test/path.infra" {
+		t.Errorf("Expected /test/path.infra, got %s (err: %v)", selPath, err)
+	}
+}

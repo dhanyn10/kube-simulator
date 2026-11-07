@@ -89,3 +89,34 @@ func TestHistoryService_NoDB(t *testing.T) {
 		t.Errorf("Expected 0 logs when DB is not initialized, got %d", len(logs))
 	}
 }
+
+func TestHistoryService_CorruptedLogs(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "kube-history-corrupt-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	oldHome := os.Getenv("HOME")
+	oldUserProfile := os.Getenv("USERPROFILE")
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Setenv("USERPROFILE", oldUserProfile)
+	}()
+
+	svc := NewHistoryService(nil)
+	_ = svc.Init()
+	defer svc.Close()
+
+	// Push corrupted state (not JSON)
+	svc.Push("corrupted non json history state")
+	logs := svc.GetHistoryLogs()
+	if len(logs) != 1 {
+		t.Fatalf("Expected 1 log, got %d", len(logs))
+	}
+	if logs[0].ActionName != "Activity #0" {
+		t.Errorf("Expected fallback name 'Activity #0', got %q", logs[0].ActionName)
+	}
+}

@@ -2,6 +2,7 @@ package service
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -65,6 +66,17 @@ func TestInternetProfileService_CRUD(t *testing.T) {
 	profiles = svc.GetProfiles()
 	if len(profiles) != 0 {
 		t.Errorf("Expected 0 profiles after delete, got %d", len(profiles))
+	}
+
+	// 7. Test directory with sub-directory, invalid JSON file, and unnamed profile
+	dir, _ := svc.GetProfilesDir()
+	_ = os.MkdirAll(filepath.Join(dir, "subfolder.json"), 0755)
+	_ = os.WriteFile(filepath.Join(dir, "corrupt.json"), []byte("corrupted json data"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "empty_name.json"), []byte(`{"name":""}`), 0644)
+
+	profiles = svc.GetProfiles()
+	if len(profiles) != 0 {
+		t.Errorf("Expected 0 valid profiles from corrupt/empty entries, got %d", len(profiles))
 	}
 }
 

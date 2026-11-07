@@ -76,6 +76,37 @@ func TestAutosaveService_GetAndClearProfiles(t *testing.T) {
 	}
 }
 
+func TestAutosaveService_CorruptedAndEdgeCaseFiles(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "kube-autosave-edge-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	oldHome := os.Getenv("HOME")
+	oldUserProfile := os.Getenv("USERPROFILE")
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Setenv("USERPROFILE", oldUserProfile)
+	}()
+
+	autosavesDir := filepath.Join(tmpDir, KubeSimulatorDir, "autosaves")
+	_ = os.MkdirAll(autosavesDir, 0755)
+
+	// 1. File with invalid JSON
+	_ = os.WriteFile(filepath.Join(autosavesDir, "invalid.infra"), []byte("{not-json"), 0644)
+	// 2. File with timestamp <= 0
+	_ = os.WriteFile(filepath.Join(autosavesDir, "zero-ts.infra"), []byte(`{"timestamp": -1}`), 0644)
+
+	svc := NewAutosaveService()
+	profiles := svc.GetAutosaveProfiles()
+	if len(profiles) != 2 {
+		t.Fatalf("Expected 2 profiles fallback to file ModTime, got %d", len(profiles))
+	}
+}
+
 func TestAutosaveService_UserHomeError(t *testing.T) {
 	oldHome := os.Getenv("HOME")
 	oldUserProfile := os.Getenv("USERPROFILE")
