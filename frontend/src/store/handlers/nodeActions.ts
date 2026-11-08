@@ -110,8 +110,9 @@ const resolveCleanParentNameFromPod = (
   if (isStateful) {
     rawName = rawName.replace(/-\d+$/, '');
   } else if (parentType === 'Deployment' || parentType === 'ReplicaSet') {
-    const hash = updatedNode.data?.podHash;
-    const suf = updatedNode.data?.replicaSuffix;
+    const podData = updatedNode.data as K8sNodeData | undefined;
+    const hash = podData?.podHash;
+    const suf = podData?.replicaSuffix;
     if (hash && suf && rawName.endsWith(`-${hash}-${suf}`)) {
       rawName = rawName.slice(0, -(hash.length + suf.length + 2));
     } else if (hash && rawName.endsWith(`-${hash}`)) {
@@ -128,7 +129,7 @@ const handlePodParentSync = (_target: Node, updatedNode: Node, newData: Partial<
   let updatedParent = parent;
   if (newData.label !== undefined || newData.baseName !== undefined) {
     const isStateful = parent.type === 'StatefulSet' || parent.data?.workloadType === 'StatefulSet';
-    const cleanBase = resolveCleanParentNameFromPod(parent.type, isStateful, updatedNode, newData) || parent.data?.label || 'workload';
+    const cleanBase = resolveCleanParentNameFromPod(parent.type || '', isStateful, updatedNode, newData) || parent.data?.label || 'workload';
     const uniqueParentName = ensureUniqueResourceName(cleanBase, parent.type || 'StatefulSet', parent.parentId, nodes, parent.id);
     updatedParent = {
       ...parent,
@@ -145,8 +146,9 @@ const handlePodParentSync = (_target: Node, updatedNode: Node, newData: Partial<
   if (updatedParent.type === 'ReplicaSet' && effectiveReplicas <= 1) {
     const groupPos = getAbsPos(updatedParent.id, nodes);
     const others = nodes.filter(n => n.id !== updatedParent.id && n.parentId !== updatedParent.id);
-    const baseName = updatedNode.data?.baseName || updatedNode.data?.label || 'pod';
-    const cleanBase = formatPodName(baseName, updatedNode.data?.podHash, updatedNode.data?.replicaSuffix, 1);
+    const podData = updatedNode.data as K8sNodeData | undefined;
+    const baseName = String(podData?.baseName || podData?.label || 'pod');
+    const cleanBase = formatPodName(baseName, podData?.podHash, podData?.replicaSuffix, 1);
     const updatedPodWithCleanLabel = {
       ...updatedNode,
       parentId: undefined,
@@ -557,27 +559,6 @@ const renameServiceReference = (n: Node, oldLabel: string, newLabel: string): No
   };
 };
 
-const renameIngressReference = (n: Node, oldLabel: string, newLabel: string): Node => {
-  const matchesBackend = n.data?.backendServiceName === oldLabel;
-  const rawPaths = n.data?.ingressPaths as any[] | undefined;
-  const matchesPaths = Array.isArray(rawPaths) && rawPaths.some((p) => p?.serviceName === oldLabel);
-
-  if (!matchesBackend && !matchesPaths) return n;
-
-  const updatedPaths = Array.isArray(rawPaths)
-    ? rawPaths.map((p) => (p?.serviceName === oldLabel ? { ...p, serviceName: newLabel } : p))
-    : rawPaths;
-
-  return {
-    ...n,
-    data: {
-      ...n.data,
-      ...(matchesBackend ? { backendServiceName: newLabel } : {}),
-      ...(matchesPaths ? { ingressPaths: updatedPaths } : {}),
-    },
-  };
-};
-
 const isTargetConnected = (nId: string, targetId: string, edges: Edge[], nodes: Node[]): boolean => {
   const targetAndChildIds = new Set<string>([targetId]);
   for (const node of nodes) {
@@ -834,7 +815,7 @@ const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => Fl
     const h = Math.round(n.height || n.measured?.height || 100);
     const x2 = x1 + w;
     const y2 = y1 + h;
-    const label = n.data?.label || n.id;
+    const label = String(n.data?.label || n.id);
     const logMsg = `[Canvas Action] Deleted card '${label}' (${n.type}) from coordinates (x1:${x1}, y1:${y1}, x2:${x2}, y2:${y2}), size: ${w}x${h}px`;
     get().addLog('info', logMsg, 'UI');
 

@@ -415,6 +415,25 @@ describe('createFlowSlice', () => {
     expect(state.nodes.find(n => n.id === 's1')?.data.selector).toBe('');
   });
 
+  it('onEdgesChange clears Service selector when incoming edge from workload (Workload -> Service) is removed and preserves selector if incoming edge matches', () => {
+    const svcNode: Node = { id: 's-in', type: 'Service', position: { x: 0, y: 0 }, data: { label: 'web-svc', selector: 'web-pod' } };
+    const podNode: Node = { id: 'p-in', type: 'Pod', position: { x: 100, y: 0 }, data: { label: 'web-pod' } };
+    const edgeIncoming: Edge = { id: 'e-p-to-s', source: 'p-in', target: 's-in' };
+
+    // 1. Edge change removing an unrelated edge does not clear selector because e-p-to-s (edge.target === serviceNodeId) matches
+    const dummyEdge: Edge = { id: 'e-dummy', source: 'other-1', target: 'other-2' };
+    useFlowStore.setState({ nodes: [svcNode, podNode] as any, edges: [edgeIncoming, dummyEdge] });
+    useFlowStore.getState().onEdgesChange([{ id: 'e-dummy', type: 'remove' }]);
+
+    let state = useFlowStore.getState();
+    expect(state.nodes.find((n) => n.id === 's-in')?.data.selector).toBe('web-pod');
+
+    // 2. Removing the incoming edge e-p-to-s clears the selector
+    useFlowStore.getState().onEdgesChange([{ id: 'e-p-to-s', type: 'remove' }]);
+    state = useFlowStore.getState();
+    expect(state.nodes.find((n) => n.id === 's-in')?.data.selector).toBe('');
+  });
+
   it('onConnect rejects connection when source or target node is forbidden for active user', () => {
     const devUser = {
       id: 'dev1',
@@ -1807,6 +1826,28 @@ describe('createFlowSlice', () => {
         [edgeSsPvc]
       );
       expect(err).toContain('Volume Claim Template Conflict');
+    });
+
+    it('covers quickConnectNodes updating Service serviceType from ClusterIP to LoadBalancer when connected from Internet', () => {
+      const internetNode: Node = {
+        id: 'internet-qc',
+        type: 'Internet',
+        position: { x: 0, y: 100 },
+        data: {},
+      };
+      const serviceNode: Node = {
+        id: 'service-qc',
+        type: 'Service',
+        position: { x: 200, y: 100 },
+        data: { serviceType: 'ClusterIP', label: 'service-qc' },
+      };
+      useFlowStore.setState({
+        nodes: [internetNode, serviceNode] as any,
+        edges: [],
+      });
+      useFlowStore.getState().onQuickConnect('internet-qc', 'right');
+      const updatedSvc = useFlowStore.getState().nodes.find((n) => n.id === 'service-qc');
+      expect(updatedSvc?.data.serviceType).toBe('LoadBalancer');
     });
   });
 });
