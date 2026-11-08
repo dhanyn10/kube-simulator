@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { NodeProps, Handle, Position } from '@xyflow/react';
+import { NodeProps } from '@xyflow/react';
 import { Layers, AlertTriangle } from 'lucide-react';
 import { SimpleResourceNode } from './SimpleResourceNode';
 import { cn, parseCPU, parseMemory } from '@/lib/utils';
@@ -28,8 +28,17 @@ export const ResourceLimitNode = memo((props: NodeProps) => {
   const memReqPercent = Math.min(100, (memReqVal / maxMem) * 100);
   const memBurstPercent = Math.max(0, Math.min(100, (memLimVal / maxMem) * 100) - memReqPercent);
 
+  const disabledHandleClass = !hasWorkload ? 'opacity-20 pointer-events-none' : undefined;
+
   return (
-    <SimpleResourceNode {...props} title="Resource Limit" icon={Layers} color="purple">
+    <SimpleResourceNode
+      {...props}
+      title="Resource Limit"
+      icon={Layers}
+      color="purple"
+      bottomSourceClassName={disabledHandleClass}
+      rightSourceClassName={disabledHandleClass}
+    >
       {hasResourceError && (
         <div
           data-testid="resource-node-warning"
@@ -120,21 +129,6 @@ export const ResourceLimitNode = memo((props: NodeProps) => {
           )}
         </div>
       </div>
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="bottom-s"
-        className={cn('!bg-purple-500 !w-2 !h-2', !hasWorkload && 'opacity-20 pointer-events-none')}
-        isValidConnection={isValidConnection}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right-s"
-        className={cn('!bg-purple-500 !w-2 !h-2', !hasWorkload && 'opacity-20 pointer-events-none')}
-        isValidConnection={isValidConnection}
-      />
     </SimpleResourceNode>
   );
 });

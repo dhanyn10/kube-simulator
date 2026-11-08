@@ -8,9 +8,21 @@ export interface SimpleResourceNodeProps extends NodeProps {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   color: string;
   children?: React.ReactNode;
+  bottomSourceClassName?: string;
+  rightSourceClassName?: string;
+  hideDefaultHandles?: boolean;
 }
 
-export const SimpleResourceNode = memo(({ title, icon: Icon, color, children, ...props }: SimpleResourceNodeProps) => {
+export const SimpleResourceNode = memo(({
+  title,
+  icon: Icon,
+  color,
+  children,
+  bottomSourceClassName,
+  rightSourceClassName,
+  hideDefaultHandles,
+  ...props
+}: SimpleResourceNodeProps) => {
   const data = props.data as unknown as K8sNodeData;
 
   return (
@@ -22,6 +34,9 @@ export const SimpleResourceNode = memo(({ title, icon: Icon, color, children, ..
       color={color}
       id={props.id}
       type={props.type}
+      bottomSourceClassName={bottomSourceClassName}
+      rightSourceClassName={rightSourceClassName}
+      hideDefaultHandles={hideDefaultHandles}
     >
       {children}
     </BaseNode>

@@ -1,10 +1,11 @@
 import { memo } from 'react';
-import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
+import { NodeProps, NodeResizer } from '@xyflow/react';
 import { AttachedResourcesFooter } from './AttachedResourcesFooter';
 import { K8sNodeData } from '@/types';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { QuickConnectArrows } from './QuickConnectArrows';
+import { NodeHandles } from './NodeHandles';
 import { useNodeRename, useNodeResize } from '@/hooks/useNodeEditor';
 import { useNodeStyles } from '@/hooks/useNodeStyles';
 import { checkShowHPAWarning } from '@/activities/nodes';
@@ -50,6 +51,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const borderClass = getDeploymentBorderClass(props.selected, colorMode);
   const badgeColor = getBadgeColor(data);
   const isDarkMode = colorMode === 'dark';
+  const isQuickConnectTarget = useFlowStore((state) => state.quickConnectTargetNodeId === props.id);
 
   return (
     <div className={cn(
@@ -60,6 +62,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
       borderClass,
       data.isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
       data.isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]",
+      isQuickConnectTarget && "ring-4 ring-emerald-400/80 shadow-[0_0_24px_rgba(52,211,153,0.6)] animate-pulse",
       roleDragClass
     )}>
       <ForbiddenOverlay nodeType={props.type || 'Deployment'} data={data} />
@@ -124,10 +127,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
       <AttachedResourcesFooter data={data} nodeId={props.id} />
 
-      <Handle type="target" position={Position.Top} id="top-t" className="!bg-violet-600 !w-2 !h-2 z-[50]" />
-      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-violet-600 !w-2 !h-2" />
-      <Handle type="target" position={Position.Left} id="left-t" className="!bg-violet-600 !w-2 !h-2" />
-      <Handle type="source" position={Position.Right} id="right-s" className="!bg-violet-600 !w-2 !h-2" />
+      <NodeHandles color="violet" />
     </div>
   );
 });

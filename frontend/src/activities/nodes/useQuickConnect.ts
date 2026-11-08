@@ -2,6 +2,7 @@ import React from 'react';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 import { isNodeAccessForbidden } from './rbacNodeHelpers';
+import { QuickConnectDirection } from './quickConnectHelpers';
 
 export function useQuickConnect(nodeId: string, color: string = 'blue') {
   const onQuickConnect = useFlowStore((state) => state.onQuickConnect);
@@ -20,7 +21,7 @@ export function useQuickConnect(nodeId: string, color: string = 'blue') {
   }
 
   let arrowStyle = cn(
-    'absolute flex items-center justify-center w-5 h-5 rounded-full transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-[1] border-none outline-none focus:ring-2',
+    'absolute flex items-center justify-center w-5 h-5 rounded-full transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-20 border-none outline-none focus:ring-2',
     colorClasses
   );
 
@@ -28,7 +29,7 @@ export function useQuickConnect(nodeId: string, color: string = 'blue') {
     arrowStyle = 'hidden';
   }
 
-  const handleConnect = (direction: 'top' | 'right' | 'bottom' | 'left') => (e: React.MouseEvent | React.KeyboardEvent) => {
+  const handleConnect = (direction: QuickConnectDirection) => (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
     if (isForbidden || isChildPod) return;
     if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;

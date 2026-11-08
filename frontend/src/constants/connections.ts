@@ -323,3 +323,51 @@ export const checkPvcTemplateTopologyConflict = (
   return null;
 };
 
+const resolveServiceGuidance = (data?: Record<string, any>): string => {
+  const serviceType = data?.serviceType || 'ClusterIP';
+  if (serviceType === 'LoadBalancer') {
+    return 'Ingress Controller, ClusterIP Service, or Workload';
+  }
+  if (serviceType === 'NodePort') {
+    return 'Ingress Controller or Workload (Deployment/StatefulSet/Pod)';
+  }
+  if (serviceType === 'Headless') {
+    return 'Workload endpoints (Deployment, StatefulSet, or Pod)';
+  }
+  return 'Workload (Deployment, StatefulSet, Pod, or ReplicaSet)';
+};
+
+/**
+ * Returns human-readable guidance on the valid next architectural edge connection targets
+ * for a given Kubernetes resource card.
+ */
+export const getNodeConnectionGuidance = (
+  resourceType: string,
+  data?: Record<string, any>
+): string => {
+  switch (resourceType) {
+    case 'Internet':
+      return 'LoadBalancer or NodePort Service (traffic entrypoint)';
+    case 'Ingress':
+      return 'ClusterIP Service (L7 routing backend)';
+    case 'Service':
+      return resolveServiceGuidance(data);
+    case 'Deployment':
+    case 'StatefulSet':
+    case 'Pod':
+    case 'ReplicaSet':
+      return 'Storage (PVC), Configuration (ConfigMap, Secret), or backend Service';
+    case 'HPA':
+      return 'Workload with CPU/Memory Resource Limits (Deployment or StatefulSet)';
+    case 'ResourceLimit':
+      return 'Workload (Deployment, StatefulSet, or Pod)';
+    case 'ConfigMap':
+    case 'Secret':
+    case 'PVC':
+      return 'Workload (via volume mounts or environment variables)';
+    default:
+      return 'Compatible Kubernetes resource';
+  }
+};
+
+

@@ -12,6 +12,7 @@ export * from './PVC';
 export * from './Pod';
 export * from './PodConfigMapVars';
 export * from './QuickConnectArrows';
+export * from './NodeHandles';
 export * from './ReplicaSet';
 export * from './Role';
 export * from './Secret';

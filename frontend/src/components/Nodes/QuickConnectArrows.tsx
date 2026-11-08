@@ -15,6 +15,7 @@ export const QuickConnectArrows = ({ nodeId, color = 'blue' }: QuickConnectArrow
       <button
         type="button"
         aria-label="Connect Top"
+        title="Connect Top"
         className={cn(arrowStyle, "-top-6 left-1/2 -translate-x-1/2")}
         onClick={handleConnect('top')}
         onKeyDown={handleConnect('top')}
@@ -24,6 +25,7 @@ export const QuickConnectArrows = ({ nodeId, color = 'blue' }: QuickConnectArrow
       <button
         type="button"
         aria-label="Connect Right"
+        title="Connect Right"
         className={cn(arrowStyle, "-right-6 top-1/2 -translate-y-1/2")}
         onClick={handleConnect('right')}
         onKeyDown={handleConnect('right')}
@@ -33,6 +35,7 @@ export const QuickConnectArrows = ({ nodeId, color = 'blue' }: QuickConnectArrow
       <button
         type="button"
         aria-label="Connect Bottom"
+        title="Connect Bottom"
         className={cn(arrowStyle, "-bottom-6 left-1/2 -translate-x-1/2")}
         onClick={handleConnect('bottom')}
         onKeyDown={handleConnect('bottom')}
@@ -42,6 +45,7 @@ export const QuickConnectArrows = ({ nodeId, color = 'blue' }: QuickConnectArrow
       <button
         type="button"
         aria-label="Connect Left"
+        title="Connect Left"
         className={cn(arrowStyle, "-left-6 top-1/2 -translate-y-1/2")}
         onClick={handleConnect('left')}
         onKeyDown={handleConnect('left')}

@@ -129,10 +129,12 @@ export interface UiSlice {
   terminalLogs: Record<string, string[]>;
   activityLogs: string[];
   hoveredAutocompletePodName: string | null;
+  quickConnectTargetNodeId: string | null;
   setTerminalOpen: (open: boolean) => void;
   setTerminalActiveTab: (tab: 'activity' | 'logs') => void;
   setTerminalSelectedResourceId: (id: string | null) => void;
   setHoveredAutocompletePodName: (name: string | null) => void;
+  setQuickConnectTargetNodeId: (id: string | null) => void;
   addTerminalLog: (resourceId: string, line: string) => void;
   addActivityLog: (line: string) => void;
   clearTerminalLogs: () => void;
@@ -875,10 +877,12 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   terminalLogs: {},
   activityLogs: [],
   hoveredAutocompletePodName: null,
+  quickConnectTargetNodeId: null,
   setTerminalOpen: (open) => set({ isTerminalOpen: open }),
   setTerminalActiveTab: (tab) => set({ terminalActiveTab: tab }),
   setTerminalSelectedResourceId: (id) => set({ terminalSelectedResourceId: id }),
   setHoveredAutocompletePodName: (name) => set({ hoveredAutocompletePodName: name }),
+  setQuickConnectTargetNodeId: (id) => set({ quickConnectTargetNodeId: id }),
   addTerminalLog: (resourceId, line) => set((state) => {
     const logs = state.terminalLogs[resourceId] || [];
     return {

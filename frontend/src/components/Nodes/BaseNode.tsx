@@ -1,10 +1,11 @@
 import React, { memo } from 'react';
-import { Handle, Position } from '@xyflow/react';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { AttachedResourcesFooter } from './AttachedResourcesFooter';
 import { K8sNodeData } from '@/types';
 import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
 import { QuickConnectArrows } from './QuickConnectArrows';
+import { NodeHandles } from './NodeHandles';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { NodePodBadges } from './NodePodBadges';
 import { ForbiddenOverlay } from './ForbiddenOverlay';
@@ -101,7 +102,20 @@ const ReplicaProgress = ({
   );
 };
 
-export const BaseNode = memo(({ children, data, selected, title, icon: Icon, color, id, hideSettings, statusOverride }: {
+export const BaseNode = memo(({
+  children,
+  data,
+  selected,
+  title,
+  icon: Icon,
+  color,
+  id,
+  hideSettings,
+  statusOverride,
+  bottomSourceClassName,
+  rightSourceClassName,
+  hideDefaultHandles,
+}: {
   children?: React.ReactNode;
   data: K8sNodeData;
   selected?: boolean;
@@ -112,6 +126,9 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   type: string;
   hideSettings?: boolean;
   statusOverride?: 'pending' | 'ready' | 'crashing';
+  bottomSourceClassName?: string;
+  rightSourceClassName?: string;
+  hideDefaultHandles?: boolean;
 }) => {
   const {
     colorMode,
@@ -141,9 +158,15 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   } = useBaseNodeHandler({ id, data, selected, color, statusOverride });
 
   const isChildPod = Boolean(data.parentId || (data as any).parentId);
+  const isQuickConnectTarget = useFlowStore((state) => state.quickConnectTargetNodeId === id);
 
   return (
-    <div className={cn(containerClasses, transitionClasses, "transition-[border-color,background-color,box-shadow] duration-200 relative")}>
+    <div className={cn(
+      containerClasses,
+      transitionClasses,
+      "transition-[border-color,background-color,box-shadow] duration-200 relative",
+      isQuickConnectTarget && "ring-4 ring-emerald-400/80 shadow-[0_0_24px_rgba(52,211,153,0.6)] animate-pulse"
+    )}>
       <ForbiddenOverlay nodeType={data.type || title} data={data} />
       {isAutocompleteHovered && (
         <svg
@@ -211,17 +234,12 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         <AttachedResourcesFooter data={data} nodeId={id} />
       </div>
 
-      {!isChildPod && (
-        <>
-          <Handle type="target" position={Position.Top} id="top-t" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
-          <Handle type="source" position={Position.Top} id="top-s" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
-          <Handle type="target" position={Position.Bottom} id="bottom-t" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
-          <Handle type="source" position={Position.Bottom} id="bottom-s" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
-          <Handle type="target" position={Position.Left} id="left-t" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
-          <Handle type="source" position={Position.Left} id="left-s" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
-          <Handle type="target" position={Position.Right} id="right-t" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
-          <Handle type="source" position={Position.Right} id="right-s" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
-        </>
+      {!isChildPod && !hideDefaultHandles && (
+        <NodeHandles
+          color={color}
+          bottomSourceClassName={bottomSourceClassName}
+          rightSourceClassName={rightSourceClassName}
+        />
       )}
     </div>
   );
