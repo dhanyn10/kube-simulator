@@ -284,6 +284,31 @@ describe('createFlowSlice', () => {
     expect(updatedSvc?.data.serviceType).toBe('NodePort');
   });
 
+  it('onConnect updates Service selector when Workload connects to Service without selector, but preserves existing selector', () => {
+    // 1. Workload -> Service without selector: sets selector
+    const depBackend = { id: 'dep-backend', type: 'Deployment', data: { label: 'backend-app', port: 8080 } };
+    const svcBackend = { id: 'svc-backend', type: 'Service', data: { label: 'backend-svc' } };
+    useFlowStore.setState({ nodes: [depBackend, svcBackend] as any, edges: [] });
+
+    useFlowStore.getState().onConnect({ source: 'dep-backend', target: 'svc-backend' });
+
+    let state = useFlowStore.getState();
+    let updatedSvc = state.nodes.find((n) => n.id === 'svc-backend');
+    expect(updatedSvc?.data.selector).toBe('backend-app');
+    expect(updatedSvc?.data.targetPort).toBe(8080);
+
+    // 2. Workload B -> Service with existing selector for Workload A: does NOT overwrite selector
+    const depFrontend = { id: 'dep-frontend', type: 'Deployment', data: { label: 'frontend-app', port: 3000 } };
+    useFlowStore.setState({ nodes: [depBackend, depFrontend, updatedSvc] as any, edges: state.edges });
+
+    useFlowStore.getState().onConnect({ source: 'dep-frontend', target: 'svc-backend' });
+
+    state = useFlowStore.getState();
+    updatedSvc = state.nodes.find((n) => n.id === 'svc-backend');
+    expect(updatedSvc?.data.selector).toBe('backend-app');
+    expect(state.edges).toHaveLength(2);
+  });
+
   it('onQuickConnect connects nodes in orthogonal directions (right, left, top, bottom) and logs action', () => {
     const centerNode: Node = {
       id: 'center',

@@ -569,6 +569,25 @@ const buildConnectedServiceData = (
   };
 };
 
+const shouldApplyTargetServiceSelector = (
+  serviceData: Record<string, any> | undefined,
+  sourceNode?: Node,
+  srcId?: string
+): boolean => {
+  const currentSelector = String(serviceData?.selector || '').trim();
+  if (!currentSelector) return true;
+
+  const sourceLabel = String(
+    sourceNode?.data?.label ||
+    sourceNode?.data?.baseName ||
+    sourceNode?.id ||
+    srcId ||
+    ''
+  ).trim();
+
+  return currentSelector === sourceLabel;
+};
+
 const updateConnectedNodeState = (
   n: Node,
   ctx: ConnectedNodeSyncContext
@@ -605,10 +624,12 @@ const updateConnectedNodeState = (
     const sType = String(sourceNodeInStore?.type || sourceNodeInStore?.data?.type || srcNode?.type || '').toLowerCase();
 
     if (tType === 'service' && isValidServiceSelectorTarget(updated.data, sType)) {
-      updated = {
-        ...updated,
-        data: buildConnectedServiceData(updated.data, sourceNodeInStore, srcId, sType, syncedNodesList),
-      };
+      if (shouldApplyTargetServiceSelector(updated.data, sourceNodeInStore, srcId)) {
+        updated = {
+          ...updated,
+          data: buildConnectedServiceData(updated.data, sourceNodeInStore, srcId, sType, syncedNodesList),
+        };
+      }
     }
   }
 

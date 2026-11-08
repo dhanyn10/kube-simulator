@@ -125,9 +125,12 @@ const checkServiceSourceRules = (
   if (targetType === 'Pod' || targetType === 'Deployment' || targetType === 'StatefulSet' || targetType === 'ReplicaSet') {
     return null;
   }
-  if (sourceServiceType === 'LoadBalancer') {
+  if (sourceServiceType === 'LoadBalancer' || sourceServiceType === 'NodePort') {
     if (targetType === 'Ingress') return null;
     if (targetType === 'Service') return checkLoadBalancerTargetService(targetData);
+  }
+  if (targetType === 'Ingress') {
+    return `${sourceServiceType} Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
   }
   return null;
 };
