@@ -1850,4 +1850,204 @@ describe('nodeActions', () => {
     expect(finalSs?.data.serviceName).toBe('new-headless-name');
   });
 
+  it('updates Service selector from updatedIngressTargets when selector does not match renamed label directly', () => {
+    const ing = {
+      id: 'ing-target',
+      type: 'Ingress',
+      position: { x: 0, y: 0 },
+      data: { label: 'ingress-alpha' },
+    };
+    const svc = {
+      id: 'svc-lb',
+      type: 'Service',
+      position: { x: 200, y: 0 },
+      data: {
+        label: 'lb-service',
+        serviceType: 'LoadBalancer',
+        selector: 'other-app',
+        ingressTargets: ['ingress-alpha'],
+      },
+    };
+    const edge = {
+      id: 'e-svc-ing',
+      source: 'svc-lb',
+      target: 'ing-target',
+      type: 'custom',
+    };
+
+    useFlowStore.setState({
+      nodes: [ing, svc] as any,
+      edges: [edge] as any,
+    });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(ing.id, { label: 'ingress-beta' });
+
+    const updatedSvc = useFlowStore.getState().nodes.find((n) => n.id === svc.id);
+    expect(updatedSvc?.data.ingressTargets).toEqual(['ingress-beta']);
+    expect(updatedSvc?.data.selector).toBe('ingress-beta');
+  });
+
+  it('updates Service selector when child pod of parent Deployment is connected via edge', () => {
+    const dep = {
+      id: 'dep-parent',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'dep-workload', replicas: 1 },
+    };
+    const childPod = {
+      id: 'child-pod-1',
+      type: 'Pod',
+      parentId: 'dep-parent',
+      position: { x: 20, y: 20 },
+      data: { label: 'dep-workload-abc12' },
+    };
+    const svc = {
+      id: 'svc-to-pod',
+      type: 'Service',
+      position: { x: 200, y: 0 },
+      data: { label: 'my-service', selector: 'dep-workload' },
+    };
+    // Edge connects service to child pod instead of parent directly
+    const edge = {
+      id: 'e-svc-child',
+      source: 'svc-to-pod',
+      target: 'child-pod-1',
+      type: 'custom',
+    };
+
+    useFlowStore.setState({
+      nodes: [dep, childPod, svc] as any,
+      edges: [edge] as any,
+    });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(dep.id, { label: 'dep-renamed' });
+
+    const updatedSvc = useFlowStore.getState().nodes.find((n) => n.id === svc.id);
+    expect(updatedSvc?.data.selector).toBe('dep-renamed');
+  });
+
+  it('clears StatefulSet serviceName when the referenced Headless Service is deleted', () => {
+    const ss = {
+      id: 'ss-del-test',
+      type: 'StatefulSet',
+      position: { x: 0, y: 0 },
+      data: { label: 'my-stateful', serviceName: 'my-headless-svc' },
+    };
+    const svc = {
+      id: 'svc-del-test',
+      type: 'Service',
+      position: { x: 200, y: 0 },
+      data: { label: 'my-headless-svc', serviceType: 'Headless' },
+    };
+    useFlowStore.setState({ nodes: [ss, svc] as any, edges: [] });
+
+    const { deleteNodes } = useFlowStore.getState();
+    deleteNodes([svc as any]);
+
+    const updatedSs = useFlowStore.getState().nodes.find((n) => n.id === ss.id);
+    expect(updatedSs?.data.serviceName).toBe('');
+  });
+
+  it('correctly trims hash and replicaSuffix from child pod label during parent sync', () => {
+    const dep = {
+      id: 'dep-trim-parent-1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'web-app', replicas: 1 },
+    };
+    const childPod = {
+      id: 'child-pod-hash-suf',
+      type: 'Pod',
+      parentId: 'dep-trim-parent-1',
+      position: { x: 10, y: 10 },
+      data: { label: 'web-app-abc12-pod1', podHash: 'abc12', replicaSuffix: 'pod1' },
+    };
+    useFlowStore.setState({ nodes: [dep, childPod] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(childPod.id, { label: 'new-name-abc12-pod1' });
+    const updatedDep = useFlowStore.getState().nodes.find((n) => n.id === dep.id);
+    expect(updatedDep?.data.label).toBe('new-name');
+  });
+
+  it('correctly trims hash only from child pod label without replicaSuffix during parent sync', () => {
+    const dep = {
+      id: 'dep-trim-parent-2',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'web-app', replicas: 1 },
+    };
+    const childPod = {
+      id: 'child-pod-hash-only',
+      type: 'Pod',
+      parentId: 'dep-trim-parent-2',
+      position: { x: 20, y: 20 },
+      data: { label: 'web-app-abc12', podHash: 'abc12' },
+    };
+    useFlowStore.setState({ nodes: [dep, childPod] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(childPod.id, { label: 'other-name-abc12' });
+    const updatedDep = useFlowStore.getState().nodes.find((n) => n.id === dep.id);
+    expect(updatedDep?.data.label).toBe('other-name');
+  });
+
+  it('propagates workload port changes to connected Services matching selector or edge', () => {
+    const dep: Node = {
+      id: 'dep-port-parent',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'port-app', workloadType: 'Deployment', replicas: 1, port: 80 },
+    };
+    const childPod: Node = {
+      id: 'pod-port-child',
+      type: 'Pod',
+      parentId: 'dep-port-parent',
+      position: { x: 10, y: 10 },
+      data: { label: 'port-app-abc12-x', port: 80 },
+    };
+    const matchingSvcBySelector: Node = {
+      id: 'svc-by-sel',
+      type: 'Service',
+      position: { x: 200, y: 0 },
+      data: { label: 'svc-sel', selector: 'port-app', targetPort: 80 },
+    };
+    const matchingSvcByEdge: Node = {
+      id: 'svc-by-edge',
+      type: 'Service',
+      position: { x: 300, y: 0 },
+      data: { label: 'svc-edge', selector: 'different-selector', targetPort: 80 },
+    };
+    const unrelatedSvc: Node = {
+      id: 'svc-unrelated',
+      type: 'Service',
+      position: { x: 400, y: 0 },
+      data: { label: 'svc-unrelated', selector: 'unrelated', targetPort: 80 },
+    };
+    const edgeToParent: Edge = {
+      id: 'e-svc-to-dep',
+      source: 'svc-by-edge',
+      target: 'dep-port-parent',
+    };
+
+    useFlowStore.setState({
+      nodes: [dep, childPod, matchingSvcBySelector, matchingSvcByEdge, unrelatedSvc] as any,
+      edges: [edgeToParent],
+    });
+
+    const { updateNodeData } = useFlowStore.getState();
+    // Updating child pod port should propagate to services matching parent selector or edge
+    updateNodeData('pod-port-child', { port: 9090 });
+
+    const nodes = useFlowStore.getState().nodes;
+    const updatedSvcSel = nodes.find((n) => n.id === 'svc-by-sel');
+    const updatedSvcEdge = nodes.find((n) => n.id === 'svc-by-edge');
+    const updatedUnrelated = nodes.find((n) => n.id === 'svc-unrelated');
+
+    expect(updatedSvcSel?.data.targetPort).toBe(9090);
+    expect(updatedSvcEdge?.data.targetPort).toBe(9090);
+    expect(updatedUnrelated?.data.targetPort).toBe(80);
+  });
 });

@@ -4,7 +4,7 @@ import { useAttachedResourceSettings } from '@/activities/config/useAttachedReso
 import { useFlowStore } from '@/store';
 
 describe('useAttachedResourceSettings', () => {
-  it('manages attached items state, edit, add, save, and delete actions', () => {
+  it('manages attached items state, edit, add, save, and delete actions for non-configMap resources', () => {
     useFlowStore.setState({
       colorMode: 'dark',
       updateNodeData: (id, updates) => {
@@ -18,7 +18,7 @@ describe('useAttachedResourceSettings', () => {
           id: 'node-1',
           data: {
             label: 'Test Node',
-            configMaps: [{ id: 'cm-1', name: 'my-config' }],
+            secrets: [{ id: 'sec-1', name: 'my-secret' }],
           },
         },
       ],
@@ -27,7 +27,7 @@ describe('useAttachedResourceSettings', () => {
     const data = useFlowStore.getState().nodes[0].data;
 
     const { result } = renderHook(() =>
-      useAttachedResourceSettings(data, 'node-1', 'configMaps', 'ConfigMap')
+      useAttachedResourceSettings(data, 'node-1', 'secrets', 'Secret')
     );
 
     expect(result.current.colorMode).toBe('dark');
@@ -35,9 +35,9 @@ describe('useAttachedResourceSettings', () => {
     expect(result.current.targetNodeLabel).toBe('Test Node');
 
     act(() => {
-      result.current.handleOpenEdit({ id: 'cm-1', name: 'my-config' });
+      result.current.handleOpenEdit({ id: 'sec-1', name: 'my-secret' });
     });
-    expect(result.current.editingItem).toEqual({ id: 'cm-1', name: 'my-config' });
+    expect(result.current.editingItem).toEqual({ id: 'sec-1', name: 'my-secret' });
     expect(result.current.isEditModalOpen).toBe(true);
 
     act(() => {
@@ -46,14 +46,60 @@ describe('useAttachedResourceSettings', () => {
     expect(result.current.editingItem).toBeNull();
     expect(result.current.isEditModalOpen).toBe(true);
 
+    // 1. Add new item (existingIndex < 0)
     act(() => {
-      result.current.handleSaveItem({ id: 'cm-2', name: 'new-config' });
+      result.current.handleSaveItem({ id: 'sec-2', name: 'new-secret' });
+    });
+    expect(result.current.isEditModalOpen).toBe(false);
+
+    // 2. Update existing item (existingIndex >= 0)
+    act(() => {
+      result.current.handleSaveItem({ id: 'sec-1', name: 'updated-secret' });
     });
     expect(result.current.isEditModalOpen).toBe(false);
 
     act(() => {
-      result.current.handleDeleteItem('cm-1', 'my-config');
+      result.current.handleDeleteItem('sec-1', 'my-secret');
     });
+  });
+
+  it('saves attached ConfigMap when resourceName includes this node', () => {
+    useFlowStore.setState({
+      colorMode: 'light',
+      updateNodeData: (id, updates) => {
+        const storeNodes = useFlowStore.getState().nodes;
+        useFlowStore.setState({
+          nodes: storeNodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...updates } } : n)),
+        });
+      },
+      addLog: () => {},
+      nodes: [
+        {
+          id: 'node-cm',
+          data: {
+            label: 'CM Node',
+            configMaps: [{ id: 'cm-1', name: 'my-cm', resourceName: 'CM Node' }],
+          },
+        },
+      ],
+    });
+
+    const data = useFlowStore.getState().nodes[0].data;
+    const { result } = renderHook(() =>
+      useAttachedResourceSettings(data, 'node-cm', 'configMaps', 'ConfigMap')
+    );
+
+    act(() => {
+      result.current.handleSaveItem({
+        id: 'cm-1',
+        name: 'my-cm-updated',
+        resourceName: 'CM Node',
+      } as any);
+    });
+
+    expect(result.current.isEditModalOpen).toBe(false);
+    const updatedNode = useFlowStore.getState().nodes.find((n) => n.id === 'node-cm');
+    expect(updatedNode?.data.configMaps?.[0].name).toBe('my-cm-updated');
   });
 
   it('removes ConfigMap from node when resourceName does not include this node', () => {

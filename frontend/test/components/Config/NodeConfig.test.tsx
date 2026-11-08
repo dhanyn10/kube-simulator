@@ -84,6 +84,43 @@ describe('NodeConfig', () => {
     });
   });
 
+  it('handles buffering hyphenated typing and commits on blur or Enter', () => {
+    const serviceNode = { id: 'svc-buffer', type: 'Service', data: { label: 'my-service' } };
+    render(<NodeConfig selectedNode={serviceNode} />);
+
+    const input = screen.getByPlaceholderText('node-name') as HTMLInputElement;
+
+    // 1. Typing trailing hyphen should NOT call updateNodeData prematurely
+    mockUpdateNodeData.mockClear();
+    fireEvent.change(input, { target: { value: 'my-service-' } });
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
+
+    // 2. On blur with trailing hyphen matching existing label
+    fireEvent.blur(input);
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
+
+    // 3. Changing to new name with trailing hyphen then blurring commits sanitized slug
+    fireEvent.change(input, { target: { value: 'new-api-' } });
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
+    fireEvent.blur(input);
+    expect(mockUpdateNodeData).toHaveBeenCalledWith('svc-buffer', { label: 'new-api' });
+
+    // 4. Blurring with empty string reverts to original value
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('my-service');
+
+    // 5. Pressing Enter key triggers blur
+    const blurSpy = vi.spyOn(input, 'blur');
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(blurSpy).toHaveBeenCalled();
+
+    // 6. Pressing non-Enter key does not blur
+    blurSpy.mockClear();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(blurSpy).not.toHaveBeenCalled();
+  });
+
   it('renders Randomize Pod Hash button for Pod nodes and renders read-only suffix input', () => {
     const podNode = { id: 'p1', type: 'Pod', data: { label: 'nginx-x8k2p', podHash: 'x8k2p' } };
     render(<NodeConfig selectedNode={podNode} />);

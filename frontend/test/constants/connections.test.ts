@@ -228,6 +228,9 @@ describe('connections constants', () => {
     expect(getConnectionError('Service', 'Ingress', {})).toBe(
       'ClusterIP Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.'
     );
+    expect(getConnectionError('Service', 'Ingress', { serviceType: 'Headless' })).toBe(
+      'Headless Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.'
+    );
 
     // 3. checkLoadBalancerTargetService fallback targetData?.serviceType || 'ClusterIP'
     expect(

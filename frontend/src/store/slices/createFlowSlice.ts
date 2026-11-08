@@ -522,37 +522,33 @@ const isValidServiceSelectorTarget = (
   return targetType === 'ingress' && serviceType === 'LoadBalancer';
 };
 
-const buildConnectedServiceData = (
-  currentData: Record<string, any> | undefined,
-  targetNodeInStore: Node | undefined,
-  tgtId: string,
-  targetType: string,
+const buildConnectedServiceIngressData = (
+  data: Record<string, any>,
+  targetLabel: string,
   allNodes: Node[]
 ): Record<string, any> => {
-  const data = currentData || {};
-  const targetLabel =
-    (targetNodeInStore?.data?.label as string) ||
-    (targetNodeInStore?.data?.baseName as string) ||
-    targetNodeInStore?.id ||
-    tgtId;
+  const existingList = Array.isArray(data.ingressTargets) ? (data.ingressTargets as string[]) : [];
+  const currentSel = String(data.selector || '');
+  const isCurrentSelIngress = Boolean(
+    currentSel &&
+    allNodes.some((item) => item.type === 'Ingress' && ((item.data?.label as string) || item.id) === currentSel)
+  );
+  const fallbackTargets = isCurrentSelIngress ? [currentSel] : [];
+  const baseTargets = existingList.length > 0 ? existingList : fallbackTargets;
+  const nextTargets = baseTargets.includes(targetLabel) ? baseTargets : [...baseTargets, targetLabel];
+  return {
+    ...data,
+    selector: nextTargets[0] || targetLabel,
+    ingressTargets: nextTargets,
+  };
+};
 
-  if (targetType === 'ingress') {
-    const existingList = Array.isArray(data.ingressTargets) ? (data.ingressTargets as string[]) : [];
-    const currentSel = String(data.selector || '');
-    const isCurrentSelIngress = Boolean(
-      currentSel &&
-      allNodes.some((item) => item.type === 'Ingress' && ((item.data?.label as string) || item.id) === currentSel)
-    );
-    const fallbackTargets = isCurrentSelIngress ? [currentSel] : [];
-    const baseTargets = existingList.length > 0 ? existingList : fallbackTargets;
-    const nextTargets = baseTargets.includes(targetLabel) ? baseTargets : [...baseTargets, targetLabel];
-    return {
-      ...data,
-      selector: nextTargets[0] || targetLabel,
-      ingressTargets: nextTargets,
-    };
-  }
-
+const buildConnectedServiceWorkloadData = (
+  data: Record<string, any>,
+  targetNodeInStore: Node | undefined,
+  targetLabel: string,
+  targetType: string
+): Record<string, any> => {
   const workloadPort = Number(targetNodeInStore?.data?.port);
   const isStateful =
     targetType === 'statefulset' ||
@@ -569,49 +565,111 @@ const buildConnectedServiceData = (
   };
 };
 
-const updateConnectedNodeState = (
-  n: Node,
+const buildConnectedServiceData = (
+  currentData: Record<string, any> | undefined,
+  targetNodeInStore: Node | undefined,
+  tgtId: string,
+  targetType: string,
+  allNodes: Node[]
+): Record<string, any> => {
+  const data = currentData || {};
+  const targetLabel =
+    (targetNodeInStore?.data?.label as string) ||
+    (targetNodeInStore?.data?.baseName as string) ||
+    targetNodeInStore?.id ||
+    tgtId;
+
+  if (targetType === 'ingress') {
+    return buildConnectedServiceIngressData(data, targetLabel, allNodes);
+  }
+  return buildConnectedServiceWorkloadData(data, targetNodeInStore, targetLabel, targetType);
+};
+
+const shouldApplyTargetServiceSelector = (
+  serviceData: Record<string, any> | undefined,
+  sourceNode?: Node,
+  srcId?: string
+): boolean => {
+  const currentSelector = String(serviceData?.selector || '').trim();
+  if (!currentSelector) return true;
+
+  const sourceLabel = String(
+    sourceNode?.data?.label ||
+    sourceNode?.data?.baseName ||
+    sourceNode?.id ||
+    srcId ||
+    ''
+  ).trim();
+
+  return currentSelector === sourceLabel;
+};
+
+const syncConnectedPvcNode = (
+  node: Node,
+  syncedNodesList: Node[],
+  edgesList: Edge[]
+): Node => {
+  if (node.type !== 'PVC') return node;
+  const realTimeStatus = evaluatePvcRealtimeStatus(node, syncedNodesList, edgesList);
+  if (node.data?.pvcStatus === realTimeStatus) return node;
+  return { ...node, data: { ...node.data, pvcStatus: realTimeStatus } };
+};
+
+const syncConnectedSourceNode = (
+  updated: Node,
   ctx: ConnectedNodeSyncContext
 ): Node => {
-  const { syncedNodesList, edgesList, srcId, tgtId, srcNode, tgtNode } = ctx;
-  let updated = n;
+  const { syncedNodesList, tgtId, srcNode, tgtNode } = ctx;
+  const sType = String(updated.type || updated.data?.type || srcNode?.type || '').toLowerCase();
+  const targetNodeInStore = syncedNodesList.find((item) => item.id === tgtId);
+  const tType = String(targetNodeInStore?.type || targetNodeInStore?.data?.type || tgtNode?.type || '').toLowerCase();
 
-  if (updated.type === 'PVC') {
-    const realTimeStatus = evaluatePvcRealtimeStatus(updated, syncedNodesList, edgesList);
-    if (updated.data?.pvcStatus !== realTimeStatus) {
-      updated = { ...updated, data: { ...updated.data, pvcStatus: realTimeStatus } };
-    }
+  if (sType === 'ingress' && tType === 'service') {
+    return {
+      ...updated,
+      data: buildConnectedIngressData(updated.data, targetNodeInStore, tgtId),
+    };
   }
+  if (sType === 'service' && isValidServiceSelectorTarget(updated.data, tType)) {
+    return {
+      ...updated,
+      data: buildConnectedServiceData(updated.data, targetNodeInStore, tgtId, tType, syncedNodesList),
+    };
+  }
+  return updated;
+};
 
-  if (updated.id === srcId) {
-    const sType = String(updated.type || updated.data?.type || srcNode?.type || '').toLowerCase();
-    const targetNodeInStore = syncedNodesList.find((item) => item.id === tgtId);
-    const tType = String(targetNodeInStore?.type || targetNodeInStore?.data?.type || tgtNode?.type || '').toLowerCase();
+const syncConnectedTargetNode = (
+  updated: Node,
+  ctx: ConnectedNodeSyncContext
+): Node => {
+  const { syncedNodesList, srcId, srcNode, tgtNode } = ctx;
+  const tType = String(updated.type || updated.data?.type || tgtNode?.type || '').toLowerCase();
+  const sourceNodeInStore = syncedNodesList.find((item) => item.id === srcId);
+  const sType = String(sourceNodeInStore?.type || sourceNodeInStore?.data?.type || srcNode?.type || '').toLowerCase();
 
-    if (sType === 'ingress' && tType === 'service') {
-      updated = {
-        ...updated,
-        data: buildConnectedIngressData(updated.data, targetNodeInStore, tgtId),
-      };
-    } else if (sType === 'service' && isValidServiceSelectorTarget(updated.data, tType)) {
-      updated = {
-        ...updated,
-        data: buildConnectedServiceData(updated.data, targetNodeInStore, tgtId, tType, syncedNodesList),
-      };
-    }
-  } else if (updated.id === tgtId) {
-    const tType = String(updated.type || updated.data?.type || tgtNode?.type || '').toLowerCase();
-    const sourceNodeInStore = syncedNodesList.find((item) => item.id === srcId);
-    const sType = String(sourceNodeInStore?.type || sourceNodeInStore?.data?.type || srcNode?.type || '').toLowerCase();
-
-    if (tType === 'service' && isValidServiceSelectorTarget(updated.data, sType)) {
-      updated = {
+  if (tType === 'service' && isValidServiceSelectorTarget(updated.data, sType)) {
+    if (shouldApplyTargetServiceSelector(updated.data, sourceNodeInStore, srcId)) {
+      return {
         ...updated,
         data: buildConnectedServiceData(updated.data, sourceNodeInStore, srcId, sType, syncedNodesList),
       };
     }
   }
+  return updated;
+};
 
+const updateConnectedNodeState = (
+  n: Node,
+  ctx: ConnectedNodeSyncContext
+): Node => {
+  const updated = syncConnectedPvcNode(n, ctx.syncedNodesList, ctx.edgesList);
+  if (updated.id === ctx.srcId) {
+    return syncConnectedSourceNode(updated, ctx);
+  }
+  if (updated.id === ctx.tgtId) {
+    return syncConnectedTargetNode(updated, ctx);
+  }
   return updated;
 };
 
@@ -676,6 +734,54 @@ export const checkPvcTopologyError = (
   );
 
   return checkPvcTemplateTopologyConflict(pvcNode, workloadNode, existingWorkloads);
+};
+
+const resolveConnectionHandles = (
+  connection: Connection,
+  sourceNode?: Node,
+  targetNode?: Node,
+  nodes: Node[] = []
+): { sourceHandle?: string | null; targetHandle?: string | null } => {
+  if (connection.sourceHandle && connection.targetHandle) {
+    return { sourceHandle: connection.sourceHandle, targetHandle: connection.targetHandle };
+  }
+  const defaultHandles = resolveEdgeHandlesByPosition(sourceNode, targetNode, nodes);
+  return {
+    sourceHandle: connection.sourceHandle || defaultHandles.sourceHandle,
+    targetHandle: connection.targetHandle || defaultHandles.targetHandle,
+  };
+};
+
+const applyConnectedNodesSync = (
+  state: FlowState,
+  newEdge: Edge,
+  sourceId: string,
+  targetId: string,
+  sourceNode?: Node,
+  targetNode?: Node
+): { nextEdges: Edge[]; nextNodes: Node[] } => {
+  let nextEdges = addEdge(newEdge, state.edges);
+  let nextNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
+
+  nextNodes = nextNodes.map((n) =>
+    updateConnectedNodeState(n, {
+      syncedNodesList: nextNodes,
+      edgesList: nextEdges,
+      srcId: sourceId,
+      tgtId: targetId,
+      srcNode: sourceNode,
+      tgtNode: targetNode,
+    })
+  );
+
+  const hasPvc = sourceNode?.type === 'PVC' || targetNode?.type === 'PVC' || nextNodes.some((n) => n.type === 'PVC');
+  if (hasPvc) {
+    const pvcSynced = syncPvcRealtimeState(nextNodes, nextEdges);
+    nextNodes = pvcSynced.nodes;
+    nextEdges = pvcSynced.edges;
+  }
+
+  return { nextEdges, nextNodes };
 };
 
 export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set, get) => ({
@@ -778,13 +884,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       nodes
     );
 
-    let sourceHandle = connection.sourceHandle;
-    let targetHandle = connection.targetHandle;
-    if (!sourceHandle || !targetHandle) {
-      const defaultHandles = resolveEdgeHandlesByPosition(sourceNode, targetNode, nodes);
-      sourceHandle = sourceHandle || defaultHandles.sourceHandle;
-      targetHandle = targetHandle || defaultHandles.targetHandle;
-    }
+    const { sourceHandle, targetHandle } = resolveConnectionHandles(connection, sourceNode, targetNode, nodes);
 
     if (!checkHpaPrerequisite(sourceNode, targetNode, nodes, get().edges, addLog)) {
       return;
@@ -809,29 +909,18 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       if (state.edges.some((e) => e.source === sourceId && e.target === targetId)) return state;
 
       isAdded = true;
-      let nextEdges = addEdge(newEdge, state.edges);
-      let syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
-
-      syncedNodes = syncedNodes.map((n) =>
-        updateConnectedNodeState(n, {
-          syncedNodesList: syncedNodes,
-          edgesList: nextEdges,
-          srcId: sourceId,
-          tgtId: targetId,
-          srcNode: sourceNode,
-          tgtNode: targetNode,
-        })
+      const { nextEdges, nextNodes } = applyConnectedNodesSync(
+        state,
+        newEdge,
+        sourceId,
+        targetId,
+        sourceNode,
+        targetNode
       );
-
-      if (sourceNode?.type === 'PVC' || targetNode?.type === 'PVC' || syncedNodes.some((n) => n.type === 'PVC')) {
-        const pvcSynced = syncPvcRealtimeState(syncedNodes, nextEdges);
-        syncedNodes = pvcSynced.nodes;
-        nextEdges = pvcSynced.edges;
-      }
 
       return {
         edges: nextEdges,
-        nodes: syncedNodes,
+        nodes: nextNodes,
         lastActionId: `connect-${Date.now()}`,
         lastActionName: 'Connect Nodes',
       };
