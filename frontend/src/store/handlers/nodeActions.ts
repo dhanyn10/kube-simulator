@@ -483,14 +483,18 @@ const invalidateServiceReference = (n: Node, oldLabel: string): Node => {
     ? rawIngressTargets.filter((item) => item !== oldLabel)
     : undefined;
 
+  const nextTargets = remainingIngressTargets && remainingIngressTargets.length > 0
+    ? remainingIngressTargets
+    : undefined;
+
+  const nextSelector = nextTargets ? nextTargets[0] : '';
+
   return {
     ...n,
     data: {
       ...n.data,
-      selector: remainingIngressTargets && remainingIngressTargets.length > 0 ? remainingIngressTargets[0] : '',
-      ...(hasIngressMatch
-        ? { ingressTargets: remainingIngressTargets && remainingIngressTargets.length > 0 ? remainingIngressTargets : undefined }
-        : {}),
+      selector: nextSelector,
+      ...(hasIngressMatch ? { ingressTargets: nextTargets } : {}),
     },
   };
 };
@@ -536,11 +540,18 @@ const renameServiceReference = (n: Node, oldLabel: string, newLabel: string): No
     ? rawIngressTargets.map((item) => (item === oldLabel ? newLabel : item))
     : undefined;
 
+  let nextSelector = (n.data?.selector as string) || '';
+  if (hasSelectorMatch) {
+    nextSelector = newLabel;
+  } else if (updatedIngressTargets && updatedIngressTargets.length > 0) {
+    nextSelector = updatedIngressTargets[0];
+  }
+
   return {
     ...n,
     data: {
       ...n.data,
-      selector: hasSelectorMatch ? newLabel : (updatedIngressTargets && updatedIngressTargets.length > 0 ? updatedIngressTargets[0] : (n.data?.selector || '')),
+      selector: nextSelector,
       ...(hasIngressMatch ? { ingressTargets: updatedIngressTargets } : {}),
     },
   };
