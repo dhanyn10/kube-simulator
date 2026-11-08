@@ -10,7 +10,6 @@ export const ResourceLimitNode = memo((props: NodeProps) => {
     data,
     colorMode,
     hasWorkload,
-    isValidConnection,
     isCpuInvalid,
     isMemoryInvalid,
     hasResourceError,

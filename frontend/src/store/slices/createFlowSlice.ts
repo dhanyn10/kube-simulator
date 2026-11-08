@@ -11,9 +11,9 @@ import {
   addEdge,
 } from '@xyflow/react';
 import type { FlowState } from '@/store/types';
-import { getConnectionError, checkPvcTemplateTopologyConflict, getNodeConnectionGuidance } from '@/constants/connections';
+import { getConnectionError, checkPvcTemplateTopologyConflict } from '@/constants/connections';
 import { resolveNodeNamespace } from '@/lib/namespaceUtils';
-import { getAbsPos, ejectLoadBalancersFromNamespaces } from '@/store/helpers';
+import { ejectLoadBalancersFromNamespaces } from '@/store/helpers';
 import { safeRandom } from '@/lib/utils';
 import {
   emitLiveEdgeCreatedCommand,
@@ -24,9 +24,6 @@ import { hasResourceLimitAttachedOrConnected } from '@/activities/nodes/resource
 import { evaluatePvcRealtimeStatus, syncPvcRealtimeState } from '@/activities/config/pvcConfigHelpers';
 import { syncDeployment, syncContainerSize, isChildPodOf } from '@/store/nodeHelpers';
 import {
-  getNodeAbsCenter,
-  isNodeInDirection,
-  getQuickConnectHandles,
   resolveEdgeHandlesByPosition,
   findBestCandidateInDirection,
   QuickConnectDirection,
