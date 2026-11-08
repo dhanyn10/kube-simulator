@@ -104,8 +104,15 @@ const isServiceEdgeMatching = (
   currentSelector: string,
   allNodes: Node[]
 ): boolean => {
-  if (edge.source !== serviceNodeId) return false;
-  const target = allNodes.find((n) => n.id === edge.target);
+  let targetId: string | undefined;
+  if (edge.source === serviceNodeId) {
+    targetId = edge.target;
+  } else if (edge.target === serviceNodeId) {
+    targetId = edge.source;
+  } else {
+    return false;
+  }
+  const target = allNodes.find((n) => n.id === targetId);
   if (!target) return false;
   const tLabel = (target.data?.label as string) || (target.data?.baseName as string) || target.id;
   return tLabel === currentSelector;
@@ -590,6 +597,17 @@ const updateConnectedNodeState = (
       updated = {
         ...updated,
         data: buildConnectedServiceData(updated.data, targetNodeInStore, tgtId, tType, syncedNodesList),
+      };
+    }
+  } else if (updated.id === tgtId) {
+    const tType = String(updated.type || updated.data?.type || tgtNode?.type || '').toLowerCase();
+    const sourceNodeInStore = syncedNodesList.find((item) => item.id === srcId);
+    const sType = String(sourceNodeInStore?.type || sourceNodeInStore?.data?.type || srcNode?.type || '').toLowerCase();
+
+    if (tType === 'service' && isValidServiceSelectorTarget(updated.data, sType)) {
+      updated = {
+        ...updated,
+        data: buildConnectedServiceData(updated.data, sourceNodeInStore, srcId, sType, syncedNodesList),
       };
     }
   }

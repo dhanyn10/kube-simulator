@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useFlowStore } from '@/store';
 import { cn, sanitizeSlug } from '@/lib/utils';
 import { Type, Terminal, Shuffle } from 'lucide-react';
@@ -18,6 +19,69 @@ import { SecretSettingsSection } from './SecretSettingsSection';
 import { HPASettingsSection } from './HPASettingsSection';
 import { ResourceLimitSettingsSection } from './ResourceLimitSettingsSection';
 import { useNodeConfigHandler } from '@/activities/config';
+
+interface NodeNameInputProps {
+  nodeId: string;
+  value: string;
+  placeholder: string;
+  className?: string;
+  colorMode: string;
+  onUpdate: (val: string) => void;
+}
+
+export const NodeNameInput = ({
+  nodeId,
+  value,
+  placeholder,
+  className = 'font-mono flex-1 min-w-0',
+  colorMode,
+  onUpdate,
+}: NodeNameInputProps) => {
+  const [localVal, setLocalVal] = useState(value || '');
+
+  useEffect(() => {
+    setLocalVal(value || '');
+  }, [nodeId, value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setLocalVal(raw);
+
+    const clean = sanitizeSlug(raw);
+    if (clean && !raw.endsWith('-') && !raw.endsWith(' ') && clean !== value) {
+      onUpdate(clean);
+    }
+  };
+
+  const handleBlur = () => {
+    const clean = sanitizeSlug(localVal);
+    if (clean && clean !== value) {
+      onUpdate(clean);
+      setLocalVal(clean);
+    } else {
+      setLocalVal(value || '');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <ConfigInput
+      value={localVal}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      placeholder={placeholder}
+      maxLength={63}
+      colorMode={colorMode}
+      className={className}
+    />
+  );
+};
 
 interface NodeConfigProps {
   selectedNode: any;
@@ -85,13 +149,13 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
             <ConfigLabel>
               <Type size={10} /> Name (Base)
             </ConfigLabel>
-            <ConfigInput
+            <NodeNameInput
+              nodeId={selectedNode.id}
               value={podBaseName}
-              onChange={(e: any) => updatePodBaseName(e.target.value)}
               placeholder="pod-name"
-              maxLength={63}
               colorMode={colorMode}
               className="font-mono w-full"
+              onUpdate={updatePodBaseName}
             />
           </div>
 
@@ -131,16 +195,13 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
             <Type size={10} /> Name
           </ConfigLabel>
           <div className="flex items-center gap-1.5">
-            <ConfigInput
+            <NodeNameInput
+              nodeId={selectedNode.id}
               value={data.label || ''}
-              onChange={(e: any) => updateNodeData(selectedNode.id, {
-                label: sanitizeSlug(e.target.value)
-
-              })}
               placeholder="node-name"
-              maxLength={63}
               colorMode={colorMode}
               className="font-mono flex-1 min-w-0"
+              onUpdate={(newLabel) => updateNodeData(selectedNode.id, { label: newLabel })}
             />
           </div>
         </div>
