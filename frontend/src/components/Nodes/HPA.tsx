@@ -41,7 +41,13 @@ export const HPANode = memo((props: NodeProps) => {
     : 'bg-emerald-500';
 
   return (
-    <SimpleResourceNode {...props} title="HPA" icon={Activity} color="fuchsia">
+    <SimpleResourceNode
+      {...props}
+      title="HPA"
+      icon={Activity}
+      color="fuchsia"
+      hideDefaultHandles
+    >
       {showWarning && (
         <div className="absolute -top-10 left-0 right-0 animate-bounce flex justify-center z-[1]">
           <div className="bg-amber-500 text-white text-[8px] font-bold px-2 py-1 rounded shadow-lg flex items-center gap-1 whitespace-nowrap">
@@ -103,6 +109,7 @@ export const HPANode = memo((props: NodeProps) => {
         type="source"
         position={Position.Bottom}
         id="bottom-s"
+        style={{ left: '50%', bottom: 0, transform: 'translate(-50%, 50%)' }}
         className={cn('!bg-fuchsia-500 !w-2 !h-2', !hasWorkload && 'opacity-20 pointer-events-none')}
         isValidConnection={isValidConnection}
       />
@@ -110,6 +117,7 @@ export const HPANode = memo((props: NodeProps) => {
         type="source"
         position={Position.Right}
         id="right-s"
+        style={{ top: '50%', right: 0, transform: 'translate(50%, -50%)' }}
         className={cn('!bg-fuchsia-500 !w-2 !h-2', !hasWorkload && 'opacity-20 pointer-events-none')}
         isValidConnection={isValidConnection}
       />

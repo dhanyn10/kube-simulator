@@ -1804,4 +1804,50 @@ describe('nodeActions', () => {
     expect(afterDeleteLb.data.selector).toBe('ing-two');
   });
 
+  it('updates connected Headless Service selector when StatefulSet is renamed', () => {
+    const ss = {
+      id: 'ss-main',
+      type: 'StatefulSet',
+      position: { x: 0, y: 0 },
+      data: { label: 'statefulset-db', workloadType: 'StatefulSet', replicas: 1, serviceName: 'db-headless-svc' },
+    };
+    const svc = {
+      id: 'svc-headless',
+      type: 'Service',
+      position: { x: 200, y: 0 },
+      data: { label: 'db-headless-svc', serviceType: 'Headless', selector: 'statefulset-db' },
+    };
+    const edge = {
+      id: 'e-ss-svc',
+      source: 'svc-headless',
+      target: 'ss-main',
+      type: 'custom',
+    };
+
+    useFlowStore.setState({
+      nodes: [ss, svc] as any,
+      edges: [edge] as any,
+    });
+
+    const { updateNodeData } = useFlowStore.getState();
+
+    // 1. Rename StatefulSet
+    updateNodeData(ss.id, { label: 'custom-db-cluster' });
+
+    const stateAfterRename = useFlowStore.getState();
+    const updatedSs = stateAfterRename.nodes.find((n) => n.id === ss.id);
+    const updatedSvc = stateAfterRename.nodes.find((n) => n.id === svc.id);
+
+    expect(updatedSs?.data.label).toBe('custom-db-cluster');
+    // Selector should be seamlessly updated to the new StatefulSet label, NOT cleared
+    expect(updatedSvc?.data.selector).toBe('custom-db-cluster');
+
+    // 2. Rename Headless Service
+    updateNodeData(svc.id, { label: 'new-headless-name' });
+
+    const stateAfterSvcRename = useFlowStore.getState();
+    const finalSs = stateAfterSvcRename.nodes.find((n) => n.id === ss.id);
+    expect(finalSs?.data.serviceName).toBe('new-headless-name');
+  });
+
 });

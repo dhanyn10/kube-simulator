@@ -483,14 +483,18 @@ const invalidateServiceReference = (n: Node, oldLabel: string): Node => {
     ? rawIngressTargets.filter((item) => item !== oldLabel)
     : undefined;
 
+  const nextTargets = remainingIngressTargets && remainingIngressTargets.length > 0
+    ? remainingIngressTargets
+    : undefined;
+
+  const nextSelector = nextTargets ? nextTargets[0] : '';
+
   return {
     ...n,
     data: {
       ...n.data,
-      selector: remainingIngressTargets && remainingIngressTargets.length > 0 ? remainingIngressTargets[0] : '',
-      ...(hasIngressMatch
-        ? { ingressTargets: remainingIngressTargets && remainingIngressTargets.length > 0 ? remainingIngressTargets : undefined }
-        : {}),
+      selector: nextSelector,
+      ...(hasIngressMatch ? { ingressTargets: nextTargets } : {}),
     },
   };
 };
@@ -511,6 +515,112 @@ const invalidateTargetReferences = (oldLabel: string | undefined, nodes: Node[])
     }
     if (n?.type === 'Ingress') {
       return invalidateIngressReference(n, oldLabel);
+    }
+    if (n?.type === 'StatefulSet' && n.data?.serviceName === oldLabel) {
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          serviceName: '',
+        },
+      };
+    }
+    return n;
+  });
+};
+
+const renameServiceReference = (n: Node, oldLabel: string, newLabel: string): Node => {
+  const rawIngressTargets = n.data?.ingressTargets as string[] | undefined;
+  const hasIngressMatch = Array.isArray(rawIngressTargets) && rawIngressTargets.includes(oldLabel);
+  const hasSelectorMatch = n.data?.selector === oldLabel;
+
+  if (!hasIngressMatch && !hasSelectorMatch) return n;
+
+  const updatedIngressTargets = Array.isArray(rawIngressTargets)
+    ? rawIngressTargets.map((item) => (item === oldLabel ? newLabel : item))
+    : undefined;
+
+  let nextSelector = (n.data?.selector as string) || '';
+  if (hasSelectorMatch) {
+    nextSelector = newLabel;
+  } else if (updatedIngressTargets && updatedIngressTargets.length > 0) {
+    nextSelector = updatedIngressTargets[0];
+  }
+
+  return {
+    ...n,
+    data: {
+      ...n.data,
+      selector: nextSelector,
+      ...(hasIngressMatch ? { ingressTargets: updatedIngressTargets } : {}),
+    },
+  };
+};
+
+const renameIngressReference = (n: Node, oldLabel: string, newLabel: string): Node => {
+  const matchesBackend = n.data?.backendServiceName === oldLabel;
+  const rawPaths = n.data?.ingressPaths as any[] | undefined;
+  const matchesPaths = Array.isArray(rawPaths) && rawPaths.some((p) => p?.serviceName === oldLabel);
+
+  if (!matchesBackend && !matchesPaths) return n;
+
+  const updatedPaths = Array.isArray(rawPaths)
+    ? rawPaths.map((p) => (p?.serviceName === oldLabel ? { ...p, serviceName: newLabel } : p))
+    : rawPaths;
+
+  return {
+    ...n,
+    data: {
+      ...n.data,
+      ...(matchesBackend ? { backendServiceName: newLabel } : {}),
+      ...(matchesPaths ? { ingressPaths: updatedPaths } : {}),
+    },
+  };
+};
+
+const isTargetConnected = (nId: string, targetId: string, edges: Edge[], nodes: Node[]): boolean => {
+  const targetAndChildIds = new Set<string>([targetId]);
+  for (const node of nodes) {
+    if (node.parentId === targetId) {
+      targetAndChildIds.add(node.id);
+    }
+  }
+  return edges.some(
+    (e) =>
+      (e.source === nId && targetAndChildIds.has(e.target)) ||
+      (targetAndChildIds.has(e.source) && e.target === nId)
+  );
+};
+
+const reconcileRenamedTargetReferences = (
+  prevLabel: string,
+  newLabel: string,
+  targetId: string,
+  nodes: Node[],
+  edges: Edge[]
+): Node[] => {
+  if (!prevLabel || !newLabel || prevLabel === newLabel) return nodes;
+
+  return nodes.map((n) => {
+    if (n.id === targetId) return n;
+
+    if (n.type === 'Service') {
+      if (isTargetConnected(n.id, targetId, edges, nodes)) {
+        return renameServiceReference(n, prevLabel, newLabel);
+      }
+      return invalidateServiceReference(n, prevLabel);
+    }
+    if (n.type === 'Ingress') {
+      return invalidateIngressReference(n, prevLabel);
+    }
+    if (n.type === 'StatefulSet' && n.data?.serviceName === prevLabel) {
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          serviceName: newLabel,
+        },
+      };
     }
     return n;
   });
@@ -927,7 +1037,7 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
     prevLabel &&
     newLabel !== prevLabel
   ) {
-    nextNodes = invalidateTargetReferences(prevLabel, nextNodes);
+    nextNodes = reconcileRenamedTargetReferences(prevLabel, newLabel, nodeId, nextNodes, get().edges);
   }
 
   nextNodes = propagateWorkloadPortToServices(target, newData, updatedData, nextNodes, get().edges);

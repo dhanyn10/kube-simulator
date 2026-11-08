@@ -70,4 +70,17 @@ describe('QuickConnectArrows', () => {
     const topBtn = screen.getByRole('button', { name: 'Connect Top' });
     expect(topBtn).toBeInTheDocument();
   });
+
+  it('renders standard clean directional titles for accessibility without verbose tooltips', () => {
+    render(<QuickConnectArrows nodeId="node-1" color="rose" />);
+
+    const rightBtn = screen.getByRole('button', { name: 'Connect Right' });
+    expect(rightBtn).toHaveAttribute('title', 'Connect Right');
+
+    const topBtn = screen.getByRole('button', { name: 'Connect Top' });
+    expect(topBtn).toHaveAttribute('title', 'Connect Top');
+
+    fireEvent.click(rightBtn);
+    expect(mockOnQuickConnect).toHaveBeenCalledWith('node-1', 'right');
+  });
 });

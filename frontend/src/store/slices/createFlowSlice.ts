@@ -13,7 +13,7 @@ import {
 import type { FlowState } from '@/store/types';
 import { getConnectionError, checkPvcTemplateTopologyConflict } from '@/constants/connections';
 import { resolveNodeNamespace } from '@/lib/namespaceUtils';
-import { getAbsPos, ejectLoadBalancersFromNamespaces } from '@/store/helpers';
+import { ejectLoadBalancersFromNamespaces } from '@/store/helpers';
 import { safeRandom } from '@/lib/utils';
 import {
   emitLiveEdgeCreatedCommand,
@@ -23,8 +23,13 @@ import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 import { hasResourceLimitAttachedOrConnected } from '@/activities/nodes/resourceLimitHelpers';
 import { evaluatePvcRealtimeStatus, syncPvcRealtimeState } from '@/activities/config/pvcConfigHelpers';
 import { syncDeployment, syncContainerSize, isChildPodOf } from '@/store/nodeHelpers';
+import {
+  resolveEdgeHandlesByPosition,
+  findBestCandidateInDirection,
+  QuickConnectDirection,
+} from '@/activities/nodes/quickConnectHelpers';
 
-export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
+export type { QuickConnectDirection };
 export type LayoutDirection = 'LR' | 'TB';
 
 const NODE_TYPE_TO_RESOURCE: Record<string, string> = {
@@ -99,8 +104,15 @@ const isServiceEdgeMatching = (
   currentSelector: string,
   allNodes: Node[]
 ): boolean => {
-  if (edge.source !== serviceNodeId) return false;
-  const target = allNodes.find((n) => n.id === edge.target);
+  let targetId: string | undefined;
+  if (edge.source === serviceNodeId) {
+    targetId = edge.target;
+  } else if (edge.target === serviceNodeId) {
+    targetId = edge.source;
+  } else {
+    return false;
+  }
+  const target = allNodes.find((n) => n.id === targetId);
   if (!target) return false;
   const tLabel = (target.data?.label as string) || (target.data?.baseName as string) || target.id;
   return tLabel === currentSelector;
@@ -382,45 +394,6 @@ const getGroupDragExtraChanges = (changes: NodeChange[], nodes: Node[]): NodeCha
   return extraChanges;
 };
 
-const getNodeAbsCenter = (node: Node, nodes: Node[]) => {
-  const absPos = getAbsPos(node.id, nodes);
-  return {
-    x: absPos.x + (node.measured?.width || node.width || 150) / 2,
-    y: absPos.y + (node.measured?.height || node.height || 100) / 2,
-  };
-};
-
-const isNodeInDirection = (
-  sourceNode: Node,
-  targetNode: Node,
-  direction: QuickConnectDirection,
-  nodes: Node[]
-): boolean => {
-  if (targetNode.id === sourceNode.id) return false;
-  const sourceNamespace = resolveNodeNamespace(sourceNode, nodes);
-  const targetNamespace = resolveNodeNamespace(targetNode, nodes);
-  if (getConnectionError(sourceNode.type || '', targetNode.type || '', sourceNode.data, targetNode.data, sourceNamespace, targetNamespace) !== null) return false;
-
-  const sourceCenter = getNodeAbsCenter(sourceNode, nodes);
-  const targetCenter = getNodeAbsCenter(targetNode, nodes);
-  const dx = targetCenter.x - sourceCenter.x;
-  const dy = targetCenter.y - sourceCenter.y;
-  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-
-  if (direction === 'right') return angle > -45 && angle <= 45;
-  if (direction === 'bottom') return angle > 45 && angle <= 135;
-  if (direction === 'left') return angle > 135 || angle <= -135;
-  if (direction === 'top') return angle > -135 && angle <= -45;
-  return false;
-};
-
-const getQuickConnectHandles = (direction: QuickConnectDirection) => {
-  if (direction === 'right') return { sourceHandle: 'right-s', targetHandle: 'left-t' };
-  if (direction === 'left') return { sourceHandle: 'left-s', targetHandle: 'right-t' };
-  if (direction === 'top') return { sourceHandle: 'top-s', targetHandle: 'bottom-t' };
-  return { sourceHandle: 'bottom-s', targetHandle: 'top-t' };
-};
-
 const rerouteChildPodConnection = (
   podNode: Node | undefined,
   nodes: Node[]
@@ -626,6 +599,17 @@ const updateConnectedNodeState = (
         data: buildConnectedServiceData(updated.data, targetNodeInStore, tgtId, tType, syncedNodesList),
       };
     }
+  } else if (updated.id === tgtId) {
+    const tType = String(updated.type || updated.data?.type || tgtNode?.type || '').toLowerCase();
+    const sourceNodeInStore = syncedNodesList.find((item) => item.id === srcId);
+    const sType = String(sourceNodeInStore?.type || sourceNodeInStore?.data?.type || srcNode?.type || '').toLowerCase();
+
+    if (tType === 'service' && isValidServiceSelectorTarget(updated.data, sType)) {
+      updated = {
+        ...updated,
+        data: buildConnectedServiceData(updated.data, sourceNodeInStore, srcId, sType, syncedNodesList),
+      };
+    }
   }
 
   return updated;
@@ -794,6 +778,14 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       nodes
     );
 
+    let sourceHandle = connection.sourceHandle;
+    let targetHandle = connection.targetHandle;
+    if (!sourceHandle || !targetHandle) {
+      const defaultHandles = resolveEdgeHandlesByPosition(sourceNode, targetNode, nodes);
+      sourceHandle = sourceHandle || defaultHandles.sourceHandle;
+      targetHandle = targetHandle || defaultHandles.targetHandle;
+    }
+
     if (!checkHpaPrerequisite(sourceNode, targetNode, nodes, get().edges, addLog)) {
       return;
     }
@@ -804,6 +796,8 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       type: 'custom',
       source: sourceId,
       target: targetId,
+      sourceHandle,
+      targetHandle,
     } as Edge);
 
     if (newEdge.data?.validationError) {
@@ -862,31 +856,35 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     });
   },
   onQuickConnect: (nodeId: string, direction: QuickConnectDirection) => {
-    const { nodes, onConnect } = get();
+    const { nodes, edges, onConnect } = get();
     const sourceNode = nodes.find((n) => n.id === nodeId);
     if (!sourceNode) return;
 
-    const candidates = nodes.filter((n) => isNodeInDirection(sourceNode, n, direction, nodes));
-    if (candidates.length === 0) return;
+    const candidateResult = findBestCandidateInDirection(sourceNode, direction, nodes, edges);
+    if (!candidateResult) return;
 
-    const sourceCenter = getNodeAbsCenter(sourceNode, nodes);
+    const { edgeSource, edgeTarget } = candidateResult;
+    const handles = resolveEdgeHandlesByPosition(edgeSource, edgeTarget, nodes);
 
-    candidates.sort((a, b) => {
-      const centerA = getNodeAbsCenter(a, nodes);
-      const centerB = getNodeAbsCenter(b, nodes);
-      const distA = Math.pow(centerA.x - sourceCenter.x, 2) + Math.pow(centerA.y - sourceCenter.y, 2);
-      const distB = Math.pow(centerB.x - sourceCenter.x, 2) + Math.pow(centerB.y - sourceCenter.y, 2);
-      return distA - distB;
-    });
-
-    const targetNode = candidates[0];
-    const { sourceHandle, targetHandle } = getQuickConnectHandles(direction);
+    if (
+      edgeSource.type === 'Internet' &&
+      edgeTarget.type === 'Service' &&
+      (!edgeTarget.data?.serviceType || edgeTarget.data.serviceType === 'ClusterIP')
+    ) {
+      set((state) => ({
+        nodes: state.nodes.map((n) =>
+          n.id === edgeTarget.id
+            ? { ...n, data: { ...n.data, serviceType: 'LoadBalancer' } }
+            : n
+        ),
+      }));
+    }
 
     onConnect({
-      source: sourceNode.id,
-      target: targetNode.id,
-      sourceHandle,
-      targetHandle,
+      source: edgeSource.id,
+      target: edgeTarget.id,
+      sourceHandle: handles.sourceHandle,
+      targetHandle: handles.targetHandle,
     });
     set({
       lastActionId: `connect-${Date.now()}`,
