@@ -865,6 +865,19 @@ describe('simulation test suite', () => {
       const podApp = createNode('p3', 'Pod', { label: 'other-name', labels: { app: 'target-app' } });
       const svcApp = createNode('s5', 'Service', { selector: 'target-app' });
       expect(isServiceSelectorMatching(svcApp, podApp)).toBe(true);
+
+      // Enforces namespace isolation even for LoadBalancer
+      const svcLbNsA = createNode('s6', 'Service', { selector: 'target-app', serviceType: 'LoadBalancer' });
+      const podNsB = createNode('p4', 'Pod', { label: 'target-app' });
+      const nsA = createNode('ns-a', 'Namespace', { label: 'namespace-a' });
+      const nsB = createNode('ns-b', 'Namespace', { label: 'namespace-b' });
+      svcLbNsA.parentId = 'ns-a';
+      podNsB.parentId = 'ns-b';
+      expect(isServiceSelectorMatching(svcLbNsA, podNsB, [nsA, nsB, svcLbNsA, podNsB])).toBe(false);
+
+      // Matches when in the same namespace
+      podNsB.parentId = 'ns-a';
+      expect(isServiceSelectorMatching(svcLbNsA, podNsB, [nsA, svcLbNsA, podNsB])).toBe(true);
     });
 
     it('hasValidServiceSelectorTarget checks invalid selector or empty nodes', () => {

@@ -130,6 +130,40 @@ describe('ServiceConfig', () => {
     expect(mockProps.performUpdate).toHaveBeenCalledWith({ selector: 'web-app' });
   });
 
+  it('filters out cross-namespace workloads for LoadBalancer service in selector dropdown while keeping same-namespace and Ingress', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'ns-prod', type: 'Namespace', data: { label: 'prod' } },
+        { id: 'ns-dev', type: 'Namespace', data: { label: 'dev' } },
+        { id: 'ing-1', type: 'Ingress', data: { label: 'main-ingress' } },
+        { id: 'dep-prod', type: 'Deployment', parentId: 'ns-prod', data: { label: 'prod-app' } },
+        { id: 'dep-dev', type: 'Deployment', parentId: 'ns-dev', data: { label: 'dev-app' } },
+      ] as any,
+    });
+
+    const lbProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's-lb',
+        parentId: 'ns-prod',
+        data: {
+          serviceType: 'LoadBalancer',
+          port: 80,
+          targetPort: 8080,
+          selector: 'prod-app',
+        },
+      },
+    };
+
+    render(<ServiceConfig {...lbProps} />);
+    const selectorDropdownBtn = screen.getByRole('button', { name: /prod-app/i });
+    fireEvent.click(selectorDropdownBtn);
+
+    expect(screen.getAllByText('prod-app').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('main-ingress')).toBeInTheDocument();
+    expect(screen.queryByText('dev-app')).toBeNull();
+  });
+
   it('populates selector dropdown with canvas workload resources and updates selector', () => {
     render(<ServiceConfig {...mockProps} />);
 

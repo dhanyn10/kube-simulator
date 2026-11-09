@@ -159,15 +159,13 @@ const isConfigResource = (resourceType: string): boolean => CONFIG_TYPES.has(res
 const checkServiceWorkloadNamespace = (
   sourceType: string,
   targetType: string,
-  sourceData?: Record<string, any>,
-  targetData?: Record<string, any>,
+  _sourceData?: Record<string, any>,
+  _targetData?: Record<string, any>,
   sourceNs?: string,
   targetNs?: string
 ): string | null => {
   const isSvcWorkload = (sourceType === 'Service' && isWorkload(targetType)) || (isWorkload(sourceType) && targetType === 'Service');
   if (!isSvcWorkload) return null;
-  const serviceType = (sourceType === 'Service' ? sourceData : targetData)?.serviceType || 'ClusterIP';
-  if (serviceType === 'LoadBalancer') return null;
   return `Cross-namespace connection is not allowed: Service in namespace "${sourceNs}" cannot connect to workload in namespace "${targetNs}".`;
 };
 

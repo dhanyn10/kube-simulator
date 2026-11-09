@@ -268,9 +268,14 @@ describe('connections constants', () => {
       getConnectionError('Service', 'Pod', { serviceType: 'ClusterIP' }, {}, 'production', 'production')
     ).toBeNull();
 
-    // Service (LoadBalancer) is cluster-external / edge and allowed across namespaces
+    // Service (LoadBalancer) must also observe namespace isolation when connecting to workloads
     expect(
       getConnectionError('Service', 'Deployment', { serviceType: 'LoadBalancer' }, {}, 'default', 'production')
+    ).toContain('Cross-namespace connection is not allowed');
+
+    // Service (LoadBalancer) -> Workload in same namespace is allowed
+    expect(
+      getConnectionError('Service', 'Deployment', { serviceType: 'LoadBalancer' }, {}, 'production', 'production')
     ).toBeNull();
 
     // 2. Ingress -> Service in different namespaces
@@ -314,7 +319,7 @@ describe('connections constants', () => {
     // Check bidirectional namespace isolation helpers
     expect(
       checkNamespaceIsolation('Deployment', 'Service', {}, { serviceType: 'LoadBalancer' }, 'ns-a', 'ns-b')
-    ).toBeNull();
+    ).toContain('Cross-namespace connection is not allowed');
     expect(
       checkNamespaceIsolation('Deployment', 'Service', {}, {}, 'ns-a', 'ns-b')
     ).toContain('Cross-namespace connection is not allowed: Service in namespace "ns-a" cannot connect to workload in namespace "ns-b".');
