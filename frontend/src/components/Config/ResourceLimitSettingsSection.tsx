@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers } from 'lucide-react';
+import { Gauge } from 'lucide-react';
 import { K8sNodeData, K8sResourceLimitItem } from '@/types';
 import { ResourceLimitModal } from '@/components/Modals/ResourceLimitModal';
 import { ResourceLimitListModal } from '@/components/Modals/ResourceLimitListModal';
@@ -18,7 +18,7 @@ export const ResourceLimitSettingsSection: React.FC<ResourceLimitSettingsSection
       resourceKey="resourceLimits"
       resourceName="Resource Limit"
       logResourceName="Resource Limit"
-      icon={Layers}
+      icon={Gauge}
       badgeBgColorClass="bg-purple-600"
       darkBorderColorClass="border-purple-500/50"
       darkTextColorClass="text-purple-400"

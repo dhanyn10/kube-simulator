@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock, ShieldCheck, UserCheck, Cpu } from 'lucide-react';
+import { Box, Layers, Network, Folder, Search, Globe, ChevronDown, ChevronRight, Activity, Database, HardDrive, Settings, Lock, ShieldCheck, UserCheck, Cpu, Route, Gauge } from 'lucide-react';
 import { K8sResourceType } from '@/types';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
@@ -134,12 +134,12 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
     { type: 'Service', icon: Network, label: 'Service', desc: 'Network endpoint' },
     { type: 'Deployment', icon: Layers, label: 'Deployment', desc: 'Pod controller' },
     { type: 'StatefulSet', icon: Database, label: 'StatefulSet', desc: 'Stateful Pod Controller' },
-    { type: 'Namespace', icon: Anchor, label: 'Namespace', desc: 'Virtual cluster' },
+    { type: 'Namespace', icon: Folder, label: 'Namespace', desc: 'Virtual cluster' },
     { type: 'Internet', icon: Globe, label: 'Internet', desc: 'External Component' },
-    { type: 'Ingress', icon: Globe, label: 'Ingress', desc: 'External Access' },
+    { type: 'Ingress', icon: Route, label: 'Ingress', desc: 'External Access' },
     { type: 'HPA', icon: Activity, label: 'HPA', desc: 'Auto-scaling' },
-    { type: 'ResourceLimit', icon: Layers, label: 'Resource Limit', desc: 'Limits & Requests' },
-    { type: 'PVC', icon: Database, label: 'PVC', desc: 'Storage Claim' },
+    { type: 'ResourceLimit', icon: Gauge, label: 'Resource Limit', desc: 'Limits & Requests' },
+    { type: 'PVC', icon: HardDrive, label: 'PVC', desc: 'Storage Claim' },
     { type: 'Role', icon: ShieldCheck, label: 'Role', desc: 'RBAC Access Role' },
     { type: 'ConfigMap', icon: Settings, label: 'ConfigMap', desc: 'General Config' },
     { type: 'Secret', icon: Lock, label: 'Secret', desc: 'Sensitive Data' },

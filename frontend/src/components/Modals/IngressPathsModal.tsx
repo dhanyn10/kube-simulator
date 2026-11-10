@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Globe, Plus, Trash2, Server, AlertTriangle } from 'lucide-react';
+import { Route, Plus, Trash2, Server, AlertTriangle } from 'lucide-react';
 import { Modal } from './Modal';
 import { IngressPathRule } from '@/types';
 import { useFlowStore } from '@/store';
@@ -345,7 +345,7 @@ export const IngressPathsModal: React.FC<IngressPathsModalProps> = ({
       onClose={onClose}
       title="Manage Ingress Routing Paths"
       subtitle={`Configure host and path rules for ${host}`}
-      icon={Globe}
+      icon={Route}
       iconColorClass="text-rose-400"
       widthClass="w-full max-w-2xl"
       maxHeightClass="h-[75vh]"

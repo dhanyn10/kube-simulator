@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
-import { Database, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { HardDrive, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { AdvancedSection, ConfigSection, ConfigInput } from '@/components/UI/ConfigUI';
 import { calculatePvcConnectedReplicas } from '@/activities/config/pvcConfigHelpers';
@@ -40,7 +40,7 @@ export const PVCConfig = ({
   return (
     <div className="space-y-4">
       {/* Storage Capacity Section */}
-      <ConfigSection title="Storage Capacity" icon={Database}>
+      <ConfigSection title="Storage Capacity" icon={HardDrive}>
         <div className="space-y-2">
           <SelectorGroup
             options={[
@@ -127,7 +127,7 @@ export const PVCConfig = ({
       <AdvancedSection colorMode={colorMode}>
         <ConfigSection
           title="Storage Class"
-          icon={Database}
+          icon={HardDrive}
           isVisible={data.displaySettings?.storageClass}
           onToggle={() => toggleVisibility('storageClass')}
           isYamlEnabled={data.yamlSettings?.storageClass}

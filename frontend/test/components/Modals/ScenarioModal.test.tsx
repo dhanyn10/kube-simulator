@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import '@testing-library/jest-dom';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ScenarioModal } from '@/components/Modals/ScenarioModal';
 import { useFlowStore } from '@/store';
@@ -167,5 +168,22 @@ describe('ScenarioModal', () => {
     expect(useFlowStore.getState().nodes).toHaveLength(0);
 
     scenarios.pop();
+  });
+
+  it('renders resource badges under scenario titles displaying detected cards and items', () => {
+    render(<ScenarioModal isOpen={true} onClose={() => {}} />);
+    // Verify basic-web scenario has badges container
+    const basicBadges = screen.getByTestId('scenario-badges-basic-web');
+    expect(basicBadges).toBeInTheDocument();
+    expect(basicBadges).toHaveTextContent('Service');
+    expect(basicBadges).toHaveTextContent('Pod');
+    expect(basicBadges).toHaveTextContent('Internet');
+    expect(basicBadges).not.toHaveTextContent('×');
+
+    // Verify advanced-scaling detects HPA item
+    const advBadges = screen.getByTestId('scenario-badges-advanced-scaling');
+    expect(advBadges).toBeInTheDocument();
+    expect(advBadges).toHaveTextContent('HPA');
+    expect(advBadges).not.toHaveTextContent('×');
   });
 });

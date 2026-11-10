@@ -30,3 +30,5 @@ export const scenarios: Scenario[] = ([
   })),
   ...configScenarios
 ] as Scenario[]).sort((a, b) => levelWeight[a.level] - levelWeight[b.level]);
+
+export * from './scenarioDetector';

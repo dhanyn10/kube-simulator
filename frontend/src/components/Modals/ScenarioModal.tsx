@@ -1,8 +1,14 @@
-import  { useState } from 'react';
+import { useState } from 'react';
 import { BookOpen, GraduationCap, Zap, AlertCircle } from 'lucide-react';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
-import { scenarios, Scenario } from '@/scenarios';
+import {
+  scenarios,
+  Scenario,
+  detectScenarioResources,
+  getResourceBadgeClasses,
+  getResourceIcon,
+} from '@/scenarios';
 import { hydrateNodes } from '@/store/nodeHelpers';
 import { Modal } from './Modal';
 import { useFitView } from '@/hooks/useFitView';
@@ -140,38 +146,64 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
           </div>
         ) : (
           <div className="grid gap-3">
-            {scenarios.map((scenario) => (
-              <button
-                type="button"
-                key={scenario.id}
-                onClick={() => handleSelectScenario(scenario)}
-                className={cn(
-                  "flex flex-col p-4 rounded-xl border transition-all text-left group relative",
-                  colorMode === 'dark'
-                    ? "bg-slate-800/40 border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/60"
-                    : "bg-slate-50 border-slate-200 hover:border-blue-400 hover:bg-white"
-                )}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {getLevelIcon(scenario.level)}
-                    <span className="font-bold text-sm uppercase tracking-tight">{scenario.name}</span>
+            {scenarios.map((scenario) => {
+              const { resources: detectedResources } = detectScenarioResources(scenario);
+
+              return (
+                <button
+                  type="button"
+                  key={scenario.id}
+                  onClick={() => handleSelectScenario(scenario)}
+                  className={cn(
+                    "flex flex-col p-4 rounded-xl border transition-all text-left group relative",
+                    colorMode === 'dark'
+                      ? "bg-slate-800/40 border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/60"
+                      : "bg-slate-50 border-slate-200 hover:border-blue-400 hover:bg-white"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      {getLevelIcon(scenario.level)}
+                      <span className="font-bold text-sm uppercase tracking-tight">{scenario.name}</span>
+                    </div>
+                    <span className={cn(
+                      "text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-widest",
+                      getLevelBg(scenario.level)
+                    )}>
+                      {scenario.level}
+                    </span>
                   </div>
-                  <span className={cn(
-                    "text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-widest",
-                    getLevelBg(scenario.level)
+
+                  {detectedResources.length > 0 && (
+                    <div
+                      className="flex flex-wrap items-center gap-1.5 mb-2.5"
+                      data-testid={`scenario-badges-${scenario.id}`}
+                    >
+                      {detectedResources.map((res) => (
+                        <span
+                          key={`scenario-${scenario.id}-res-${res.name}`}
+                          title={res.subtypes && res.subtypes.length > 0 ? `${res.name} (${res.subtypes.join(', ')})` : res.name}
+                          className={cn(
+                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-all shadow-xs",
+                            getResourceBadgeClasses(res.name, colorMode)
+                          )}
+                        >
+                          {getResourceIcon(res.name, 11)}
+                          <span>{res.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className={cn(
+                    "text-xs leading-relaxed",
+                    colorMode === 'dark' ? "text-slate-400" : "text-slate-600"
                   )}>
-                    {scenario.level}
-                  </span>
-                </div>
-                <p className={cn(
-                  "text-xs leading-relaxed",
-                  colorMode === 'dark' ? "text-slate-400" : "text-slate-600"
-                )}>
-                  {scenario.description}
-                </p>
-              </button>
-            ))}
+                    {scenario.description}
+                  </p>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
