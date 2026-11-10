@@ -1,5 +1,5 @@
 import { Node, Edge } from '@xyflow/react';
-import { getAssignedWorker } from './workerNodeHelpers';
+import { getAssignedWorker, getWorkerForIndex } from './workerNodeHelpers';
 import { resolveNodeNamespace } from './namespaceUtils';
 
 export { resolveNodeNamespace };
@@ -42,6 +42,32 @@ export const isStatefulSetNode = (node: Node): boolean => {
 /**
  * Analyzes a controller workload node (Deployment, StatefulSet, ReplicaSet) for PVC connection.
  */
+const resolveControllerWorkers = (
+  node: Node,
+  childPods: Node[],
+  effectiveReplicas: number
+): string[] => {
+  const workers: string[] = [];
+  const assigned = node.data?.assignedNode;
+
+  if (childPods.length > 0) {
+    childPods.forEach((p) => workers.push(getAssignedWorker(p.data, p.id)));
+  }
+
+  if (childPods.length < effectiveReplicas) {
+    const missingCount = effectiveReplicas - childPods.length;
+    for (let i = 0; i < missingCount; i++) {
+      if (typeof assigned === 'string' && /^worker-\d+$/.test(assigned)) {
+        workers.push(assigned);
+      } else {
+        workers.push(getWorkerForIndex(childPods.length + i));
+      }
+    }
+  }
+
+  return workers;
+};
+
 const analyzeControllerWorkload = (
   node: Node,
   allNodes: Node[]
@@ -65,12 +91,7 @@ const analyzeControllerWorkload = (
   const safeRep = Number.isNaN(rep) || rep < 1 ? 1 : rep;
   const effectiveReplicas = Math.max(childPods.length, safeRep);
 
-  const workers: string[] = [];
-  if (childPods.length > 0) {
-    childPods.forEach((p) => workers.push(getAssignedWorker(p.data, p.id)));
-  } else {
-    workers.push(getAssignedWorker(node.data, node.id));
-  }
+  const workers = resolveControllerWorkers(node, childPods, effectiveReplicas);
 
   return {
     replicas: effectiveReplicas,
@@ -266,9 +287,6 @@ export const getPvcValidationErrorMsg = (
       const workerList = analysis.workerNodeConflict.workerNodes.join(', ');
       return `Multi-Attach Error: Volume "${pvcLabel}" (ReadWriteOnce) cannot be mounted on multiple worker nodes (${workerList}) simultaneously`;
     }
-    if (analysis.totalReplicas > 1) {
-      return `Multi-Attach Error: Volume "${pvcLabel}" (ReadWriteOnce) cannot be mounted by ${analysis.totalReplicas} replicas simultaneously`;
-    }
   }
 
   return undefined;
@@ -316,7 +334,7 @@ export const evaluatePvcRealtimeStatus = (
   }
 
   if (accessMode === 'ReadWriteOnce') {
-    if (analysis.workerNodeConflict || analysis.totalReplicas > 1) {
+    if (analysis.workerNodeConflict) {
       return 'Multi-Attach Error';
     }
   }
@@ -415,7 +433,7 @@ export const handlePvcRwoAccessMode = (
   const isConflict = Boolean(
     analysis.namespaceConflict ||
       analysis.templateConflict ||
-      (isRWO && (analysis.workerNodeConflict || analysis.totalReplicas > 1))
+      (isRWO && Boolean(analysis.workerNodeConflict))
   );
 
   let nodesChanged = false;

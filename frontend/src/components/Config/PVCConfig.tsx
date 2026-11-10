@@ -4,6 +4,7 @@ import { HardDrive, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { AdvancedSection, ConfigSection, ConfigInput } from '@/components/UI/ConfigUI';
 import { calculatePvcConnectedReplicas } from '@/activities/config/pvcConfigHelpers';
+import { analyzePvcWorkloadConnections } from '@/lib/pvcAnalysis';
 
 interface PVCConfigProps {
   selectedNode: any;
@@ -28,11 +29,11 @@ export const PVCConfig = ({
   const edges = useFlowStore((state) => state.edges);
   const data = selectedNode.data;
 
-  const totalConnectedReplicas = calculatePvcConnectedReplicas(selectedNode.id, nodes, edges);
-  const isRwoDisabled = totalConnectedReplicas > 1;
+  const analysis = analyzePvcWorkloadConnections(selectedNode, nodes, edges);
+  const isRwoDisabled = analysis.distinctWorkerNodes.size > 1;
 
   const accessModes = [
-    { value: 'ReadWriteOnce', label: 'RWO', desc: 'ReadWriteOnce: Accessible by 1 Pod (Read/Write)' },
+    { value: 'ReadWriteOnce', label: 'RWO', desc: 'ReadWriteOnce: Single Node (multi-pod on same node allowed)' },
     { value: 'ReadOnlyMany', label: 'ROX', desc: 'ReadOnlyMany: Multiple Pods can read-only' },
     { value: 'ReadWriteMany', label: 'RWX', desc: 'ReadWriteMany: Multiple Pods can Read/Write' },
   ];
@@ -113,7 +114,7 @@ export const PVCConfig = ({
                   )}>
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-500 mt-0.5" />
                     <span>
-                      <strong>RWO Disabled:</strong> ReadWriteOnce allows maximum 1 replica, but connected workload currently has {totalConnectedReplicas} replicas.
+                      <strong>RWO Disabled:</strong> ReadWriteOnce allows mounting on only 1 worker node, but connected workloads are scheduled across {analysis.distinctWorkerNodes.size} worker nodes ({Array.from(analysis.distinctWorkerNodes).join(', ')}).
                     </span>
                   </div>
                 )}
