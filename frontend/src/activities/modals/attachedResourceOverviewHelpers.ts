@@ -1,4 +1,4 @@
-import { LucideIcon, Settings, Lock, ShieldCheck, Activity, Layers, Gauge } from 'lucide-react';
+import { LucideIcon, Settings, Lock, ShieldCheck, Activity, Gauge } from 'lucide-react';
 import { Node } from '@xyflow/react';
 import { K8sResourceType, K8sConfigMapItem, K8sSecretItem } from '@/types';
 import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
