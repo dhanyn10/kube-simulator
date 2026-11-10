@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Settings, Lock, Activity, Layers } from 'lucide-react';
+import { Shield, Settings, Lock, Activity, Gauge } from 'lucide-react';
 import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
 import { getPodQoSClass } from '@/lib/utils';
@@ -148,7 +148,7 @@ export const AttachedResourcesFooter: React.FC<AttachedResourcesFooterProps> = (
               }
             }}
           >
-            <Layers size={11} />
+            <Gauge size={11} />
           </button>
         );
       })}

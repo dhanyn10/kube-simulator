@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Grid, X, LayoutGrid, Clock } from 'lucide-react';
+import { Grid, X, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 
@@ -37,7 +37,6 @@ export const CanvasProfilePopover: React.FC<CanvasProfilePopoverProps> = ({
   const setCanvasBgOpacity = useFlowStore((state) => state.setCanvasBgOpacity);
   const isAutosaveEnabled = useFlowStore((state) => state.isAutosaveEnabled);
   const toggleAutosave = useFlowStore((state) => state.toggleAutosave);
-  const alignAllNodesToGrid = useFlowStore((state) => state.alignAllNodesToGrid);
 
   const isDark = colorMode === 'dark';
 
@@ -163,23 +162,6 @@ export const CanvasProfilePopover: React.FC<CanvasProfilePopoverProps> = ({
           </button>
         </div>
 
-        {/* Align to Grid Button */}
-        <button
-          type="button"
-          data-testid="canvas-popover-align-btn"
-          onClick={() => {
-            alignAllNodesToGrid();
-          }}
-          className={cn(
-            "w-full py-1.5 px-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-colors border text-[11px]",
-            isDark
-              ? "bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-slate-300"
-              : "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700"
-          )}
-        >
-          <LayoutGrid size={13} />
-          <span>Snap & Align Cards</span>
-        </button>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import {
   getHeaderProfileName,
 } from '@/activities/layout/fileBackstageHelpers';
 import { renderRecentProjectsBody } from '@/components/Layout/RecentProjectsRow';
+import { detectScenarioResources, ResourceBadgeList } from '@/scenarios';
 
 export interface SaveModalProps {
   readonly isOpen: boolean;
@@ -32,6 +33,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
     setContextMenu,
     contextMenuRef,
     isCanvasEmpty,
+    nodes,
     handleRowContextMenu,
     handleQuickSaveCurrent,
     handleRestoreFile,
@@ -39,6 +41,11 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
     handleOpenFolder,
     handleClearAllAutosaves,
   } = useSaveModal({ isOpen, onClose });
+
+  const currentCanvasResources = React.useMemo(
+    () => detectScenarioResources({ nodes }).resources,
+    [nodes]
+  );
 
   const position = useContextMenuPosition(contextMenu?.x ?? 0, contextMenu?.y ?? 0, contextMenuRef);
 
@@ -87,6 +94,13 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                 <span>Location:</span>
                 <span className="text-blue-400 font-bold truncate max-w-[360px]">{activeLocation}</span>
               </p>
+              <ResourceBadgeList
+                resources={currentCanvasResources}
+                colorMode={colorMode}
+                testId="current-profile-badges"
+                prefixKey="current-profile"
+                className="mt-1.5"
+              />
             </div>
           </div>
           <div className="text-right">

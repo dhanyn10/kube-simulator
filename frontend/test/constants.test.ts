@@ -8,11 +8,11 @@ describe('constants', () => {
     expect(NODE_TYPES.Pod).toEqual({ color: 'blue', icon: 'Box' });
     expect(NODE_TYPES.Service).toEqual({ color: 'green', icon: 'Network' });
     expect(NODE_TYPES.Deployment).toEqual({ color: 'purple', icon: 'Layers' });
-    expect(NODE_TYPES.Namespace).toEqual({ color: 'orange', icon: 'Anchor' });
+    expect(NODE_TYPES.Namespace).toEqual({ color: 'orange', icon: 'Folder' });
     expect(NODE_TYPES.Internet).toEqual({ color: 'blue', icon: 'Globe' });
-    expect(NODE_TYPES.Ingress).toEqual({ color: 'rose', icon: 'Globe' });
+    expect(NODE_TYPES.Ingress).toEqual({ color: 'rose', icon: 'Route' });
     expect(NODE_TYPES.HPA).toEqual({ color: 'fuchsia', icon: 'Activity' });
-    expect(NODE_TYPES.PVC).toEqual({ color: 'orange', icon: 'Database' });
+    expect(NODE_TYPES.PVC).toEqual({ color: 'orange', icon: 'HardDrive' });
     expect(NODE_TYPES.ConfigMap).toEqual({ color: 'amber', icon: 'FileText' });
     expect(NODE_TYPES.Secret).toEqual({ color: 'red', icon: 'Lock' });
     expect(NODE_TYPES.Role).toEqual({ color: 'indigo', icon: 'ShieldCheck' });

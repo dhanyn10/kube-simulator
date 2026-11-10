@@ -116,6 +116,7 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     setContextMenu,
     contextMenuRef,
     isCanvasEmpty,
+    nodes,
     handleRowContextMenu,
     handleQuickSaveCurrent,
     handleRestoreFile,

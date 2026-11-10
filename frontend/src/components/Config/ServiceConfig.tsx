@@ -91,7 +91,7 @@ const isNodeInServiceScope = (
   currentServiceType: string,
   nodes: any[]
 ): boolean => {
-  if (currentServiceType === 'LoadBalancer') return true;
+  if (currentServiceType === 'LoadBalancer' && candidateNode.type === 'Ingress') return true;
   const candidateNamespace = resolveNodeNamespace(candidateNode, nodes);
   return selectedNamespace === candidateNamespace;
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers } from 'lucide-react';
+import { Gauge } from 'lucide-react';
 import { AttachedResourceListModal } from './AttachedResourceListModal';
 import { K8sResourceLimitItem } from '@/types';
 import { getPodQoSClass } from '@/lib/utils';
@@ -29,7 +29,7 @@ export const ResourceLimitListModal: React.FC<ResourceLimitListModalProps> = ({
       onClose={onClose}
       title="Attached Resource Limits"
       subtitle={targetNodeLabel ? `Node: ${targetNodeLabel}` : 'Manage attached CPU & Memory Limits'}
-      icon={Layers}
+      icon={Gauge}
       iconColorClass="text-purple-400"
       buttonBgColorClass="bg-purple-600 hover:bg-purple-500"
       hoverIconColorClass="hover:text-purple-300 hover:bg-purple-500/10"

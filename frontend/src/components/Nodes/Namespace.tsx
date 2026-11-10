@@ -1,6 +1,6 @@
 import  { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Anchor } from 'lucide-react';
+import { Folder } from 'lucide-react';
 import { AttachedResourcesFooter } from './AttachedResourcesFooter';
 import { K8sNodeData } from '@/types';
 import { cn } from '@/lib/utils';
@@ -49,7 +49,7 @@ export const NamespaceNode = memo((props: NodeProps) => {
           "flex items-center gap-1.5 px-2.5 py-1 rounded-md font-bold text-[10px] text-white uppercase shadow-lg transition-transform group-hover:scale-105",
           "bg-emerald-600"
         )}>
-          <Anchor size={12} className="text-emerald-100" />
+          <Folder size={12} className="text-emerald-100" />
           NAMESPACE
         </div>
 

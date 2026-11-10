@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { NodeProps } from '@xyflow/react';
-import { Layers, AlertTriangle } from 'lucide-react';
+import { Gauge, AlertTriangle } from 'lucide-react';
 import { SimpleResourceNode } from './SimpleResourceNode';
 import { cn, parseCPU, parseMemory } from '@/lib/utils';
 import { useResourceLimitNode } from '@/activities/nodes';
@@ -33,7 +33,7 @@ export const ResourceLimitNode = memo((props: NodeProps) => {
     <SimpleResourceNode
       {...props}
       title="Resource Limit"
-      icon={Layers}
+      icon={Gauge}
       color="purple"
       bottomSourceClassName={disabledHandleClass}
       rightSourceClassName={disabledHandleClass}

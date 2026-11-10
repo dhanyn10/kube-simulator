@@ -1,4 +1,4 @@
-import { LucideIcon, Settings, Lock, ShieldCheck, Activity, Layers } from 'lucide-react';
+import { LucideIcon, Settings, Lock, ShieldCheck, Activity, Gauge } from 'lucide-react';
 import { Node } from '@xyflow/react';
 import { K8sResourceType, K8sConfigMapItem, K8sSecretItem } from '@/types';
 import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
@@ -248,7 +248,7 @@ export const getResourceOverviewMeta = (type: K8sResourceType, count: number): R
   return {
     title: 'Cluster Resource Limits Overview',
     subtitle: `${count} Resource Limit${pluralSuffix} configured across cluster nodes`,
-    icon: Layers,
+    icon: Gauge,
     iconColorClass: 'text-blue-400',
     badgeBgColorClass: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
     emptyMessage: 'No Resource Limits currently configured in the cluster. Drag & drop Resource Limit from the left sidebar onto a workload card to attach limits.',

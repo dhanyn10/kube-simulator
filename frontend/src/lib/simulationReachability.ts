@@ -5,7 +5,7 @@ import { resolveNodeNamespace } from './namespaceUtils';
 
 /**
  * Helper to check if a Service's selector matches a target workload's label.
- * Enforces intra-namespace matching for non-LoadBalancer services.
+ * Enforces intra-namespace matching for all services.
  */
 export const isServiceSelectorMatching = (
   serviceNode: Node,
@@ -16,13 +16,10 @@ export const isServiceSelectorMatching = (
   if (!selector || typeof selector !== 'string' || selector.trim() === '') {
     return false;
   }
-  const serviceType = serviceNode.data?.serviceType || 'ClusterIP';
-  if (serviceType !== 'LoadBalancer') {
-    const serviceNamespace = resolveNodeNamespace(serviceNode, nodes || [serviceNode]);
-    const workloadNamespace = resolveNodeNamespace(workloadNode, nodes || [workloadNode]);
-    if (serviceNamespace !== workloadNamespace) {
-      return false;
-    }
+  const serviceNamespace = resolveNodeNamespace(serviceNode, nodes || [serviceNode]);
+  const workloadNamespace = resolveNodeNamespace(workloadNode, nodes || [workloadNode]);
+  if (serviceNamespace !== workloadNamespace) {
+    return false;
   }
   const targetLabel = workloadNode.data?.label || workloadNode.data?.baseName;
   const matchLabels = workloadNode.data?.labels?.app;

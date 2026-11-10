@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { NodeProps } from '@xyflow/react';
-import { Database, AlertTriangle } from 'lucide-react';
+import { HardDrive, AlertTriangle } from 'lucide-react';
 import { SimpleResourceNode } from './SimpleResourceNode';
 import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
@@ -27,7 +27,7 @@ export const PVCNode = memo((props: NodeProps) => {
   }
 
   return (
-    <SimpleResourceNode {...props} title="PVC" icon={Database} color="orange">
+    <SimpleResourceNode {...props} title="PVC" icon={HardDrive} color="orange">
       <div className="flex items-center gap-1.5 mb-1.5">
         <div className={cn(
           "px-1.5 py-0.5 rounded-full text-[7px] font-bold uppercase tracking-wider",

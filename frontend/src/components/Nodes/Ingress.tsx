@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { NodeProps } from '@xyflow/react';
-import { Globe } from 'lucide-react';
+import { Route } from 'lucide-react';
 import { SimpleResourceNode } from './SimpleResourceNode';
 import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
@@ -12,7 +12,7 @@ export const IngressNode = memo((props: NodeProps) => {
   const hasMultiplePaths = Array.isArray(data.ingressPaths) && data.ingressPaths.length > 1;
 
   return (
-    <SimpleResourceNode {...props} title="Ingress" icon={Globe} color="rose">
+    <SimpleResourceNode {...props} title="Ingress" icon={Route} color="rose">
       {data.displaySettings?.host !== false && (
         <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>
           host: {data.ingressHost || 'example.local'}

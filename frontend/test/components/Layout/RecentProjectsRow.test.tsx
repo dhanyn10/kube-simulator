@@ -197,6 +197,80 @@ describe('RecentProjectsRow components & helpers', () => {
     expect(getProjectIconBadgeClass(false, false)).toContain('bg-blue-500/10');
   });
 
+  it('renders K8s resource badges for projects with nodes or content', () => {
+    const fileWithNodes: RecentFileItem = {
+      id: 201,
+      name: 'E-Commerce Cluster',
+      location: '~/.kube-simulator/projects/project_201.infra',
+      fullPath: '/full/path/project_201.infra',
+      updatedAt: '01/01/2026 12:00:00',
+      nodes: [
+        { id: 'p1', type: 'Pod', data: {} },
+        { id: 's1', type: 'Service', data: { serviceType: 'ClusterIP' } },
+        { id: 'i1', type: 'Ingress', data: {} },
+      ],
+    };
+
+    const fileWithContent: RecentFileItem = {
+      id: 202,
+      name: 'Database Cluster',
+      location: '~/.kube-simulator/projects/project_202.infra',
+      fullPath: '/full/path/project_202.infra',
+      updatedAt: '01/01/2026 12:30:00',
+      content: JSON.stringify({
+        nodes: [
+          { id: 'sts1', type: 'StatefulSet', data: { resourceLimits: [{ id: 'lim1' }] } },
+          { id: 'pvc1', type: 'PVC', data: {} },
+        ],
+      }),
+    };
+
+    const { rerender } = render(
+      <table>
+        <tbody>
+          <RecentProjectsTableRow
+            file={fileWithNodes}
+            isDark={true}
+            isContextMenuActive={false}
+            isCurrentActive={false}
+            onContextMenu={vi.fn()}
+            onRestoreFile={vi.fn()}
+          />
+        </tbody>
+      </table>
+    );
+
+    const badgesContainer = screen.getByTestId('project-badges-201');
+    expect(badgesContainer).toBeInTheDocument();
+    expect(badgesContainer).toHaveTextContent('Ingress');
+    expect(badgesContainer).toHaveTextContent('Service');
+    expect(badgesContainer).toHaveTextContent('Pod');
+    expect(badgesContainer).not.toHaveTextContent('×');
+
+    // Rerender with fileWithContent (StatefulSet + ResourceLimit + PVC)
+    rerender(
+      <table>
+        <tbody>
+          <RecentProjectsTableRow
+            file={fileWithContent}
+            isDark={false}
+            isContextMenuActive={false}
+            isCurrentActive={false}
+            onContextMenu={vi.fn()}
+            onRestoreFile={vi.fn()}
+          />
+        </tbody>
+      </table>
+    );
+
+    const badgesContainer2 = screen.getByTestId('project-badges-202');
+    expect(badgesContainer2).toBeInTheDocument();
+    expect(badgesContainer2).toHaveTextContent('StatefulSet');
+    expect(badgesContainer2).toHaveTextContent('ResourceLimit');
+    expect(badgesContainer2).toHaveTextContent('PVC');
+    expect(badgesContainer2).not.toHaveTextContent('×');
+  });
+
   it('renders ProjectFileIcon variants correctly', () => {
     const { container, rerender } = render(<ProjectFileIcon isFileLoading={true} />);
     expect(container.querySelector('.animate-spin')).toBeInTheDocument();

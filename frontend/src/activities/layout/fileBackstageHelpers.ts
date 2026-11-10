@@ -14,7 +14,22 @@ export interface RecentFileItem {
   readonly fullPath: string;
   readonly updatedAt: string;
   readonly isAutosave?: boolean;
+  readonly nodes?: any[];
+  readonly content?: string;
 }
+
+/**
+ * Safely parse nodes array from JSON content string
+ */
+export const parseNodesFromContent = (content?: string): any[] => {
+  if (!content) return [];
+  try {
+    const parsed = JSON.parse(content);
+    return Array.isArray(parsed?.nodes) ? parsed.nodes : [];
+  } catch {
+    return [];
+  }
+};
 
 /**
  * Format a raw date/timestamp string or number to DD/MM/YYYY HH:mm:ss
@@ -48,14 +63,26 @@ const fetchAutosaveProfiles = async (gateway: IBackendGateway): Promise<RecentFi
   const sorted = [...autosaves].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   const latestOnly = sorted.slice(0, 1);
 
-  return latestOnly.map((a) => ({
-    id: `autosave-${a.key}`,
-    name: a.key,
-    location: a.location,
-    fullPath: a.location,
-    updatedAt: formatDateModified(a.timestamp),
-    isAutosave: true,
-  }));
+  const results = await Promise.all(
+    latestOnly.map(async (a) => {
+      let content = await gateway.getSetting(a.key);
+      if (!content) {
+        content = await gateway.getSetting('auto_saved_profile_content');
+      }
+      return {
+        id: `autosave-${a.key}`,
+        name: a.key,
+        location: a.location,
+        fullPath: a.location,
+        updatedAt: formatDateModified(a.timestamp),
+        isAutosave: true,
+        nodes: parseNodesFromContent(content),
+        content,
+      };
+    })
+  );
+
+  return results;
 };
 
 const fetchFallbackAutosaveProfile = async (gateway: IBackendGateway): Promise<RecentFileItem[]> => {
@@ -81,6 +108,8 @@ const fetchFallbackAutosaveProfile = async (gateway: IBackendGateway): Promise<R
     fullPath: autosaveLocation,
     updatedAt: formatDateModified(ts),
     isAutosave: true,
+    nodes: parseNodesFromContent(latestAutosaveContent),
+    content: latestAutosaveContent,
   }];
 };
 
@@ -98,6 +127,8 @@ const fetchSavedProjects = async (gateway: IBackendGateway): Promise<RecentFileI
         location: fullPath,
         fullPath,
         updatedAt: formatDateModified(p.updatedAt || (p as any).updated_at || (p as any).created_at || Date.now()),
+        nodes: parseNodesFromContent(p.content),
+        content: p.content,
       } as RecentFileItem;
     }
     return null;

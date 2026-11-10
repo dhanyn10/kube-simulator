@@ -94,6 +94,8 @@ describe('fileBackstageHelpers', () => {
         fullPath: '~/.kube-simulator/autosaves/autosave-11092026.infra',
         updatedAt: expect.any(String),
         isAutosave: true,
+        nodes: [],
+        content: expect.any(String),
       });
       expect(items[1].name).toBe('Project 1');
       expect(items[2].name).toBe('Project 2');

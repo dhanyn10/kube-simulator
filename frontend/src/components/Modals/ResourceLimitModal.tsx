@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, AlertTriangle } from 'lucide-react';
+import { Gauge, AlertTriangle } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sResourceLimitItem } from '@/types';
 import { useFlowStore } from '@/store';
@@ -96,7 +96,7 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
       onClose={onClose}
       title={initialResourceLimit ? 'Edit Resource Limit' : 'Attach Resource Limit'}
       subtitle={targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure CPU and Memory limits/requests'}
-      icon={Layers}
+      icon={Gauge}
       iconColorClass="text-purple-400"
       widthClass="w-full max-w-3xl"
       maxHeightClass="h-[75vh]"
@@ -166,7 +166,7 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
         {/* CPU Allocation (Limit above Request) with Range */}
         <div className="space-y-3 p-3 rounded-lg border border-slate-700/40 bg-slate-500/5">
           <div className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
-            <Layers size={14} /> CPU Allocation
+            <Gauge size={14} /> CPU Allocation
           </div>
           <div className="space-y-2">
             <div>
@@ -205,7 +205,7 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
         {/* Memory Allocation (Limit above Request) with Range */}
         <div className="space-y-3 p-3 rounded-lg border border-slate-700/40 bg-slate-500/5">
           <div className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
-            <Layers size={14} /> Memory Allocation
+            <Gauge size={14} /> Memory Allocation
           </div>
           <div className="space-y-2">
             <div>
