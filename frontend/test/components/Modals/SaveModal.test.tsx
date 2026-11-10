@@ -518,4 +518,56 @@ describe('SaveModal', () => {
     fireEvent.click(cleanBtn);
     expect(handleClearAllAutosaves).toHaveBeenCalled();
   });
+
+  it('renders current active architecture resource badges in the profile header', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'p1', type: 'Pod', data: {} },
+        { id: 's1', type: 'Service', data: { serviceType: 'LoadBalancer' } },
+        { id: 'd1', type: 'Deployment', data: { hpas: [{ id: 'hpa1' }] } },
+      ],
+    });
+
+    render(<SaveModal {...defaultProps} />);
+
+    const headerBadges = screen.getByTestId('current-profile-badges');
+    expect(headerBadges).toBeInTheDocument();
+    expect(headerBadges).toHaveTextContent('Service');
+    expect(headerBadges).toHaveTextContent('Deployment');
+    expect(headerBadges).toHaveTextContent('Pod');
+    expect(headerBadges).toHaveTextContent('HPA');
+    expect(headerBadges).not.toHaveTextContent('×');
+  });
+
+  it('does not render profile header resource badges when canvas is empty', () => {
+    useFlowStore.setState({ nodes: [] });
+    render(<SaveModal {...defaultProps} />);
+    expect(screen.queryByTestId('current-profile-badges')).not.toBeInTheDocument();
+  });
+
+  it('renders K8s resource badges for recent projects in the recent files table', async () => {
+    (globalThis as any).go.main.App.GetProjects = vi.fn().mockResolvedValue([
+      {
+        id: 1,
+        name: 'Microservices Project',
+        content: JSON.stringify({
+          nodes: [
+            { id: 'n1', type: 'Pod', data: {} },
+            { id: 'n2', type: 'Ingress', data: {} },
+          ],
+        }),
+        updated_at: '2026-09-10T12:00:08.000Z',
+      },
+    ]);
+
+    render(<SaveModal {...defaultProps} />);
+
+    await waitFor(() => {
+      const projectBadges = screen.getByTestId('project-badges-1');
+      expect(projectBadges).toBeInTheDocument();
+      expect(projectBadges).toHaveTextContent('Ingress');
+      expect(projectBadges).toHaveTextContent('Pod');
+      expect(projectBadges).not.toHaveTextContent('×');
+    });
+  });
 });

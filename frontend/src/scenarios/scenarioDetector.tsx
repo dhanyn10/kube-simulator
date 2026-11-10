@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Gauge,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface DetectedResource {
   name: string;
@@ -177,4 +178,77 @@ export const getResourceBadgeClasses = (resourceName: string, colorMode: string 
 export const getResourceIcon = (resourceName: string, size: number = 11): React.ReactElement => {
   const IconComponent = RESOURCE_CONFIG[resourceName]?.icon || Box;
   return <IconComponent size={size} />;
+};
+
+export interface ResourceBadgeProps {
+  readonly resource: DetectedResource;
+  readonly colorMode?: string;
+  readonly size?: 'sm' | 'md';
+}
+
+export const ResourceBadge: React.FC<ResourceBadgeProps> = ({
+  resource,
+  colorMode = 'dark',
+  size = 'md',
+}) => {
+  const isSm = size === 'sm';
+  const iconSize = isSm ? 10 : 11;
+  const textSizeClass = isSm ? 'text-[9px]' : 'text-[10px]';
+  const title = resource.subtypes && resource.subtypes.length > 0
+    ? `${resource.name} (${resource.subtypes.join(', ')})`
+    : resource.name;
+
+  return (
+    <span
+      title={title}
+      className={cn(
+        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-semibold border transition-all shadow-xs",
+        textSizeClass,
+        getResourceBadgeClasses(resource.name, colorMode)
+      )}
+    >
+      {getResourceIcon(resource.name, iconSize)}
+      <span>{resource.name}</span>
+    </span>
+  );
+};
+
+export interface ResourceBadgeListProps {
+  readonly resources: readonly DetectedResource[];
+  readonly colorMode?: string;
+  readonly size?: 'sm' | 'md';
+  readonly testId?: string;
+  readonly prefixKey: string;
+  readonly className?: string;
+}
+
+export const ResourceBadgeList: React.FC<ResourceBadgeListProps> = ({
+  resources,
+  colorMode = 'dark',
+  size = 'md',
+  testId,
+  prefixKey,
+  className,
+}) => {
+  if (!resources || resources.length === 0) return null;
+
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center",
+        size === 'sm' ? "gap-1" : "gap-1.5",
+        className
+      )}
+      data-testid={testId}
+    >
+      {resources.map((res) => (
+        <ResourceBadge
+          key={`${prefixKey}-res-${res.name}`}
+          resource={res}
+          colorMode={colorMode}
+          size={size}
+        />
+      ))}
+    </div>
+  );
 };

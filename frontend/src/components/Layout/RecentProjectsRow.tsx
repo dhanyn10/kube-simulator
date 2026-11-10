@@ -1,7 +1,12 @@
 import React from 'react';
 import { Clock, FileText, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { RecentFileItem, getSaveRowBgClass } from '@/activities/layout/fileBackstageHelpers';
+import {
+  RecentFileItem,
+  getSaveRowBgClass,
+  parseNodesFromContent,
+} from '@/activities/layout/fileBackstageHelpers';
+import { detectScenarioResources, ResourceBadgeList } from '@/scenarios';
 
 export const getRowHighlightClass = (isContextMenuActive: boolean, isDark: boolean): string => {
   if (!isContextMenuActive) return '';
@@ -89,46 +94,60 @@ export const RecentProjectsTableRow: React.FC<RecentProjectsTableRowProps> = ({
   isFileLoading = false,
   onContextMenu,
   onRestoreFile,
-}) => (
-  <tr
-    onContextMenu={(e) => onContextMenu(e, file)}
-    onDoubleClick={() => { void onRestoreFile(file); }}
-    className={cn(
-      "transition-colors group cursor-pointer select-none",
-      getSaveRowBgClass(Boolean(file.isAutosave), isDark),
-      getRowHighlightClass(isContextMenuActive, isDark),
-      isFileLoading && "opacity-75 pointer-events-none"
-    )}
-  >
-    {/* Name Column with Sub-block for Location */}
-    <td className="py-2.5 px-3">
-      <div className="flex items-start gap-2.5">
-        <div className={cn(
-          "p-1.5 rounded-md shrink-0 mt-0.5",
-          getProjectIconBadgeClass(isFileLoading, file.isAutosave)
-        )}>
-          <ProjectFileIcon isFileLoading={isFileLoading} isAutosave={file.isAutosave} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-200 truncate max-w-[280px]">{file.name}</span>
-            {file.isAutosave && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
-                Auto-Save
-              </span>
-            )}
-            {isCurrentActive && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0 flex items-center gap-1">
-                <Check size={9} /> Active
-              </span>
-            )}
-            {isFileLoading && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 shrink-0 flex items-center gap-1">
-                <Loader2 size={9} className="animate-spin" /> Loading...
-              </span>
-            )}
+}) => {
+  const detectedResources = React.useMemo(() => {
+    const nodeList = file.nodes || parseNodesFromContent(file.content);
+    return detectScenarioResources({ nodes: nodeList }).resources;
+  }, [file.nodes, file.content]);
+
+  return (
+    <tr
+      onContextMenu={(e) => onContextMenu(e, file)}
+      onDoubleClick={() => { void onRestoreFile(file); }}
+      className={cn(
+        "transition-colors group cursor-pointer select-none",
+        getSaveRowBgClass(Boolean(file.isAutosave), isDark),
+        getRowHighlightClass(isContextMenuActive, isDark),
+        isFileLoading && "opacity-75 pointer-events-none"
+      )}
+    >
+      {/* Name Column with Sub-block for Location */}
+      <td className="py-2.5 px-3">
+        <div className="flex items-start gap-2.5">
+          <div className={cn(
+            "p-1.5 rounded-md shrink-0 mt-0.5",
+            getProjectIconBadgeClass(isFileLoading, file.isAutosave)
+          )}>
+            <ProjectFileIcon isFileLoading={isFileLoading} isAutosave={file.isAutosave} />
           </div>
-          {/* Sub-block displaying clean location path */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-200 truncate max-w-[280px]">{file.name}</span>
+              {file.isAutosave && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+                  Auto-Save
+                </span>
+              )}
+              {isCurrentActive && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0 flex items-center gap-1">
+                  <Check size={9} /> Active
+                </span>
+              )}
+              {isFileLoading && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 shrink-0 flex items-center gap-1">
+                  <Loader2 size={9} className="animate-spin" /> Loading...
+                </span>
+              )}
+            </div>
+            <ResourceBadgeList
+              resources={detectedResources}
+              colorMode={isDark ? 'dark' : 'light'}
+              size="sm"
+              testId={`project-badges-${file.id}`}
+              prefixKey={`project-${file.id}`}
+              className="mt-1"
+            />
+            {/* Sub-block displaying clean location path */}
           <div className={cn(
             "mt-1 px-2 py-0.5 rounded border inline-flex items-center gap-1.5 text-[10px] font-mono max-w-full",
             isDark
@@ -169,7 +188,8 @@ export const RecentProjectsTableRow: React.FC<RecentProjectsTableRowProps> = ({
       </div>
     </td>
   </tr>
-);
+  );
+};
 
 export interface RenderRecentProjectsBodyParams {
   readonly isLoading?: boolean;

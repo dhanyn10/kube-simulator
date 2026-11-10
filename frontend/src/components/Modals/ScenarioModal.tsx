@@ -6,8 +6,7 @@ import {
   scenarios,
   Scenario,
   detectScenarioResources,
-  getResourceBadgeClasses,
-  getResourceIcon,
+  ResourceBadgeList,
 } from '@/scenarios';
 import { hydrateNodes } from '@/store/nodeHelpers';
 import { Modal } from './Modal';
@@ -174,26 +173,13 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
                     </span>
                   </div>
 
-                  {detectedResources.length > 0 && (
-                    <div
-                      className="flex flex-wrap items-center gap-1.5 mb-2.5"
-                      data-testid={`scenario-badges-${scenario.id}`}
-                    >
-                      {detectedResources.map((res) => (
-                        <span
-                          key={`scenario-${scenario.id}-res-${res.name}`}
-                          title={res.subtypes && res.subtypes.length > 0 ? `${res.name} (${res.subtypes.join(', ')})` : res.name}
-                          className={cn(
-                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border transition-all shadow-xs",
-                            getResourceBadgeClasses(res.name, colorMode)
-                          )}
-                        >
-                          {getResourceIcon(res.name, 11)}
-                          <span>{res.name}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  <ResourceBadgeList
+                    resources={detectedResources}
+                    colorMode={colorMode}
+                    testId={`scenario-badges-${scenario.id}`}
+                    prefixKey={`scenario-${scenario.id}`}
+                    className="mb-2.5"
+                  />
 
                   <p className={cn(
                     "text-xs leading-relaxed",
