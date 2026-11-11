@@ -110,7 +110,7 @@ describe('PVCConfig', () => {
     expect(rwoBtn?.hasAttribute('disabled')).toBe(true);
 
     expect(screen.getByText('RWO Disabled:')).toBeDefined();
-    expect(screen.getByText(/ReadWriteOnce allows maximum 1 replica, but connected workload currently has 3 replicas/)).toBeDefined();
+    expect(screen.getByText(/ReadWriteOnce allows mounting on only 1 worker node, but connected workloads are scheduled across 3 worker nodes/)).toBeDefined();
 
     // Rerender in light mode to cover lines 132-134
     useFlowStore.setState({ colorMode: 'light' });

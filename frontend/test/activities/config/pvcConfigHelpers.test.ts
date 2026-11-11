@@ -125,6 +125,43 @@ describe('pvcConfigHelpers test suite', () => {
     expect(evaluatePvcRealtimeStatus(pvcBoundNoConn, [pvcBoundNoConn], [])).toBe('Bound');
   });
 
+  it('allows multiple replicas on the same worker node without Multi-Attach Error under ReadWriteOnce', () => {
+    const pvcNode: Node = {
+      id: 'pvc-single-worker',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Pending' },
+      position: { x: 0, y: 0 },
+    };
+    const depNode: Node = {
+      id: 'dep-pinned',
+      type: 'Deployment',
+      data: { replicas: 2, assignedNode: 'worker-1' },
+      position: { x: 0, y: 0 },
+    };
+    const podA: Node = {
+      id: 'pod-a',
+      type: 'Pod',
+      parentId: 'dep-pinned',
+      data: { status: 'ready', image: 'nginx:latest', assignedNode: 'worker-1' },
+      position: { x: 0, y: 0 },
+    };
+    const podB: Node = {
+      id: 'pod-b',
+      type: 'Pod',
+      parentId: 'dep-pinned',
+      data: { status: 'ready', image: 'nginx:latest', assignedNode: 'worker-1' },
+      position: { x: 0, y: 0 },
+    };
+    const edges: Edge[] = [{ id: 'e1', source: 'dep-pinned', target: 'pvc-single-worker' }];
+
+    // Both pods on worker-1 -> Bound (valid K8s RWO single-node mount)
+    expect(evaluatePvcRealtimeStatus(pvcNode, [pvcNode, depNode, podA, podB], edges)).toBe('Bound');
+
+    // If podB moves to worker-2 -> Multi-Attach Error
+    const podBMoved = { ...podB, data: { ...podB.data, assignedNode: 'worker-2' } };
+    expect(evaluatePvcRealtimeStatus(pvcNode, [pvcNode, depNode, podA, podBMoved], edges)).toBe('Multi-Attach Error');
+  });
+
   it('handlePvcRwoAccessMode handles unchanged edge errors, disconnected PVCs, and unconfigured pending pods', () => {
     const pvcNode: Node = {
       id: 'pvc-1',
@@ -145,7 +182,7 @@ describe('pvcConfigHelpers test suite', () => {
       data: { status: 'pending', image: '' }, // empty image
       position: { x: 0, y: 0 },
     };
-    const errorMsg = 'Multi-Attach Error: Volume "pvc-1" (ReadWriteOnce) cannot be mounted by 3 replicas simultaneously';
+    const errorMsg = 'Multi-Attach Error: Volume "pvc-1" (ReadWriteOnce) cannot be mounted on multiple worker nodes (worker-2, worker-3) simultaneously';
     const edgeWithError: Edge = {
       id: 'e1',
       source: 'dep-1',
@@ -692,7 +729,7 @@ describe('pvcConfigHelpers test suite', () => {
       connectedPods: [],
       workerNodes: ['worker-1'],
     });
-    expect(replicaConflictMsg).toContain('cannot be mounted by 3 replicas simultaneously');
+    expect(replicaConflictMsg).toBeUndefined();
 
     // 4. No conflict under ReadWriteOnce
     const noConflictRwo = getPvcValidationErrorMsg(pvcNode, {

@@ -84,7 +84,7 @@ export const handlePvcMultiAttachError = (
   let hasChanges = false;
   const errorMsg =
     customErrorMsg ||
-    `Multi-Attach Error: Volume "${pvc.data?.label || pvc.id}" (ReadWriteOnce) cannot be mounted by ${totalReplicas} replicas simultaneously`;
+    `Multi-Attach Error: Volume "${pvc.data?.label || pvc.id}" (ReadWriteOnce) cannot be mounted on multiple worker nodes simultaneously`;
 
   if (pvc.data?.pvcStatus !== 'Multi-Attach Error') {
     if (updateNodeData(ctx, pvc.id, { pvcStatus: 'Multi-Attach Error' })) {
@@ -163,7 +163,7 @@ const evaluateSingleConnectedPvc = (
   const isConflict = Boolean(
     namespaceConflict ||
       templateConflict ||
-      (accessMode === 'ReadWriteOnce' && (workerNodes.size > 1 || totalReplicas > 1))
+      (accessMode === 'ReadWriteOnce' && workerNodes.size > 1)
   );
 
   const podsToUpdate = Array.from(new Set([...childPods, ...connectedPods]));

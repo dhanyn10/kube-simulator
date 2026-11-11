@@ -424,7 +424,7 @@ describe('simulationPvc', () => {
       expect(svcCount.totalReplicas).toBe(0);
 
       // 5. Already in error status with matching validationError to cover lines 90, 156 false branches
-      const errorMsg = 'Multi-Attach Error: Volume "pvc-already-err" (ReadWriteOnce) cannot be mounted by 2 replicas simultaneously';
+      const errorMsg = 'Multi-Attach Error: Volume "pvc-already-err" (ReadWriteOnce) cannot be mounted on multiple worker nodes (worker-2, worker-3) simultaneously';
       const pvcAlreadyErr: Node = { id: 'pvc-already-err', type: 'PVC', data: { pvcStatus: 'Multi-Attach Error', accessMode: 'ReadWriteOnce' }, position: { x: 0, y: 0 } };
       const depAlreadyErr: Node = { id: 'dep-err', type: 'Deployment', data: { replicas: 2 }, position: { x: 0, y: 0 } };
       const edgeAlreadyErr: Edge = { id: 'e-err', source: 'pvc-already-err', target: 'dep-err', data: { validationError: errorMsg } };
@@ -634,7 +634,7 @@ describe('simulationPvc', () => {
       const changed = handlePvcMultiAttachError(pvc, 3, [edge], [pod], ctx);
 
       expect(changed).toBe(true);
-      expect(edge.data?.validationError).toContain('cannot be mounted by 3 replicas simultaneously');
+      expect(edge.data?.validationError).toContain('cannot be mounted on multiple worker nodes simultaneously');
       expect(edge.data?.validationError).toContain('vol-test');
       expect(ctx.updatedNodes.find((n) => n.id === 'pvc-1')?.data.pvcStatus).toBe('Multi-Attach Error');
       expect(ctx.updatedNodes.find((n) => n.id === 'pod-1')?.data.status).toBe('pending');

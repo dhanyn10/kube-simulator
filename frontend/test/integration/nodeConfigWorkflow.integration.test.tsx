@@ -108,7 +108,7 @@ describe('NodeConfig UI Integration Tests', () => {
 
     // Verify the warning message for Multi-Attach is displayed
     expect(screen.getByText(/RWO Disabled:/i)).toBeDefined();
-    expect(screen.getByText(/ReadWriteOnce allows maximum 1 replica/i)).toBeDefined();
+    expect(screen.getByText(/ReadWriteOnce allows mounting on only 1 worker node/i)).toBeDefined();
 
     // Select RWX (ReadWriteMany) option
     const rwxBtn = screen.getByRole('button', { name: /RWX/ });

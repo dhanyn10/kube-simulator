@@ -144,7 +144,7 @@ export const WorkloadConfig = ({
             <span>Stateful Workload Recommendation</span>
           </div>
           <p className="leading-snug text-amber-200/90">
-            Connected to ReadWriteOnce volume &quot;{pvcInfo.connectedPvcName}&quot; with {replicaValue} replicas. Deployments cause Multi-Attach errors because multiple pods cannot mount the same RWO volume simultaneously.
+            Connected to ReadWriteOnce volume &quot;{pvcInfo.connectedPvcName}&quot; with replicas scheduled across multiple worker nodes. Deployments cause Multi-Attach errors because multiple worker nodes cannot mount the same RWO volume simultaneously.
           </p>
           <button
             type="button"
