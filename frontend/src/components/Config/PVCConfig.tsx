@@ -3,7 +3,6 @@ import { useFlowStore } from '@/store';
 import { HardDrive, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { AdvancedSection, ConfigSection, ConfigInput } from '@/components/UI/ConfigUI';
-import { calculatePvcConnectedReplicas } from '@/activities/config/pvcConfigHelpers';
 import { analyzePvcWorkloadConnections } from '@/lib/pvcAnalysis';
 
 interface PVCConfigProps {
