@@ -445,6 +445,31 @@ const filterAllowedNodeChanges = (
   });
 };
 
+const syncNodeDimensionsOnChange = (allowedChanges: NodeChange[], nextNodes: Node[]): Node[] => {
+  const dimensionChanges = allowedChanges.filter((c) => c.type === 'dimensions' && (c as any).dimensions);
+  if (dimensionChanges.length === 0) return nextNodes;
+
+  return nextNodes.map((n) => {
+    const dimChange = dimensionChanges.find((c) => c.id === n.id && (c as any).dimensions) as any;
+    if (
+      dimChange?.dimensions &&
+      !n.data?.isManuallyResized &&
+      !['Namespace', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(n.type || '')
+    ) {
+      const { width, height } = dimChange.dimensions;
+      if (width > 0 && height > 0) {
+        return {
+          ...n,
+          width,
+          height,
+          measured: { width, height },
+        };
+      }
+    }
+    return n;
+  });
+};
+
 const syncParentContainersOnDimensionChange = (
   allowedChanges: NodeChange[],
   nextNodes: Node[],
@@ -802,7 +827,8 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
 
     set((state) => {
       const nextNodes = applyNodeChanges([...allowedChanges, ...extraChanges], state.nodes);
-      const containerSyncedNodes = syncParentContainersOnDimensionChange(allowedChanges, nextNodes, get);
+      const dimensionSyncedNodes = syncNodeDimensionsOnChange(allowedChanges, nextNodes);
+      const containerSyncedNodes = syncParentContainersOnDimensionChange(allowedChanges, dimensionSyncedNodes, get);
       const syncedNodes = syncRoleRulesFromConnections(containerSyncedNodes, state.edges);
       return { nodes: syncedNodes };
     });

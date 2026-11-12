@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { CanvasMiniMap } from '@/components/Layout/CanvasMiniMap';
+import { CanvasMiniMap, CanvasMiniMapNode } from '@/components/Layout/CanvasMiniMap';
 import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
 import '@testing-library/jest-dom';
@@ -74,5 +74,56 @@ describe('CanvasMiniMap Component', () => {
 
     fireEvent.click(downArrow);
     expect(useFlowStore.getState().minimapPosition).toBe('bottom-right');
+  });
+
+  it('renders CanvasMiniMapNode with vertical card aspect ratio, header, and detail lines for Service', () => {
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'svc-1',
+          type: 'Service',
+          position: { x: 0, y: 0 },
+          data: { label: 'web-service', serviceType: 'NodePort', port: 80, targetPort: 80, nodePort: 30080 },
+          width: 150,
+          height: 200,
+          measured: { width: 150, height: 200 },
+        } as any,
+      ],
+    });
+
+    const handleClick = vi.fn();
+    const { container } = render(
+      <svg>
+        <CanvasMiniMapNode
+          id="svc-1"
+          x={10}
+          y={20}
+          width={150}
+          height={200}
+          color="#f59e0b"
+          strokeColor="#334155"
+          onClick={handleClick}
+        />
+      </svg>
+    );
+
+    const rects = container.querySelectorAll('rect');
+    expect(rects.length).toBeGreaterThanOrEqual(2);
+    // Base card rect
+    expect(rects[0]).toHaveAttribute('width', '150');
+    expect(rects[0]).toHaveAttribute('height', '200');
+    expect(rects[0]).toHaveAttribute('fill', '#f59e0b');
+
+    // Header rect
+    expect(rects[1]).toHaveAttribute('width', '150');
+
+    // Detail lines
+    const lines = container.querySelectorAll('line');
+    expect(lines.length).toBeGreaterThan(0);
+
+    const g = container.querySelector('g.react-flow__minimap-node');
+    expect(g).toBeInTheDocument();
+    fireEvent.click(g!);
+    expect(handleClick).toHaveBeenCalledWith(expect.anything(), 'svc-1');
   });
 });

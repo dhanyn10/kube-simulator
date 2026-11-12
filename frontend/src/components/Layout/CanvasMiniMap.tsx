@@ -1,8 +1,97 @@
 import React from 'react';
-import { Panel, MiniMap } from '@xyflow/react';
+import { Panel, MiniMap, type MiniMapNodeProps } from '@xyflow/react';
 import { ChevronLeft, ChevronUp, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCanvasMiniMap } from '@/activities/layout';
+import { useFlowStore } from '@/store';
+import { getDomMeasuredNodeSize } from '@/store/helpers';
+
+const renderCardDetailLines = (
+  x: number,
+  y: number,
+  finalWidth: number,
+  finalHeight: number,
+  isService: boolean
+) => {
+  if (finalHeight < 40) return null;
+
+  return (
+    <g opacity="0.4" stroke="rgba(255, 255, 255, 0.9)" strokeWidth="2" strokeLinecap="round">
+      <line x1={x + 8} y1={y + 18} x2={x + finalWidth - 14} y2={y + 18} />
+      {finalHeight >= 65 && <line x1={x + 8} y1={y + 26} x2={x + finalWidth - 22} y2={y + 26} />}
+      {finalHeight >= 90 && <line x1={x + 8} y1={y + 34} x2={x + finalWidth - 18} y2={y + 34} />}
+      {isService && finalHeight >= 115 && (
+        <>
+          <line
+            x1={x + 6}
+            y1={y + finalHeight - 20}
+            x2={x + finalWidth - 6}
+            y2={y + finalHeight - 20}
+            strokeWidth="1"
+            strokeDasharray="3 2"
+          />
+          <line
+            x1={x + 8}
+            y1={y + finalHeight - 11}
+            x2={x + finalWidth - 16}
+            y2={y + finalHeight - 11}
+          />
+        </>
+      )}
+    </g>
+  );
+};
+
+export const CanvasMiniMapNode: React.FC<MiniMapNodeProps> = ({
+  id,
+  x,
+  y,
+  width,
+  height,
+  color,
+  strokeColor,
+  strokeWidth = 2,
+  borderRadius = 4,
+  className,
+  selected,
+  onClick,
+}) => {
+  const node = useFlowStore.getState().nodes.find((n) => n.id === id);
+  const domSize = getDomMeasuredNodeSize(id);
+  const finalWidth = domSize.width > 0 ? domSize.width : (node?.measured?.width ?? width);
+  const finalHeight = domSize.height > 0 ? domSize.height : (node?.measured?.height ?? height);
+  const isVertical = finalHeight > finalWidth;
+  const isService = node?.type === 'Service';
+
+  return (
+    <g
+      className={cn('react-flow__minimap-node cursor-pointer', className, selected && 'opacity-90')}
+      onClick={onClick ? (e) => onClick(e, id) : undefined}
+    >
+      <rect
+        x={x}
+        y={y}
+        width={finalWidth}
+        height={finalHeight}
+        rx={borderRadius}
+        ry={borderRadius}
+        fill={color || '#94A3B8'}
+        stroke={strokeColor || '#334155'}
+        strokeWidth={strokeWidth}
+      />
+      <rect
+        x={x}
+        y={y}
+        width={finalWidth}
+        height={Math.min(14, Math.max(6, finalHeight * 0.14))}
+        rx={borderRadius}
+        ry={borderRadius}
+        fill="rgba(0, 0, 0, 0.22)"
+      />
+      {isVertical && renderCardDetailLines(x, y, finalWidth, finalHeight, isService)}
+    </g>
+  );
+};
 
 export const CanvasMiniMap: React.FC = () => {
   const { minimapPosition, colorMode, moveToPosition } = useCanvasMiniMap();
@@ -24,13 +113,16 @@ export const CanvasMiniMap: React.FC = () => {
             colorMode === 'dark' ? '!bg-slate-900 !border-slate-800' : '!bg-slate-100 !border-slate-300'
           )}
           nodeColor={(node) => {
-            if (node.type === 'Deployment') return '#8b5cf6';
+            if (node.type === 'Deployment' || node.type === 'StatefulSet') return '#8b5cf6';
             if (node.type === 'Pod') return '#22d3ee';
             if (node.type === 'Service') return '#f59e0b';
             return colorMode === 'dark' ? '#475569' : '#94A3B8';
           }}
+          nodeStrokeColor={colorMode === 'dark' ? '#334155' : '#cbd5e1'}
+          nodeStrokeWidth={2}
+          nodeBorderRadius={4}
           maskColor={colorMode === 'dark' ? 'rgba(15, 23, 42, 0.7)' : 'rgba(241, 245, 249, 0.7)'}
-          nodeStrokeWidth={3}
+          nodeComponent={CanvasMiniMapNode}
           zoomable
           pannable
         />

@@ -113,6 +113,38 @@ describe('Hybrid Yoga Layout Engine (Card/Node Layer)', () => {
     expect(pvcLayout.height).toBe(150);
   });
 
+  it('calculates vertical aspect ratio for cards that render vertically on canvas (ResourceLimit, HPA, Role with rules)', async () => {
+    const yoga = await getYogaEngine();
+
+    const resourceLimitNode = {
+      type: 'ResourceLimit',
+      data: { label: 'cpu-mem-limit', cpuRequest: '500m', cpuLimit: '1000m', memoryRequest: '256Mi', memoryLimit: '512Mi' },
+    };
+    const hpaNode = {
+      type: 'HPA',
+      data: { label: 'my-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 50, targetMemory: 50 },
+    };
+    const roleWithRulesNode = {
+      type: 'Role',
+      data: {
+        label: 'pod-reader',
+        rules: [
+          { resources: ['pods'], verbs: ['get', 'list'] },
+          { resources: ['services'], verbs: ['get'] },
+        ],
+      },
+    };
+
+    const resLimitLayout = calculateCardLayoutWithYoga(resourceLimitNode, yoga);
+    const hpaLayout = calculateCardLayoutWithYoga(hpaNode, yoga);
+    const roleLayout = calculateCardLayoutWithYoga(roleWithRulesNode, yoga);
+
+    // Height must be greater than width for vertical rectangular presentation matching canvas
+    expect(resLimitLayout.height).toBeGreaterThan(resLimitLayout.width);
+    expect(hpaLayout.height).toBeGreaterThan(hpaLayout.width);
+    expect(roleLayout.height).toBeGreaterThan(roleLayout.width);
+  });
+
   it('calculates fallback card layout when yoga is null or unavailable', () => {
     const serviceNode = {
       type: 'Service',

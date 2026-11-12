@@ -317,7 +317,7 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
 };
 
 
-const getDomMeasuredNodeSize = (nodeId: string | undefined): { width: number; height: number } => {
+export const getDomMeasuredNodeSize = (nodeId: string | undefined): { width: number; height: number } => {
   if (!nodeId || globalThis.document === undefined) {
     return { width: 0, height: 0 };
   }
@@ -334,9 +334,9 @@ const getServiceDefaultSize = (node: Node): { w: number; h: number } => {
   const isLbOrNodePort = node.data?.serviceType === 'LoadBalancer' || node.data?.serviceType === 'NodePort';
   const rawH = Math.max(node.height || 0, node.measured?.height || 0, Number(node.style?.height) || 0);
   if (rawH > 0 && rawH !== 88) {
-    return { w: 180, h: rawH };
+    return { w: 150, h: rawH };
   }
-  return { w: 180, h: isLbOrNodePort ? 200 : 180 };
+  return { w: 150, h: isLbOrNodePort ? 200 : 180 };
 };
 
 export const getEffectiveSize = (node: Node) => {
@@ -352,9 +352,13 @@ export const getEffectiveSize = (node: Node) => {
     };
   }
   const getDefaultSize = (type: string | undefined) => {
-    if (type === 'Deployment' || type === 'StatefulSet') return { w: 320, h: 160 };
+    if (type === 'Deployment' || type === 'StatefulSet' || type === 'ReplicaSet') return { w: 320, h: 160 };
     if (type === 'Namespace') return { w: 600, h: 400 };
     if (type === 'Service') return getServiceDefaultSize(node);
+    if (type === 'ResourceLimit') return { w: 168, h: 176 };
+    if (type === 'HPA') return { w: 168, h: 236 };
+    if (type === 'Role') return { w: 168, h: 180 };
+    if (type === 'PVC') return { w: 168, h: 146 };
     return { w: 160, h: 80 };
   };
 
