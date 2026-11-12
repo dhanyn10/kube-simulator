@@ -1,10 +1,32 @@
 import React from 'react';
-import { Panel, MiniMap, type MiniMapNodeProps } from '@xyflow/react';
+import { Panel, MiniMap, type MiniMapNodeProps, type Node } from '@xyflow/react';
 import { ChevronLeft, ChevronUp, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCanvasMiniMap } from '@/activities/layout';
 import { useFlowStore } from '@/store';
 import { getDomMeasuredNodeSize } from '@/store/helpers';
+
+const resolveMiniMapNodeSize = (
+  node: Node | undefined,
+  id: string,
+  width: number,
+  height: number
+) => {
+  const isContainer = ['Deployment', 'StatefulSet', 'Namespace', 'ReplicaSet'].includes(node?.type || '');
+  const isChild = Boolean(node?.parentId || (node?.data as any)?.parentId);
+  const fallbackWidth = node?.measured?.width ?? node?.width ?? width;
+  const fallbackHeight = node?.measured?.height ?? node?.height ?? height;
+
+  if (isContainer || isChild) {
+    return { finalWidth: fallbackWidth, finalHeight: fallbackHeight };
+  }
+
+  const domSize = getDomMeasuredNodeSize(id);
+  const finalWidth = domSize.width > 0 ? domSize.width : fallbackWidth;
+  const finalHeight = domSize.height > 0 ? domSize.height : fallbackHeight;
+
+  return { finalWidth, finalHeight };
+};
 
 const renderCardDetailLines = (
   x: number,
@@ -57,15 +79,7 @@ export const CanvasMiniMapNode: React.FC<MiniMapNodeProps> = ({
   onClick,
 }) => {
   const node = useFlowStore.getState().nodes.find((n) => n.id === id);
-  const isContainer = ['Deployment', 'StatefulSet', 'Namespace', 'ReplicaSet'].includes(node?.type || '');
-  const isChild = Boolean(node?.parentId || (node?.data as any)?.parentId);
-  const domSize = isContainer || isChild ? { width: 0, height: 0 } : getDomMeasuredNodeSize(id);
-  const finalWidth = isContainer || isChild
-    ? (node?.measured?.width ?? node?.width ?? width)
-    : (domSize.width > 0 ? domSize.width : (node?.measured?.width ?? node?.width ?? width));
-  const finalHeight = isContainer || isChild
-    ? (node?.measured?.height ?? node?.height ?? height)
-    : (domSize.height > 0 ? domSize.height : (node?.measured?.height ?? node?.height ?? height));
+  const { finalWidth, finalHeight } = resolveMiniMapNodeSize(node, id, width, height);
   const isVertical = finalHeight > finalWidth;
   const isService = node?.type === 'Service';
 
