@@ -22,6 +22,71 @@ describe('deploymentYogaLayout', () => {
     expect(getYogaInstanceSync()).toBe(engine);
   });
 
+  it('ensures child Pods are horizontally centered with symmetrical left and right padding inside Deployment', () => {
+    const deployment: Node = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 2, label: 'app-deployment' },
+    };
+
+    const pod1: Node = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: {
+        replicas: 1,
+        label: 'app-deployment-iprbh-h255s',
+        image: 'nginx:latest',
+        assignedNode: 'worker-1',
+        restartPolicy: 'Always',
+      },
+    };
+
+    const pod2: Node = {
+      id: 'pod2',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: {
+        replicas: 1,
+        label: 'app-deployment-iprbh-huvly',
+        image: 'nginx:latest',
+        assignedNode: 'worker-2',
+        restartPolicy: 'Always',
+      },
+    };
+
+    const layout = calculateDeploymentLayoutWithYoga(deployment, [pod1, pod2], yoga);
+    const leftGap = layout.laidOutPods[0].position.x;
+    const rightGap = layout.width - layout.laidOutPods[0].position.x - (layout.laidOutPods[0].width || 0);
+
+    expect(leftGap).toBe(24);
+    expect(rightGap).toBe(24);
+    expect(leftGap).toBe(rightGap);
+
+    // Also verify base pod (minimum dimensions) has symmetrical 24px left and right padding
+    const basePod: Node = {
+      id: 'base-pod',
+      type: 'Pod',
+      parentId: 'dep-base',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1 },
+    };
+    const baseDep: Node = {
+      id: 'dep-base',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1 },
+    };
+    const baseLayout = calculateDeploymentLayoutWithYoga(baseDep, [basePod], yoga);
+    const baseLeftGap = baseLayout.laidOutPods[0].position.x;
+    const baseRightGap = baseLayout.width - baseLayout.laidOutPods[0].position.x - (baseLayout.laidOutPods[0].width || 0);
+    expect(baseLeftGap).toBe(24);
+    expect(baseRightGap).toBe(24);
+  });
+
   it('scenario 1: Pod inserted into Deployment -> Deployment height increases', () => {
     const deployment: Node = {
       id: 'dep1',

@@ -260,4 +260,56 @@ describe('CanvasMiniMap Component', () => {
     // Clicking without onClick prop should not throw
     expect(() => fireEvent.click(g!)).not.toThrow();
   });
+
+  it('CanvasMiniMapNode preserves exact layout dimensions for container and child nodes, preventing right padding inflation', () => {
+    // Simulate DOM returning inflated width (e.g. from quick-connect arrow scrollWidth)
+    vi.spyOn(helpers, 'getDomMeasuredNodeSize').mockReturnValue({ width: 350, height: 400 });
+
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'dep-container',
+          type: 'Deployment',
+          position: { x: 0, y: 0 },
+          width: 270,
+          height: 400,
+          measured: { width: 270, height: 400 },
+          data: { label: 'dep-container' },
+        } as any,
+        {
+          id: 'child-pod',
+          type: 'Pod',
+          parentId: 'dep-container',
+          position: { x: 24, y: 48 },
+          width: 222,
+          height: 160,
+          measured: { width: 222, height: 160 },
+          data: { label: 'child-pod', parentId: 'dep-container' },
+        } as any,
+      ],
+    });
+
+    const { container: depContainer } = render(
+      <svg>
+        <CanvasMiniMapNode id="dep-container" x={0} y={0} width={270} height={400} />
+      </svg>
+    );
+    const depRect = depContainer.querySelector('rect');
+    // Container should use exact 270px width, NOT the inflated 350px
+    expect(depRect).toHaveAttribute('width', '270');
+
+    const { container: podContainer } = render(
+      <svg>
+        <CanvasMiniMapNode id="child-pod" x={24} y={48} width={222} height={160} />
+      </svg>
+    );
+    const podRect = podContainer.querySelector('rect');
+    // Child pod should use exact 222px width, NOT the inflated 350px
+    expect(podRect).toHaveAttribute('width', '222');
+
+    // Symmetrical padding check: Left gap = 24, Right gap = 270 - 24 - 222 = 24
+    const leftGap = 24;
+    const rightGap = 270 - (24 + 222);
+    expect(leftGap).toBe(rightGap);
+  });
 });

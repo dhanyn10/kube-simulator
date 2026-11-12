@@ -467,7 +467,7 @@ export const calculateDeploymentLayoutWithYoga = (
   const paddingX = 24;
   const paddingY = isReplicaSet ? 30 : 48;
 
-  const minWidth = isReplicaSet ? 180 : (POD_MIN_DIMENSIONS.width + paddingX * 2 + 10);
+  const minWidth = isReplicaSet ? 180 : (POD_MIN_DIMENSIONS.width + paddingX * 2);
   const minHeight = isReplicaSet ? 100 : (POD_MIN_DIMENSIONS.height + paddingY + bottomPadding);
 
   const maxPodWidth = Math.max(0, ...pods.map(p => getPodMinimumSize((p.data as unknown as K8sNodeData) || {}, data).width));

@@ -324,9 +324,10 @@ export const getDomMeasuredNodeSize = (nodeId: string | undefined): { width: num
   const el = globalThis.document.querySelector(`.react-flow__node[data-id="${nodeId}"]`) as HTMLElement | null;
   if (!el) return { width: 0, height: 0 };
   const child = el.firstElementChild as HTMLElement | null;
+  const target = child || el;
   return {
-    width: Math.max(el.offsetWidth || 0, el.scrollWidth || 0, child?.offsetWidth || 0, child?.scrollWidth || 0),
-    height: Math.max(el.offsetHeight || 0, el.scrollHeight || 0, child?.offsetHeight || 0, child?.scrollHeight || 0),
+    width: Math.max(target.offsetWidth || 0, el.offsetWidth || 0),
+    height: Math.max(target.offsetHeight || 0, el.offsetHeight || 0),
   };
 };
 

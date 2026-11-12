@@ -57,9 +57,15 @@ export const CanvasMiniMapNode: React.FC<MiniMapNodeProps> = ({
   onClick,
 }) => {
   const node = useFlowStore.getState().nodes.find((n) => n.id === id);
-  const domSize = getDomMeasuredNodeSize(id);
-  const finalWidth = domSize.width > 0 ? domSize.width : (node?.measured?.width ?? width);
-  const finalHeight = domSize.height > 0 ? domSize.height : (node?.measured?.height ?? height);
+  const isContainer = ['Deployment', 'StatefulSet', 'Namespace', 'ReplicaSet'].includes(node?.type || '');
+  const isChild = Boolean(node?.parentId || (node?.data as any)?.parentId);
+  const domSize = isContainer || isChild ? { width: 0, height: 0 } : getDomMeasuredNodeSize(id);
+  const finalWidth = isContainer || isChild
+    ? (node?.measured?.width ?? node?.width ?? width)
+    : (domSize.width > 0 ? domSize.width : (node?.measured?.width ?? node?.width ?? width));
+  const finalHeight = isContainer || isChild
+    ? (node?.measured?.height ?? node?.height ?? height)
+    : (domSize.height > 0 ? domSize.height : (node?.measured?.height ?? node?.height ?? height));
   const isVertical = finalHeight > finalWidth;
   const isService = node?.type === 'Service';
 
