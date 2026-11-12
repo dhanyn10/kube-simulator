@@ -7,7 +7,8 @@ import {
   syncPodsInDeployment,
   layoutPodsInDeployment,
   resolveGlobalCollisions,
-  ejectLoadBalancersFromNamespaces
+  ejectLoadBalancersFromNamespaces,
+  getDomMeasuredNodeSize
 } from '@/store/helpers';
 import { Node } from '@xyflow/react';
 
@@ -748,6 +749,39 @@ describe('store helpers', () => {
     // Node with empty id exercises !nodeId guard in getDomMeasuredNodeSize
     const emptyIdNode = { id: '', type: 'Service', position: { x: 0, y: 0 }, data: {} } as any;
     expect(resolveGlobalCollisions([emptyIdNode])).toHaveLength(1);
+    expect(getDomMeasuredNodeSize(undefined)).toEqual({ width: 0, height: 0 });
+
+    // ejectLoadBalancersFromNamespaces with zero ejected IDs
+    const noEjectResult = ejectLoadBalancersFromNamespaces([ns]);
+    expect(noEjectResult.ejectedIds).toHaveLength(0);
+    expect(noEjectResult.nodes).toEqual([ns]);
+
+    // Ejected LoadBalancer overlapping an adjacent namespace triggers getNearestOutsideNamespacePosition
+    const adjacentNs = {
+      id: 'ns-adjacent',
+      type: 'Namespace',
+      position: { x: -160, y: 100 },
+      width: 200,
+      height: 400,
+      data: { label: 'adjacent' },
+    } as any;
+    const lbEjectedNearAdjacent = {
+      id: 'lb-adj',
+      type: 'Service',
+      parentId: 'ns-1',
+      position: { x: 10, y: 150 },
+      width: 150,
+      height: 100,
+      data: { label: 'lb-adj', serviceType: 'LoadBalancer', parentId: 'ns-1' },
+    } as any;
+    const { nodes: adjEjected, ejectedIds: adjEjectedIds } = ejectLoadBalancersFromNamespaces([
+      ns,
+      adjacentNs,
+      lbEjectedNearAdjacent,
+    ]);
+    expect(adjEjectedIds).toContain('lb-adj');
+    const finalLb = adjEjected.find((n) => n.id === 'lb-adj')!;
+    expect(finalLb.parentId).toBeUndefined();
   });
 });
 

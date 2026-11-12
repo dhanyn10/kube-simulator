@@ -4,7 +4,8 @@ import {
   calculateCardLayoutWithYoga,
   calculateDeploymentLayoutWithYoga,
   getYogaEngine,
-  getYogaInstanceSync
+  getYogaInstanceSync,
+  calculateCardContentExtraHeight,
 } from '@/store/deploymentYogaLayout';
 import type { YogaEngine } from '@/store/deploymentYogaLayout';
 
@@ -406,5 +407,291 @@ describe('deploymentYogaLayout', () => {
       yoga
     );
     expect(hiddenPathLayout.height).toBe(singlePathLayout.height);
+  });
+
+  it('calculateCardContentExtraHeight covers ResourceLimit with threshold excess and invalid parsing', () => {
+    // Standard baseline
+    const base = calculateCardContentExtraHeight('ResourceLimit', {
+      cpuRequest: '500m',
+      cpuLimit: '1000m',
+      memoryRequest: '256Mi',
+      memoryLimit: '512Mi',
+    } as any);
+    expect(base).toBe(92);
+
+    // CPU excess
+    const cpuExcess = calculateCardContentExtraHeight('ResourceLimit', {
+      cpuRequest: '2000m',
+      cpuLimit: '1000m',
+      memoryRequest: '256Mi',
+      memoryLimit: '512Mi',
+    } as any);
+    expect(cpuExcess).toBe(116);
+
+    // Memory excess
+    const memExcess = calculateCardContentExtraHeight('ResourceLimit', {
+      cpuRequest: '500m',
+      cpuLimit: '1000m',
+      memoryRequest: '1024Mi',
+      memoryLimit: '512Mi',
+    } as any);
+    expect(memExcess).toBe(116);
+
+    // Parsing exception fallback
+    const invalidFallback = calculateCardContentExtraHeight('ResourceLimit', {
+      cpuRequest: 'invalid-cpu',
+    } as any);
+    expect(invalidFallback).toBe(92);
+  });
+
+  it('calculateCardContentExtraHeight covers HPA displaySettings toggles', () => {
+    const allShown = calculateCardContentExtraHeight('HPA', {
+      displaySettings: { replicas: true, targetMemory: true, targetCPU: true },
+    } as any);
+    expect(allShown).toBe(38 + 34 + 80);
+
+    const allHidden = calculateCardContentExtraHeight('HPA', {
+      displaySettings: { replicas: false, targetMemory: false, targetCPU: false },
+    } as any);
+    expect(allHidden).toBe(0);
+  });
+
+  it('calculateCardContentExtraHeight covers Role rules overflow and hiding', () => {
+    const overflowRules = calculateCardContentExtraHeight('Role', {
+      rules: [{ id: '1' }, { id: '2' }, { id: '3' }],
+    } as any);
+    expect(overflowRules).toBe(24 + 2 * 38 + 18);
+
+    const singleRule = calculateCardContentExtraHeight('Role', {
+      rules: [{ id: '1' }],
+    } as any);
+    expect(singleRule).toBe(24 + 1 * 38);
+
+    const emptyRules = calculateCardContentExtraHeight('Role', {
+      rules: [],
+    } as any);
+    expect(emptyRules).toBe(0);
+
+    const hiddenRules = calculateCardContentExtraHeight('Role', {
+      rules: [{ id: '1' }],
+      displaySettings: { rules: false },
+    } as any);
+    expect(hiddenRules).toBe(0);
+  });
+
+  it('calculateCardContentExtraHeight covers ConfigMap and Secret with item overflow and fallback', () => {
+    // ConfigMap overflow (> 3)
+    const cmOverflow = calculateCardContentExtraHeight('ConfigMap', {
+      configData: [{ key: 'k1' }, { key: 'k2' }, { key: 'k3' }, { key: 'k4' }],
+    } as any);
+    expect(cmOverflow).toBe(24 + 3 * 18 + 18);
+
+    // ConfigMap hidden
+    const cmHidden = calculateCardContentExtraHeight('ConfigMap', {
+      configData: [{ key: 'k1' }],
+      displaySettings: { data: false },
+    } as any);
+    expect(cmHidden).toBe(0);
+
+    // Secret with secretData overflow
+    const secOverflow = calculateCardContentExtraHeight('Secret', {
+      secretData: [{ key: 's1' }, { key: 's2' }, { key: 's3' }, { key: 's4' }],
+    } as any);
+    expect(secOverflow).toBe(24 + 3 * 18 + 18);
+
+    // Secret fallback to configData
+    const secFallback = calculateCardContentExtraHeight('Secret', {
+      configData: [{ key: 'c1' }, { key: 'c2' }],
+    } as any);
+    expect(secFallback).toBe(24 + 2 * 18);
+
+    // Secret hidden
+    const secHidden = calculateCardContentExtraHeight('Secret', {
+      secretData: [{ key: 's1' }],
+      displaySettings: { data: false },
+    } as any);
+    expect(secHidden).toBe(0);
+  });
+
+  it('calculateCardContentExtraHeight covers PVC storageClass and Service types', () => {
+    // PVC with storageClass
+    const pvcWithSc = calculateCardContentExtraHeight('PVC', {
+      storageClass: 'standard',
+    } as any);
+    expect(pvcWithSc).toBe(58 + 28);
+
+    // PVC without storageClass
+    const pvcWithoutSc = calculateCardContentExtraHeight('PVC', {} as any);
+    expect(pvcWithoutSc).toBe(58);
+
+    // PVC storageClass hidden
+    const pvcHiddenSc = calculateCardContentExtraHeight('PVC', {
+      storageClass: 'standard',
+      displaySettings: { storageClass: false },
+    } as any);
+    expect(pvcHiddenSc).toBe(58);
+
+    // Service NodePort
+    const svcNodePort = calculateCardContentExtraHeight('Service', {
+      serviceType: 'NodePort',
+      nodePort: 30080,
+    } as any);
+    expect(svcNodePort).toBe(18 + 18 + 18 + 18 + 40);
+
+    // Service LoadBalancer
+    const svcLoadBalancer = calculateCardContentExtraHeight('Service', {
+      serviceType: 'LoadBalancer',
+      nodePort: 30080,
+    } as any);
+    expect(svcLoadBalancer).toBe(18 + 18 + 18 + 18 + 40);
+
+    // Service ClusterIP
+    const svcClusterIp = calculateCardContentExtraHeight('Service', {
+      serviceType: 'ClusterIP',
+    } as any);
+    expect(svcClusterIp).toBe(18 + 18 + 18 + 40);
+
+    // Service all hidden
+    const svcAllHidden = calculateCardContentExtraHeight('Service', {
+      serviceType: 'ClusterIP',
+      displaySettings: { serviceType: false, port: false, targetPort: false, selector: false },
+    } as any);
+    expect(svcAllHidden).toBe(0);
+
+    // Unknown node type
+    expect(calculateCardContentExtraHeight('UnknownType', {} as any)).toBe(0);
+  });
+
+  it('calculateCardLayoutWithYoga supports Pod node and attached badges subtrees', () => {
+    const podLayout = calculateCardLayoutWithYoga(
+      {
+        type: 'Pod',
+        data: { replicas: 1, label: 'pod-card' },
+      },
+      yoga
+    );
+    expect(podLayout.width).toBeGreaterThan(0);
+    expect(podLayout.height).toBeGreaterThan(0);
+
+    const manualCardWithYoga = calculateCardLayoutWithYoga(
+      {
+        type: 'Service',
+        width: 300,
+        height: 220,
+        data: { label: 'svc-manual', isManuallyResized: true },
+      },
+      yoga
+    );
+    expect(manualCardWithYoga.width).toBe(300);
+    expect(manualCardWithYoga.height).toBe(220);
+
+    const attachedCard = calculateCardLayoutWithYoga(
+      {
+        type: 'Service',
+        data: {
+          label: 'service-attached',
+          roles: [{ id: 'r1', name: 'role-1' }],
+          configMaps: [{ id: 'cm1', name: 'cm-1' }],
+          secrets: [{ id: 'sec1', name: 'sec-1' }],
+          resourceLimits: [{ id: 'rl1', name: 'rl-1' }],
+          hpas: [{ id: 'hpa1', name: 'hpa-1' }],
+        },
+      },
+      yoga
+    );
+    expect(attachedCard.height).toBeGreaterThan(100);
+  });
+
+  it('calculateCardLayoutWithYoga falls back gracefully when yoga engine is null', () => {
+    const normalFallback = calculateCardLayoutWithYoga(
+      {
+        type: 'Service',
+        data: { label: 'svc-fallback' },
+      },
+      null
+    );
+    expect(normalFallback.width).toBeGreaterThan(0);
+    expect(normalFallback.height).toBeGreaterThan(0);
+
+    const manualFallback = calculateCardLayoutWithYoga(
+      {
+        type: 'Service',
+        width: 320,
+        height: 240,
+        data: { label: 'svc-manual', isManuallyResized: true },
+      },
+      null
+    );
+    expect(manualFallback.width).toBe(320);
+    expect(manualFallback.height).toBe(240);
+  });
+
+  it('calculateDeploymentLayoutWithYoga handles fallback calculation when yoga engine is null', () => {
+    const dep: Node = {
+      id: 'dep-fb',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 2, label: 'dep-fb' },
+    };
+
+    const pod1: Node = {
+      id: 'pod-fb-1',
+      type: 'Pod',
+      parentId: 'dep-fb',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, label: 'p1', isManuallyResized: true },
+      width: 140,
+      measured: { width: 140, height: 80 },
+    };
+
+    const megaPod: Node = {
+      id: 'pod-fb-2',
+      type: 'Pod',
+      parentId: 'dep-fb',
+      position: { x: 0, y: 0 },
+      data: { replicas: 5, label: 'p2' },
+    };
+
+    const result = calculateDeploymentLayoutWithYoga(dep, [pod1, megaPod], null);
+    expect(result.laidOutPods).toHaveLength(2);
+    expect(result.width).toBeGreaterThan(0);
+    expect(result.height).toBeGreaterThan(0);
+
+    // Empty pods fallback
+    const emptyResult = calculateDeploymentLayoutWithYoga(dep, [], null);
+    expect(emptyResult.laidOutPods).toHaveLength(0);
+  });
+
+  it('calculateDeploymentLayoutWithYoga handles ReplicaSet type and attached badges with Yoga', () => {
+    const rs: Node = {
+      id: 'rs-attached',
+      type: 'ReplicaSet',
+      position: { x: 0, y: 0 },
+      data: {
+        replicas: 1,
+        roles: ['r1'],
+        secrets: ['s1'],
+        configMaps: ['c1'],
+        hpas: ['h1'],
+        resourceLimits: ['rl1'],
+      },
+    };
+
+    const podWithAttachments: Node = {
+      id: 'pod-attached',
+      type: 'Pod',
+      parentId: 'rs-attached',
+      position: { x: 0, y: 0 },
+      data: {
+        replicas: 1,
+        roles: [{ id: 'r1' }],
+        configMaps: [{ id: 'c1' }],
+        secrets: [{ id: 's1' }],
+      },
+    };
+
+    const layout = calculateDeploymentLayoutWithYoga(rs, [podWithAttachments], yoga);
+    expect(layout.laidOutPods).toHaveLength(1);
+    expect(layout.height).toBeGreaterThan(150);
   });
 });

@@ -93,6 +93,16 @@ export const CanvasMiniMapNode: React.FC<MiniMapNodeProps> = ({
   );
 };
 
+export const getMiniMapNodeColor = (
+  type: string | undefined,
+  colorMode: 'dark' | 'light'
+): string => {
+  if (type === 'Deployment' || type === 'StatefulSet') return '#8b5cf6';
+  if (type === 'Pod') return '#22d3ee';
+  if (type === 'Service') return '#f59e0b';
+  return colorMode === 'dark' ? '#475569' : '#94A3B8';
+};
+
 export const CanvasMiniMap: React.FC = () => {
   const { minimapPosition, colorMode, moveToPosition } = useCanvasMiniMap();
 
@@ -112,12 +122,7 @@ export const CanvasMiniMap: React.FC = () => {
             'rounded-lg shadow-2xl !m-0 !w-full !h-full',
             colorMode === 'dark' ? '!bg-slate-900 !border-slate-800' : '!bg-slate-100 !border-slate-300'
           )}
-          nodeColor={(node) => {
-            if (node.type === 'Deployment' || node.type === 'StatefulSet') return '#8b5cf6';
-            if (node.type === 'Pod') return '#22d3ee';
-            if (node.type === 'Service') return '#f59e0b';
-            return colorMode === 'dark' ? '#475569' : '#94A3B8';
-          }}
+          nodeColor={(node) => getMiniMapNodeColor(node.type, colorMode)}
           nodeStrokeColor={colorMode === 'dark' ? '#334155' : '#cbd5e1'}
           nodeStrokeWidth={2}
           nodeBorderRadius={4}
