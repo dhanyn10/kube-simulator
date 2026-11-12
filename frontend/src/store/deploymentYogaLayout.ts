@@ -1,6 +1,7 @@
 import { Node } from '@xyflow/react';
 import { loadYoga } from 'yoga-layout/load';
 import { K8sNodeData } from '@/types';
+import { parseCPU, parseMemory } from '@/lib/utils';
 import {
   getPodMinimumSize,
   getPodVisibleBadges,
@@ -46,14 +47,14 @@ export const getYogaInstanceSync = (): YogaEngine | null => {
 };
 
 const CARD_BASE_DIMENSIONS: Record<string, { minWidth: number; minHeight: number }> = {
-  Service: { minWidth: 180, minHeight: 88 },
-  Ingress: { minWidth: 180, minHeight: 96 },
-  PVC: { minWidth: 168, minHeight: 88 },
-  HPA: { minWidth: 168, minHeight: 84 },
-  ResourceLimit: { minWidth: 168, minHeight: 84 },
-  ConfigMap: { minWidth: 168, minHeight: 80 },
-  Secret: { minWidth: 168, minHeight: 80 },
-  Role: { minWidth: 168, minHeight: 80 },
+  Service: { minWidth: 150, minHeight: 88 },
+  Ingress: { minWidth: 160, minHeight: 96 },
+  PVC: { minWidth: 150, minHeight: 88 },
+  HPA: { minWidth: 160, minHeight: 84 },
+  ResourceLimit: { minWidth: 160, minHeight: 84 },
+  ConfigMap: { minWidth: 150, minHeight: 80 },
+  Secret: { minWidth: 150, minHeight: 80 },
+  Role: { minWidth: 150, minHeight: 80 },
   Internet: { minWidth: 140, minHeight: 70 },
 };
 
@@ -117,14 +118,124 @@ const calculateYogaCardLayout = (
   rootNode.freeRecursive();
 
   if (data.isManuallyResized) {
-    finalWidth = Math.max(node.width || 0, finalWidth);
-    finalHeight = Math.max(node.height || 0, finalHeight);
+    finalWidth = node.width || finalWidth;
+    finalHeight = node.height || finalHeight;
   }
 
   return {
     width: Math.ceil(finalWidth),
     height: Math.ceil(finalHeight),
   };
+};
+
+const calculateResourceLimitContentHeight = (data: Partial<K8sNodeData>): number => {
+  let height = 92;
+  try {
+    const cpuReq = parseCPU(data.cpuRequest || '500m');
+    const cpuLim = parseCPU(data.cpuLimit || '1000m');
+    const memReq = parseMemory(data.memoryRequest || '256Mi');
+    const memLim = parseMemory(data.memoryLimit || '512Mi');
+    if (cpuReq > cpuLim || memReq > memLim) {
+      height += 24;
+    }
+  } catch {
+    // fallback gracefully
+  }
+  return height;
+};
+
+const calculateHpaContentHeight = (data: Partial<K8sNodeData>): number => {
+  let height = 0;
+  if (data.displaySettings?.replicas !== false) height += 38;
+  if (data.displaySettings?.targetMemory !== false) height += 34;
+  if (data.displaySettings?.targetCPU !== false) height += 80;
+  return height;
+};
+
+const calculateRoleContentHeight = (data: Partial<K8sNodeData>): number => {
+  const rules = data.rules || [];
+  if (data.displaySettings?.rules !== false && rules.length > 0) {
+    const displayedRules = Math.min(rules.length, 2);
+    const overflowHeight = rules.length > 2 ? 18 : 0;
+    return 24 + displayedRules * 38 + overflowHeight;
+  }
+  return 0;
+};
+
+const calculateConfigMapContentHeight = (data: Partial<K8sNodeData>): number => {
+  const configData = data.configData || [];
+  if (data.displaySettings?.data !== false && configData.length > 0) {
+    const displayedItems = Math.min(configData.length, 3);
+    const overflowHeight = configData.length > 3 ? 18 : 0;
+    return 24 + displayedItems * 18 + overflowHeight;
+  }
+  return 0;
+};
+
+const calculateSecretContentHeight = (data: Partial<K8sNodeData>): number => {
+  const secretItems = ((data as any).secretData && (data as any).secretData.length > 0)
+    ? (data as any).secretData
+    : (data.configData || []);
+  if (data.displaySettings?.data !== false && secretItems.length > 0) {
+    const displayedItems = Math.min(secretItems.length, 3);
+    const overflowHeight = secretItems.length > 3 ? 18 : 0;
+    return 24 + displayedItems * 18 + overflowHeight;
+  }
+  return 0;
+};
+
+const calculatePvcContentHeight = (data: Partial<K8sNodeData>): number => {
+  let height = 58;
+  if (data.displaySettings?.storageClass !== false && data.storageClass) {
+    height += 28;
+  }
+  return height;
+};
+
+const calculateServiceContentHeight = (data: Partial<K8sNodeData>): number => {
+  let height = 0;
+  if (data.displaySettings?.serviceType !== false) height += 18;
+  if (data.displaySettings?.port !== false) height += 18;
+  if (data.displaySettings?.targetPort !== false) height += 18;
+  const serviceType = data.serviceType || 'ClusterIP';
+  const isNodePortOrLb = serviceType === 'NodePort' || serviceType === 'LoadBalancer';
+  if (isNodePortOrLb && data.nodePort) height += 18;
+  if (data.displaySettings?.selector !== false) height += 40;
+  return height;
+};
+
+const calculateIngressContentHeight = (data: Partial<K8sNodeData>): number => {
+  const ingressPathCount =
+    data.displaySettings?.path !== false && Array.isArray(data.ingressPaths)
+      ? data.ingressPaths.length
+      : 0;
+  return ingressPathCount > 1 ? (ingressPathCount - 1) * 16 : 0;
+};
+
+/**
+ * Calculates extra content height for a specific node type based on internal fields and display settings.
+ */
+export const calculateCardContentExtraHeight = (nodeType: string, data: K8sNodeData): number => {
+  switch (nodeType) {
+    case 'ResourceLimit':
+      return calculateResourceLimitContentHeight(data);
+    case 'HPA':
+      return calculateHpaContentHeight(data);
+    case 'Role':
+      return calculateRoleContentHeight(data);
+    case 'ConfigMap':
+      return calculateConfigMapContentHeight(data);
+    case 'Secret':
+      return calculateSecretContentHeight(data);
+    case 'PVC':
+      return calculatePvcContentHeight(data);
+    case 'Service':
+      return calculateServiceContentHeight(data);
+    case 'Ingress':
+      return calculateIngressContentHeight(data);
+    default:
+      return 0;
+  }
 };
 
 /**
@@ -148,12 +259,8 @@ export const calculateCardLayoutWithYoga = (
   }
 
   const { minWidth: baseMinWidth, minHeight: rawBaseMinHeight } = getNodeBaseDimensions(nodeType);
-  const ingressPathCount =
-    nodeType === 'Ingress' && data.displaySettings?.path !== false && Array.isArray(data.ingressPaths)
-      ? data.ingressPaths.length
-      : 0;
-  const ingressExtraHeight = ingressPathCount > 1 ? (ingressPathCount - 1) * 16 : 0;
-  const baseMinHeight = rawBaseMinHeight + ingressExtraHeight;
+  const extraContentHeight = calculateCardContentExtraHeight(nodeType, data);
+  const baseMinHeight = rawBaseMinHeight + extraContentHeight;
 
   const attachedHeight = calculatePodAttachedHeight(data);
   const textLabelLength = String(data.label || '').length;
@@ -162,8 +269,8 @@ export const calculateCardLayoutWithYoga = (
   const computedHeight = baseMinHeight + attachedHeight;
 
   if (!yoga) {
-    const width = data.isManuallyResized ? Math.max(node.width || 0, computedWidth) : computedWidth;
-    const height = data.isManuallyResized ? Math.max(node.height || 0, computedHeight) : computedHeight;
+    const width = data.isManuallyResized ? (node.width || computedWidth) : computedWidth;
+    const height = data.isManuallyResized ? (node.height || computedHeight) : computedHeight;
     return { width, height };
   }
 
@@ -360,7 +467,7 @@ export const calculateDeploymentLayoutWithYoga = (
   const paddingX = 24;
   const paddingY = isReplicaSet ? 30 : 48;
 
-  const minWidth = isReplicaSet ? 180 : (POD_MIN_DIMENSIONS.width + paddingX * 2 + 10);
+  const minWidth = isReplicaSet ? 180 : (POD_MIN_DIMENSIONS.width + paddingX * 2);
   const minHeight = isReplicaSet ? 100 : (POD_MIN_DIMENSIONS.height + paddingY + bottomPadding);
 
   const maxPodWidth = Math.max(0, ...pods.map(p => getPodMinimumSize((p.data as unknown as K8sNodeData) || {}, data).width));

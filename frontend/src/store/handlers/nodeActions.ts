@@ -656,10 +656,13 @@ const computeNodeDimensions = (
       height: target.height,
       data: updatedData,
     });
+    const cleanStyle = { ...target.style };
+    delete (cleanStyle as any).height;
     return {
       width: cardLayout.width,
       height: cardLayout.height,
-      style: { ...target.style, width: cardLayout.width, height: cardLayout.height },
+      measured: { width: cardLayout.width, height: cardLayout.height },
+      style: { ...cleanStyle, width: cardLayout.width, minHeight: cardLayout.height },
     };
   }
 
@@ -773,14 +776,19 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   const finalPos = position || getCanvasCenterPosition(cardSize);
   const topZIndex = position ? undefined : getNextTopZIndex(currentNodes);
 
+  const isContainer = type === 'Namespace' || type === 'Deployment' || type === 'StatefulSet' || type === 'ReplicaSet';
+
   const newNode: Node = {
     id, type, position: finalPos, parentId: targetParentId,
     extent: targetParentId ? 'parent' : undefined,
     data: initialData,
     width: cardSize.width,
     height: cardSize.height,
+    measured: { width: cardSize.width, height: cardSize.height },
     zIndex: topZIndex,
-    style: { width: cardSize.width, height: cardSize.height }
+    style: isContainer
+      ? { width: cardSize.width, height: cardSize.height }
+      : { width: cardSize.width, minHeight: cardSize.height }
   };
 
   const collisionResolvedNodes = buildNodesAfterAddition(newNode, currentNodes, position, get);

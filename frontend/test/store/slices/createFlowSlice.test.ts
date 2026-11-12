@@ -1849,5 +1849,92 @@ describe('createFlowSlice', () => {
       const updatedSvc = useFlowStore.getState().nodes.find((n) => n.id === 'service-qc');
       expect(updatedSvc?.data.serviceType).toBe('LoadBalancer');
     });
+
+    it('covers syncNodeDimensionsOnChange for regular card nodes vs containers and manually resized nodes', () => {
+      const svcNode: Node = {
+        id: 'svc-dim',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        width: 100,
+        height: 100,
+        data: { label: 'svc-dim' },
+      };
+      const depNode: Node = {
+        id: 'dep-dim',
+        type: 'Deployment',
+        position: { x: 200, y: 0 },
+        width: 200,
+        height: 150,
+        data: { label: 'dep-dim' },
+      };
+      const manualSvc: Node = {
+        id: 'manual-svc-dim',
+        type: 'Service',
+        position: { x: 400, y: 0 },
+        width: 120,
+        height: 120,
+        data: { label: 'manual-svc', isManuallyResized: true },
+      };
+
+      useFlowStore.setState({
+        nodes: [svcNode, depNode, manualSvc],
+        edges: [],
+      });
+
+      useFlowStore.getState().onNodesChange([
+        { id: 'svc-dim', type: 'dimensions', dimensions: { width: 160, height: 220 } } as any,
+        { id: 'dep-dim', type: 'dimensions', dimensions: { width: 300, height: 400 } } as any,
+        { id: 'manual-svc-dim', type: 'dimensions', dimensions: { width: 300, height: 300 } } as any,
+      ]);
+
+      const state = useFlowStore.getState();
+      const updatedSvc = state.nodes.find((n) => n.id === 'svc-dim');
+      expect(updatedSvc?.width).toBe(160);
+      expect(updatedSvc?.height).toBe(220);
+      expect(updatedSvc?.measured).toEqual({ width: 160, height: 220 });
+
+      // Deployment should not be updated by dimensions change
+      const updatedDep = state.nodes.find((n) => n.id === 'dep-dim');
+      expect(updatedDep?.width).toBe(200);
+
+      // Manually resized node should not be overridden
+      const updatedManual = state.nodes.find((n) => n.id === 'manual-svc-dim');
+      expect(updatedManual?.width).toBe(120);
+
+      // Also verify zero/negative dimensions are ignored
+      useFlowStore.getState().onNodesChange([
+        { id: 'svc-dim', type: 'dimensions', dimensions: { width: 0, height: 0 } } as any,
+      ]);
+      const recheckedSvc = useFlowStore.getState().nodes.find((n) => n.id === 'svc-dim');
+      expect(recheckedSvc?.width).toBe(160);
+    });
+
+    it('covers shouldApplyTargetServiceSelector resolving baseName and syncConnectedTargetNode resolving data.type', () => {
+      const podNode: Node = {
+        id: 'pod-base-1',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: { baseName: 'worker-app' },
+      };
+      const svcNode: Node = {
+        id: 'svc-match',
+        type: undefined as any,
+        position: { x: 100, y: 0 },
+        data: { type: 'Service', selector: 'worker-app' },
+      };
+
+      useFlowStore.setState({
+        nodes: [podNode, svcNode],
+        edges: [],
+      });
+
+      useFlowStore.getState().onConnect({
+        source: 'pod-base-1',
+        target: 'svc-match',
+      });
+
+      const updatedSvc = useFlowStore.getState().nodes.find((n) => n.id === 'svc-match');
+      expect(updatedSvc?.data?.selector).toBe('worker-app');
+    });
   });
 });

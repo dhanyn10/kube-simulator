@@ -1,4 +1,4 @@
-import { syncDeployment } from '@/store/nodeHelpers';
+import { syncDeployment, hydrateNodes } from '@/store/nodeHelpers';
 import { logger } from '@/lib/logger';
 import { getBackendGateway, WailsBackendGateway } from '@/gateway';
 import { StateCreator } from 'zustand';
@@ -963,8 +963,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           try {
             const parsed = JSON.parse(content);
             if (Array.isArray(parsed.nodes) && Array.isArray(parsed.edges) && parsed.nodes.length > 0) {
+              const nodesWithStrings = parsed.nodes.map((n: any) => ({
+                ...n,
+                id: String(n.id),
+                parentId: n.parentId ? String(n.parentId) : undefined,
+              }));
+              const hydratedNodes = hydrateNodes(nodesWithStrings, () => get());
               set({
-                nodes: parsed.nodes,
+                nodes: hydratedNodes,
                 edges: parsed.edges,
               });
               logger.info('[Autosave] Restored latest profile from auto_saved_profile_content');

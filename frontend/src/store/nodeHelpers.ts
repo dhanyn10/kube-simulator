@@ -7,7 +7,7 @@ import {
 } from '@/store/helpers';
 import { getPodMinimumSize } from '@/lib/podSizing';
 import { syncWorkloadMetadata, getInitialData, createNodeHandlers } from '@/store/handlers/nodeUtils';
-import { calculateDeploymentLayoutWithYoga } from './deploymentYogaLayout';
+import { calculateDeploymentLayoutWithYoga, calculateCardLayoutWithYoga } from './deploymentYogaLayout';
 
 export const attachHandlers = createNodeHandlers;
 
@@ -81,8 +81,30 @@ export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
       yamlSettings
     });
 
+    const isContainer = ['Namespace', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(node.type);
+    let effectiveWidth = node.width;
+    let effectiveHeight = node.height;
+    const nodeStyle = { ...node.style };
+
+    if (!isContainer) {
+      const cardSize = calculateCardLayoutWithYoga({ ...node, data });
+      effectiveWidth = node.data?.isManuallyResized ? Math.max(node.width || 0, cardSize.width) : cardSize.width;
+      effectiveHeight = node.data?.isManuallyResized ? Math.max(node.height || 0, cardSize.height) : cardSize.height;
+      delete (nodeStyle as any).height;
+      nodeStyle.width = effectiveWidth;
+      nodeStyle.minHeight = effectiveHeight;
+    }
+
+    const effectiveMeasured = node.data?.isManuallyResized && node.measured
+      ? node.measured
+      : { width: effectiveWidth, height: effectiveHeight };
+
     return {
       ...node,
+      width: effectiveWidth,
+      height: effectiveHeight,
+      measured: effectiveMeasured,
+      style: nodeStyle,
       data: {
         ...data,
         ...handlers,

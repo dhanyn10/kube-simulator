@@ -1405,4 +1405,49 @@ describe('createUiSlice', () => {
       expect.arrayContaining([expect.objectContaining({ id: 'sec-restored' })])
     );
   });
+
+  it('covers loadSettingsJson restoring and hydrating nodes from auto_saved_profile_content', async () => {
+    const mockContent = JSON.stringify({
+      nodes: [
+        { id: 101, type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'web-dep' } },
+        { id: 102, type: 'Pod', parentId: 101, position: { x: 10, y: 10 }, data: { label: 'web-pod' } }
+      ],
+      edges: [
+        { id: 'e1', source: '101', target: '102' }
+      ]
+    });
+
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'auto_saved_profile_content') return Promise.resolve(mockContent);
+      if (key === 'active_identity') return Promise.resolve('dev-lead');
+      if (key === 'minimap_position') return Promise.resolve('bottom-left');
+      return Promise.resolve('');
+    });
+
+    const { loadSettingsJson } = useFlowStore.getState();
+    await loadSettingsJson();
+    await new Promise((r) => setTimeout(r, 50));
+
+    const state = useFlowStore.getState();
+    expect(state.nodes).toHaveLength(2);
+    expect(state.nodes[0].id).toBe('101');
+    expect(state.nodes[1].parentId).toBe('101');
+    expect(state.edges).toHaveLength(1);
+    expect(state.activeIdentity).toBe('dev-lead');
+    expect(state.minimapPosition).toBe('bottom-left');
+  });
+
+  it('covers loadSettingsJson handling malformed auto_saved_profile_content gracefully', async () => {
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'auto_saved_profile_content') return Promise.resolve('invalid-json{{{');
+      if (key === 'minimap_position') return Promise.resolve('invalid-pos');
+      return Promise.resolve('');
+    });
+
+    const { loadSettingsJson } = useFlowStore.getState();
+    await loadSettingsJson();
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(useFlowStore.getState().minimapPosition).not.toBe('invalid-pos');
+  });
 });
