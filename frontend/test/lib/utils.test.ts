@@ -242,15 +242,22 @@ describe('utils', () => {
       expect(result).toBe('');
     });
 
-    it('calls backend GenerateYaml when available and converts JSON array to YAML', async () => {
-      const mockYaml = JSON.stringify([{ kind: 'Pod', metadata: { name: 'backend-pod' } }]);
+    it('consistently uses client-side manifestGenerator as single source of truth without backend IPC round-trips', async () => {
+      const mockGenerateYaml = vi.fn().mockResolvedValue('unexpected-backend-output');
       (globalThis as any).go = {
-        main: { App: { GenerateYaml: vi.fn().mockResolvedValue(mockYaml) } }
+        main: { App: { GenerateYaml: mockGenerateYaml } }
       };
       try {
-        const result = await generateYaml([], []);
-        expect(result).toContain('kind: Pod');
-        expect(result).toContain('name: backend-pod');
+        const mockNode = {
+          id: 'svc-1',
+          type: 'Service',
+          data: { label: 'my-svc', namespace: 'default' },
+          position: { x: 0, y: 0 }
+        };
+        const result = await generateYaml([mockNode], []);
+        expect(result).toContain('kind: Service');
+        expect(result).toContain('name: my-svc');
+        expect(mockGenerateYaml).not.toHaveBeenCalled();
       } finally {
         delete (globalThis as any).go;
       }
