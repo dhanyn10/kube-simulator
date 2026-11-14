@@ -514,6 +514,9 @@ describe('Clean Architecture Backend Gateway', () => {
       unsub2();
       mock.emitEvent('alert', 'data-3');
       expect(handler2).toHaveBeenCalledTimes(2);
+
+      // Emit event for an event name with no registered listeners (covers if (!set) branch)
+      expect(() => mock.emitEvent('completely-unregistered-event', 'no-op')).not.toThrow();
     });
 
     it('handles mock file operations and window diagnostics', async () => {
