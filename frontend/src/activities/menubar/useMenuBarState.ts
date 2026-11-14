@@ -156,10 +156,19 @@ export const useMenuBarState = ({
               const performSave = async () => {
                 if (currentProject?.id !== undefined && currentProject.id !== -1) {
                   const content = JSON.stringify({ nodes, edges });
-                  const success = await getBackendGateway().updateProject(currentProject.id, content);
-                  if (success) {
-                    useFlowStore.setState({ lastSavedSnapshot: content });
-                    alert("Resource architecture saved successfully!");
+                  try {
+                    const success = await getBackendGateway().updateProject(currentProject.id, content);
+                    if (success) {
+                      useFlowStore.setState({ lastSavedSnapshot: content });
+                      useFlowStore.getState().addLog('info', `Resource architecture "${currentProject.name}" saved successfully.`, 'System');
+                    } else {
+                      useFlowStore.getState().addLog('error', `Failed to save resource architecture "${currentProject.name}".`, 'System');
+                      useFlowStore.getState().setLogModalOpen(true);
+                    }
+                  } catch (err: any) {
+                    const msg = err?.message || 'Unknown error occurred while saving';
+                    useFlowStore.getState().addLog('error', `Failed to save resource architecture: ${msg}`, 'System');
+                    useFlowStore.getState().setLogModalOpen(true);
                   }
                 } else {
                   onOpenProjects();

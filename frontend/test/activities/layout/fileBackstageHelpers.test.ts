@@ -337,6 +337,7 @@ describe('fileBackstageHelpers', () => {
       await restoreRecentFile(item, onClose, fitView);
       expect(onClose).not.toHaveBeenCalled();
       expect(useFlowStore.getState().logs.some(l => l.message.includes('Failed to restore recent autosave file'))).toBe(true);
+      expect(useFlowStore.getState().isLogModalOpen).toBe(true);
     });
 
     it('restores project by number id successfully', async () => {
@@ -392,11 +393,15 @@ describe('fileBackstageHelpers', () => {
       // 1. LoadProject returns null
       await restoreRecentFile(projectItem, onClose, fitView);
       expect(onClose).not.toHaveBeenCalled();
+      expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+      expect(useFlowStore.getState().logs.some(l => l.message.includes('Record not found or empty'))).toBe(true);
 
       // 2. LoadProject returns invalid JSON
+      useFlowStore.setState({ isLogModalOpen: false });
       await restoreRecentFile(projectItem, onClose, fitView);
       expect(onClose).not.toHaveBeenCalled();
       expect(useFlowStore.getState().logs.some(l => l.message.includes('Failed to load recent project 99'))).toBe(true);
+      expect(useFlowStore.getState().isLogModalOpen).toBe(true);
 
       // 3. String ID non-autosave item
       const stringItem: RecentFileItem = { id: 'str-id-not-autosave', name: 'Other', location: '', fullPath: '', updatedAt: '' };
@@ -420,6 +425,8 @@ describe('fileBackstageHelpers', () => {
       const item: RecentFileItem = { id: 'autosave-1', name: 'autosave-1', location: '', fullPath: '', updatedAt: '', isAutosave: true };
       await restoreRecentFile(item, onClose, fitView);
       expect(onClose).not.toHaveBeenCalled();
+      expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+      expect(useFlowStore.getState().logs.some(l => l.message.includes('Content is empty or missing'))).toBe(true);
 
       // 2. data.nodes and data.edges are undefined in content JSON (Branch 28 & 29 fallback to [])
       (globalThis as any).go = {
