@@ -1,5 +1,6 @@
 import { useFlowStore } from '@/store';
 import { CommandContext, executeKubectlCommand } from '@/activities/terminal/useTerminalCommandSubmit';
+import { getBackendGateway } from '@/gateway';
 
 // Flag to prevent recursive dispatch loops when terminal commands themselves modify store
 let isDispatchingLiveCommand = false;
@@ -37,12 +38,7 @@ export const dispatchLiveCommand = (
     const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
     store.addActivityLog(`$ ${cmd}`);
 
-    const wailsApp = globalThis.go?.main?.App as unknown as {
-      WriteLog?: (cat: string, level: string, msg: string) => Promise<void>;
-    };
-    if (wailsApp?.WriteLog) {
-      wailsApp.WriteLog('kubeconsole', 'info', `${timestamp} $ ${cmd}`).catch(() => {});
-    }
+    getBackendGateway().writeLog('kubeconsole', 'info', `${timestamp} $ ${cmd}`).catch(() => {});
 
     // 3. Build CommandContext and execute
     const ctx: CommandContext = {

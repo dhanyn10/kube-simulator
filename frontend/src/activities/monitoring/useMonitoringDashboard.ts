@@ -4,6 +4,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useFlowStore } from '@/store';
+import { getBackendGateway } from '@/gateway';
 
 export const useMonitoringDashboardHandler = () => {
   const isMonitoringOpen = useFlowStore((state) => state.isMonitoringOpen);
@@ -28,7 +29,7 @@ export const useMonitoringDashboardHandler = () => {
 
   useEffect(() => {
     const channel = new BroadcastChannel('monitoring-data');
-    const runtime = globalThis.runtime;
+    const gw = getBackendGateway();
 
     const handleOpen = () => {
       setMonitoringDetached(true);
@@ -47,10 +48,14 @@ export const useMonitoringDashboardHandler = () => {
       }
     };
 
-    runtime?.EventsOn?.('detached-open', handleOpen);
-    runtime?.EventsOn?.('detached-closed', handleClose);
+    const unsubOpen = gw.onEvent('detached-open', handleOpen);
+    const unsubClose = gw.onEvent('detached-closed', handleClose);
 
-    return () => channel.close();
+    return () => {
+      channel.close();
+      unsubOpen();
+      unsubClose();
+    };
   }, [setMonitoringDetached, setMonitoringOpen]);
 
   const handleDetach = () => {

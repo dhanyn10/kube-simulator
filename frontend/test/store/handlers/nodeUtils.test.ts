@@ -8,6 +8,7 @@ import {
   applyAutoImageLogic,
   ensureUniqueResourceName,
   isDuplicateResourceName,
+  resolveTargetInfo,
 } from '@/store/handlers/nodeUtils';
 
 describe('nodeUtils', () => {
@@ -436,5 +437,85 @@ describe('nodeUtils', () => {
     // syncWorkloadMetadata with image undefined (neither image nor empty string)
     const noImageWorkload = syncWorkloadMetadata('Pod', { label: 'worker' } as any);
     expect(noImageWorkload.status).toBeUndefined();
+  });
+
+  describe('resolveTargetInfo & onRename validation', () => {
+    it('resolves target info for a Pod under a Deployment parent', () => {
+      const nodes = [
+        { id: 'ns-1', type: 'Namespace', data: {} },
+        { id: 'dep-1', type: 'Deployment', parentId: 'ns-1', data: { label: 'my-dep' } },
+        { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { label: 'my-dep-pod' } },
+      ];
+
+      const info = resolveTargetInfo('pod-1', nodes);
+      expect(info.type).toBe('Deployment');
+      expect(info.parentId).toBe('ns-1');
+      expect(info.excludeId).toBe('dep-1');
+    });
+
+    it('resolves target info for a Pod under a StatefulSet parent', () => {
+      const nodes = [
+        { id: 'sts-1', type: 'StatefulSet', data: { label: 'my-sts' } },
+        { id: 'pod-sts', type: 'Pod', parentId: 'sts-1', data: {} },
+      ];
+
+      const info = resolveTargetInfo('pod-sts', nodes);
+      expect(info.type).toBe('StatefulSet');
+      expect(info.parentId).toBeUndefined();
+      expect(info.excludeId).toBe('sts-1');
+    });
+
+    it('resolves target info for a standalone Pod without parent', () => {
+      const nodes = [
+        { id: 'pod-standalone', type: 'Pod', data: { label: 'orphan' } },
+      ];
+
+      const info = resolveTargetInfo('pod-standalone', nodes);
+      expect(info.type).toBe('Pod');
+      expect(info.parentId).toBeUndefined();
+      expect(info.excludeId).toBe('pod-standalone');
+    });
+
+    it('blocks renaming standalone Pod when candidate name already exists in same namespace', () => {
+      const addLogMock = vi.fn();
+      const updateNodeDataMock = vi.fn();
+
+      const getStore = () =>
+        ({
+          nodes: [
+            { id: 'pod-a', type: 'Pod', parentId: 'ns-1', data: { baseName: 'worker', label: 'worker' } },
+            { id: 'pod-b', type: 'Pod', parentId: 'ns-1', data: { baseName: 'runner', label: 'runner' } },
+          ],
+          addLog: addLogMock,
+          updateNodeData: updateNodeDataMock,
+        } as any);
+
+      const handlers = createNodeHandlers('pod-b', getStore);
+      handlers.onRename('worker');
+
+      expect(updateNodeDataMock).not.toHaveBeenCalled();
+      expect(addLogMock).toHaveBeenCalledWith(
+        'warn',
+        expect.stringContaining("Cannot rename: Pod 'worker' already exists in this namespace."),
+        'UI'
+      );
+    });
+
+    it('handles onRename for Pod with StatefulSet parent and numeric suffix', () => {
+      const updateNodeDataMock = vi.fn();
+      const getStore = () =>
+        ({
+          nodes: [
+            { id: 'sts-1', type: 'StatefulSet', data: { label: 'db-cluster' } },
+            { id: 'pod-sts-0', type: 'Pod', parentId: 'sts-1', data: { label: 'db-cluster-0' } },
+          ],
+          updateNodeData: updateNodeDataMock,
+        } as any);
+
+      const handlers = createNodeHandlers('pod-sts-0', getStore);
+      handlers.onRename('database-0');
+
+      expect(updateNodeDataMock).toHaveBeenCalledWith('sts-1', { label: 'database' });
+    });
   });
 });

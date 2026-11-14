@@ -1,4 +1,4 @@
-import { EventsOn } from '@wailsjs/runtime';
+import { getBackendGateway } from '@/gateway';
 import { useFlowStore } from '@/store';
 
 /** Module-scoped storage for original console methods prior to interception. */
@@ -55,7 +55,7 @@ export const formatLogMessage = (args: any[]): string => {
  * to the Zustand flow store under the 'Backend' category.
  */
 export const setupBackendLogListener = (): void => {
-  EventsOn('backend-log', (data: { level: string; message: string }) => {
+  getBackendGateway().onEvent('backend-log', (data: { level: string; message: string }) => {
     const { level, message } = data;
     const store = useFlowStore.getState();
     const logType = level === 'fatal' ? 'error' : (level as any);

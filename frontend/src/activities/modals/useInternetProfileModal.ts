@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useFlowStore } from '@/store';
 import { safeRandom } from '@/lib/utils';
+import { getBackendGateway } from '@/gateway';
 import { HOURS_OF_DAY, InternetProfileItem } from './internetProfileChartHelpers';
 
 export type { InternetProfileItem };
@@ -93,7 +94,7 @@ export const useInternetProfileModal = (
 
   const fetchProfiles = useCallback(async () => {
     try {
-      const savedProfiles = await globalThis.go?.main?.App?.GetInternetProfiles?.();
+      const savedProfiles = await getBackendGateway().getInternetProfiles();
       if (Array.isArray(savedProfiles) && savedProfiles.length > 0) {
         const normalizedSaved = savedProfiles.map((p) => normalizeProfile(p));
         const merged = [
@@ -221,7 +222,7 @@ export const useInternetProfileModal = (
     lastSavedDetailJsonRef.current = JSON.stringify(currentDetail);
 
     try {
-      await globalThis.go?.main?.App?.SaveInternetProfile?.(
+      await getBackendGateway().saveInternetProfile(
         profileToSave.name,
         JSON.stringify(profileToSave)
       );
@@ -313,7 +314,7 @@ export const useInternetProfileModal = (
     };
 
     try {
-      await globalThis.go?.main?.App?.SaveInternetProfile?.(
+      await getBackendGateway().saveInternetProfile(
         profileToSave.name,
         JSON.stringify(profileToSave)
       );
@@ -336,7 +337,7 @@ export const useInternetProfileModal = (
     };
 
     try {
-      await globalThis.go?.main?.App?.SaveInternetProfile?.(
+      await getBackendGateway().saveInternetProfile(
         newProfile.name,
         JSON.stringify(newProfile)
       );
@@ -354,7 +355,7 @@ export const useInternetProfileModal = (
     if (name === ECOMMERCE_PROFILE.name) return;
 
     try {
-      await globalThis.go?.main?.App?.DeleteInternetProfile?.(name);
+      await getBackendGateway().deleteInternetProfile(name);
     } catch {
       // Fallback
     }

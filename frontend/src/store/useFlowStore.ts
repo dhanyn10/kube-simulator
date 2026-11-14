@@ -1,5 +1,5 @@
 import { logger, setLogConsumer } from '@/lib/logger';
-import { getBackendGateway, WailsBackendGateway } from '@/gateway';
+import { getBackendGateway } from '@/gateway';
 import { createStore, useStore } from 'zustand';
 import type { FlowState } from '@/store/types';
 import { createFlowSlice } from '@/store/slices/createFlowSlice';
@@ -87,10 +87,9 @@ setTimeout(() => {
     timestamp: Date.now()
   });
   const initGw = getBackendGateway();
-  if (globalThis.go?.main?.App?.PushHistory || !(initGw instanceof WailsBackendGateway)) {
-    void initGw.pushHistory(snapshot);
+  void initGw.pushHistory(snapshot).then(() => {
     logger.info('[History] Initial state recorded to Go database');
-  }
+  }).catch(() => {});
 }, 500);
 
 // Core function to execute autosave
@@ -196,30 +195,26 @@ export const executeAutosave = (state: FlowState) => {
   });
 
   const autoGw = getBackendGateway();
-  if (globalThis.go?.main?.App?.SaveSetting || !(autoGw instanceof WailsBackendGateway)) {
-    // Chained sequential writes prevent SQLite database lock contention ("database is locked")
-    void Promise.resolve(autoGw.saveSetting(currentSessionAutosaveKey, content))
-      .then(() => autoGw.saveSetting('auto_saved_profile_latest', currentSessionAutosaveKey!))
-      .then(() => autoGw.saveSetting('auto_saved_profile_content', content))
-      .then(() => {
-        logger.info(`[Autosave] Profile saved under key: ${currentSessionAutosaveKey}`);
-      })
-      .catch((err) => {
-        logger.error('[Autosave] Error saving settings:', err);
-      });
-  }
+  // Chained sequential writes prevent SQLite database lock contention ("database is locked")
+  void Promise.resolve(autoGw.saveSetting(currentSessionAutosaveKey, content))
+    .then(() => autoGw.saveSetting('auto_saved_profile_latest', currentSessionAutosaveKey!))
+    .then(() => autoGw.saveSetting('auto_saved_profile_content', content))
+    .then(() => {
+      logger.info(`[Autosave] Profile saved under key: ${currentSessionAutosaveKey}`);
+    })
+    .catch((err) => {
+      logger.error('[Autosave] Error saving settings:', err);
+    });
 
   syncConfigMapsOnAutosave(state);
   syncSecretsOnAutosave(state);
 
   if (state.currentProject && state.currentProject.id !== -1) {
-    if (globalThis.go?.main?.App?.UpdateProject || !(autoGw instanceof WailsBackendGateway)) {
-      void autoGw.updateProject(state.currentProject.id, content).then((success) => {
-        if (success) {
-          flowStore.setState({ lastSavedSnapshot: content });
-        }
-      });
-    }
+    void autoGw.updateProject(state.currentProject.id, content).then((success) => {
+      if (success) {
+        flowStore.setState({ lastSavedSnapshot: content });
+      }
+    }).catch(() => {});
   }
 };
 
@@ -247,13 +242,11 @@ flowStore.subscribe((state, prevState) => {
     
     // Push to Go Backend "Database"
     const subGw = getBackendGateway();
-    if (globalThis.go?.main?.App?.PushHistory || !(subGw instanceof WailsBackendGateway)) {
-      void Promise.resolve(subGw.pushHistory(snapshot))
-        .then(() => {
-          void state.fetchHistoryLogs?.();
-        })
-        .catch(() => {});
-    }
+    void Promise.resolve(subGw.pushHistory(snapshot))
+      .then(() => {
+        void state.fetchHistoryLogs?.();
+      })
+      .catch(() => {});
 
     // Schedule debounced autosave on state changes
     scheduleAutosave(state);

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LogModal } from '@/components/Modals/LogModal';
 import { useFlowStore } from '@/store';
 
@@ -78,7 +78,7 @@ describe('LogModal', () => {
         expect(screen.queryByText(matchPre('Console command'))).toBeNull();
     });
 
-    it('exports logs to .log file when export button is clicked', () => {
+    it('exports logs to .log file when export button is clicked', async () => {
         const createObjectURLMock = vi.fn().mockReturnValue('blob:test');
         const revokeObjectURLMock = vi.fn();
         globalThis.URL.createObjectURL = createObjectURLMock;
@@ -89,8 +89,10 @@ describe('LogModal', () => {
         const exportBtn = screen.getByTestId('log-export-btn');
         fireEvent.click(exportBtn);
 
-        expect(createObjectURLMock).toHaveBeenCalled();
-        expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:test');
+        await waitFor(() => {
+            expect(createObjectURLMock).toHaveBeenCalled();
+            expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:test');
+        });
     });
 
     it('handles individual log deletion', async () => {

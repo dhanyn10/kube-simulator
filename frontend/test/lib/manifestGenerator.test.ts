@@ -1188,4 +1188,70 @@ describe('manifestGenerator test suite', () => {
       ])
     );
   });
+
+  it('sets namespace on attached ConfigMaps and Secrets when parent workload is inside a Namespace', () => {
+    const nodes = [
+      {
+        id: 'ns-prod',
+        type: 'Namespace',
+        data: { label: 'prod' },
+      },
+      {
+        id: 'dep-in-ns',
+        type: 'Deployment',
+        parentId: 'ns-prod',
+        data: {
+          label: 'web-prod',
+          configMaps: [
+            {
+              id: 'cm-prod-1',
+              name: 'prod-config',
+              configData: [{ key: 'FEATURE_FLAG', value: 'true' }],
+            },
+            {
+              id: 'cm-prod-empty',
+              name: '',
+              configData: [{ key: '', value: 'ignored' }, { key: 'FALLBACK_VAL', value: 42 }],
+            },
+          ],
+          secrets: [
+            {
+              id: 'sec-prod-1',
+              name: 'prod-secret',
+              secretData: [{ key: 'API_KEY', value: 'secret-key-123' }],
+            },
+            {
+              id: 'sec-prod-fallback',
+              name: '',
+              configData: [{ key: 'TOKEN', value: 'token-val' }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+
+    const cmDoc = docs.find((d) => d?.kind === 'ConfigMap' && d?.metadata?.name === 'prod-config');
+    expect(cmDoc).toBeDefined();
+    expect(cmDoc.metadata.namespace).toBe('prod');
+    expect(cmDoc.data.FEATURE_FLAG).toBe('true');
+
+    const fallbackCmDoc = docs.find((d) => d?.kind === 'ConfigMap' && d?.metadata?.name === 'configmap');
+    expect(fallbackCmDoc).toBeDefined();
+    expect(fallbackCmDoc.metadata.namespace).toBe('prod');
+    expect(fallbackCmDoc.data.FALLBACK_VAL).toBe('42');
+    expect(fallbackCmDoc.data['']).toBeUndefined();
+
+    const secDoc = docs.find((d) => d?.kind === 'Secret' && d?.metadata?.name === 'prod-secret');
+    expect(secDoc).toBeDefined();
+    expect(secDoc.metadata.namespace).toBe('prod');
+    expect(secDoc.stringData.API_KEY).toBe('secret-key-123');
+
+    const fallbackSecDoc = docs.find((d) => d?.kind === 'Secret' && d?.metadata?.name === 'secret');
+    expect(fallbackSecDoc).toBeDefined();
+    expect(fallbackSecDoc.metadata.namespace).toBe('prod');
+    expect(fallbackSecDoc.stringData.TOKEN).toBe('token-val');
+  });
 });

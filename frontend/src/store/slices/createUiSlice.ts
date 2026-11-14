@@ -1,6 +1,6 @@
 import { syncDeployment, hydrateNodes } from '@/store/nodeHelpers';
 import { logger } from '@/lib/logger';
-import { getBackendGateway, WailsBackendGateway } from '@/gateway';
+import { getBackendGateway } from '@/gateway';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import type { FlowState, SimulationMetricPoint } from '@/store/types';
@@ -224,16 +224,16 @@ const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any)
 type FlowStateSetter = (partial: Partial<FlowState> | ((state: FlowState) => Partial<FlowState>)) => void;
 
 const fallbackToLegacySettings = (set: FlowStateSetter) => {
-  if (!globalThis.go?.main?.App?.GetSetting) return;
+  const gw = getBackendGateway();
   void Promise.all([
-    globalThis.go.main.App.GetSetting('isSidebarVisible'),
-    globalThis.go.main.App.GetSetting('isRightSidebarVisible')
+    gw.getSetting('isSidebarVisible'),
+    gw.getSetting('isRightSidebarVisible')
   ]).then(([sidebar, rightSidebar]) => {
     set({
       ...(sidebar !== "" ? { isSidebarVisible: sidebar === 'true' } : {}),
       ...(rightSidebar !== "" ? { isRightSidebarVisible: rightSidebar === 'true' } : {}),
     });
-  });
+  }).catch(() => {});
 };
 
 /**
@@ -641,9 +641,7 @@ const handleStopSimulation = (
 
 const saveSettingIfAvailable = (key: string, value: string): void => {
   const gw = getBackendGateway();
-  if (globalThis.go?.main?.App?.SaveSetting || !(gw instanceof WailsBackendGateway)) {
-    void gw.saveSetting(key, value);
-  }
+  void gw.saveSetting(key, value);
 };
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
@@ -844,16 +842,12 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     set({ isHistoryLoading: true });
     try {
       const gw = getBackendGateway();
-      if (globalThis.go?.main?.App?.GetHistoryLogs || !(gw instanceof WailsBackendGateway)) {
-        const logs = await gw.getHistoryLogs();
-        if (Array.isArray(logs)) {
-          set({ historyLogs: [...logs].reverse() });
-        }
+      const logs = await gw.getHistoryLogs();
+      if (Array.isArray(logs)) {
+        set({ historyLogs: [...logs].reverse() });
       }
-      if (globalThis.go?.main?.App?.GetCurrentHistoryIndex || !(gw instanceof WailsBackendGateway)) {
-        const idx = await gw.getCurrentHistoryIndex();
-        set({ currentHistoryIndex: idx });
-      }
+      const idx = await gw.getCurrentHistoryIndex();
+      set({ currentHistoryIndex: idx });
     } finally {
       set({ isHistoryLoading: false });
     }
@@ -893,10 +887,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     };
   }),
   addActivityLog: (line) => {
-    const gw = getBackendGateway();
-    if (globalThis.go?.main?.App?.WriteLog || !(gw instanceof WailsBackendGateway)) {
-      gw.writeLog('history', 'info', line).catch(() => {});
-    }
+    getBackendGateway().writeLog('history', 'info', line).catch(() => {});
     set((state) => ({
       activityLogs: [...state.activityLogs, line].slice(-200)
     }));
@@ -950,15 +941,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       }
     });
     const gw = getBackendGateway();
-    if (globalThis.go?.main?.App?.GetSetting || !(gw instanceof WailsBackendGateway)) {
-      void gw.getSetting('app_settings_json').then((val: string) => {
-        if (val) {
-          applyParsedSettings(val, set);
-        } else {
-          fallbackToLegacySettings(set);
-        }
-      });
-      void gw.getSetting('auto_saved_profile_content').then((content: string) => {
+    void gw.getSetting('app_settings_json').then((val: string) => {
+      if (val) {
+        applyParsedSettings(val, set);
+      } else {
+        fallbackToLegacySettings(set);
+      }
+    });
+    void gw.getSetting('auto_saved_profile_content').then((content: string) => {
         if (content) {
           try {
             const parsed = JSON.parse(content);
@@ -1002,7 +992,6 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           }
         }
       });
-    }
   },
   setCanvasBgVariant: (variant) => {
     set({ canvasBgVariant: variant });
