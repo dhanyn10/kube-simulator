@@ -140,7 +140,48 @@ const syncConfigMapsOnAutosave = (state: FlowState) => {
   }
 };
 
-const executeAutosave = (state: FlowState) => {
+let autosaveTimeoutId: ReturnType<typeof setTimeout> | null = null;
+let pendingAutosaveState: FlowState | null = null;
+let autosaveDebounceMs: number =
+  typeof process !== 'undefined' && process.env?.NODE_ENV === 'test' ? 0 : 400;
+
+export const setAutosaveDebounceMs = (ms: number): void => {
+  autosaveDebounceMs = ms;
+};
+
+export const getAutosaveDebounceMs = (): number => autosaveDebounceMs;
+
+export const flushAutosave = (): void => {
+  if (autosaveTimeoutId) {
+    clearTimeout(autosaveTimeoutId);
+    autosaveTimeoutId = null;
+  }
+  if (pendingAutosaveState) {
+    const stateToSave = pendingAutosaveState;
+    pendingAutosaveState = null;
+    executeAutosave(stateToSave);
+  }
+};
+
+export const scheduleAutosave = (state: FlowState): void => {
+  pendingAutosaveState = state;
+
+  if (autosaveDebounceMs <= 0) {
+    flushAutosave();
+    return;
+  }
+
+  if (autosaveTimeoutId) {
+    clearTimeout(autosaveTimeoutId);
+  }
+
+  autosaveTimeoutId = setTimeout(() => {
+    autosaveTimeoutId = null;
+    flushAutosave();
+  }, autosaveDebounceMs);
+};
+
+export const executeAutosave = (state: FlowState) => {
   if (!state.isAutosaveEnabled) return;
 
   if (!currentSessionAutosaveKey) {
@@ -156,10 +197,16 @@ const executeAutosave = (state: FlowState) => {
 
   const autoGw = getBackendGateway();
   if (globalThis.go?.main?.App?.SaveSetting || !(autoGw instanceof WailsBackendGateway)) {
-    void autoGw.saveSetting(currentSessionAutosaveKey, content);
-    void autoGw.saveSetting('auto_saved_profile_latest', currentSessionAutosaveKey);
-    void autoGw.saveSetting('auto_saved_profile_content', content);
-    logger.info(`[Autosave] Profile saved under key: ${currentSessionAutosaveKey}`);
+    // Chained sequential writes prevent SQLite database lock contention ("database is locked")
+    void Promise.resolve(autoGw.saveSetting(currentSessionAutosaveKey, content))
+      .then(() => autoGw.saveSetting('auto_saved_profile_latest', currentSessionAutosaveKey!))
+      .then(() => autoGw.saveSetting('auto_saved_profile_content', content))
+      .then(() => {
+        logger.info(`[Autosave] Profile saved under key: ${currentSessionAutosaveKey}`);
+      })
+      .catch((err) => {
+        logger.error('[Autosave] Error saving settings:', err);
+      });
   }
 
   syncConfigMapsOnAutosave(state);
@@ -179,7 +226,8 @@ const executeAutosave = (state: FlowState) => {
 // Global unload handler for final save before app close
 if (typeof globalThis !== 'undefined') {
   globalThis.addEventListener('beforeunload', () => {
-    executeAutosave(flowStore.getState());
+    pendingAutosaveState = flowStore.getState();
+    flushAutosave();
   });
 }
 
@@ -207,8 +255,8 @@ flowStore.subscribe((state, prevState) => {
         .catch(() => {});
     }
 
-    // Always execute autosave on state changes
-    executeAutosave(state);
+    // Schedule debounced autosave on state changes
+    scheduleAutosave(state);
   }
 });
 

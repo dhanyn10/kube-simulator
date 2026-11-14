@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useFlowStore, applyHistoryState, formatAutosaveKey, getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
+import {
+  useFlowStore,
+  applyHistoryState,
+  formatAutosaveKey,
+  getCurrentSessionAutosaveKey,
+  setAutosaveDebounceMs,
+  getAutosaveDebounceMs,
+  flushAutosave,
+} from '@/store/useFlowStore';
 import { logger } from '@/lib/logger';
 
 vi.mock('@/lib/logger', () => ({
@@ -280,6 +288,50 @@ describe('useFlowStore', () => {
         Object.defineProperty(global, 'globalThis', origDescriptor);
       }
     }
+  });
+
+  it('debounces rapid autosave requests and allows manual flush', () => {
+    vi.useFakeTimers();
+    const saveSettingSpy = vi.fn().mockResolvedValue(true);
+    (globalThis as any).go = {
+      main: {
+        App: {
+          SaveSetting: saveSettingSpy,
+          PushHistory: vi.fn().mockResolvedValue(true),
+        },
+      },
+    };
+
+    setAutosaveDebounceMs(300);
+    expect(getAutosaveDebounceMs()).toBe(300);
+
+    // Trigger rapid actions
+    useFlowStore.setState({ lastActionId: 'debounce-action-1' });
+    useFlowStore.setState({ lastActionId: 'debounce-action-2' });
+    useFlowStore.setState({ lastActionId: 'debounce-action-3' });
+
+    // Should not have executed saveSetting immediately while debouncing
+    expect(saveSettingSpy).not.toHaveBeenCalled();
+
+    // Fast-forward partially (150ms) - still debouncing
+    vi.advanceTimersByTime(150);
+    expect(saveSettingSpy).not.toHaveBeenCalled();
+
+    // Fast-forward rest of time (160ms) - timer fires
+    vi.advanceTimersByTime(160);
+    expect(saveSettingSpy).toHaveBeenCalled();
+
+    // Test flushAutosave immediately executing pending autosave
+    saveSettingSpy.mockClear();
+    useFlowStore.setState({ lastActionId: 'debounce-action-flush' });
+    expect(saveSettingSpy).not.toHaveBeenCalled();
+
+    flushAutosave();
+    expect(saveSettingSpy).toHaveBeenCalled();
+
+    // Reset back to 0 for subsequent unit tests
+    setAutosaveDebounceMs(0);
+    vi.useRealTimers();
   });
 });
 

@@ -46,7 +46,7 @@ import {
 } from './components/Nodes';
 import { CustomEdge } from './components/Edges';
 import { cn } from './lib/utils';
-import { useFlowStore } from './store';
+import { useFlowStore, flushAutosave } from './store';
 import { useHistory } from './hooks/useHistory';
 import { useDropHandler } from './hooks/useDropHandler';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -220,6 +220,7 @@ export default function App() {
   useCanvasNavigation({ disabled: isModalOverlayActive });
 
   const handleSave = async () => {
+    flushAutosave();
     const { currentProject, nodes: currentNodes, edges: currentEdges, addLog } = useFlowStore.getState();
     if (currentProject && currentProject.id !== -1 && globalThis.go?.main?.App?.UpdateProject) {
       const content = JSON.stringify({ nodes: currentNodes, edges: currentEdges });
