@@ -44,7 +44,12 @@ const getRelationshipStatus = (node: Node, container: Node, intersects: boolean,
  * @param nodes Array of all canvas nodes
  * @returns Object containing `hoveredId` and `detachingId`
  */
-const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nodes: Node[]) => {
+const findHoveredContainer = (
+  node: Node,
+  nodeAbs: { x: number, y: number },
+  nodes: Node[],
+  nodeMap?: Map<string, Node>
+) => {
   const containers = nodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || n.type === 'Namespace')
     .sort((a, b) => ((a.width || 320) * (a.height || 160)) - ((b.width || 320) * (b.height || 160)));
 
@@ -54,7 +59,7 @@ const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nod
   for (const container of containers) {
     if (container.id === node.id) continue;
     
-    const { intersects, overlapPercentage } = calculateOverlap(node, nodeAbs, container, nodes);
+    const { intersects, overlapPercentage } = calculateOverlap(node, nodeAbs, container, nodes, nodeMap);
     const status = getRelationshipStatus(node, container, intersects, overlapPercentage);
 
     if (status === 'detaching') {
@@ -64,6 +69,24 @@ const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nod
     }
   }
   return { hoveredId, detachingId };
+};
+
+/**
+ * Updates hovered and detaching container states on canvas nodes, preserving referential equality
+ * for nodes whose container state did not change.
+ */
+const updateHoveredContainers = (nodes: Node[], hoveredId: string | null, detachingId: string | null): Node[] => {
+  return nodes.map((n: Node) => {
+    if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'Namespace') {
+      const isHovered = n.id === hoveredId;
+      const isDetaching = n.id === detachingId;
+      if (n.data?.isHovered === isHovered && n.data?.isDetaching === isDetaching) {
+        return n;
+      }
+      return { ...n, data: { ...n.data, isHovered, isDetaching } };
+    }
+    return n;
+  });
 };
 
 /**
@@ -256,30 +279,31 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
     if (isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes)) {
       return;
     }
-    const { nodes } = store;
+    const { nodes, hoveredDeploymentId, detachingDeploymentId } = store;
+    const nodeMap = new Map<string, Node>(nodes.map((n) => [n.id, n]));
     
-    const nodeAbs = getAbsPos(node.id, nodes, node);
-    const { hoveredId, detachingId } = findHoveredContainer(node, nodeAbs, nodes);
+    const nodeAbs = getAbsPos(node.id, nodes, node, nodeMap);
+    const { hoveredId, detachingId } = findHoveredContainer(node, nodeAbs, nodes, nodeMap);
     const guides = calculateAlignmentGuides(node, nodes, 8);
 
-    const nextNodes = nodes.map((n: Node) => {
-        if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'Namespace') {
-        return { ...n, data: { ...n.data, isHovered: n.id === hoveredId, isDetaching: n.id === detachingId } };
-      }
-      return n;
-    });
+    const hasContainerStateChanged =
+      hoveredId !== hoveredDeploymentId || detachingId !== detachingDeploymentId;
+
+    const nextNodes = hasContainerStateChanged
+      ? updateHoveredContainers(nodes, hoveredId, detachingId)
+      : nodes;
 
     set({ 
-        draggedNodeId: node.id,
-        hoveredDeploymentId: hoveredId, 
-        detachingDeploymentId: detachingId,
-        nodes: nextNodes,
-        alignmentGuideLines: {
-          horizontal: guides.horizontal,
-          vertical: guides.vertical,
-          snapX: guides.snapX,
-          snapY: guides.snapY,
-        },
+      draggedNodeId: node.id,
+      hoveredDeploymentId: hoveredId, 
+      detachingDeploymentId: detachingId,
+      ...(hasContainerStateChanged ? { nodes: nextNodes } : {}),
+      alignmentGuideLines: {
+        horizontal: guides.horizontal,
+        vertical: guides.vertical,
+        snapX: guides.snapX,
+        snapY: guides.snapY,
+      },
     });
   },
 

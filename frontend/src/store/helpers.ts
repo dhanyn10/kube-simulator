@@ -19,11 +19,23 @@ export const isAllowed = (parentType: string, childType: string, childData?: Rec
   return false;
 };
 
-export const getAbsPos = (nodeId: string, currentNodes: Node[], draggedNode?: Node): { x: number, y: number } => {
-  const n = (draggedNode?.id === nodeId) ? draggedNode : currentNodes.find(i => i.id === nodeId);
+export const getAbsPos = (
+  nodeId: string,
+  currentNodes: Node[],
+  draggedNode?: Node,
+  nodeMap?: Map<string, Node>
+): { x: number; y: number } => {
+  let n: Node | undefined;
+  if (draggedNode?.id === nodeId) {
+    n = draggedNode;
+  } else if (nodeMap) {
+    n = nodeMap.get(nodeId);
+  } else {
+    n = currentNodes.find((i) => i.id === nodeId);
+  }
   if (!n?.position) return { x: 0, y: 0 };
   if (!n.parentId) return n.position;
-  const pAbs = getAbsPos(n.parentId, currentNodes, draggedNode);
+  const pAbs = getAbsPos(n.parentId, currentNodes, draggedNode, nodeMap);
   return { x: n.position.x + pAbs.x, y: n.position.y + pAbs.y };
 };
 

@@ -12,11 +12,17 @@ import type { FlowState } from '@/store/types';
  * @param nodes Current array of canvas nodes
  * @returns Object containing `intersects` boolean flag and `overlapPercentage` number
  */
-export const calculateOverlap = (node: Node, nodeAbs: any, container: Node, nodes: Node[]) => {
+export const calculateOverlap = (
+  node: Node,
+  nodeAbs: any,
+  container: Node,
+  nodes: Node[],
+  nodeMap?: Map<string, Node>
+) => {
   const { width: nodeWidth, height: nodeHeight } = getEffectiveSize(node);
   const podArea = nodeWidth * nodeHeight;
 
-  const contAbs = getAbsPos(container.id, nodes);
+  const contAbs = getAbsPos(container.id, nodes, undefined, nodeMap);
   const { width: contWidth, height: contHeight } = getEffectiveSize(container);
 
   const overlapX = Math.max(0, Math.min(nodeAbs.x + nodeWidth, contAbs.x + contWidth) - Math.max(nodeAbs.x, contAbs.x));
