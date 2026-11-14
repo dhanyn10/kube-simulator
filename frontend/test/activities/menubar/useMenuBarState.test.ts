@@ -335,6 +335,8 @@ describe('useMenuBarState', () => {
       await saveItem?.onClick?.();
     });
     expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(2, expect.any(String));
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().logs.some(l => l.level === 'error' && l.message.includes('Failed to save resource architecture'))).toBe(true);
   });
 
   it('handles partial App object without CheckForUpdates and simulatedUpdateInfo override', async () => {
@@ -472,11 +474,7 @@ describe('useMenuBarState', () => {
     const { result: logHook } = renderHook(() => useMenuBarState(defaultProps));
     expect(logHook.current.errorCount).toBe(2);
 
-    // 3. Test Resource Save click when UpdateProject returns true to verify alert and lastSavedSnapshot update
-    const alertMock = vi.fn();
-    globalThis.alert = alertMock;
-    window.alert = alertMock;
-
+    // 3. Test Resource Save click when UpdateProject returns true to verify log and lastSavedSnapshot update
     useFlowStore.setState({
       nodes: [{ id: 'n1', type: 'Pod', data: {} } as any],
       edges: [],
@@ -503,7 +501,7 @@ describe('useMenuBarState', () => {
 
     expect(updateProjectMock).toHaveBeenCalledWith(10, expect.any(String));
     expect(useFlowStore.getState().lastSavedSnapshot).toBe(JSON.stringify({ nodes: [{ id: 'n1', type: 'Pod', data: {} }], edges: [] }));
-    expect(alertMock).toHaveBeenCalledWith('Resource architecture saved successfully!');
+    expect(useFlowStore.getState().logs.some(l => l.level === 'info' && l.message.includes('saved successfully'))).toBe(true);
   });
 
   it('triggers Report Issue onClick directly to cover BrowserOpenURL call', () => {

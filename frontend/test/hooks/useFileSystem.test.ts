@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useFileSystem } from '@/hooks/useFileSystem';
+import { useFileSystem, parseAndHydrateProject } from '@/hooks/useFileSystem';
 import { useFlowStore } from '@/store';
 import { setBackendGateway, resetBackendGateway, MockBackendGateway } from '@/gateway';
 
@@ -8,14 +8,20 @@ describe('useFileSystem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetBackendGateway();
-    useFlowStore.setState({ nodes: [], edges: [], currentProject: null });
+    useFlowStore.setState({
+      nodes: [],
+      edges: [],
+      currentProject: null,
+      logs: [],
+      isLogModalOpen: false,
+    });
 
     // Reset Wails globals
     (globalThis as any).go = {
       main: {
         App: {
-          ExportProjectFile: vi.fn(),
-          ImportProjectFile: vi.fn(),
+          ExportProjectFile: vi.fn().mockResolvedValue(true),
+          ImportProjectFile: vi.fn().mockResolvedValue(''),
         }
       }
     };
@@ -41,6 +47,7 @@ describe('useFileSystem', () => {
       expect.any(String),
       expect.any(String)
     );
+    expect(useFlowStore.getState().logs.some(l => l.level === 'info' && l.message.includes('unnamed-project'))).toBe(true);
 
     unmount();
 
@@ -57,6 +64,7 @@ describe('useFileSystem', () => {
       expect.any(String),
       expect.any(String)
     );
+    expect(useFlowStore.getState().logs.some(l => l.level === 'info' && l.message.includes('Alpha Project'))).toBe(true);
   });
 
   it('handles export and import when Wails App API methods are undefined', async () => {
@@ -98,6 +106,8 @@ describe('useFileSystem', () => {
     expect(state.nodes[0].parentId).toBe('20');
     expect(state.edges).toHaveLength(1);
     expect(state.edges[0].id).toBe('100');
+    expect(state.logs.some(l => l.level === 'info' && l.message.includes('Imported Project'))).toBe(true);
+    expect(state.isLogModalOpen).toBe(false);
 
     unmount();
 
@@ -126,8 +136,9 @@ describe('useFileSystem', () => {
     });
 
     expect(useFlowStore.getState().nodes).toHaveLength(0);
+    expect(useFlowStore.getState().isLogModalOpen).toBe(false);
 
-    // Test invalid JSON syntax
+    // Test invalid JSON syntax: must log error and open LogModal (modal alert)
     (globalThis as any).go.main.App.ImportProjectFile.mockResolvedValue('{ invalid json }');
 
     await act(async () => {
@@ -135,6 +146,119 @@ describe('useFileSystem', () => {
     });
 
     expect(useFlowStore.getState().nodes).toHaveLength(0);
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().logs.some(l => l.level === 'error' && l.message.includes('Failed to import architecture'))).toBe(true);
+  });
+
+  it('validates project payload structure and opens LogModal on invalid schema', async () => {
+    const { result } = renderHook(() => useFileSystem([], []));
+
+    // 1. Non-object root
+    (globalThis as any).go.main.App.ImportProjectFile.mockResolvedValue('123');
+    await act(async () => {
+      await result.current.handleImportFile();
+    });
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().logs.some(l => l.message.includes('root object expected'))).toBe(true);
+
+    // 2. Missing canvas data
+    useFlowStore.setState({ isLogModalOpen: false });
+    (globalThis as any).go.main.App.ImportProjectFile.mockResolvedValue(JSON.stringify({ name: 'NoCanvas' }));
+    await act(async () => {
+      await result.current.handleImportFile();
+    });
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().logs.some(l => l.message.includes('Missing canvas data'))).toBe(true);
+
+    // 3. Canvas nodes is not an array
+    useFlowStore.setState({ isLogModalOpen: false });
+    (globalThis as any).go.main.App.ImportProjectFile.mockResolvedValue(
+      JSON.stringify({ name: 'BadNodes', canvas: JSON.stringify({ nodes: 'not-array' }) })
+    );
+    await act(async () => {
+      await result.current.handleImportFile();
+    });
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().logs.some(l => l.message.includes('nodes must be an array'))).toBe(true);
+
+    // 4. Canvas edges is not an array
+    useFlowStore.setState({ isLogModalOpen: false });
+    (globalThis as any).go.main.App.ImportProjectFile.mockResolvedValue(
+      JSON.stringify({ name: 'BadEdges', canvas: JSON.stringify({ edges: 999 }) })
+    );
+    await act(async () => {
+      await result.current.handleImportFile();
+    });
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().logs.some(l => l.message.includes('edges must be an array'))).toBe(true);
+
+    // 5. Canvas node is null / non-object
+    useFlowStore.setState({ isLogModalOpen: false });
+    (globalThis as any).go.main.App.ImportProjectFile.mockResolvedValue(
+      JSON.stringify({ name: 'NullNode', canvas: JSON.stringify({ nodes: [null] }) })
+    );
+    await act(async () => {
+      await result.current.handleImportFile();
+    });
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().logs.some(l => l.message.includes('node must be an object'))).toBe(true);
+
+    // 6. Canvas edge is null / non-object
+    useFlowStore.setState({ isLogModalOpen: false });
+    (globalThis as any).go.main.App.ImportProjectFile.mockResolvedValue(
+      JSON.stringify({ name: 'NullEdge', canvas: JSON.stringify({ edges: [null] }) })
+    );
+    await act(async () => {
+      await result.current.handleImportFile();
+    });
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().logs.some(l => l.message.includes('edge must be an object'))).toBe(true);
+  });
+
+  it('handles backend exceptions in handleImportFile and handleExportFile', async () => {
+    const { result } = renderHook(() => useFileSystem([], []));
+
+    // Import failure
+    (globalThis as any).go.main.App.ImportProjectFile.mockRejectedValue(new Error('Disk read failure'));
+    await act(async () => {
+      await result.current.handleImportFile();
+    });
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().logs.some(l => l.message.includes('Disk read failure'))).toBe(true);
+
+    // Export failure
+    useFlowStore.setState({ isLogModalOpen: false });
+    (globalThis as any).go.main.App.ExportProjectFile.mockRejectedValue(new Error('Permission denied'));
+    await act(async () => {
+      await result.current.handleExportFile();
+    });
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().logs.some(l => l.message.includes('Permission denied'))).toBe(true);
+  });
+
+  it('tests parseAndHydrateProject directly with various formats', () => {
+    // Empty json returns false
+    expect(parseAndHydrateProject('')).toBe(false);
+
+    // Object canvas field
+    const projectWithObjectCanvas = {
+      name: 'Direct Project',
+      canvas: {
+        nodes: [{ id: 1, type: 'Pod', data: { label: 'Direct Pod' }, position: { x: 0, y: 0 } }],
+        edges: [{ id: 2, source: 1, target: 1 }],
+      },
+    };
+    expect(parseAndHydrateProject(JSON.stringify(projectWithObjectCanvas))).toBe(true);
+    expect(useFlowStore.getState().nodes).toHaveLength(1);
+    expect(useFlowStore.getState().currentProject?.name).toBe('Direct Project');
+
+    // Invalid canvas payload (number instead of string or object)
+    const invalidCanvasType = {
+      name: 'Invalid Type',
+      canvas: 12345,
+    };
+    expect(parseAndHydrateProject(JSON.stringify(invalidCanvasType))).toBe(false);
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
   });
 
   it('listens for open-infra-file events and handles cleanup when runtime is missing or returns non-function', async () => {

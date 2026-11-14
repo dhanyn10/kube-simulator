@@ -198,6 +198,90 @@ export const openRecentFileFolder = async (item: RecentFileItem): Promise<void> 
   await gateway.openFileFolder(item.location || item.fullPath);
 };
 
+const restoreAutosaveItem = async (
+  gateway: IBackendGateway,
+  item: RecentFileItem,
+  onClose: () => void,
+  fitView: (opts?: any) => void
+): Promise<void> => {
+  let content = await gateway.getSetting(item.name);
+  if (!content) {
+    content = await gateway.getSetting('auto_saved_profile_content');
+  }
+  if (!content) {
+    logger.error(`[FileBackstage] Failed to restore recent autosave file: content empty for ${item.name}`);
+    useFlowStore.getState().addLog('error', `Failed to restore autosaved session "${item.name}": Content is empty or missing.`, 'System');
+    useFlowStore.getState().setLogModalOpen(true);
+    return;
+  }
+  try {
+    const data = JSON.parse(content);
+    if (!data || typeof data !== 'object') {
+      throw new Error('Corrupted autosave payload: root object expected');
+    }
+    const nodesWithStrings = mapProjectNodes(data.nodes || []);
+    const edgesWithStrings = mapProjectEdges(data.edges || []);
+    const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
+
+    setCurrentSessionAutosaveKey(item.name);
+    useFlowStore.setState({
+      nodes: hydratedNodes,
+      edges: edgesWithStrings,
+      currentProject: null,
+      lastActionId: `restore-save-${Date.now()}`,
+      lastActionName: 'Restored Recent File',
+    });
+    onClose();
+    setTimeout(() => fitView({ padding: 0.1, duration: 800 }), 50);
+  } catch (err: any) {
+    logger.error('[FileBackstage] Failed to restore recent autosave file', err);
+    const msg = err?.message || 'Corrupted data format';
+    useFlowStore.getState().addLog('error', `Failed to restore autosaved session "${item.name}": ${msg}`, 'System');
+    useFlowStore.getState().setLogModalOpen(true);
+  }
+};
+
+const restoreProjectItem = async (
+  gateway: IBackendGateway,
+  item: RecentFileItem,
+  onClose: () => void,
+  fitView: (opts?: any) => void
+): Promise<void> => {
+  const projectId = Number(item.id);
+  const res = await gateway.loadProject(projectId);
+  if (!res?.content) {
+    logger.error(`[FileBackstage] Failed to load recent project ${item.id}: record not found or content empty`);
+    useFlowStore.getState().addLog('error', `Failed to load project "${item.name}": Record not found or empty.`, 'System');
+    useFlowStore.getState().setLogModalOpen(true);
+    return;
+  }
+  try {
+    const data = JSON.parse(res.content);
+    if (!data || typeof data !== 'object') {
+      throw new Error('Corrupted project payload: root object expected');
+    }
+    const nodesWithStrings = mapProjectNodes(data.nodes || []);
+    const edgesWithStrings = mapProjectEdges(data.edges || []);
+    const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
+
+    useFlowStore.setState({
+      nodes: hydratedNodes,
+      edges: edgesWithStrings,
+      currentProject: { id: projectId, name: item.name },
+      lastSavedSnapshot: res.content,
+      lastActionId: `load-recent-${Date.now()}`,
+      lastActionName: 'Load Recent Project',
+    });
+    onClose();
+    setTimeout(() => fitView({ padding: 0.1, duration: 800 }), 50);
+  } catch (err: any) {
+    logger.error(`[FileBackstage] Failed to load recent project ${item.id}`, err);
+    const msg = err?.message || 'Corrupted project data';
+    useFlowStore.getState().addLog('error', `Failed to load project "${item.name}": ${msg}`, 'System');
+    useFlowStore.getState().setLogModalOpen(true);
+  }
+};
+
 export const restoreRecentFile = async (
   item: RecentFileItem,
   onClose: () => void,
@@ -207,54 +291,11 @@ export const restoreRecentFile = async (
   if (!isBackendAvailable(gateway)) return;
 
   if (item.isAutosave) {
-    let content = await gateway.getSetting(item.name);
-    if (!content) {
-      content = await gateway.getSetting('auto_saved_profile_content');
-    }
-    if (content) {
-      try {
-        const data = JSON.parse(content);
-        const nodesWithStrings = mapProjectNodes(data.nodes || []);
-        const edgesWithStrings = mapProjectEdges(data.edges || []);
-        const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
-
-        setCurrentSessionAutosaveKey(item.name);
-        useFlowStore.setState({
-          nodes: hydratedNodes,
-          edges: edgesWithStrings,
-          currentProject: null,
-          lastActionId: `restore-save-${Date.now()}`,
-          lastActionName: 'Restored Recent File',
-        });
-        onClose();
-        setTimeout(() => fitView({ padding: 0.1, duration: 800 }), 50);
-      } catch (err) {
-        logger.error('[FileBackstage] Failed to restore recent autosave file', err);
-      }
-    }
-  } else if (typeof item.id === 'number') {
-    const res = await gateway.loadProject(item.id);
-    if (res?.content) {
-      try {
-        const data = JSON.parse(res.content);
-        const nodesWithStrings = mapProjectNodes(data.nodes);
-        const edgesWithStrings = mapProjectEdges(data.edges);
-        const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
-
-        useFlowStore.setState({
-          nodes: hydratedNodes,
-          edges: edgesWithStrings,
-          currentProject: { id: item.id, name: item.name },
-          lastSavedSnapshot: res.content,
-          lastActionId: `load-recent-${Date.now()}`,
-          lastActionName: 'Load Recent Project',
-        });
-        onClose();
-        setTimeout(() => fitView({ padding: 0.1, duration: 800 }), 50);
-      } catch (err) {
-        logger.error(`[FileBackstage] Failed to load recent project ${item.id}`, err);
-      }
-    }
+    await restoreAutosaveItem(gateway, item, onClose, fitView);
+    return;
+  }
+  if (typeof item.id === 'number') {
+    await restoreProjectItem(gateway, item, onClose, fitView);
   }
 };
 
