@@ -348,6 +348,199 @@ describe('Clean Architecture Backend Gateway', () => {
       gateway.emitEvent('test', 'arg1', 2);
       expect(mockRuntime.EventsEmit).toHaveBeenCalledWith('test', 'arg1', 2);
     });
+
+    it('returns 0 when backend object exists but SaveProject is missing', async () => {
+      (globalThis as any).go = {
+        main: {
+          App: {},
+        },
+      };
+
+      const result = await gateway.saveProject('test', '{}');
+      expect(result).toBe(0);
+    });
+
+    it('returns false when backend object exists but SaveSetting is missing', async () => {
+      (globalThis as any).go = {
+        main: {
+          App: {},
+        },
+      };
+
+      const result = await gateway.saveSetting('key', 'val');
+      expect(result).toBe(false);
+    });
+
+    it('converts backend JSON manifest array to multi-document YAML in generateYaml', async () => {
+      const mockManifests = [
+        { apiVersion: 'v1', kind: 'Pod', metadata: { name: 'pod-1' } },
+        { apiVersion: 'v1', kind: 'Service', metadata: { name: 'svc-1' } },
+      ];
+
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GenerateYaml: vi.fn().mockResolvedValue(JSON.stringify(mockManifests)),
+          },
+        },
+      };
+
+      const yamlResult = await gateway.generateYaml('[]', '[]');
+      expect(yamlResult).toContain('kind: Pod');
+      expect(yamlResult).toContain('name: pod-1');
+      expect(yamlResult).toContain('---');
+      expect(yamlResult).toContain('kind: Service');
+      expect(yamlResult).toContain('name: svc-1');
+    });
+
+    it('handles non-array or malformed JSON returned by GenerateYaml gracefully', async () => {
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GenerateYaml: vi.fn().mockResolvedValue('{"not":"an array"}'),
+          },
+        },
+      };
+
+      const resultObj = await gateway.generateYaml('[]', '[]');
+      expect(resultObj).toBe('{"not":"an array"}');
+
+      (globalThis as any).go.main.App.GenerateYaml = vi.fn().mockResolvedValue('raw-string-not-json');
+      const resultRaw = await gateway.generateYaml('[]', '[]');
+      expect(resultRaw).toBe('raw-string-not-json');
+
+      (globalThis as any).go.main.App.GenerateYaml = vi.fn().mockResolvedValue('');
+      const resultEmpty = await gateway.generateYaml('[]', '[]');
+      expect(resultEmpty).toBe('');
+    });
+
+    it('falls back to client-side YAML generation when backend GenerateYaml throws an error', async () => {
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GenerateYaml: vi.fn().mockRejectedValue(new Error('Backend error')),
+          },
+        },
+      };
+
+      const nodes = [{ id: 'p1', type: 'Pod', data: { label: 'client-pod' } }];
+      const yamlResult = await gateway.generateYaml(JSON.stringify(nodes), '[]');
+      expect(yamlResult).toContain('kind: Pod');
+      expect(yamlResult).toContain('name: client-pod');
+    });
+
+    it('returns empty string when client-side YAML fallback encounters malformed JSON', async () => {
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GenerateYaml: vi.fn().mockResolvedValue(null),
+          },
+        },
+      };
+
+      const yamlResult = await gateway.generateYaml('invalid-json{{{', '[]');
+      expect(yamlResult).toBe('');
+    });
+
+    it('resolves methods split across globalThis.go.main.App and window.go.main.App', async () => {
+      const mockGetSetting = vi.fn().mockResolvedValue('split-value');
+      const mockGetProjects = vi.fn().mockResolvedValue([{ id: 99, name: 'Split Project' }]);
+
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GetSetting: mockGetSetting,
+          },
+        },
+      };
+
+      (globalThis as any).window = {
+        go: {
+          main: {
+            App: {
+              GetProjects: mockGetProjects,
+            },
+          },
+        },
+      };
+
+      expect(await gateway.getSetting('k')).toBe('split-value');
+      expect(await gateway.getProjects()).toEqual([{ id: 99, name: 'Split Project' }]);
+    });
+
+    it('handles onEvent when runtime EventsOn returns undefined or non-function cleanup', () => {
+      (globalThis as any).runtime = {
+        EventsOn: vi.fn().mockReturnValue(undefined),
+      };
+
+      const unsub = gateway.onEvent('no-cleanup-event', () => {});
+      expect(typeof unsub).toBe('function');
+      expect(() => unsub()).not.toThrow();
+    });
+  });
+
+  describe('MockBackendGateway Operations - Additional Edge Cases', () => {
+    let mock: MockBackendGateway;
+
+    beforeEach(() => {
+      mock = new MockBackendGateway();
+    });
+
+    it('handles pushHistory with invalid JSON string and applies fallback defaults', async () => {
+      await mock.pushHistory('not-json');
+      const logs = await mock.getHistoryLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0].actionName).toBe('Action');
+      expect(typeof logs[0].timestamp).toBe('number');
+    });
+
+    it('handles multiple event subscribers and selective unsubscription', () => {
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
+
+      const unsub1 = mock.onEvent('alert', handler1);
+      const unsub2 = mock.onEvent('alert', handler2);
+
+      mock.emitEvent('alert', 'data-1');
+      expect(handler1).toHaveBeenCalledWith('data-1');
+      expect(handler2).toHaveBeenCalledWith('data-1');
+
+      unsub1();
+
+      mock.emitEvent('alert', 'data-2');
+      expect(handler1).toHaveBeenCalledTimes(1);
+      expect(handler2).toHaveBeenCalledTimes(2);
+
+      unsub2();
+      mock.emitEvent('alert', 'data-3');
+      expect(handler2).toHaveBeenCalledTimes(2);
+    });
+
+    it('handles mock file operations and window diagnostics', async () => {
+      expect(await mock.exportProjectFile('/path', '{}', '')).toBe(true);
+      expect(await mock.importProjectFile()).toBe('');
+      expect(await mock.fileExists('/path')).toBe(true);
+      expect(await mock.openFileFolder('/path')).toBe(true);
+      expect(await mock.openLogFile('/path')).toBe(true);
+
+      expect(await mock.calculateAppHeight(900)).toBe(765);
+      expect(await mock.getTargetScreen([])).toBe(false);
+      expect(await mock.getTargetScreenHeight([])).toBe(1080);
+
+      await mock.minimizeWindow();
+      await mock.maximizeWindow();
+      await mock.closeWindow();
+      await mock.setInitialFile('/init.infra');
+
+      expect(await mock.writeLog('sys', 'info', 'hello')).toBe(true);
+      const sysInfo = await mock.getSystemInfo();
+      expect(sysInfo.version).toBe('0.4.0');
+      const sysRes = await mock.getSystemResources();
+      expect(sysRes.cpuCores).toBe(8);
+      const updateInfo = await mock.checkForUpdates('0.4.0');
+      expect(updateInfo.updateAvailable).toBe(false);
+      expect(await mock.greet('Kube')).toBe('Hello Kube!');
+    });
   });
 
   describe('BaseBackendGateway PascalCase Parity Aliases', () => {
