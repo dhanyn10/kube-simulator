@@ -310,8 +310,8 @@ export function validateResourceLimits(data: any) {
  * @param edges - Array of React Flow canvas edges.
  * @returns Promise resolving to a multi-document YAML string separated by `---`.
  */
-export async function generateYaml(nodes: any[], edges: any[]): Promise<string> {
-  return generateYamlClientSide(nodes, edges);
+export function generateYaml(nodes: any[], edges: any[]): Promise<string> {
+  return Promise.resolve(generateYamlClientSide(nodes, edges));
 }
 
 /**

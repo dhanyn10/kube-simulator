@@ -16,8 +16,8 @@ import {
 } from 'lucide-react';
 import { Modal } from './Modal';
 import { useFlowStore } from '@/store';
-import { cn, sanitizeSlug } from '@/lib/utils';
-import { ConfigSection, NumberStepper, ConfigInput, ConfigLabel } from '@/components/UI/ConfigUI';
+import { cn } from '@/lib/utils';
+import { ConfigSection, NumberStepper, ConfigLabel } from '@/components/UI/ConfigUI';
 import { NodeNameInput } from '@/components/Config/NodeConfig';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { ImageDropdown } from '@/components/UI/ImageDropdown';

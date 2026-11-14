@@ -43,7 +43,7 @@ export const resolveTargetInfo = (
     if (parent && ['Deployment', 'StatefulSet', 'ReplicaSet'].includes(parent.type || '')) {
       return {
         type: parent.type || '',
-        parentId: targetParentId !== undefined ? targetParentId : parent.parentId,
+        parentId: targetParentId ?? parent.parentId,
         excludeId: excludeNodeId || parent.id,
       };
     }
@@ -51,7 +51,7 @@ export const resolveTargetInfo = (
 
   return {
     type: targetType || targetNode.type || '',
-    parentId: targetParentId !== undefined ? targetParentId : targetNode.parentId,
+    parentId: targetParentId ?? targetNode.parentId,
     excludeId: excludeNodeId || targetNode.id,
   };
 };
