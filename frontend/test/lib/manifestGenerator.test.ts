@@ -1117,4 +1117,75 @@ describe('manifestGenerator test suite', () => {
     expect(hpaDoc.metadata.name).toBe('api-hpa');
     expect(hpaDoc.metadata.namespace).toBe('production');
   });
+
+  it('generates attached ConfigMap and Secret manifests and injects container env references', () => {
+    const nodes = [
+      {
+        id: 'dep1',
+        type: 'Deployment',
+        data: {
+          label: 'app-deploy',
+          configMaps: [
+            {
+              id: 'cm-1',
+              name: 'app-config',
+              configData: [{ key: 'API_URL', value: 'https://api.example.com' }],
+            },
+          ],
+          secrets: [
+            {
+              id: 'sec-1',
+              name: 'app-secret',
+              secretData: [{ key: 'DB_PASS', value: 's3cret' }],
+            },
+          ],
+        },
+      },
+      {
+        id: 'sec-node',
+        type: 'Secret',
+        data: {
+          label: 'connected-secret',
+          secretData: [{ key: 'JWT_KEY', value: 'jwt-val' }],
+        },
+      },
+    ];
+
+    const edges = [
+      { id: 'e1', source: 'sec-node', target: 'dep1' },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+
+    const depDoc = docs.find((d) => d?.kind === 'Deployment');
+    const cmDoc = docs.find((d) => d?.kind === 'ConfigMap' && d?.metadata?.name === 'app-config');
+    const attachedSecDoc = docs.find((d) => d?.kind === 'Secret' && d?.metadata?.name === 'app-secret');
+    const connectedSecDoc = docs.find((d) => d?.kind === 'Secret' && d?.metadata?.name === 'connected-secret');
+
+    expect(depDoc).toBeDefined();
+    expect(cmDoc).toBeDefined();
+    expect(cmDoc.data.API_URL).toBe('https://api.example.com');
+    expect(attachedSecDoc).toBeDefined();
+    expect(attachedSecDoc.stringData.DB_PASS).toBe('s3cret');
+    expect(connectedSecDoc).toBeDefined();
+
+    const env = depDoc.spec.template.spec.containers[0].env;
+    expect(env).toEqual(
+      expect.arrayContaining([
+        {
+          name: 'API_URL',
+          valueFrom: { configMapKeyRef: { name: 'app-config', key: 'API_URL' } },
+        },
+        {
+          name: 'DB_PASS',
+          valueFrom: { secretKeyRef: { name: 'app-secret', key: 'DB_PASS' } },
+        },
+        {
+          name: 'JWT_KEY',
+          valueFrom: { secretKeyRef: { name: 'connected-secret', key: 'JWT_KEY' } },
+        },
+      ])
+    );
+  });
 });
