@@ -140,6 +140,7 @@ export const BaseNode = memo(({
     inputRef,
     handleRename,
     onKeyDown,
+    errorMessage,
     isPending,
     isReady,
     isCrashing,
@@ -224,6 +225,7 @@ export const BaseNode = memo(({
             isEditing={isEditing} setIsEditing={setIsEditing} editValue={editValue} setEditValue={setEditValue}
             inputRef={inputRef} handleRename={handleRename} onKeyDown={onKeyDown} colorMode={colorMode}
             label={displayLabel} className="w-full min-w-0 max-w-full"
+            errorMessage={errorMessage}
           />
 
           <ReplicaProgress id={id} replicas={replicas} parentReplicas={data.parentReplicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} hoveredPodIndex={hoveredPodIndex} isPending={isPending} isCrashing={isCrashing} isReady={isReady} />

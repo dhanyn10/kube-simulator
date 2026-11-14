@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useFlowStore } from '@/store';
 import { cn, sanitizeSlug } from '@/lib/utils';
-import { Type, Terminal, Shuffle } from 'lucide-react';
+import { isDuplicateResourceName, resolveTargetInfo } from '@/store/handlers/nodeUtils';
+import { Type, Terminal, Shuffle, AlertCircle } from 'lucide-react';
 import { ConfigInput, ConfigLabel } from '@/components/UI/ConfigUI';
 import {
   WorkloadConfig,
@@ -27,7 +28,12 @@ interface NodeNameInputProps {
   className?: string;
   colorMode: string;
   onUpdate: (val: string) => void;
+  targetType?: string;
+  targetParentId?: string;
+  excludeNodeId?: string;
 }
+
+export { resolveTargetInfo };
 
 export const NodeNameInput = ({
   nodeId,
@@ -36,50 +42,109 @@ export const NodeNameInput = ({
   className = 'font-mono flex-1 min-w-0',
   colorMode,
   onUpdate,
+  targetType,
+  targetParentId,
+  excludeNodeId,
 }: NodeNameInputProps) => {
+  const nodes = useFlowStore((state) => state.nodes);
   const [localVal, setLocalVal] = useState(value || '');
+  const [validationState, setValidationState] = useState<'idle' | 'match_error'>('idle');
+  const [validationMessage, setValidationMessage] = useState('');
 
   useEffect(() => {
     setLocalVal(value || '');
+    setValidationState('idle');
+    setValidationMessage('');
   }, [nodeId, value]);
+
+  const checkCandidate = (raw: string): { clean: string; isDup: boolean; type: string } => {
+    const clean = sanitizeSlug(raw);
+    if (!clean) return { clean: '', isDup: false, type: '' };
+
+    const { type, parentId, excludeId } = resolveTargetInfo(nodeId, nodes, targetType, targetParentId, excludeNodeId);
+    const isDup = isDuplicateResourceName(clean, type, parentId, nodes, excludeId);
+    return { clean, isDup, type };
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     setLocalVal(raw);
 
-    const clean = sanitizeSlug(raw);
-    if (clean && !raw.endsWith('-') && !raw.endsWith(' ') && clean !== value) {
+    const { clean, isDup, type } = checkCandidate(raw);
+    if (isDup) {
+      setValidationState('match_error');
+      setValidationMessage(type === 'Namespace' ? 'Namespace already exists' : 'Name already exists');
+      return;
+    }
+
+    setValidationState('idle');
+    setValidationMessage('');
+
+    if (!raw.endsWith('-') && !raw.endsWith(' ') && clean !== value) {
       onUpdate(clean);
     }
   };
 
   const handleBlur = () => {
-    const clean = sanitizeSlug(localVal);
-    if (clean && clean !== value) {
+    const { clean, isDup } = checkCandidate(localVal);
+    if (!clean) {
+      setLocalVal(value || '');
+      setValidationState('idle');
+      setValidationMessage('');
+      return;
+    }
+
+    if (isDup) {
+      // Like web password input: keep user's typed input, stay in error state, do NOT commit to store
+      return;
+    }
+
+    setValidationState('idle');
+    setValidationMessage('');
+
+    if (clean !== value) {
       onUpdate(clean);
       setLocalVal(clean);
-    } else {
-      setLocalVal(value || '');
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       (e.target as HTMLInputElement).blur();
+    } else if (e.key === 'Escape') {
+      setLocalVal(value || '');
+      setValidationState('idle');
+      setValidationMessage('');
     }
   };
 
+  const isMatchError = validationState === 'match_error';
+
   return (
-    <ConfigInput
-      value={localVal}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      onKeyDown={handleKeyDown}
-      placeholder={placeholder}
-      maxLength={63}
-      colorMode={colorMode}
-      className={className}
-    />
+    <div className="flex flex-col flex-1 min-w-0">
+      <ConfigInput
+        value={localVal}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        maxLength={63}
+        colorMode={colorMode}
+        className={cn(
+          className,
+          isMatchError && "!border-rose-500 focus:!border-rose-500 text-rose-500 dark:text-rose-400"
+        )}
+      />
+      {isMatchError && (
+        <span
+          data-testid="duplicate-name-error"
+          className="text-[10px] text-rose-500 dark:text-rose-400 font-medium mt-1 leading-tight flex items-center gap-1"
+        >
+          <AlertCircle size={11} className="shrink-0" />
+          <span>{validationMessage}</span>
+        </span>
+      )}
+    </div>
   );
 };
 

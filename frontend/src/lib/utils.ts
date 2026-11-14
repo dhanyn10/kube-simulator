@@ -1,4 +1,3 @@
-import { logger } from './logger';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import yaml from 'js-yaml';
@@ -305,37 +304,14 @@ export function validateResourceLimits(data: any) {
 
 /**
  * Asynchronously converts active canvas nodes and edges into valid Kubernetes YAML specifications.
- * Invokes the Wails Go backend `GenerateYaml` method when running in the Wails runtime environment,
- * otherwise falls back to client-side manifest generation.
+ * Uses client-side manifest generation as the single source of truth for full consistency.
  *
  * @param nodes - Array of React Flow canvas nodes.
  * @param edges - Array of React Flow canvas edges.
  * @returns Promise resolving to a multi-document YAML string separated by `---`.
  */
-export async function generateYaml(nodes: any[], edges: any[]): Promise<string> {
-  const generateYamlFn = (globalThis as any).go?.main?.App?.GenerateYaml;
-  if (generateYamlFn) {
-    try {
-      const jsonStr = await generateYamlFn(
-        JSON.stringify(nodes),
-        JSON.stringify(edges)
-      );
-      if (jsonStr !== undefined && jsonStr !== null) {
-        try {
-          const objects = JSON.parse(jsonStr);
-          if (Array.isArray(objects)) {
-            return objects.map((obj: any) => yaml.dump(obj, { indent: 2, noRefs: true })).join('---\n');
-          }
-          return jsonStr;
-        } catch {
-          return jsonStr;
-        }
-      }
-    } catch (error) {
-      logger.error('Failed to parse objects for YAML generation from backend, falling back to client-side:', error);
-    }
-  }
-  return generateYamlClientSide(nodes, edges);
+export function generateYaml(nodes: any[], edges: any[]): Promise<string> {
+  return Promise.resolve(generateYamlClientSide(nodes, edges));
 }
 
 /**

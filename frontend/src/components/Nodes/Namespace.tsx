@@ -17,8 +17,8 @@ export const NamespaceNode = memo((props: NodeProps) => {
   const { transitionClasses } = useNodeStyles(props.id);
   const isRoleDragging = draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap';
 
-  const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
-    useNodeRename(data.label, data.onRename);
+  const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown, errorMessage } =
+    useNodeRename(data.label, data.onRename, { nodeId: props.id, type: 'Namespace' });
 
   const { handleNodeResize, handleNodeResizeStop } = useNodeResize(props.id, props.type);
 
@@ -53,20 +53,21 @@ export const NamespaceNode = memo((props: NodeProps) => {
           NAMESPACE
         </div>
 
-        {NodeRenameInput({
-          isEditing,
-          setIsEditing,
-          editValue,
-          setEditValue,
-          inputRef,
-          handleRename,
-          onKeyDown,
-          colorMode,
-          label: data.label,
-          inputClassName: colorMode === 'dark' ? "text-emerald-300 border-emerald-500" : "text-emerald-700 border-emerald-400",
-          buttonClassName: colorMode === 'dark' ? "text-emerald-300" : "text-emerald-700",
-          className: "text-sm"
-        })}
+        <NodeRenameInput
+          isEditing={isEditing}
+          setIsEditing={setIsEditing}
+          editValue={editValue}
+          setEditValue={setEditValue}
+          inputRef={inputRef}
+          handleRename={handleRename}
+          onKeyDown={onKeyDown}
+          colorMode={colorMode}
+          label={data.label}
+          errorMessage={errorMessage}
+          inputClassName={colorMode === 'dark' ? "text-emerald-300 border-emerald-500" : "text-emerald-700 border-emerald-400"}
+          buttonClassName={colorMode === 'dark' ? "text-emerald-300" : "text-emerald-700"}
+          className="text-sm"
+        />
       </div>
 
       <NodeActionButtons

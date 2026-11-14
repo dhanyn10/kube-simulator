@@ -82,6 +82,101 @@ describe('useNodeRename', () => {
 
     expect(result.current.isEditing).toBe(false);
   });
+
+  describe('duplicate name validation in useNodeRename', () => {
+    beforeEach(() => {
+      useFlowStore.setState({
+        nodes: [
+          { id: 'ns-1', type: 'Namespace', position: { x: 0, y: 0 }, data: { label: 'default' } },
+          { id: 'ns-2', type: 'Namespace', position: { x: 0, y: 0 }, data: { label: 'kube-system' } },
+          { id: 'dep-1', type: 'Deployment', parentId: 'ns-1', position: { x: 0, y: 0 }, data: { label: 'web' } },
+          { id: 'dep-2', type: 'Deployment', parentId: 'ns-1', position: { x: 0, y: 0 }, data: { label: 'api' } },
+          { id: 'pod-1', type: 'Pod', parentId: 'ns-1', position: { x: 0, y: 0 }, data: { label: 'redis', baseName: 'redis' } },
+        ] as any,
+      });
+    });
+
+    it('detects duplicate name for resources and shows "Name already exists"', () => {
+      const onRename = vi.fn();
+      const { result } = renderHook(() =>
+        useNodeRename('web', onRename, { nodeId: 'dep-1', type: 'Deployment', parentId: 'ns-1' })
+      );
+
+      act(() => {
+        result.current.setIsEditing(true);
+        result.current.setEditValue('api');
+      });
+
+      expect(result.current.isDuplicate).toBe(true);
+      expect(result.current.errorMessage).toBe('Name already exists');
+
+      act(() => {
+        result.current.handleRename();
+      });
+
+      expect(onRename).not.toHaveBeenCalled();
+      expect(result.current.isEditing).toBe(true);
+    });
+
+    it('detects duplicate namespace and shows "Namespace already exists"', () => {
+      const onRename = vi.fn();
+      const { result } = renderHook(() =>
+        useNodeRename('default', onRename, { nodeId: 'ns-1', type: 'Namespace' })
+      );
+
+      act(() => {
+        result.current.setIsEditing(true);
+        result.current.setEditValue('kube-system');
+      });
+
+      expect(result.current.isDuplicate).toBe(true);
+      expect(result.current.errorMessage).toBe('Namespace already exists');
+
+      act(() => {
+        result.current.onKeyDown({ key: 'Enter' } as any);
+      });
+
+      expect(onRename).not.toHaveBeenCalled();
+      expect(result.current.isEditing).toBe(true);
+    });
+
+    it('clears error when typing a unique name and allows rename', () => {
+      const onRename = vi.fn();
+      const { result } = renderHook(() =>
+        useNodeRename('web', onRename, { nodeId: 'dep-1', type: 'Deployment', parentId: 'ns-1' })
+      );
+
+      act(() => {
+        result.current.setIsEditing(true);
+        result.current.setEditValue('web-unique');
+      });
+
+      expect(result.current.isDuplicate).toBe(false);
+      expect(result.current.errorMessage).toBe('');
+
+      act(() => {
+        result.current.onKeyDown({ key: 'Enter' } as any);
+      });
+
+      expect(onRename).toHaveBeenCalledWith('web-unique');
+      expect(result.current.isEditing).toBe(false);
+    });
+
+    it('allows typing its own existing label without error', () => {
+      const onRename = vi.fn();
+      const { result } = renderHook(() =>
+        useNodeRename('web', onRename, { nodeId: 'dep-1', type: 'Deployment', parentId: 'ns-1' })
+      );
+
+      act(() => {
+        result.current.setIsEditing(true);
+        result.current.setEditValue('web');
+      });
+
+      expect(result.current.isDuplicate).toBe(false);
+      expect(result.current.errorMessage).toBe('');
+    });
+  });
 });
 
 describe('useNodeResize', () => {

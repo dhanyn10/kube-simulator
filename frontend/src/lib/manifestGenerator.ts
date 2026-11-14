@@ -96,6 +96,107 @@ const getResourceConfig = (
   return createResourceObject(data);
 };
 
+const getEnvFromAttachedConfigMaps = (
+  configMaps: any[],
+  seenKeys: Set<string>,
+  env: any[]
+) => {
+  configMaps.forEach((cm: any) => {
+    const cmName = sanitizeName(cm.name) || 'configmap';
+    if (!Array.isArray(cm.configData)) return;
+    cm.configData.forEach((item: any) => {
+      if (item.key && !seenKeys.has(item.key)) {
+        seenKeys.add(item.key);
+        env.push({
+          name: item.key,
+          valueFrom: {
+            configMapKeyRef: {
+              name: cmName,
+              key: item.key,
+            },
+          },
+        });
+      }
+    });
+  });
+};
+
+const getEnvFromAttachedSecrets = (
+  secrets: any[],
+  seenKeys: Set<string>,
+  env: any[]
+) => {
+  secrets.forEach((sec: any) => {
+    const secName = sanitizeName(sec.name) || 'secret';
+    const items = sec.secretData || sec.configData;
+    if (!Array.isArray(items)) return;
+    items.forEach((item: any) => {
+      if (item.key && !seenKeys.has(item.key)) {
+        seenKeys.add(item.key);
+        env.push({
+          name: item.key,
+          valueFrom: {
+            secretKeyRef: {
+              name: secName,
+              key: item.key,
+            },
+          },
+        });
+      }
+    });
+  });
+};
+
+const getEnvFromConnectedNode = (
+  sourceNode: any,
+  seenKeys: Set<string>,
+  env: any[]
+) => {
+  if (!sourceNode) return;
+  const isCm = sourceNode.type === 'ConfigMap';
+  const isSec = sourceNode.type === 'Secret';
+  if (!isCm && !isSec) return;
+
+  const resourceName = sanitizeName(sourceNode.data?.label) || (isCm ? 'configmap' : 'secret');
+  const items = isCm ? sourceNode.data?.configData : (sourceNode.data?.secretData || sourceNode.data?.configData);
+  if (!Array.isArray(items)) return;
+
+  items.forEach((item: any) => {
+    if (!item.key || seenKeys.has(item.key)) return;
+    seenKeys.add(item.key);
+    env.push({
+      name: item.key,
+      valueFrom: isCm
+        ? { configMapKeyRef: { name: resourceName, key: item.key } }
+        : { secretKeyRef: { name: resourceName, key: item.key } },
+    });
+  });
+};
+
+const getEnvFromNodeAndConnections = (
+  data: any,
+  nodeID: string,
+  targetEdgeMap: Map<string, any[]>,
+  nodeMap: Map<string, any>
+): any[] | undefined => {
+  const env: any[] = [];
+  const seenKeys = new Set<string>();
+
+  if (Array.isArray(data?.configMaps)) {
+    getEnvFromAttachedConfigMaps(data.configMaps, seenKeys, env);
+  }
+  if (Array.isArray(data?.secrets)) {
+    getEnvFromAttachedSecrets(data.secrets, seenKeys, env);
+  }
+
+  const incoming = targetEdgeMap.get(nodeID) || [];
+  incoming.forEach((edge) => {
+    getEnvFromConnectedNode(nodeMap.get(edge.source), seenKeys, env);
+  });
+
+  return env.length > 0 ? env : undefined;
+};
+
 const createPodSpec = (
   data: any,
   nodeID: string,
@@ -115,6 +216,11 @@ const createPodSpec = (
     image,
     imagePullPolicy: 'IfNotPresent',
   };
+
+  const env = getEnvFromNodeAndConnections(data, nodeID, targetEdgeMap, nodeMap);
+  if (env) {
+    container.env = env;
+  }
 
   if (data.port) {
     container.ports = [{ containerPort: Number(data.port) }];
@@ -818,6 +924,66 @@ const buildNodeManifest = (
   }
 };
 
+const buildAttachedConfigMapManifest = (
+  cmItem: any,
+  node: any,
+  nodeMap: Map<string, any>
+) => {
+  const name = sanitizeName(cmItem.name) || 'configmap';
+  const namespace = getNamespace(node, nodeMap);
+  const metadata: Record<string, string> = { name };
+  if (namespace) {
+    metadata.namespace = namespace;
+  }
+
+  const data: Record<string, string> = {};
+  if (Array.isArray(cmItem.configData)) {
+    cmItem.configData.forEach((item: any) => {
+      if (item.key) {
+        data[item.key] = String(item.value ?? '');
+      }
+    });
+  }
+
+  return {
+    apiVersion: 'v1',
+    kind: 'ConfigMap',
+    metadata,
+    data,
+  };
+};
+
+const buildAttachedSecretManifest = (
+  secretItem: any,
+  node: any,
+  nodeMap: Map<string, any>
+) => {
+  const name = sanitizeName(secretItem.name) || 'secret';
+  const namespace = getNamespace(node, nodeMap);
+  const metadata: Record<string, string> = { name };
+  if (namespace) {
+    metadata.namespace = namespace;
+  }
+
+  const stringData: Record<string, string> = {};
+  const items = secretItem.secretData || secretItem.configData;
+  if (Array.isArray(items)) {
+    items.forEach((item: any) => {
+      if (item.key) {
+        stringData[item.key] = String(item.value ?? '');
+      }
+    });
+  }
+
+  return {
+    apiVersion: 'v1',
+    kind: 'Secret',
+    metadata,
+    type: 'Opaque',
+    stringData,
+  };
+};
+
 const buildAttachedHpaManifest = (
   hpaItem: any,
   node: any,
@@ -889,6 +1055,22 @@ export const generateYamlClientSide = (nodes: any[], edges: any[]): string => {
     const manifest = buildNodeManifest(node, nodeMap, sourceEdgeMap, targetEdgeMap);
     if (manifest) {
       manifests.push(manifest);
+    }
+    if (Array.isArray(node.data?.configMaps)) {
+      node.data.configMaps.forEach((cmItem: any) => {
+        const attachedCmManifest = buildAttachedConfigMapManifest(cmItem, node, nodeMap);
+        if (attachedCmManifest) {
+          manifests.push(attachedCmManifest);
+        }
+      });
+    }
+    if (Array.isArray(node.data?.secrets)) {
+      node.data.secrets.forEach((secretItem: any) => {
+        const attachedSecretManifest = buildAttachedSecretManifest(secretItem, node, nodeMap);
+        if (attachedSecretManifest) {
+          manifests.push(attachedSecretManifest);
+        }
+      });
     }
     if (Array.isArray(node.data?.hpas)) {
       node.data.hpas.forEach((hpaItem: any) => {

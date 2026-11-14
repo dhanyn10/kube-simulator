@@ -43,8 +43,8 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const showHPAWarning = checkShowHPAWarning(props.id, data, edges, nodes);
   const roleDragClass = getRoleDragClass(draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA', props.type || 'Deployment', data.isHovered);
 
-  const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
-    useNodeRename(data.label, data.onRename);
+  const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown, errorMessage } =
+    useNodeRename(data.label, data.onRename, { nodeId: props.id, type: props.type || 'Deployment' });
 
   const { handleNodeResize, handleNodeResizeStop } = useNodeResize(props.id, props.type);
 
@@ -85,19 +85,20 @@ export const DeploymentNode = memo((props: NodeProps) => {
           {props.type === 'StatefulSet' || data.workloadType === 'StatefulSet' ? 'STATEFULSET' : 'DEPLOYMENT'}
         </span>
 
-        {NodeRenameInput({
-          isEditing,
-          setIsEditing,
-          editValue,
-          setEditValue,
-          inputRef,
-          handleRename,
-          onKeyDown,
-          colorMode,
-          label: data.label,
-          inputClassName: isDarkMode ? "text-violet-300 border-violet-500" : "text-violet-700 border-violet-400",
-          buttonClassName: isDarkMode ? "text-violet-300" : "text-violet-700"
-        })}
+        <NodeRenameInput
+          isEditing={isEditing}
+          setIsEditing={setIsEditing}
+          editValue={editValue}
+          setEditValue={setEditValue}
+          inputRef={inputRef}
+          handleRename={handleRename}
+          onKeyDown={onKeyDown}
+          colorMode={colorMode}
+          label={data.label}
+          errorMessage={errorMessage}
+          inputClassName={isDarkMode ? "text-violet-300 border-violet-500" : "text-violet-700 border-violet-400"}
+          buttonClassName={isDarkMode ? "text-violet-300" : "text-violet-700"}
+        />
       </div>
 
       <div className={cn("absolute top-3 left-6 text-[9px] font-mono", isDarkMode ? "text-violet-400/60" : "text-violet-600/70")}>
