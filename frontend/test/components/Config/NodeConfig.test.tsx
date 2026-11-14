@@ -121,6 +121,64 @@ describe('NodeConfig', () => {
     expect(blurSpy).not.toHaveBeenCalled();
   });
 
+  it('validates duplicate names in real-time with concise error notice and no validation when name is different', () => {
+    const existingService = { id: 'svc-existing', type: 'Service', data: { label: 'auth-service' } };
+    const currentService = { id: 'svc-current', type: 'Service', data: { label: 'user-service' } };
+
+    useFlowStore.setState({
+      nodes: [existingService, currentService],
+      updateNodeData: mockUpdateNodeData,
+    });
+
+    render(<NodeConfig selectedNode={currentService} />);
+    const input = screen.getByPlaceholderText('node-name') as HTMLInputElement;
+
+    // 1. Typing an already existing name displays concise 'Name already exists' and does NOT update store
+    mockUpdateNodeData.mockClear();
+    fireEvent.change(input, { target: { value: 'auth-service' } });
+    expect(screen.getByTestId('duplicate-name-error')).toBeDefined();
+    expect(screen.getByText('Name already exists')).toBeDefined();
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
+
+    // 2. Typing a unique name clears error notice and updates store without showing extra validation banners
+    fireEvent.change(input, { target: { value: 'auth-service-2' } });
+    expect(screen.queryByTestId('duplicate-name-error')).toBeNull();
+    expect(screen.queryByTestId('name-available-success')).toBeNull();
+    expect(mockUpdateNodeData).toHaveBeenCalledWith('svc-current', { label: 'auth-service-2' });
+
+    // 3. Blurring while in duplicate state retains user input and keeps error notice visible without committing to store
+    mockUpdateNodeData.mockClear();
+    fireEvent.change(input, { target: { value: 'auth-service' } });
+    expect(screen.getByTestId('duplicate-name-error')).toBeDefined();
+    fireEvent.blur(input);
+    expect(input.value).toBe('auth-service');
+    expect(screen.getByTestId('duplicate-name-error')).toBeDefined();
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
+
+    // 4. Pressing Escape key reverts to the original valid value and clears error
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(input.value).toBe('user-service');
+    expect(screen.queryByTestId('duplicate-name-error')).toBeNull();
+  });
+
+  it('validates cluster-wide duplicate names for Namespace nodes with Namespace already exists notice', () => {
+    const existingNs = { id: 'ns-1', type: 'Namespace', data: { label: 'prod' } };
+    const currentNs = { id: 'ns-2', type: 'Namespace', data: { label: 'dev' } };
+
+    useFlowStore.setState({
+      nodes: [existingNs, currentNs],
+      updateNodeData: mockUpdateNodeData,
+    });
+
+    render(<NodeConfig selectedNode={currentNs} />);
+    const input = screen.getByPlaceholderText('node-name') as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: 'prod' } });
+    expect(screen.getByTestId('duplicate-name-error')).toBeDefined();
+    expect(screen.getByText('Namespace already exists')).toBeDefined();
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
+  });
+
   it('renders Randomize Pod Hash button for Pod nodes and renders read-only suffix input', () => {
     const podNode = { id: 'p1', type: 'Pod', data: { label: 'nginx-x8k2p', podHash: 'x8k2p' } };
     render(<NodeConfig selectedNode={podNode} />);

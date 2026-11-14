@@ -7,6 +7,7 @@ import {
   sanitizeResourceLimits,
   applyAutoImageLogic,
   ensureUniqueResourceName,
+  isDuplicateResourceName,
 } from '@/store/handlers/nodeUtils';
 
 describe('nodeUtils', () => {
@@ -282,6 +283,107 @@ describe('nodeUtils', () => {
       // Node with empty data (no baseName, no label) falls back to ''
       const name3 = ensureUniqueResourceName('runner', 'Pod', undefined, nodes);
       expect(name3).toBe('runner');
+    });
+  });
+
+  describe('isDuplicateResourceName', () => {
+    it('detects duplicate name for the same Kind in the same Namespace', () => {
+      const nodes: any[] = [
+        { id: 'dep-1', type: 'Deployment', parentId: 'ns-1', data: { label: 'web-api' } },
+      ];
+
+      expect(isDuplicateResourceName('web-api', 'Deployment', 'ns-1', nodes)).toBe(true);
+      expect(isDuplicateResourceName('web-api-2', 'Deployment', 'ns-1', nodes)).toBe(false);
+    });
+
+    it('allows identical name for the same Kind in a different Namespace', () => {
+      const nodes: any[] = [
+        { id: 'dep-1', type: 'Deployment', parentId: 'ns-1', data: { label: 'web-api' } },
+      ];
+
+      expect(isDuplicateResourceName('web-api', 'Deployment', 'ns-2', nodes)).toBe(false);
+      expect(isDuplicateResourceName('web-api', 'Deployment', undefined, nodes)).toBe(false);
+    });
+
+    it('allows identical name for different Kinds in the same Namespace', () => {
+      const nodes: any[] = [
+        { id: 'dep-1', type: 'Deployment', parentId: 'ns-1', data: { label: 'web-api' } },
+      ];
+
+      expect(isDuplicateResourceName('web-api', 'Service', 'ns-1', nodes)).toBe(false);
+      expect(isDuplicateResourceName('web-api', 'ConfigMap', 'ns-1', nodes)).toBe(false);
+    });
+
+    it('enforces cluster-wide uniqueness for Namespace type regardless of parentId', () => {
+      const nodes: any[] = [
+        { id: 'ns-1', type: 'Namespace', data: { label: 'production' } },
+      ];
+
+      expect(isDuplicateResourceName('production', 'Namespace', undefined, nodes)).toBe(true);
+      expect(isDuplicateResourceName('staging', 'Namespace', undefined, nodes)).toBe(false);
+    });
+
+    it('excludes specified node ID or parent ID during duplicate check', () => {
+      const nodes: any[] = [
+        { id: 'svc-1', type: 'Service', parentId: 'ns-1', data: { label: 'redis' } },
+        { id: 'child-1', type: 'Pod', parentId: 'dep-parent', data: { label: 'worker' } },
+      ];
+
+      // Self-exclusion
+      expect(isDuplicateResourceName('redis', 'Service', 'ns-1', nodes, 'svc-1')).toBe(false);
+      // Parent exclusion
+      expect(isDuplicateResourceName('worker', 'Pod', undefined, nodes, 'dep-parent')).toBe(false);
+    });
+
+    it('returns false for empty string or inputs that sanitize to empty', () => {
+      const nodes: any[] = [
+        { id: 'svc-1', type: 'Service', data: { label: 'redis' } },
+      ];
+
+      expect(isDuplicateResourceName('', 'Service', undefined, nodes)).toBe(false);
+      expect(isDuplicateResourceName('   ', 'Service', undefined, nodes)).toBe(false);
+      expect(isDuplicateResourceName('$$$###', 'Service', undefined, nodes)).toBe(false);
+    });
+  });
+
+  describe('createNodeHandlers onRename duplicate prevention', () => {
+    it('prevents renaming when duplicate exists for Service and logs warning', () => {
+      const updateNodeDataMock = vi.fn();
+      const addLogMock = vi.fn();
+      const getStore = () => ({
+        nodes: [
+          { id: 's1', type: 'Service', data: { label: 'api' } },
+          { id: 's2', type: 'Service', data: { label: 'auth' } },
+        ],
+        updateNodeData: updateNodeDataMock,
+        addLog: addLogMock,
+      } as any);
+
+      const handlers = createNodeHandlers('s2', getStore);
+      handlers.onRename('api');
+
+      expect(updateNodeDataMock).not.toHaveBeenCalled();
+      expect(addLogMock).toHaveBeenCalledWith('warn', expect.stringContaining("Cannot rename: Service 'api' already exists"), 'UI');
+    });
+
+    it('prevents renaming when duplicate exists for Pod under Deployment', () => {
+      const updateNodeDataMock = vi.fn();
+      const addLogMock = vi.fn();
+      const getStore = () => ({
+        nodes: [
+          { id: 'dep-1', type: 'Deployment', data: { label: 'web-prod' } },
+          { id: 'dep-2', type: 'Deployment', data: { label: 'web-stage' } },
+          { id: 'pod-2', type: 'Pod', parentId: 'dep-2', data: { label: 'web-stage-abcde' } },
+        ],
+        updateNodeData: updateNodeDataMock,
+        addLog: addLogMock,
+      } as any);
+
+      const handlers = createNodeHandlers('pod-2', getStore);
+      handlers.onRename('web-prod');
+
+      expect(updateNodeDataMock).not.toHaveBeenCalled();
+      expect(addLogMock).toHaveBeenCalledWith('warn', expect.stringContaining("Cannot rename: Deployment 'web-prod' already exists"), 'UI');
     });
   });
 

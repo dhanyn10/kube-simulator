@@ -403,6 +403,37 @@ describe('useNodeConfig', () => {
       expect(mockUpdateNodeData).toHaveBeenCalledWith('dep-1', { label: 'newapp' });
     });
 
+    it('updatePodBaseName ignores duplicate names in the same namespace', () => {
+      const existingDeployment = {
+        id: 'dep-existing',
+        type: 'Deployment',
+        data: { label: 'taken-name' },
+      };
+      const parentDeployment = {
+        id: 'dep-1',
+        type: 'Deployment',
+        data: { label: 'myapp' },
+      };
+      const pod1 = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'dep-1',
+        data: { baseName: 'myapp', label: 'myapp-12345' },
+      };
+
+      useFlowStore.setState({
+        nodes: [existingDeployment, parentDeployment, pod1] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result } = renderHook(() => useNodeConfigHandler(pod1));
+      act(() => {
+        result.current.updatePodBaseName('taken-name');
+      });
+
+      expect(mockUpdateNodeData).not.toHaveBeenCalled();
+    });
+
     it('covers podHash / podBaseName fallbacks and standalone pod updatePodBaseName / randomizePodHash', () => {
       // 1. Pod node without podHash or baseName, with label containing podHash suffix
       const podWithHashInLabel = {

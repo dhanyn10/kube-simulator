@@ -149,5 +149,42 @@ describe('NodeUI', () => {
       fireEvent.mouseDown(input);
       fireEvent.pointerDown(input);
     });
+
+    it('renders duplicate error badge and rose border when errorMessage is present', () => {
+      render(
+        <NodeRenameInput
+          isEditing={true}
+          editValue="existing-name"
+          setEditValue={mockSetEditValue}
+          handleRename={mockHandleRename}
+          colorMode="dark"
+          errorMessage="Name already exists"
+        />
+      );
+
+      const errorBadge = screen.getByTestId('canvas-duplicate-name-error');
+      expect(errorBadge).toBeDefined();
+      expect(screen.getByText('Name already exists')).toBeDefined();
+
+      const input = screen.getByRole('textbox');
+      expect(input.className).toContain('!border-rose-500');
+    });
+
+    it('does not render duplicate error badge when errorMessage is empty', () => {
+      render(
+        <NodeRenameInput
+          isEditing={true}
+          editValue="unique-name"
+          setEditValue={mockSetEditValue}
+          handleRename={mockHandleRename}
+          colorMode="dark"
+          errorMessage=""
+        />
+      );
+
+      expect(screen.queryByTestId('canvas-duplicate-name-error')).toBeNull();
+      const input = screen.getByRole('textbox');
+      expect(input.className).not.toContain('!border-rose-500');
+    });
   });
 });

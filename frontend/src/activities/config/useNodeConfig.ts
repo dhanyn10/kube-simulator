@@ -6,6 +6,7 @@ import { useFlowStore } from '@/store';
 import { sortNodes } from '@/store/helpers';
 import { syncDeployment } from '@/store/nodeHelpers';
 import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '@/store/handlers/nodeConfigUtils';
+import { isDuplicateResourceName } from '@/store/handlers/nodeUtils';
 import { extractPodBaseName } from '@/activities/nodes/useBaseNode';
 import { generateRandomHash, sanitizeSlug } from '@/lib/utils';
 
@@ -114,8 +115,14 @@ export const useNodeConfigHandler = (selectedNode: any) => {
     }
 
     if (deploymentNode) {
+      if (isDuplicateResourceName(cleanBase, deploymentNode.type, deploymentNode.parentId, state.nodes, deploymentNode.id)) {
+        return;
+      }
       state.updateNodeData(deploymentNode.id, { label: cleanBase });
     } else {
+      if (isDuplicateResourceName(cleanBase, 'Pod', selectedNode.parentId, state.nodes, selectedNode.id)) {
+        return;
+      }
       const currentSuffix = data.replicaSuffix ? `-${data.replicaSuffix}` : '';
       const newLabel = `${cleanBase}-${podHash}${currentSuffix}`;
       updateNodeData(selectedNode.id, {

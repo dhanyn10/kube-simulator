@@ -128,15 +128,19 @@ export const useBaseNodeHandler = ({
 
   const { transitionClasses } = useNodeStyles(id);
 
-  const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
-    useNodeRename(podBaseName, data.onRename);
-
   const isRoleDragging = draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA';
   const currentNode = nodes.find((n) => n.id === id);
   const parentNode = currentNode?.parentId ? nodes.find((n) => n.id === currentNode.parentId) : null;
   const isInsideNamespace = currentNode?.parentId
     ? (parentNode?.type === 'Namespace' || nodes.find((p) => p.id === parentNode?.parentId)?.type === 'Namespace')
     : false;
+
+  const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown, isDuplicate, errorMessage } =
+    useNodeRename(podBaseName, data.onRename, {
+      nodeId: id,
+      type: data.type,
+      parentId: currentNode?.parentId || data.parentId,
+    });
 
   const { isPending, isReady, isCrashing, statusIconColor, statusTextColor, statusDotColor } =
     useNodeStatus(data, statusOverride, color, colorMode);
@@ -179,6 +183,8 @@ export const useBaseNodeHandler = ({
     inputRef,
     handleRename,
     onKeyDown,
+    isDuplicate,
+    errorMessage,
     isPending,
     isReady,
     isCrashing,

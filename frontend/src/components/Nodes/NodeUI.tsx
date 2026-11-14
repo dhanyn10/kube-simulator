@@ -1,4 +1,4 @@
-import { Settings, Trash2 } from 'lucide-react';
+import { Settings, Trash2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 
@@ -55,6 +55,22 @@ export const NodeActionButtons = ({
   </div>
 );
 
+export interface NodeRenameInputProps {
+  isEditing: boolean;
+  setIsEditing: (editing: boolean) => void;
+  editValue: string;
+  setEditValue: (value: string) => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  handleRename: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  colorMode: string;
+  label: string;
+  className?: string;
+  inputClassName?: string;
+  buttonClassName?: string;
+  errorMessage?: string;
+}
+
 export const NodeRenameInput = ({
   isEditing,
   setIsEditing,
@@ -67,29 +83,42 @@ export const NodeRenameInput = ({
   label,
   className = "",
   inputClassName = "",
-  buttonClassName = ""
-}: any) => {
+  buttonClassName = "",
+  errorMessage = ""
+}: NodeRenameInputProps) => {
   if (isEditing) {
     return (
-      <input
-        ref={inputRef}
-        value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
-        onBlur={handleRename}
-        onKeyDown={(e) => {
-          e.stopPropagation();
-          onKeyDown(e);
-        }}
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
-        className={cn(
-          "nodrag nopan nowheel text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none w-full relative z-50",
-          colorMode === 'dark' ? "bg-slate-900 text-slate-100 border-blue-500" : "bg-slate-50 text-slate-900 border-blue-400",
-          inputClassName,
-          className
+      <div className="relative flex flex-col min-w-0">
+        <input
+          ref={inputRef}
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={handleRename}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            onKeyDown(e);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          className={cn(
+            "nodrag nopan nowheel text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none w-full relative z-50",
+            colorMode === 'dark' ? "bg-slate-900 text-slate-100 border-blue-500" : "bg-slate-50 text-slate-900 border-blue-400",
+            errorMessage && "!border-rose-500 !text-rose-500 dark:!text-rose-400 focus:!border-rose-500 ring-1 ring-rose-500/30",
+            inputClassName,
+            className
+          )}
+        />
+        {errorMessage && (
+          <div
+            data-testid="canvas-duplicate-name-error"
+            className="absolute top-full left-0 mt-1 z-[100] px-1.5 py-0.5 rounded shadow-lg bg-rose-600 text-white dark:bg-rose-950 dark:border dark:border-rose-800 text-[10px] font-sans font-medium whitespace-nowrap flex items-center gap-1 pointer-events-none animate-in fade-in zoom-in-95 duration-100"
+          >
+            <AlertCircle size={10} className="shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
         )}
-      />
+      </div>
     );
   }
 

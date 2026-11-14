@@ -1,11 +1,23 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useFlowStore } from '@/store';
 import { sanitizeSlug } from '@/lib/utils';
+import { isDuplicateResourceName, resolveTargetInfo } from '@/store/handlers/nodeUtils';
 
-export const useNodeRename = (initialLabel: string, onRename?: (newName: string) => void) => {
+export interface UseNodeRenameOptions {
+  nodeId?: string;
+  type?: string;
+  parentId?: string;
+}
+
+export const useNodeRename = (
+  initialLabel: string,
+  onRename?: (newName: string) => void,
+  options?: UseNodeRenameOptions
+) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(initialLabel);
   const inputRef = useRef<HTMLInputElement>(null);
+  const nodes = useFlowStore((state) => state.nodes);
 
   useEffect(() => {
     if (!isEditing) {
@@ -20,7 +32,33 @@ export const useNodeRename = (initialLabel: string, onRename?: (newName: string)
     }
   }, [isEditing]);
 
+  const { isDuplicate, errorMessage } = useMemo(() => {
+    if (!isEditing || !options?.nodeId) return { isDuplicate: false, errorMessage: '' };
+    const clean = sanitizeSlug(editValue.trim());
+    if (!clean || clean.toLowerCase() === initialLabel.toLowerCase()) {
+      return { isDuplicate: false, errorMessage: '' };
+    }
+
+    const { type, parentId, excludeId } = resolveTargetInfo(
+      options.nodeId,
+      nodes,
+      options.type,
+      options.parentId
+    );
+    const isDup = isDuplicateResourceName(clean, type, parentId, nodes, excludeId);
+    if (isDup) {
+      return {
+        isDuplicate: true,
+        errorMessage: type === 'Namespace' ? 'Namespace already exists' : 'Name already exists'
+      };
+    }
+    return { isDuplicate: false, errorMessage: '' };
+  }, [isEditing, options?.nodeId, options?.type, options?.parentId, editValue, initialLabel, nodes]);
+
   const handleRename = useCallback(() => {
+    if (isDuplicate) {
+      return;
+    }
     setIsEditing(false);
     const cleanValue = sanitizeSlug(editValue.trim());
     if (cleanValue && cleanValue !== initialLabel) {
@@ -28,7 +66,7 @@ export const useNodeRename = (initialLabel: string, onRename?: (newName: string)
     } else {
       setEditValue(initialLabel);
     }
-  }, [editValue, initialLabel, onRename]);
+  }, [editValue, initialLabel, onRename, isDuplicate]);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -46,7 +84,9 @@ export const useNodeRename = (initialLabel: string, onRename?: (newName: string)
     setEditValue,
     inputRef,
     handleRename,
-    onKeyDown
+    onKeyDown,
+    isDuplicate,
+    errorMessage
   };
 };
 

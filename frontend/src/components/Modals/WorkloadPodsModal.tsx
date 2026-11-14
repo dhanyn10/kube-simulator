@@ -18,6 +18,7 @@ import { Modal } from './Modal';
 import { useFlowStore } from '@/store';
 import { cn, sanitizeSlug } from '@/lib/utils';
 import { ConfigSection, NumberStepper, ConfigInput, ConfigLabel } from '@/components/UI/ConfigUI';
+import { NodeNameInput } from '@/components/Config/NodeConfig';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { ImageDropdown } from '@/components/UI/ImageDropdown';
 import {
@@ -356,15 +357,13 @@ const WorkloadSetupTab: React.FC<WorkloadSetupTabProps> = ({
         <ConfigLabel>
           <Type size={10} /> Workload Name
         </ConfigLabel>
-        <ConfigInput
+        <NodeNameInput
+          nodeId={controller.id}
           value={data.label || ''}
-          onChange={(e: any) =>
-            updateNodeData(controller.id, { label: sanitizeSlug(e.target.value) })
-          }
           placeholder="workload-name"
-          maxLength={63}
           colorMode={colorMode}
           className="font-mono w-full"
+          onUpdate={(newLabel) => updateNodeData(controller.id, { label: newLabel })}
         />
       </div>
 

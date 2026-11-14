@@ -11,6 +11,96 @@ import { formatPodName, sanitizeSlug } from '@/lib/utils';
  * @returns Object containing `onDelete` and `onRename` callback handlers
  */
 /**
+ * Resolves target resource type, namespace parentId, and exclusion node ID
+ * for name validation and duplicate detection across workload pods and standalone resources.
+ *
+ * @param nodeId Canvas node ID being evaluated
+ * @param nodes List of all nodes in store
+ * @param targetType Optional override type
+ * @param targetParentId Optional override parentId
+ * @param excludeNodeId Optional override excludeId
+ * @returns Resolved type, parentId, and excludeId
+ */
+export const resolveTargetInfo = (
+  nodeId: string,
+  nodes: Node[] | any[],
+  targetType?: string,
+  targetParentId?: string,
+  excludeNodeId?: string
+): { type: string; parentId: string | undefined; excludeId: string } => {
+  const targetNode = nodes.find((n) => n.id === nodeId);
+  if (!targetNode) {
+    return {
+      type: targetType || '',
+      parentId: targetParentId,
+      excludeId: excludeNodeId || nodeId,
+    };
+  }
+
+  const isPod = targetType === 'Pod' || (!targetType && targetNode.type === 'Pod');
+  if (isPod && targetNode.parentId) {
+    const parent = nodes.find((n) => n.id === targetNode.parentId);
+    if (parent && ['Deployment', 'StatefulSet', 'ReplicaSet'].includes(parent.type || '')) {
+      return {
+        type: parent.type || '',
+        parentId: targetParentId !== undefined ? targetParentId : parent.parentId,
+        excludeId: excludeNodeId || parent.id,
+      };
+    }
+  }
+
+  return {
+    type: targetType || targetNode.type || '',
+    parentId: targetParentId !== undefined ? targetParentId : targetNode.parentId,
+    excludeId: excludeNodeId || targetNode.id,
+  };
+};
+
+/**
+ * Checks whether a candidate resource name already exists for the given resource type
+ * within the specified Namespace (or cluster-wide for Namespaces).
+ *
+ * @param candidateName Name to check
+ * @param type K8s resource type (Kind)
+ * @param parentId Namespace parent ID (or undefined for cluster/root)
+ * @param currentNodes Current canvas nodes
+ * @param excludeNodeId Node ID to exclude from comparison (e.g. self)
+ * @returns boolean indicating if the candidate name is duplicate
+ */
+export const isDuplicateResourceName = (
+  candidateName: string,
+  type: string,
+  parentId: string | undefined,
+  currentNodes: Node[],
+  excludeNodeId?: string
+): boolean => {
+  const sanitized = sanitizeSlug(candidateName);
+  if (!sanitized) return false;
+
+  const targetLower = sanitized.toLowerCase();
+
+  return currentNodes.some((n) => {
+    if (!n.type) return false;
+    if (excludeNodeId && (n.id === excludeNodeId || n.parentId === excludeNodeId)) return false;
+
+    // Namespaces are cluster-scoped, so their names must be globally unique
+    if (type === 'Namespace' && n.type === 'Namespace') {
+      const data = n.data as K8sNodeData;
+      return (data?.label || '').toLowerCase() === targetLower;
+    }
+
+    if (n.type !== type) return false;
+
+    const sameNamespace = (n.parentId || undefined) === (parentId || undefined);
+    if (!sameNamespace) return false;
+
+    const data = n.data as K8sNodeData;
+    const existingName = (data?.baseName || data?.label || '').toLowerCase();
+    return existingName === targetLower;
+  });
+};
+
+/**
  * Ensures a resource name is unique for a given resource type (Kind) within a specific Namespace.
  * Two resources with the same Kind in the same Namespace cannot share the exact same name.
  * Resources with different Kinds in the same Namespace are allowed to have the same name.
@@ -31,36 +121,49 @@ export const ensureUniqueResourceName = (
 ): string => {
   const sanitized = sanitizeSlug(desiredName) || `${type.toLowerCase()}`;
 
-  const existingNames = new Set(
-    currentNodes
-      .filter((n) => {
-        if (!n.type) return false;
-        if (excludeNodeId && (n.id === excludeNodeId || n.parentId === excludeNodeId)) return false;
-        if (n.type !== type) return false; // Different Kinds can share the same name!
-        const sameNamespace = (n.parentId || undefined) === (parentId || undefined);
-        return sameNamespace;
-      })
-      .map((n) => {
-        const data = n.data as K8sNodeData;
-        return (data?.baseName || data?.label || '').toLowerCase();
-      })
-  );
-
-  if (!existingNames.has(sanitized.toLowerCase())) {
+  if (!isDuplicateResourceName(sanitized, type, parentId, currentNodes, excludeNodeId)) {
     return sanitized;
   }
 
   let counter = 1;
   while (counter < 1000) {
-    const candidateBase = `${sanitized}-${counter}`;
-    const candidate = sanitizeSlug(candidateBase);
-    if (!existingNames.has(candidate.toLowerCase())) {
+    const candidate = sanitizeSlug(`${sanitized}-${counter}`);
+    if (!isDuplicateResourceName(candidate, type, parentId, currentNodes, excludeNodeId)) {
       return candidate;
     }
     counter++;
   }
 
   return sanitizeSlug(`${sanitized}-${Date.now().toString(36)}`);
+};
+
+const handleRenamePod = (node: Node, rawClean: string, get: () => FlowState) => {
+  let cleanBase = rawClean || 'pod';
+  const currentParent = node.parentId ? get().nodes.find((n) => n.id === node.parentId) : null;
+  if (currentParent && ['Deployment', 'StatefulSet', 'ReplicaSet'].includes(currentParent.type || '')) {
+    if (currentParent.type === 'StatefulSet' || currentParent.data?.workloadType === 'StatefulSet') {
+      cleanBase = rawClean.replace(/-\d+$/, '') || 'statefulset';
+    }
+    if (isDuplicateResourceName(cleanBase, currentParent.type || '', currentParent.parentId, get().nodes, currentParent.id)) {
+      get().addLog?.('warn', `[Validation] Cannot rename: ${currentParent.type} '${cleanBase}' already exists in this namespace.`, 'UI');
+      return;
+    }
+    get().updateNodeData(currentParent.id, { label: cleanBase });
+    return;
+  }
+
+  if (isDuplicateResourceName(cleanBase, 'Pod', node.parentId, get().nodes, node.id)) {
+    get().addLog?.('warn', `[Validation] Cannot rename: Pod '${cleanBase}' already exists in this namespace.`, 'UI');
+    return;
+  }
+  const podHash = node.data?.podHash;
+  const replicaSuffix = node.data?.replicaSuffix;
+  const replicas = node.data?.replicas || 1;
+  const newLabel = formatPodName(cleanBase, podHash, replicaSuffix, replicas);
+  get().updateNodeData(node.id, {
+    baseName: cleanBase,
+    label: newLabel,
+  });
 };
 
 export const createNodeHandlers = (id: string, get: () => FlowState) => ({
@@ -70,28 +173,17 @@ export const createNodeHandlers = (id: string, get: () => FlowState) => ({
   },
   onRename: (newName: string) => {
     const rawClean = sanitizeSlug(newName);
-    let cleanBase = rawClean || 'pod';
     const node = get().nodes.find((n: Node) => n.id === id);
     if (node?.type === 'Pod') {
-      const currentParent = node.parentId ? get().nodes.find(n => n.id === node.parentId) : null;
-      if (currentParent && (currentParent.type === 'Deployment' || currentParent.type === 'StatefulSet' || currentParent.type === 'ReplicaSet')) {
-        if (currentParent.type === 'StatefulSet' || currentParent.data?.workloadType === 'StatefulSet') {
-          cleanBase = rawClean.replace(/-\d+$/, '') || 'statefulset';
-        }
-        get().updateNodeData(currentParent.id, { label: cleanBase });
-      } else {
-        const podHash = node.data?.podHash;
-        const replicaSuffix = node.data?.replicaSuffix;
-        const replicas = node.data?.replicas || 1;
-        const newLabel = formatPodName(cleanBase, podHash, replicaSuffix, replicas);
-        get().updateNodeData(id, {
-          baseName: cleanBase,
-          label: newLabel,
-        });
-      }
-    } else {
-      get().updateNodeData(id, { label: cleanBase });
+      handleRenamePod(node, rawClean, get);
+      return;
     }
+    const cleanBase = rawClean || node?.type?.toLowerCase() || 'resource';
+    if (node && isDuplicateResourceName(cleanBase, node.type || '', node.parentId, get().nodes, id)) {
+      get().addLog?.('warn', `[Validation] Cannot rename: ${node.type} '${cleanBase}' already exists.`, 'UI');
+      return;
+    }
+    get().updateNodeData(id, { label: cleanBase });
   }
 });
 
