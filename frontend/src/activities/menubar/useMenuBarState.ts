@@ -6,6 +6,7 @@ import {
 import { useFlowStore, FlowState } from '@/store';
 import { validateHpaTargets } from '@/store/slices/simulationManager';
 import { startTour } from '@/lib/tour';
+import { getBackendGateway } from '@/gateway';
 
 export interface MenuBarStateOptions {
   readonly onExportYaml: () => void;
@@ -155,7 +156,7 @@ export const useMenuBarState = ({
               const performSave = async () => {
                 if (currentProject?.id !== undefined && currentProject.id !== -1) {
                   const content = JSON.stringify({ nodes, edges });
-                  const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
+                  const success = await getBackendGateway().updateProject(currentProject.id, content);
                   if (success) {
                     useFlowStore.setState({ lastSavedSnapshot: content });
                     alert("Resource architecture saved successfully!");

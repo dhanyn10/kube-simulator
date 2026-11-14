@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import type { FlowState, LogEntry, LogLevel, LogScope } from '@/store/types';
+import { getBackendGateway } from '@/gateway';
 
 export interface LogSlice {
   logs: LogEntry[];
@@ -89,9 +90,7 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
       set(newState);
       saveLogsToStorage(updatedLogs);
 
-      if (globalThis.go?.main?.App?.WriteLog) {
-        globalThis.go.main.App.WriteLog(scope || 'app', level, message).catch(() => {});
-      }
+      getBackendGateway().writeLog(scope || 'app', level, message).catch(() => {});
     },
     deleteLog: (id) => {
       const updatedLogs = get().logs.filter(l => l.id !== id);

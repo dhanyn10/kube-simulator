@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useFlowStore } from '@/store';
 import { useFitView } from '@/hooks/useFitView';
 import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
+import { getBackendGateway } from '@/gateway';
 import {
   BackstageTab,
   restoreRecentFile,
@@ -16,7 +17,6 @@ export interface UseFileBackstageViewParams {
 }
 
 interface QuickSaveContext {
-  app: any;
   content: string;
   onClose: () => void;
   loadRecentFiles: () => Promise<void>;
@@ -27,14 +27,14 @@ const tryUpdateExistingProject = async (
   currentProject: { id: number; name: string } | null,
   isAutosaveOn: boolean
 ): Promise<boolean> => {
-  if (!currentProject || currentProject.id === -1 || !ctx.app?.UpdateProject) {
+  if (!currentProject || currentProject.id === -1) {
     return false;
   }
   if (isAutosaveOn) {
     ctx.onClose();
     return true;
   }
-  const success = await ctx.app.UpdateProject(currentProject.id, ctx.content);
+  const success = await getBackendGateway().updateProject(currentProject.id, ctx.content);
   if (success) {
     useFlowStore.setState({ lastSavedSnapshot: ctx.content });
     await ctx.loadRecentFiles();
@@ -48,9 +48,8 @@ const trySaveProjectRecord = async (
   ctx: QuickSaveContext,
   saveName: string
 ): Promise<boolean> => {
-  if (!ctx.app?.SaveProject) return false;
-  const id = await ctx.app.SaveProject(saveName, ctx.content);
-  if (id !== undefined) {
+  const id = await getBackendGateway().saveProject(saveName, ctx.content);
+  if (id !== undefined && id > 0) {
     useFlowStore.setState({
       currentProject: { id, name: saveName },
       lastSavedSnapshot: ctx.content,
@@ -66,10 +65,13 @@ const trySaveAutosaveSettings = async (
   ctx: QuickSaveContext,
   sessionKey: string
 ): Promise<boolean> => {
-  if (!ctx.app?.SaveSetting) return false;
-  await ctx.app.SaveSetting(sessionKey, ctx.content);
-  await ctx.app.SaveSetting('auto_saved_profile_latest', sessionKey);
-  await ctx.app.SaveSetting('auto_saved_profile_content', ctx.content);
+  const gw = getBackendGateway();
+  const ok1 = await gw.saveSetting(sessionKey, ctx.content);
+  const ok2 = await gw.saveSetting('auto_saved_profile_latest', sessionKey);
+  const ok3 = await gw.saveSetting('auto_saved_profile_content', ctx.content);
+  if (ok1 === false || ok2 === false || ok3 === false) {
+    return false;
+  }
   await ctx.loadRecentFiles();
   ctx.onClose();
   return true;
@@ -170,10 +172,9 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
   const handleQuickSaveCurrent = async () => {
     const isAutosaveOn = useFlowStore.getState().isAutosaveEnabled;
     const content = JSON.stringify({ nodes, edges, timestamp: Date.now() });
-    const app = globalThis.go?.main?.App;
 
     await executeQuickSave(
-      { app, content, onClose, loadRecentFiles },
+      { content, onClose, loadRecentFiles },
       currentProject,
       newProjectName,
       isAutosaveOn

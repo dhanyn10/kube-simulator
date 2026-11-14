@@ -8,6 +8,40 @@ import {
   UpdateInfoData,
 } from './IBackendGateway';
 import { BaseBackendGateway } from './BaseBackendGateway';
+import * as wailsApp from '@wailsjs/go/main/App.js';
+import * as wailsRuntime from '@wailsjs/runtime';
+
+function isMockFunction(fn: any): boolean {
+  return typeof fn === 'function' && (Boolean(fn._isMockFunction) || Boolean(fn.mock));
+}
+
+function getWailsFallback(wailsModule: any, prop: string | symbol): any {
+  try {
+    const fallback = wailsModule?.[prop];
+    if (isMockFunction(fallback)) {
+      return fallback;
+    }
+  } catch {
+    // Vitest throws when accessing an unmocked export on a vi.mock'd module
+  }
+  return undefined;
+}
+
+function resolveWailsTarget(
+  primary: any,
+  secondary: any,
+  wailsModule: any
+) {
+  const root = primary || secondary || {};
+  return new Proxy(root, {
+    get(target, prop) {
+      if (prop in target && target[prop] !== undefined) return target[prop];
+      if (secondary && prop in secondary && secondary[prop] !== undefined) return secondary[prop];
+      if (primary && prop in primary && primary[prop] !== undefined) return primary[prop];
+      return getWailsFallback(wailsModule, prop);
+    },
+  });
+}
 
 /**
  * Concrete Wails Adapter for IBackendGateway.
@@ -17,16 +51,22 @@ import { BaseBackendGateway } from './BaseBackendGateway';
 export class WailsBackendGateway extends BaseBackendGateway {
   private get app(): any {
     if (typeof globalThis !== 'undefined') {
-      return (globalThis as any).go?.main?.App;
+      const g = globalThis as any;
+      const directApp = g.go?.main?.App;
+      const windowApp = g.window?.go?.main?.App;
+      return resolveWailsTarget(directApp, windowApp, wailsApp);
     }
-    return undefined;
+    return wailsApp;
   }
 
   private get runtime(): any {
     if (typeof globalThis !== 'undefined') {
-      return (globalThis as any).runtime;
+      const g = globalThis as any;
+      const directRuntime = g.runtime;
+      const windowRuntime = g.window?.runtime;
+      return resolveWailsTarget(directRuntime, windowRuntime, wailsRuntime);
     }
-    return undefined;
+    return wailsRuntime;
   }
 
   // --- Project Operations ---
@@ -41,6 +81,10 @@ export class WailsBackendGateway extends BaseBackendGateway {
   async saveProject(name: string, content: string): Promise<number> {
     if (typeof this.app?.SaveProject === 'function') {
       return this.app.SaveProject(name, content);
+    }
+    const g = typeof globalThis !== 'undefined' ? (globalThis as any) : undefined;
+    if (g?.go?.main?.App || g?.window?.go?.main?.App) {
+      return 0;
     }
     return Date.now();
   }
@@ -128,6 +172,10 @@ export class WailsBackendGateway extends BaseBackendGateway {
   async saveSetting(key: string, value: string): Promise<boolean> {
     if (typeof this.app?.SaveSetting === 'function') {
       return this.app.SaveSetting(key, value);
+    }
+    const g = typeof globalThis !== 'undefined' ? (globalThis as any) : undefined;
+    if (g?.go?.main?.App || g?.window?.go?.main?.App) {
+      return false;
     }
     if (typeof globalThis !== 'undefined' && globalThis.localStorage) {
       globalThis.localStorage.setItem(key, value);
@@ -255,7 +303,7 @@ export class WailsBackendGateway extends BaseBackendGateway {
     if (typeof this.app?.OpenLogFile === 'function') {
       return this.app.OpenLogFile(filePath);
     }
-    return true;
+    return false;
   }
 
   // --- System & Updates ---
@@ -345,7 +393,8 @@ export class WailsBackendGateway extends BaseBackendGateway {
 
   onEvent(eventName: string, callback: (...args: any[]) => void): () => void {
     if (typeof this.runtime?.EventsOn === 'function') {
-      return this.runtime.EventsOn(eventName, callback);
+      const unsub = this.runtime.EventsOn(eventName, callback);
+      return typeof unsub === 'function' ? unsub : () => {};
     }
     return () => {};
   }

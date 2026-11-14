@@ -1,5 +1,5 @@
 import { LogEntry } from '@/store/types';
-import { OpenLogFile } from '@wailsjs/go/main/App';
+import { getBackendGateway } from '@/gateway';
 import { logger } from '@/lib/logger';
 
 /**
@@ -37,7 +37,7 @@ export const formatLogsText = (logs: LogEntry[]): string => {
  */
 export const exportLogsToFile = async (logs: LogEntry[]): Promise<boolean> => {
   try {
-    const success = await OpenLogFile();
+    const success = await getBackendGateway().openLogFile();
     if (success) return true;
     logger.warn('[LogExport] Backend OpenLogFile returned false, falling back to browser download.');
   } catch (error) {

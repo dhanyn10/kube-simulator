@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
-import { GetSystemResources } from '@wailsjs/go/main/App.js';
-import { EventsOn } from '@wailsjs/runtime';
+import { getBackendGateway } from '@/gateway';
 import { useFlowStore } from '@/store';
 import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem, K8sResourceLimitItem } from '@/types';
 import { logger } from '@/lib/logger';
@@ -26,32 +25,30 @@ export function useAppInit(
     if (isDetachedMode) return;
     loadSettingsJson();
 
-    if (globalThis.go?.main?.App?.GetSetting !== undefined) {
-      void Promise.all([
-        globalThis.go.main.App.GetSetting('globalEdgeColor'),
-        globalThis.go.main.App.GetSetting('globalEdgeErrorColor'),
-      ]).then(([color, errorColor]: [string, string]) => {
-        if (color !== '' || errorColor !== '') {
-          setGlobalEdgeColors(
-            color || 'var(--color-mat-indigo)',
-            errorColor || 'var(--color-mat-red)'
-          );
-        }
-      });
-    }
+    const gw = getBackendGateway();
+
+    void Promise.all([
+      gw.getSetting('globalEdgeColor'),
+      gw.getSetting('globalEdgeErrorColor'),
+    ]).then(([color, errorColor]: [string, string]) => {
+      if (color !== '' || errorColor !== '') {
+        setGlobalEdgeColors(
+          color || 'var(--color-mat-indigo)',
+          errorColor || 'var(--color-mat-red)'
+        );
+      }
+    }).catch(() => {});
 
     const fetchResources = () => {
-      if (globalThis.window?.go?.main?.App?.GetSystemResources !== undefined) {
-        void GetSystemResources()
-          .then((resources: any) => {
-            if (resources) setSystemResources(resources);
-          })
-          .catch((err) => {
-            if (!String(err).includes('not registered')) {
-              logger.error('[App] Failed to fetch system resources:', err);
-            }
-          });
-      }
+      gw.getSystemResources()
+        .then((resources: any) => {
+          if (resources) setSystemResources(resources);
+        })
+        .catch((err) => {
+          if (!String(err).includes('not registered')) {
+            logger.error('[App] Failed to fetch system resources:', err);
+          }
+        });
     };
 
     fetchResources();
@@ -60,7 +57,7 @@ export function useAppInit(
   }, [isDetachedMode, loadSettingsJson, setGlobalEdgeColors, setSystemResources]);
 
   useEffect(() => {
-    const unsubscribe = EventsOn('openAboutDialog', () => {
+    const unsubscribe = getBackendGateway().onEvent('openAboutDialog', () => {
       setIsAboutDialogOpen(true);
     });
     return () => {

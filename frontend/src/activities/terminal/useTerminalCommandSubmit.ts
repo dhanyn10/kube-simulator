@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Node } from '@xyflow/react';
 import { useFlowStore } from '@/store';
+import { getBackendGateway } from '@/gateway';
 import {
   CommandContext,
   handleAdminCommands,
@@ -124,10 +125,7 @@ export const useTerminalCommandSubmit = (
     const addActivityLog = useFlowStore.getState().addActivityLog;
     addActivityLog(`$ ${cmd}`);
 
-    const wailsApp = globalThis.go?.main?.App as unknown as { WriteLog?: (cat: string, level: string, msg: string) => Promise<void> };
-    if (wailsApp?.WriteLog) {
-      wailsApp.WriteLog('kubeconsole', 'info', `${timestamp} $ ${cmd}`).catch(() => {});
-    }
+    getBackendGateway().writeLog('kubeconsole', 'info', `${timestamp} $ ${cmd}`).catch(() => {});
 
     if (cmd.toLowerCase() === 'clear') {
       clearTerminalLogs();

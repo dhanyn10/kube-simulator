@@ -228,7 +228,7 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(await gateway.getTargetScreen([])).toBe(false);
       expect(await gateway.getTargetScreenHeight([])).toBe(1080);
       expect(await gateway.writeLog('a', 'b', 'c')).toBe(true);
-      expect(await gateway.openLogFile()).toBe(true);
+      expect(await gateway.openLogFile()).toBe(false);
       expect((await gateway.getSystemInfo()).os).toBe('unknown');
       expect((await gateway.getSystemResources()).cpuCores).toBe(4);
       expect((await gateway.checkForUpdates('1.0')).updateAvailable).toBe(false);

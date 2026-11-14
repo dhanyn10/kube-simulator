@@ -58,6 +58,7 @@ import { useAppInit, useAttachmentHandlers } from './hooks/useAppHelpers';
 import { useCanvasNodes } from './activities/nodes';
 import { getFinalCanvasBgColor, isAnyModalOverlayOpen } from './activities/layout';
 import { useGlobalContextMenu } from './activities/ui';
+import { getBackendGateway } from './gateway';
 
 const nodeTypes = {
   Pod: PodNode,
@@ -222,9 +223,9 @@ export default function App() {
   const handleSave = async () => {
     flushAutosave();
     const { currentProject, nodes: currentNodes, edges: currentEdges, addLog } = useFlowStore.getState();
-    if (currentProject && currentProject.id !== -1 && globalThis.go?.main?.App?.UpdateProject) {
+    if (currentProject && currentProject.id !== -1) {
       const content = JSON.stringify({ nodes: currentNodes, edges: currentEdges });
-      const success = await globalThis.go.main.App.UpdateProject(currentProject.id, content);
+      const success = await getBackendGateway().updateProject(currentProject.id, content);
       if (success) {
         useFlowStore.setState({ lastSavedSnapshot: content });
         addLog('info', `Architecture "${currentProject.name}" saved successfully.`, 'System');
