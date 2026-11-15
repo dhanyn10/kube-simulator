@@ -10,5 +10,6 @@ package.json.md5
 test-results/
 
 # Ignore Wails generated bindings except gitkeep
+/bindings/
 /wailsjs/*
 !/wailsjs/.gitkeep

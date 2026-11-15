@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 const appDirName = "kube-simulator"
@@ -150,7 +150,6 @@ func Fatal(format string, args ...interface{}) {
 
 func emit(level, format string, args ...interface{}) {
 	mu.Lock()
-	ctx := appCtx
 	testingMode := isTest
 	mu.Unlock()
 
@@ -174,8 +173,8 @@ func emit(level, format string, args ...interface{}) {
 		appendToLogFile(string(jsonEntry))
 	}
 
-	if ctx != nil && !testingMode {
-		wailsRuntime.EventsEmit(ctx, "backend-log", map[string]string{
+	if app := application.Get(); app != nil && app.Event != nil && !testingMode {
+		app.Event.Emit("backend-log", map[string]string{
 			"level":   level,
 			"message": message,
 		})

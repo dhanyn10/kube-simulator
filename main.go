@@ -7,12 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/menu"
-	"github.com/wailsapp/wails/v2/pkg/menu/keys"
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime" // Import wailsRuntime
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 //go:embed all:frontend/dist
@@ -20,59 +15,66 @@ var assets embed.FS
 
 var appCtx context.Context
 
-// main is the primary entry point for the Wails application.
-// It initializes the application state, parses command-line file parameters,
-// configures system menus, and executes the Wails application runtime loop.
-func main() {
-	// Create an instance of the app structure
-	app := NewApp()
-
-	// Handle file association (Open With)
+func handleFileAssociation(app *App) {
 	if len(os.Args) > 1 {
 		arg := os.Args[1]
 		if strings.HasSuffix(strings.ToLower(arg), ".infra") {
 			if _, err := os.Stat(arg); err == nil {
-				absPath, err := filepath.Abs(arg)
-				if err == nil {
+				if absPath, err := filepath.Abs(arg); err == nil {
 					app.SetInitialFile(absPath)
 				}
 			}
 		}
 	}
+}
 
-	// Create a new menu
-	AppMenu := menu.NewMenu()
-
-	// Create a Help menu
-	HelpMenu := AppMenu.AddSubmenu("Help")
-	HelpMenu.AddSeparator()
-	HelpMenu.AddText("About", keys.CmdOrCtrl("A"), func(_ *menu.CallbackData) {
-		// Emit an event when "About" is clicked
-		if appCtx != nil {
-			wailsRuntime.EventsEmit(appCtx, "openAboutDialog") // Corrected: wailsRuntime.EventsEmit
+func setupApplicationMenu(app *application.App) *application.Menu {
+	appMenu := app.NewMenu()
+	helpMenu := appMenu.AddSubmenu("Help")
+	helpMenu.AddSeparator()
+	helpMenu.Add("About").SetAccelerator("CmdOrCtrl+A").OnClick(func(_ *application.Context) {
+		if app.Event != nil {
+			app.Event.Emit("openAboutDialog")
 		}
 	})
+	return appMenu
+}
 
-	// Create application with options
-	err := wails.Run(&options.App{
-		Title:       "build-wails",
-		Width:       1024,
-		Height:      768,
-		Frameless:   true,
-		StartHidden: true,
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+// main is the primary entry point for the Wails application.
+// It initializes the application state, parses command-line file parameters,
+// configures system menus, and executes the Wails application runtime loop.
+func main() {
+	appInstance := NewApp()
+	handleFileAssociation(appInstance)
+
+	wailsApp := application.New(application.Options{
+		Name: "Kube Simulator",
+		Services: []application.Service{
+			application.NewService(appInstance),
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
-		OnStartup:        app.startup,
-		OnShutdown:       app.shutdown,
-		Bind: []interface{}{
-			app,
+		Assets: application.AssetOptions{
+			Handler: application.BundledAssetFileServer(assets),
 		},
-		Menu: AppMenu,
+		OnShutdown: func() {
+			appInstance.shutdown(context.Background())
+		},
 	})
 
-	if err != nil {
+	appMenu := setupApplicationMenu(wailsApp)
+	wailsApp.Menu.SetApplicationMenu(appMenu)
+
+	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:            "Kube Simulator",
+		Width:            1024,
+		Height:           768,
+		Frameless:        true,
+		URL:              "/",
+		BackgroundColour: application.NewRGBA(27, 38, 54, 255),
+	})
+
+	appInstance.startup(context.Background())
+
+	if err := wailsApp.Run(); err != nil {
 		println("Error:", err.Error())
 	}
 }

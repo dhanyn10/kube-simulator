@@ -1,10 +1,9 @@
 package service
 
 import (
-	"context"
 	"testing"
 
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func TestWindowService_CalculateAppHeight(t *testing.T) {
@@ -32,30 +31,30 @@ func TestWindowService_GetTargetScreen(t *testing.T) {
 	ws := NewWindowService()
 
 	t.Run("empty screen list", func(t *testing.T) {
-		_, ok := ws.GetTargetScreen([]wailsRuntime.Screen{})
+		_, ok := ws.GetTargetScreen([]application.Screen{})
 		if ok {
 			t.Error("Expected false for empty screen list")
 		}
 	})
 
 	t.Run("primary screen present", func(t *testing.T) {
-		screens := []wailsRuntime.Screen{
-			{IsPrimary: false, Height: 768},
-			{IsPrimary: true, Height: 1080},
+		screens := []application.Screen{
+			{IsPrimary: false, Size: application.Size{Height: 768}},
+			{IsPrimary: true, Size: application.Size{Height: 1080}},
 		}
 		s, ok := ws.GetTargetScreen(screens)
-		if !ok || s.Height != 1080 {
+		if !ok || s.Size.Height != 1080 {
 			t.Errorf("Expected primary screen height 1080, got %+v", s)
 		}
 	})
 
 	t.Run("fallback to first screen when no primary", func(t *testing.T) {
-		screens := []wailsRuntime.Screen{
-			{IsPrimary: false, Height: 900},
-			{IsPrimary: false, Height: 1080},
+		screens := []application.Screen{
+			{IsPrimary: false, Size: application.Size{Height: 900}},
+			{IsPrimary: false, Size: application.Size{Height: 1080}},
 		}
 		s, ok := ws.GetTargetScreen(screens)
-		if !ok || s.Height != 900 {
+		if !ok || s.Size.Height != 900 {
 			t.Errorf("Expected first screen height 900, got %+v", s)
 		}
 	})
@@ -63,24 +62,34 @@ func TestWindowService_GetTargetScreen(t *testing.T) {
 
 func TestWindowService_GetTargetScreenHeight(t *testing.T) {
 	ws := NewWindowService()
-	screens := []wailsRuntime.Screen{
-		{IsPrimary: true, Height: 1080},
+	screens := []application.Screen{
+		{IsPrimary: true, Size: application.Size{Height: 1080}},
 	}
 	h, ok := ws.GetTargetScreenHeight(screens)
 	if !ok || h != 1080 {
 		t.Errorf("Expected height 1080, got %d", h)
 	}
+
+	// Fallback to Bounds.Height if Size.Height is 0
+	screensBounds := []application.Screen{
+		{IsPrimary: true, Bounds: application.Rect{Height: 1440}},
+	}
+	hBounds, okBounds := ws.GetTargetScreenHeight(screensBounds)
+	if !okBounds || hBounds != 1440 {
+		t.Errorf("Expected height 1440 from bounds, got %d", hBounds)
+	}
+
+	// Empty screens
+	_, okEmpty := ws.GetTargetScreenHeight([]application.Screen{})
+	if okEmpty {
+		t.Error("Expected false for empty screen list in GetTargetScreenHeight")
+	}
 }
 
 func TestWindowService_Actions_NilContext(t *testing.T) {
 	ws := NewWindowService()
-	// Should safely no-op when live is false or ctx is nil
-	ws.Minimize(nil, false)
-	ws.Maximize(nil, false)
-	ws.Close(nil, false)
-
-	ctx := context.Background()
-	ws.Minimize(ctx, false)
-	ws.Maximize(ctx, false)
-	ws.Close(ctx, false)
+	// Should safely no-op when application.Get() is nil
+	ws.Minimize()
+	ws.Maximize()
+	ws.Close()
 }

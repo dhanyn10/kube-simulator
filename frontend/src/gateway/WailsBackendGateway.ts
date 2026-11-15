@@ -10,6 +10,9 @@ import {
 import { BaseBackendGateway } from './BaseBackendGateway';
 import * as wailsApp from '@wailsjs/go/main/App.js';
 import * as wailsRuntime from '@wailsjs/runtime';
+import { Window } from '@wailsio/runtime';
+import * as appBindings from '../../bindings/build-wails/app';
+import { isWailsDesktop } from '../lib/mocks';
 
 function isMockFunction(fn: any): boolean {
   return typeof fn === 'function' && (Boolean(fn._isMockFunction) || Boolean(fn.mock));
@@ -30,17 +33,28 @@ function getWailsFallback(wailsModule: any, prop: string | symbol): any {
 function resolveWailsTarget(
   primary: any,
   secondary: any,
+  bindings: any,
   wailsModule: any
 ) {
-  const root = primary || secondary || {};
+  const root = primary || secondary || bindings || {};
   return new Proxy(root, {
     get(target, prop) {
-      if (prop in target && target[prop] !== undefined) return target[prop];
-      if (secondary && prop in secondary && secondary[prop] !== undefined) return secondary[prop];
       if (primary && prop in primary && primary[prop] !== undefined) return primary[prop];
+      if (secondary && prop in secondary && secondary[prop] !== undefined) return secondary[prop];
+      if (bindings && prop in bindings && bindings[prop] !== undefined) return bindings[prop];
+      if (prop in target && target[prop] !== undefined) return target[prop];
       return getWailsFallback(wailsModule, prop);
     },
   });
+}
+
+function getRuntimeWindow(): any {
+  if (typeof globalThis !== 'undefined') {
+    const g = globalThis as any;
+    if (g.wails?.Window) return g.wails.Window;
+    if (g.window?.wails?.Window) return g.window.wails.Window;
+  }
+  return Window;
 }
 
 /**
@@ -54,7 +68,8 @@ export class WailsBackendGateway extends BaseBackendGateway {
       const g = globalThis as any;
       const directApp = g.go?.main?.App;
       const windowApp = g.window?.go?.main?.App;
-      return resolveWailsTarget(directApp, windowApp, wailsApp);
+      const bindings = isWailsDesktop() ? appBindings : undefined;
+      return resolveWailsTarget(directApp, windowApp, bindings, wailsApp);
     }
     return wailsApp;
   }
@@ -64,7 +79,7 @@ export class WailsBackendGateway extends BaseBackendGateway {
       const g = globalThis as any;
       const directRuntime = g.runtime;
       const windowRuntime = g.window?.runtime;
-      return resolveWailsTarget(directRuntime, windowRuntime, wailsRuntime);
+      return resolveWailsTarget(directRuntime, windowRuntime, undefined, wailsRuntime);
     }
     return wailsRuntime;
   }
@@ -252,20 +267,101 @@ export class WailsBackendGateway extends BaseBackendGateway {
   // --- Window Operations ---
 
   async minimizeWindow(): Promise<void> {
-    if (typeof this.app?.MinimizeWindow === 'function') {
+    if (isMockFunction(this.app?.MinimizeWindow)) {
       await this.app.MinimizeWindow();
+      return;
+    }
+    if (isWailsDesktop()) {
+      const runtimeWin = getRuntimeWindow();
+      if (typeof runtimeWin?.Minimise === 'function') {
+        try {
+          await runtimeWin.Minimise();
+          return;
+        } catch {
+          // Fallback to bindings
+        }
+      }
+      if (typeof appBindings?.MinimizeWindow === 'function') {
+        try {
+          await appBindings.MinimizeWindow();
+          return;
+        } catch {
+          // Fallback to this.app
+        }
+      }
+    }
+    if (typeof this.app?.MinimizeWindow === 'function') {
+      try {
+        await this.app.MinimizeWindow();
+      } catch {
+        // Graceful fallback for pure browser or test environment
+      }
     }
   }
 
   async maximizeWindow(): Promise<void> {
-    if (typeof this.app?.MaximizeWindow === 'function') {
+    if (isMockFunction(this.app?.MaximizeWindow)) {
       await this.app.MaximizeWindow();
+      return;
+    }
+    if (isWailsDesktop()) {
+      const runtimeWin = getRuntimeWindow();
+      if (typeof runtimeWin?.ToggleMaximise === 'function') {
+        try {
+          await runtimeWin.ToggleMaximise();
+          return;
+        } catch {
+          // Fallback to bindings
+        }
+      }
+      if (typeof appBindings?.MaximizeWindow === 'function') {
+        try {
+          await appBindings.MaximizeWindow();
+          return;
+        } catch {
+          // Fallback to this.app
+        }
+      }
+    }
+    if (typeof this.app?.MaximizeWindow === 'function') {
+      try {
+        await this.app.MaximizeWindow();
+      } catch {
+        // Graceful fallback for pure browser or test environment
+      }
     }
   }
 
   async closeWindow(): Promise<void> {
-    if (typeof this.app?.CloseWindow === 'function') {
+    if (isMockFunction(this.app?.CloseWindow)) {
       await this.app.CloseWindow();
+      return;
+    }
+    if (isWailsDesktop()) {
+      const runtimeWin = getRuntimeWindow();
+      if (typeof runtimeWin?.Close === 'function') {
+        try {
+          await runtimeWin.Close();
+          return;
+        } catch {
+          // Fallback to bindings
+        }
+      }
+      if (typeof appBindings?.CloseWindow === 'function') {
+        try {
+          await appBindings.CloseWindow();
+          return;
+        } catch {
+          // Fallback to this.app
+        }
+      }
+    }
+    if (typeof this.app?.CloseWindow === 'function') {
+      try {
+        await this.app.CloseWindow();
+      } catch {
+        // Graceful fallback for pure browser or test environment
+      }
     }
   }
 

@@ -20,7 +20,7 @@ import (
 	"build-wails/backend/service"
 	"build-wails/backend/system"
 
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 //go:embed wails.json
@@ -40,7 +40,7 @@ const (
 type AutosaveProfileItem = domain.AutosaveProfileItem
 type InternetProfile = domain.InternetProfile
 
-var infraProjectFilters = []wailsRuntime.FileFilter{
+var infraProjectFilters = []application.FileFilter{
 	{DisplayName: "Kube Simulator Project (*.infra)", Pattern: "*.infra"},
 }
 
@@ -64,7 +64,9 @@ func shouldOpenInExplorer() bool {
 
 func setAppWindowTitle(title string) {
 	if isLiveRuntime() {
-		wailsRuntime.WindowSetTitle(appCtx, fmt.Sprintf("Kube Simulator - %s", title))
+		if win := service.GetActiveWindow(); win != nil {
+			win.SetTitle(fmt.Sprintf("Kube Simulator - %s", title))
+		}
 	}
 }
 
@@ -120,25 +122,28 @@ func (a *App) startup(ctx context.Context) {
 	a.configureStartupWindow(ctx)
 
 	if ctx.Value(isTestKey) == nil {
-		wailsRuntime.WindowShow(ctx)
+		if win := service.GetActiveWindow(); win != nil {
+			win.Show()
+		}
 	}
 
 	a.handleInitialFileOpen(ctx)
 }
 
 func (a *App) configureStartupWindow(ctx context.Context) {
-	var screens []wailsRuntime.Screen
-	var err error
+	var screens []application.Screen
 	if ctx.Value(isTestKey) == nil {
-		screens, err = wailsRuntime.ScreenGetAll(ctx)
-	} else {
-		screens = []wailsRuntime.Screen{
-			{IsPrimary: true, Height: 1080, Width: 1920},
+		if app := application.Get(); app != nil && app.Screen != nil {
+			for _, scr := range app.Screen.GetAll() {
+				if scr != nil {
+					screens = append(screens, *scr)
+				}
+			}
 		}
-	}
-
-	if err != nil {
-		return
+	} else {
+		screens = []application.Screen{
+			{IsPrimary: true, Size: application.Size{Width: 1920, Height: 1080}},
+		}
 	}
 
 	targetScreen, ok := a.GetTargetScreen(screens)
@@ -147,15 +152,19 @@ func (a *App) configureStartupWindow(ctx context.Context) {
 	}
 
 	screenW := targetScreen.Size.Width
-	screenH := targetScreen.Size.Height
 	if screenW == 0 {
-		screenW = targetScreen.Width
-		screenH = targetScreen.Height
+		screenW = targetScreen.Bounds.Width
+	}
+	screenH := targetScreen.Size.Height
+	if screenH == 0 {
+		screenH = targetScreen.Bounds.Height
 	}
 	newHeight := a.CalculateAppHeight(screenH)
 	currWidth := 1024
 	if ctx.Value(isTestKey) == nil {
-		currWidth, _ = wailsRuntime.WindowGetSize(ctx)
+		if win := service.GetActiveWindow(); win != nil {
+			currWidth, _ = win.Size()
+		}
 	}
 
 	x := (screenW - currWidth) / 2
@@ -164,8 +173,11 @@ func (a *App) configureStartupWindow(ctx context.Context) {
 	}
 
 	if ctx.Value(isTestKey) == nil {
-		wailsRuntime.WindowSetSize(ctx, currWidth, newHeight)
-		wailsRuntime.WindowSetPosition(ctx, x, 0)
+		if win := service.GetActiveWindow(); win != nil {
+			win.SetSize(currWidth, newHeight)
+			win.SetPosition(x, 0)
+			win.Show()
+		}
 	}
 }
 
@@ -181,18 +193,20 @@ func (a *App) handleInitialFileOpen(ctx context.Context) {
 		time.Sleep(sleepDuration)
 		fileData, err := os.ReadFile(a.initialFilePath)
 		if err == nil && ctx.Value(isTestKey) == nil {
-			wailsRuntime.EventsEmit(ctx, "open-infra-file", string(fileData))
+			if app := application.Get(); app != nil && app.Event != nil {
+				app.Event.Emit("open-infra-file", string(fileData))
+			}
 		}
 	}()
 }
 
 // GetTargetScreen selects the target screen: either the primary screen or the first fallback screen.
-func (a *App) GetTargetScreen(screens []wailsRuntime.Screen) (wailsRuntime.Screen, bool) {
+func (a *App) GetTargetScreen(screens []application.Screen) (application.Screen, bool) {
 	return a.window.GetTargetScreen(screens)
 }
 
 // GetTargetScreenHeight selects the target screen's height: either the primary screen or the first fallback screen.
-func (a *App) GetTargetScreenHeight(screens []wailsRuntime.Screen) (int, bool) {
+func (a *App) GetTargetScreenHeight(screens []application.Screen) (int, bool) {
 	return a.window.GetTargetScreenHeight(screens)
 }
 
@@ -309,17 +323,23 @@ func (a *App) selectProjectFileDialog(saveDialog bool, defaultFilename, title st
 	if testPath, isTest := getTestFilePath(); isTest {
 		return testPath, nil
 	}
-	if saveDialog {
-		return wailsRuntime.SaveFileDialog(appCtx, wailsRuntime.SaveDialogOptions{
-			DefaultFilename: defaultFilename,
-			Title:           title,
-			Filters:         infraProjectFilters,
-		})
+	app := application.Get()
+	if app == nil || app.Dialog == nil {
+		return "", fmt.Errorf("dialog manager unavailable")
 	}
-	return wailsRuntime.OpenFileDialog(appCtx, wailsRuntime.OpenDialogOptions{
+	if saveDialog {
+		dialog := app.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+			Filename: defaultFilename,
+			Title:    title,
+			Filters:  infraProjectFilters,
+		})
+		return dialog.PromptForSingleSelection()
+	}
+	dialog := app.Dialog.OpenFileWithOptions(&application.OpenFileDialogOptions{
 		Title:   title,
 		Filters: infraProjectFilters,
 	})
+	return dialog.PromptForSingleSelection()
 }
 
 func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
@@ -436,26 +456,30 @@ func (a *App) DeleteInternetProfile(name string) bool {
 // Window Control Actions
 
 func (a *App) MinimizeWindow() {
-	a.window.Minimize(appCtx, isLiveRuntime())
+	if appCtx != nil && appCtx.Value(isTestKey) != nil {
+		return
+	}
+	a.window.Minimize()
 }
 
 func (a *App) MaximizeWindow() {
-	if appCtx != nil {
-		if appCtx.Value(isTestKey) == nil {
-			a.window.Maximize(appCtx, true)
+	if appCtx != nil && appCtx.Value(isTestKey) != nil {
+		// In tests, simulate branch coverage by reading from the test context
+		if val, ok := appCtx.Value(testMaximisedKey).(bool); ok && val {
+			logger.Info("Simulated window unmaximise in test")
 		} else {
-			// In tests, simulate branch coverage by reading from the test context
-			if val, ok := appCtx.Value(testMaximisedKey).(bool); ok && val {
-				logger.Info("Simulated window unmaximise in test")
-			} else {
-				logger.Info("Simulated window maximise in test")
-			}
+			logger.Info("Simulated window maximise in test")
 		}
+		return
 	}
+	a.window.Maximize()
 }
 
 func (a *App) CloseWindow() {
-	a.window.Close(appCtx, isLiveRuntime())
+	if appCtx != nil && appCtx.Value(isTestKey) != nil {
+		return
+	}
+	a.window.Close()
 }
 
 // Greet returns a greeting for the given name
