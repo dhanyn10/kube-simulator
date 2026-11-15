@@ -1,15 +1,21 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import fs from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
+  const bindingsApp = path.resolve(__dirname, './bindings/build-wails/app.ts');
+  const bindingsFallback = path.resolve(__dirname, './src/gateway/bindings-fallback.ts');
+  const appBindingsTarget = fs.existsSync(bindingsApp) ? bindingsApp : bindingsFallback;
+
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
         '@wailsjs': path.resolve(__dirname, './src/wailsjs'),
+        '@bindings/build-wails/app': appBindingsTarget,
       },
     },
     optimizeDeps: {

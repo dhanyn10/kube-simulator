@@ -1,5 +1,10 @@
 import { defineConfig } from 'vitest/config';
+import fs from 'node:fs';
 import path from 'node:path';
+
+const bindingsApp = path.resolve(__dirname, './bindings/build-wails/app.ts');
+const bindingsFallback = path.resolve(__dirname, './src/gateway/bindings-fallback.ts');
+const appBindingsTarget = fs.existsSync(bindingsApp) ? bindingsApp : bindingsFallback;
 
 export default defineConfig({
   test: {
@@ -13,6 +18,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@wailsjs': path.resolve(__dirname, './src/wailsjs'),
+      '@bindings/build-wails/app': appBindingsTarget,
     },
   },
 });

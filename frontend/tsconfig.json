@@ -18,7 +18,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@wailsjs/*": ["./wailsjs/*"]
+      "@wailsjs/*": ["./wailsjs/*"],
+      "@bindings/*": ["./bindings/*", "./src/gateway/bindings-fallback.ts"]
     },
     "allowImportingTsExtensions": true,
     "noEmit": true,

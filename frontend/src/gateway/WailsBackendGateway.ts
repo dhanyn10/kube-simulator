@@ -11,7 +11,7 @@ import { BaseBackendGateway } from './BaseBackendGateway';
 import * as wailsApp from '@wailsjs/go/main/App.js';
 import * as wailsRuntime from '@wailsjs/runtime';
 import { Window } from '@wailsio/runtime';
-import * as appBindings from '../../bindings/build-wails/app';
+import * as appBindings from '@bindings/build-wails/app';
 import { isWailsDesktop } from '../lib/mocks';
 
 function isMockFunction(fn: any): boolean {
