@@ -407,4 +407,24 @@ describe('DeploymentNode', () => {
 
     expect(screen.getByText('NonHovered Role Dep')).toBeDefined();
   });
+
+  it('applies quick connect target ring and pulse classes when quickConnectTargetNodeId matches props.id', () => {
+    useFlowStore.setState({ quickConnectTargetNodeId: 'd-qc-target' });
+
+    const props = {
+      id: 'd-qc-target',
+      type: 'Deployment',
+      data: { label: 'Quick Connect Target' }
+    } as any;
+
+    const { container } = render(
+      <ReactFlowProvider>
+        <DeploymentNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    const rootElement = container.firstChild as HTMLElement;
+    expect(rootElement.className).toContain('ring-emerald-400/80');
+    expect(rootElement.className).toContain('animate-pulse');
+  });
 });

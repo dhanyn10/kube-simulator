@@ -307,4 +307,24 @@ describe('BaseNode', () => {
     expect(screen.getByTitle('Secret: my-sec')).toBeInTheDocument();
     expect(screen.getByTitle('HPA: my-hpa (Min: 1, Max: 5, CPU: 80%)')).toBeInTheDocument();
   });
+
+  it('applies quick connect target ring and pulse classes when quickConnectTargetNodeId matches id and data.type is undefined', () => {
+    useFlowStore.setState({ quickConnectTargetNodeId: 'qc-node-1' });
+
+    const props = {
+      ...defaultProps,
+      id: 'qc-node-1',
+      data: { ...defaultProps.data, type: undefined }
+    };
+
+    const { container } = render(
+      <ReactFlowProvider>
+        <BaseNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    const rootElement = container.firstChild as HTMLElement;
+    expect(rootElement.className).toContain('ring-emerald-400/80');
+    expect(rootElement.className).toContain('animate-pulse');
+  });
 });

@@ -527,7 +527,7 @@ const rerouteConnectionEndpoints = (
   return { sourceId, targetId, sourceNode, targetNode };
 };
 
-interface ConnectedNodeSyncContext {
+export interface ConnectedNodeSyncContext {
   syncedNodesList: Node[];
   edgesList: Edge[];
   srcId: string;
@@ -610,7 +610,7 @@ const buildConnectedServiceData = (
   return buildConnectedServiceWorkloadData(data, targetNodeInStore, targetLabel, targetType);
 };
 
-const shouldApplyTargetServiceSelector = (
+export const shouldApplyTargetServiceSelector = (
   serviceData: Record<string, any> | undefined,
   sourceNode?: Node,
   srcId?: string
@@ -640,7 +640,7 @@ const syncConnectedPvcNode = (
   return { ...node, data: { ...node.data, pvcStatus: realTimeStatus } };
 };
 
-const syncConnectedSourceNode = (
+export const syncConnectedSourceNode = (
   updated: Node,
   ctx: ConnectedNodeSyncContext
 ): Node => {
@@ -664,7 +664,7 @@ const syncConnectedSourceNode = (
   return updated;
 };
 
-const syncConnectedTargetNode = (
+export const syncConnectedTargetNode = (
   updated: Node,
   ctx: ConnectedNodeSyncContext
 ): Node => {

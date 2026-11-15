@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFlowStore } from '@/store';
 import { Node, Edge } from '@xyflow/react';
-import { syncRoleRulesFromConnections, checkPvcTopologyError } from '@/store/slices/createFlowSlice';
+import {
+  syncRoleRulesFromConnections,
+  checkPvcTopologyError,
+  shouldApplyTargetServiceSelector,
+  syncConnectedSourceNode,
+  syncConnectedTargetNode,
+} from '@/store/slices/createFlowSlice';
 
 describe('createFlowSlice', () => {
   beforeEach(() => {
@@ -1935,6 +1941,349 @@ describe('createFlowSlice', () => {
 
       const updatedSvc = useFlowStore.getState().nodes.find((n) => n.id === 'svc-match');
       expect(updatedSvc?.data?.selector).toBe('worker-app');
+    });
+
+    it('covers uncovered conditions in syncNodeDimensionsOnChange for Namespace, StatefulSet, ReplicaSet, and undefined type', () => {
+      const nsNode: Node = {
+        id: 'ns-dim',
+        type: 'Namespace',
+        position: { x: 0, y: 0 },
+        width: 500,
+        height: 400,
+        data: {},
+      };
+      const ssNode: Node = {
+        id: 'ss-dim',
+        type: 'StatefulSet',
+        position: { x: 100, y: 0 },
+        width: 320,
+        height: 160,
+        data: {},
+      };
+      const rsNode: Node = {
+        id: 'rs-dim',
+        type: 'ReplicaSet',
+        position: { x: 200, y: 0 },
+        width: 320,
+        height: 160,
+        data: {},
+      };
+      const untypedNode: Node = {
+        id: 'untyped-dim',
+        type: undefined as any,
+        position: { x: 300, y: 0 },
+        width: 100,
+        height: 80,
+        data: {},
+      };
+
+      useFlowStore.setState({
+        nodes: [nsNode, ssNode, rsNode, untypedNode],
+        edges: [],
+      });
+
+      useFlowStore.getState().onNodesChange([
+        { id: 'ns-dim', type: 'dimensions', dimensions: { width: 600, height: 500 } } as any,
+        { id: 'ss-dim', type: 'dimensions', dimensions: { width: 400, height: 250 } } as any,
+        { id: 'rs-dim', type: 'dimensions', dimensions: { width: 400, height: 250 } } as any,
+        { id: 'untyped-dim', type: 'dimensions', dimensions: { width: 180, height: 120 } } as any,
+      ]);
+
+      const state = useFlowStore.getState();
+      // Namespace, StatefulSet, and ReplicaSet must not be directly resized by syncNodeDimensionsOnChange
+      expect(state.nodes.find((n) => n.id === 'ns-dim')?.width).toBe(500);
+      expect(state.nodes.find((n) => n.id === 'ss-dim')?.width).toBe(320);
+      expect(state.nodes.find((n) => n.id === 'rs-dim')?.width).toBe(320);
+      // Untyped node should be updated
+      expect(state.nodes.find((n) => n.id === 'untyped-dim')?.width).toBe(180);
+      expect(state.nodes.find((n) => n.id === 'untyped-dim')?.height).toBe(120);
+    });
+
+    it('covers shouldApplyTargetServiceSelector fallback branches (id, srcId, non-matching selector) and fallback node types', () => {
+      // 1. Source node has no data.label, no data.baseName, but has id matching currentSelector
+      const idOnlyPod: Node = {
+        id: 'pod-id-only',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: {},
+      };
+      const svcMatchingId: Node = {
+        id: 'svc-match-id',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: { selector: 'pod-id-only' },
+      };
+
+      useFlowStore.setState({
+        nodes: [idOnlyPod, svcMatchingId],
+        edges: [],
+      });
+
+      useFlowStore.getState().onConnect({
+        source: 'pod-id-only',
+        target: 'svc-match-id',
+      });
+
+      expect(useFlowStore.getState().nodes.find((n) => n.id === 'svc-match-id')?.data?.selector).toBe('pod-id-only');
+
+      // 2. Source node in store is missing, but srcId matches selector
+      const svcWithSrcId: Node = {
+        id: 'svc-src-id',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: { selector: 'virtual-src-id' },
+      };
+
+      useFlowStore.setState({
+        nodes: [svcWithSrcId],
+        edges: [],
+      });
+
+      useFlowStore.getState().onConnect({
+        source: 'virtual-src-id',
+        target: 'svc-src-id',
+      });
+
+      expect(useFlowStore.getState().nodes.find((n) => n.id === 'svc-src-id')?.data?.selector).toBe('virtual-src-id');
+
+      // 3. Service has non-matching selector -> should not be overwritten
+      const diffPod: Node = {
+        id: 'diff-pod',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: { label: 'new-app-label' },
+      };
+      const svcWithExistingSel: Node = {
+        id: 'svc-keep-sel',
+        type: 'Service',
+        position: { x: 100, y: 0 },
+        data: { selector: 'preserve-original-selector' },
+      };
+
+      useFlowStore.setState({
+        nodes: [diffPod, svcWithExistingSel],
+        edges: [],
+      });
+
+      useFlowStore.getState().onConnect({
+        source: 'diff-pod',
+        target: 'svc-keep-sel',
+      });
+
+      expect(useFlowStore.getState().nodes.find((n) => n.id === 'svc-keep-sel')?.data?.selector).toBe('preserve-original-selector');
+
+      // 4. Source node is undefined and srcId is empty/undefined -> returns false when selector exists
+      useFlowStore.getState().onConnect({
+        source: '',
+        target: 'svc-keep-sel',
+      });
+      expect(useFlowStore.getState().nodes.find((n) => n.id === 'svc-keep-sel')?.data?.selector).toBe('preserve-original-selector');
+    });
+
+    it('covers fallback types from srcNode and tgtNode in syncConnectedSourceNode and syncConnectedTargetNode', () => {
+      // Node with type undefined and data.type undefined, using srcNode / tgtNode
+      const untypedSourceSvc: Node = {
+        id: 'untyped-src-svc',
+        type: undefined as any,
+        position: { x: 0, y: 0 },
+        data: {},
+      };
+      const untypedTargetPod: Node = {
+        id: 'untyped-tgt-pod',
+        type: undefined as any,
+        position: { x: 100, y: 0 },
+        data: { label: 'pod-tgt' },
+      };
+
+      useFlowStore.setState({
+        nodes: [untypedSourceSvc, untypedTargetPod],
+        edges: [],
+      });
+
+      // Pass connection with edge type hints if any or onConnect
+      useFlowStore.getState().setEdges([
+        {
+          id: 'e-fallback-types',
+          source: 'untyped-src-svc',
+          target: 'untyped-tgt-pod',
+        },
+      ]);
+
+      expect(useFlowStore.getState().edges).toHaveLength(1);
+    });
+
+    it('directly tests all branches and fallback conditions of shouldApplyTargetServiceSelector', () => {
+      // 1. serviceData undefined
+      expect(shouldApplyTargetServiceSelector(undefined)).toBe(true);
+
+      // 2. selector is empty string
+      expect(shouldApplyTargetServiceSelector({ selector: '' })).toBe(true);
+      expect(shouldApplyTargetServiceSelector({ selector: '   ' })).toBe(true);
+
+      // 3. selector matches sourceNode.data.label
+      const nodeWithLabel: Node = { id: 'n1', position: { x: 0, y: 0 }, data: { label: 'my-app' } };
+      expect(shouldApplyTargetServiceSelector({ selector: 'my-app' }, nodeWithLabel)).toBe(true);
+
+      // 4. selector matches sourceNode.data.baseName when label is undefined
+      const nodeWithBaseName: Node = { id: 'n2', position: { x: 0, y: 0 }, data: { baseName: 'base-app' } };
+      expect(shouldApplyTargetServiceSelector({ selector: 'base-app' }, nodeWithBaseName)).toBe(true);
+
+      // 5. selector matches sourceNode.id when label and baseName are undefined
+      const nodeWithIdOnly: Node = { id: 'id-only-app', position: { x: 0, y: 0 }, data: {} };
+      expect(shouldApplyTargetServiceSelector({ selector: 'id-only-app' }, nodeWithIdOnly)).toBe(true);
+
+      // 6. selector matches srcId when sourceNode is undefined
+      expect(shouldApplyTargetServiceSelector({ selector: 'src-id-app' }, undefined, 'src-id-app')).toBe(true);
+
+      // 7. sourceNode is undefined and srcId is undefined/empty -> returns false
+      expect(shouldApplyTargetServiceSelector({ selector: 'some-app' }, undefined, undefined)).toBe(false);
+      expect(shouldApplyTargetServiceSelector({ selector: 'some-app' }, undefined, '')).toBe(false);
+
+      // 8. selector does not match sourceLabel -> returns false
+      expect(shouldApplyTargetServiceSelector({ selector: 'target-app' }, nodeWithLabel)).toBe(false);
+    });
+
+    it('directly tests all fallback types and branches of syncConnectedSourceNode and syncConnectedTargetNode', () => {
+      const svcNode: Node = {
+        id: 'svc-1',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { label: 'svc-1' },
+      };
+      const podNode: Node = {
+        id: 'pod-1',
+        type: 'Pod',
+        position: { x: 100, y: 0 },
+        data: { label: 'pod-1' },
+      };
+
+      // 1. syncConnectedSourceNode: Service as updated source node, Pod as target
+      const resSource = syncConnectedSourceNode(svcNode, {
+        syncedNodesList: [svcNode, podNode],
+        edgesList: [],
+        srcId: 'svc-1',
+        tgtId: 'pod-1',
+      });
+      expect(resSource.data.selector).toBe('pod-1');
+
+      // 2. syncConnectedSourceNode: Ingress as updated source node, Service as target
+      const ingressNode: Node = {
+        id: 'ing-1',
+        type: 'Ingress',
+        position: { x: 0, y: 0 },
+        data: { label: 'ing-1' },
+      };
+      const resIngress = syncConnectedSourceNode(ingressNode, {
+        syncedNodesList: [ingressNode, svcNode],
+        edgesList: [],
+        srcId: 'ing-1',
+        tgtId: 'svc-1',
+      });
+      expect(resIngress.data).toBeDefined();
+
+      // 3. syncConnectedSourceNode: updated node has no type on root, but data.type is Service
+      const untypedSvcSource: Node = {
+        id: 'untyped-svc-src',
+        type: undefined as any,
+        position: { x: 0, y: 0 },
+        data: { type: 'Service', label: 'svc-data-type' },
+      };
+      const untypedPodTarget: Node = {
+        id: 'untyped-pod-tgt',
+        type: undefined as any,
+        position: { x: 100, y: 0 },
+        data: { type: 'Pod', label: 'pod-data-type' },
+      };
+      const resUntypedSource = syncConnectedSourceNode(untypedSvcSource, {
+        syncedNodesList: [untypedSvcSource, untypedPodTarget],
+        edgesList: [],
+        srcId: 'untyped-svc-src',
+        tgtId: 'untyped-pod-tgt',
+      });
+      expect(resUntypedSource.data.selector).toBe('pod-data-type');
+
+      // 4. syncConnectedSourceNode: fallback to srcNode.type and tgtNode.type when not found in list or root/data
+      const bareSource: Node = { id: 'bare-src', position: { x: 0, y: 0 }, data: {} };
+      const resBareSource = syncConnectedSourceNode(bareSource, {
+        syncedNodesList: [bareSource],
+        edgesList: [],
+        srcId: 'bare-src',
+        tgtId: 'external-tgt',
+        srcNode: { id: 'bare-src', type: 'Service', position: { x: 0, y: 0 }, data: {} },
+        tgtNode: { id: 'external-tgt', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'ext-pod' } },
+      });
+      expect(resBareSource.data).toBeDefined();
+
+      // 5. syncConnectedSourceNode: non-service, non-ingress node returns unmodified
+      const nonSvcNode: Node = { id: 'pod-src', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+      expect(syncConnectedSourceNode(nonSvcNode, {
+        syncedNodesList: [nonSvcNode],
+        edgesList: [],
+        srcId: 'pod-src',
+        tgtId: 'svc-1',
+      })).toBe(nonSvcNode);
+
+      // 6. syncConnectedTargetNode: Service as updated target node, Pod as source
+      const resTarget = syncConnectedTargetNode(svcNode, {
+        syncedNodesList: [podNode, svcNode],
+        edgesList: [],
+        srcId: 'pod-1',
+        tgtId: 'svc-1',
+      });
+      expect(resTarget.data.selector).toBe('pod-1');
+
+      // 7. syncConnectedTargetNode: updated has no type on root, but data.type is Service; source has data.type is Pod
+      const resUntypedTarget = syncConnectedTargetNode(untypedSvcSource, {
+        syncedNodesList: [untypedPodTarget, untypedSvcSource],
+        edgesList: [],
+        srcId: 'untyped-pod-tgt',
+        tgtId: 'untyped-svc-src',
+      });
+      expect(resUntypedTarget.data.selector).toBe('pod-data-type');
+
+      // 8. syncConnectedTargetNode: fallback to tgtNode.type and srcNode.type when root, data.type, and store are empty
+      const bareTarget: Node = { id: 'bare-tgt', position: { x: 0, y: 0 }, data: {} };
+      const resBareTarget = syncConnectedTargetNode(bareTarget, {
+        syncedNodesList: [bareTarget],
+        edgesList: [],
+        srcId: 'external-src',
+        tgtId: 'bare-tgt',
+        srcNode: { id: 'external-src', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'ext-src-pod' } },
+        tgtNode: { id: 'bare-tgt', type: 'Service', position: { x: 0, y: 0 }, data: {} },
+      });
+      expect(resBareTarget.data).toBeDefined();
+
+      // 9. syncConnectedTargetNode: sType is not a valid service selector target (e.g. Secret) -> returns updated
+      const secretNode: Node = { id: 'sec-1', type: 'Secret', position: { x: 0, y: 0 }, data: {} };
+      expect(syncConnectedTargetNode(svcNode, {
+        syncedNodesList: [secretNode, svcNode],
+        edgesList: [],
+        srcId: 'sec-1',
+        tgtId: 'svc-1',
+      })).toBe(svcNode);
+
+      // 10. syncConnectedTargetNode: shouldApplyTargetServiceSelector returns false -> returns updated
+      const svcWithOtherSel: Node = {
+        id: 'svc-diff',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { selector: 'different-app' },
+      };
+      expect(syncConnectedTargetNode(svcWithOtherSel, {
+        syncedNodesList: [podNode, svcWithOtherSel],
+        edgesList: [],
+        srcId: 'pod-1',
+        tgtId: 'svc-diff',
+      })).toBe(svcWithOtherSel);
+
+      // 11. syncConnectedTargetNode: updated has no type, no data.type, tgtNode undefined -> evaluates fallback ''
+      const completelyEmptyTarget: Node = { id: 'empty-tgt', position: { x: 0, y: 0 }, data: {} };
+      expect(syncConnectedTargetNode(completelyEmptyTarget, {
+        syncedNodesList: [completelyEmptyTarget],
+        edgesList: [],
+        srcId: 'no-src',
+        tgtId: 'empty-tgt',
+      })).toBe(completelyEmptyTarget);
     });
   });
 });

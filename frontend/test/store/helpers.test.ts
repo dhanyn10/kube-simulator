@@ -8,7 +8,8 @@ import {
   layoutPodsInDeployment,
   resolveGlobalCollisions,
   ejectLoadBalancersFromNamespaces,
-  getDomMeasuredNodeSize
+  getDomMeasuredNodeSize,
+  getEffectiveSize
 } from '@/store/helpers';
 import { Node } from '@xyflow/react';
 
@@ -782,6 +783,216 @@ describe('store helpers', () => {
     expect(adjEjectedIds).toContain('lb-adj');
     const finalLb = adjEjected.find((n) => n.id === 'lb-adj')!;
     expect(finalLb.parentId).toBeUndefined();
+  });
+
+  it('covers uncovered conditions in getAbsPos with nodeMap and missing position', () => {
+    // 1. getAbsPos with nodeMap where node is found
+    const node1: Node = { id: 'map-n1', position: { x: 30, y: 40 }, data: {} };
+    const node2: Node = { id: 'map-n2', parentId: 'map-n1', position: { x: 10, y: 15 }, data: {} };
+    const map = new Map<string, Node>([
+      ['map-n1', node1],
+      ['map-n2', node2],
+    ]);
+
+    expect(getAbsPos('map-n2', [], undefined, map)).toEqual({ x: 40, y: 55 });
+
+    // 2. getAbsPos with nodeMap where nodeId is not in map
+    expect(getAbsPos('missing-in-map', [], undefined, map)).toEqual({ x: 0, y: 0 });
+
+    // 3. getAbsPos with node having undefined position
+    const nodeNoPos = { id: 'no-pos', data: {} } as any;
+    expect(getAbsPos('no-pos', [nodeNoPos])).toEqual({ x: 0, y: 0 });
+  });
+
+  it('covers uncovered conditions in isAllowed and sortNodes', () => {
+    // isAllowed
+    expect(isAllowed('StatefulSet', 'Pod')).toBe(true);
+    expect(isAllowed('StatefulSet', 'Deployment')).toBe(false);
+    expect(isAllowed('Namespace', 'Service')).toBe(true);
+    expect(isAllowed('Namespace', 'PVC')).toBe(false);
+    expect(isAllowed('OtherType', 'Pod')).toBe(false);
+
+    // sortNodes with undefined type, StatefulSet, ReplicaSet, Ingress, HPA, Internet
+    const mixedNodes: Node[] = [
+      { id: '1', data: {} } as Node, // type undefined
+      { id: '2', type: 'StatefulSet', data: {} } as Node,
+      { id: '3', type: 'ReplicaSet', data: {} } as Node,
+      { id: '4', type: 'Ingress', data: {} } as Node,
+      { id: '5', type: 'HPA', data: {} } as Node,
+      { id: '6', type: 'Internet', data: {} } as Node,
+      { id: '7', type: 'Custom', data: {} } as Node,
+    ];
+    const sorted = sortNodes(mixedNodes);
+    expect(sorted.map(n => n.type)).toContain('StatefulSet');
+    expect(sorted.map(n => n.type)).toContain('ReplicaSet');
+  });
+
+  it('covers uncovered conditions in syncPodsInDeployment and selectValue', () => {
+    // 1. replicas = 0
+    const zeroDep = { id: 'd0', type: 'Deployment', data: { replicas: 0 } } as any;
+    expect(syncPodsInDeployment(zeroDep, [])).toHaveLength(0);
+
+    // 2. workloadType === 'StatefulSet' on data when deployment.type is Deployment
+    const depWithStatefulWorkload = {
+      id: 'd-ss',
+      type: 'Deployment',
+      data: { replicas: 1, workloadType: 'StatefulSet', label: 'db' }
+    } as any;
+    const podsSs = syncPodsInDeployment(depWithStatefulWorkload, []);
+    expect(podsSs[0].data.workloadType).toBe('StatefulSet');
+
+    // 3. data.label is empty and commonData.label is empty -> fallback to 'pod'
+    const noLabelDep = { id: 'd-none', type: 'Deployment', data: { replicas: 1, label: '' } } as any;
+    const noLabelPods = syncPodsInDeployment(noLabelDep, []);
+    expect(noLabelPods[0].data.baseName).toBe('pod');
+
+    // 4. data.podHash undefined on deployment, but existingPod has podHash
+    const podWithHash = {
+      id: 'existing-p',
+      parentId: 'd-hash',
+      data: { podHash: 'abcde', replicaSuffix: '11111' }
+    } as any;
+    const depNoHash = { id: 'd-hash', type: 'Deployment', data: { replicas: 1 } } as any;
+    const podsWithHash = syncPodsInDeployment(depNoHash, [podWithHash]);
+    expect(podsWithHash[0].data.podHash).toBe('abcde');
+
+    // 5. displaySettings fallback when dataTemplate is undefined: d.displaySettings is undefined, t.displaySettings is defined
+    const templatePod = {
+      id: 'tpl-1',
+      data: { displaySettings: { showMetrics: true }, replicaSuffix: 'r1' }
+    } as any;
+    const depNoDisplay = { id: 'd-nodisp', type: 'Deployment', data: { replicas: 1 } } as any;
+    const podsDisplay = syncPodsInDeployment(depNoDisplay, [templatePod]);
+    expect(podsDisplay[0].data.displaySettings).toEqual({ showMetrics: true });
+
+    // 6. existingPod with isManuallyResized: true, but existingPod.width is 0 / undefined and measured.width is defined
+    const manuallyResizedPod = {
+      id: 'mr-p',
+      data: { isManuallyResized: true, replicaSuffix: 'mr1', assignedNode: 'worker-custom' },
+      width: undefined,
+      height: undefined,
+      measured: { width: 350, height: 260 }
+    } as any;
+    const depManual = { id: 'd-man', type: 'Deployment', data: { replicas: 1 } } as any;
+    const syncedManual = syncPodsInDeployment(depManual, [manuallyResizedPod]);
+    expect(syncedManual[0].width).toBe(350);
+    expect(syncedManual[0].data.assignedNode).toBe('worker-custom');
+
+    // 7. replicas = 1 with existingPod having no replicaSuffix
+    const podNoSuffix = { id: 'p-nosuf', data: {} } as any;
+    const syncedNoSuffix = syncPodsInDeployment(depNoHash, [podNoSuffix]);
+    expect(syncedNoSuffix[0].data.replicaSuffix).toHaveLength(5);
+  });
+
+  it('covers uncovered conditions in getDomMeasuredNodeSize and getEffectiveSize', () => {
+    // 1. getDomMeasuredNodeSize when globalThis.document is temporarily undefined
+    const origDoc = globalThis.document;
+    try {
+      (globalThis as any).document = undefined;
+      expect(getDomMeasuredNodeSize('any-id')).toEqual({ width: 0, height: 0 });
+    } finally {
+      globalThis.document = origDoc;
+    }
+
+    // 2. getDomMeasuredNodeSize when element has no children (child is null)
+    const domNode = document.createElement('div');
+    domNode.className = 'react-flow__node';
+    domNode.setAttribute('data-id', 'no-child-node');
+    Object.defineProperty(domNode, 'offsetWidth', { value: 140 });
+    Object.defineProperty(domNode, 'offsetHeight', { value: 70 });
+    document.body.appendChild(domNode);
+
+    // 2b. getDomMeasuredNodeSize where child and el have 0/undefined dimensions to hit || 0 fallbacks
+    const zeroNode = document.createElement('div');
+    zeroNode.className = 'react-flow__node';
+    zeroNode.setAttribute('data-id', 'zero-dim-node');
+    const zeroChild = document.createElement('div');
+    zeroNode.appendChild(zeroChild);
+    document.body.appendChild(zeroNode);
+
+    try {
+      expect(getDomMeasuredNodeSize('no-child-node')).toEqual({ width: 140, height: 70 });
+      expect(getDomMeasuredNodeSize('zero-dim-node')).toEqual({ width: 0, height: 0 });
+    } finally {
+      domNode.remove();
+      zeroNode.remove();
+    }
+
+    // 3. getEffectiveSize for various node types
+    const typesToTest = [
+      { type: 'ReplicaSet', w: 320, h: 160 },
+      { type: 'ResourceLimit', w: 168, h: 176 },
+      { type: 'HPA', w: 168, h: 236 },
+      { type: 'Role', w: 168, h: 180 },
+      { type: 'PVC', w: 168, h: 146 },
+      { type: 'CustomResource', w: 160, h: 80 },
+    ];
+    typesToTest.forEach(({ type, w, h }) => {
+      const node = { id: `test-${type}`, type, position: { x: 0, y: 0 }, data: {} } as any;
+      const size = (getEffectiveSize(node) as any);
+      expect(size.width).toBe(w);
+      expect(size.height).toBe(h);
+    });
+
+    // 4. Service sizes: NodePort, ClusterIP, and custom height > 0 !== 88
+    const svcNodePort = { id: 's-np', type: 'Service', position: { x: 0, y: 0 }, data: { serviceType: 'NodePort' }, height: 88 } as any;
+    expect(getEffectiveSize(svcNodePort).height).toBe(200);
+
+    const svcClusterIp = { id: 's-cip', type: 'Service', position: { x: 0, y: 0 }, data: { serviceType: 'ClusterIP' }, height: 88 } as any;
+    expect(getEffectiveSize(svcClusterIp).height).toBe(180);
+
+    const svcCustomH = { id: 's-custom', type: 'Service', position: { x: 0, y: 0 }, data: {}, height: 260 } as any;
+    expect(getEffectiveSize(svcCustomH).height).toBe(260);
+  });
+
+  it('covers uncovered conditions in resolveGlobalCollisions and ejectLoadBalancersFromNamespaces', () => {
+    // 1. resolveGlobalCollisions skipping StatefulSet and PodGroup parents
+    const skipNodes = [
+      { id: 'ss-p', type: 'StatefulSet', position: { x: 0, y: 0 }, data: {} } as any,
+      { id: 'pg-p', type: 'PodGroup', position: { x: 0, y: 0 }, data: {} } as any,
+      { id: 'p1', parentId: 'ss-p', position: { x: 10, y: 10 }, width: 100, height: 100, data: {} } as any,
+      { id: 'p2', parentId: 'ss-p', position: { x: 20, y: 20 }, width: 100, height: 100, data: {} } as any,
+      { id: 'p3', parentId: 'pg-p', position: { x: 30, y: 30 }, width: 100, height: 100, data: {} } as any,
+      { id: 'p4', parentId: 'pg-p', position: { x: 40, y: 40 }, width: 100, height: 100, data: {} } as any,
+    ];
+    const resolvedSkip = resolveGlobalCollisions(skipNodes);
+    expect(resolvedSkip.find(n => n.id === 'p1')?.position.x).toBe(10);
+    expect(resolvedSkip.find(n => n.id === 'p3')?.position.x).toBe(30);
+
+    // 2. resolveGlobalCollisions with fixedNodeId matching nodeB on x-axis
+    const xNodes = [
+      { id: 'xA', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} } as any,
+      { id: 'xB', position: { x: 10, y: 0 }, width: 100, height: 100, data: {} } as any,
+    ];
+    const resolvedXB = resolveGlobalCollisions(xNodes, 'xB');
+    expect(resolvedXB.find(n => n.id === 'xB')?.position.x).toBe(10);
+    expect(resolvedXB.find(n => n.id === 'xA')?.position.x).not.toBe(0);
+
+    // 3. ejectLoadBalancersFromNamespaces with parentId on data instead of node root
+    const nsNode = { id: 'ns-data-p', type: 'Namespace', position: { x: 100, y: 100 }, width: 400, height: 400, data: {} } as any;
+    const lbWithDataParent = {
+      id: 'lb-dp',
+      type: 'Service',
+      position: { x: 150, y: 150 },
+      width: 150,
+      height: 180,
+      data: { serviceType: 'LoadBalancer', parentId: 'ns-data-p' }
+    } as any;
+    const { ejectedIds } = ejectLoadBalancersFromNamespaces([nsNode, lbWithDataParent]);
+    expect(ejectedIds).toContain('lb-dp');
+
+    // 4. ejectLoadBalancersFromNamespaces with parentId pointing to non-existent namespace
+    const lbNonExistentParent = {
+      id: 'lb-bad-p',
+      type: 'Service',
+      parentId: 'missing-ns',
+      position: { x: 0, y: 0 },
+      width: 150,
+      height: 180,
+      data: { serviceType: 'LoadBalancer' }
+    } as any;
+    const resBad = ejectLoadBalancersFromNamespaces([lbNonExistentParent]);
+    expect(resBad.ejectedIds).toHaveLength(0);
   });
 });
 
