@@ -6,7 +6,7 @@ on:
     branches: [ main ]
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@v7
 
@@ -16,6 +16,7 @@ jobs:
         node-version: 24
 
     - name: Enable Corepack
+      shell: bash
       run: corepack enable pnpm
 
     - name: Set up pnpm cache
@@ -26,6 +27,7 @@ jobs:
         cache-dependency-path: frontend/pnpm-lock.yaml
 
     - name: Install dependencies
+      shell: bash
       working-directory: frontend
       run: pnpm install
 
@@ -39,10 +41,14 @@ jobs:
       run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
     - name: Generate Wails bindings
+      shell: bash
       run: |
-        $HOME/go/bin/wails3 generate bindings -ts -i
+        wails3 generate bindings -ts -i
 
     - name: Run Unit tests
+      shell: bash
+      env:
+        MSYS_NO_PATHCONV: '1'
       working-directory: frontend
       run: pnpm vitest run --coverage --coverage.reporter=lcov
 
