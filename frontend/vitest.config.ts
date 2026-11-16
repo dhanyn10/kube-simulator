@@ -13,6 +13,16 @@ export default defineConfig({
     testTimeout: 15000,
     setupFiles: ['./test/setup.ts'],
     exclude: ['**/node_modules/**', '**/e2e/**'],
+    coverage: {
+      provider: 'v8',
+      exclude: [
+        '**/bindings/**',
+        '**/node_modules/**',
+        '**/e2e/**',
+        '**/test/**',
+        '**/*.d.ts',
+      ],
+    },
   },
   resolve: {
     alias: {

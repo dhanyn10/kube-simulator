@@ -6,6 +6,7 @@ import {
   WailsBackendGateway,
   MockBackendGateway,
 } from '@/gateway';
+import * as fallbackBindings from '@/gateway/bindings-fallback';
 
 describe('Clean Architecture Backend Gateway', () => {
   beforeEach(() => {
@@ -724,6 +725,16 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(await mock.FetchDockerHubPopular()).toContain('nginx');
       expect(await mock.FetchDockerHubTags('nginx')).toContain('latest');
       expect(await mock.SearchDockerHub('query')).toContain('query');
+    });
+  });
+
+  describe('Bindings Fallback Module', () => {
+    it('returns resolved stub defaults safely when Wails bindings are unavailable', async () => {
+      await expect(fallbackBindings.MinimizeWindow()).resolves.toBeUndefined();
+      await expect(fallbackBindings.MaximizeWindow()).resolves.toBeUndefined();
+      await expect(fallbackBindings.CloseWindow()).resolves.toBeUndefined();
+      await expect(fallbackBindings.Greet('Test')).resolves.toBe('');
+      await expect(fallbackBindings.GetSystemResources()).resolves.toEqual({});
     });
   });
 });
