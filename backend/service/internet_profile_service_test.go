@@ -80,6 +80,33 @@ func TestInternetProfileService_CRUD(t *testing.T) {
 	}
 }
 
+func TestInternetProfileService_GetProfiles_ReadDirError(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldHome := os.Getenv("HOME")
+	oldUserProfile := os.Getenv("USERPROFILE")
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Setenv("USERPROFILE", oldUserProfile)
+	}()
+
+	svc := NewInternetProfileService()
+	dir, err := svc.GetProfilesDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a regular file where the internet_profiles directory would be
+	_ = os.MkdirAll(filepath.Dir(dir), 0755)
+	_ = os.WriteFile(dir, []byte("blocking-file"), 0644)
+
+	profiles := svc.GetProfiles()
+	if len(profiles) != 0 {
+		t.Errorf("Expected empty profiles slice when profiles dir is an unreadable file")
+	}
+}
+
 func TestInternetProfileService_SaveDeleteFileErrors(t *testing.T) {
 	tmpDir := t.TempDir()
 	oldHome := os.Getenv("HOME")

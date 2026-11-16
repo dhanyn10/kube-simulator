@@ -10,7 +10,9 @@ vi.mock('@wailsio/runtime', () => ({
   },
   Application: {},
   Browser: {},
-  Call: {},
+  Call: {
+    ByID: vi.fn().mockResolvedValue(undefined),
+  },
   Clipboard: {},
   Dialogs: {},
   Events: {

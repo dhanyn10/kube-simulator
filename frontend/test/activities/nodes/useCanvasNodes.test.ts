@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useCanvasNodes } from '@/activities/nodes/useCanvasNodes';
+import { useCanvasNodes, resolveEffectiveZIndex } from '@/activities/nodes/useCanvasNodes';
 import { useFlowStore } from '@/store';
 import { Node } from '@xyflow/react';
 
@@ -78,5 +78,27 @@ describe('useCanvasNodes hook', () => {
     expect(childPod?.zIndex).toBe(10);
     expect(orphanPod?.zIndex).toBeUndefined();
     expect(podNoZ?.zIndex).toBeUndefined();
+  });
+
+  it('supports passing Node array directly into resolveEffectiveZIndex', () => {
+    const parentNode: Node = { id: 'p1', position: { x: 0, y: 0 }, data: {}, zIndex: 15 };
+    const childNode: Node = { id: 'c1', parentId: 'p1', position: { x: 0, y: 0 }, data: {}, zIndex: 2 };
+    const maxZ = resolveEffectiveZIndex(childNode, [parentNode, childNode]);
+    expect(maxZ).toBe(15);
+  });
+
+  it('returns original rawNodes reference when draggable and zIndex are already identical', () => {
+    const stableNodes: Node[] = [
+      { id: 'pod-stable', type: 'Pod', draggable: true, position: { x: 0, y: 0 }, data: {} },
+    ];
+    act(() => {
+      useFlowStore.setState({
+        activeIdentity: 'system:admin',
+        nodes: stableNodes,
+      });
+    });
+
+    const { result } = renderHook(() => useCanvasNodes());
+    expect(result.current).toBe(stableNodes);
   });
 });

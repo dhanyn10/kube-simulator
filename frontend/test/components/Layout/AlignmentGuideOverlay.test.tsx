@@ -72,4 +72,17 @@ describe('AlignmentGuideOverlay', () => {
     expect(screen.getByTestId('alignment-guide-vertical')).toBeDefined();
     expect(screen.getByTestId('alignment-guide-horizontal')).toBeDefined();
   });
+
+  it('renders safely outside ReactFlowProvider with default viewport fallback', () => {
+    useFlowStore.setState({
+      colorMode: 'dark',
+      alignmentGuideLines: { horizontal: 50, vertical: 80 },
+    });
+
+    render(<AlignmentGuideOverlay />);
+
+    expect(screen.getByTestId('alignment-guide-overlay')).toBeDefined();
+    expect(screen.getByTestId('alignment-guide-vertical')).toBeDefined();
+    expect(screen.getByTestId('alignment-guide-horizontal')).toBeDefined();
+  });
 });

@@ -126,3 +126,23 @@ func TestAppendCategorizedLog_DefaultPath(t *testing.T) {
 func TestAppendToLogFile_EmptyPath(t *testing.T) {
 	appendToLogFile("test append direct")
 }
+
+func TestEmit_LiveMode(t *testing.T) {
+	isTest = false
+	defer func() { isTest = true }()
+
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "emit_test.log")
+	SetLogFilePath(logFile)
+	defer SetLogFilePath("")
+
+	emit("INFO", "Live mode emit test message")
+
+	content, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+	if !strings.Contains(string(content), "Live mode emit test message") {
+		t.Errorf("Expected log file to contain emit message")
+	}
+}

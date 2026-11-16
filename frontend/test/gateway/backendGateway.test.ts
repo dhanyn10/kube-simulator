@@ -367,6 +367,7 @@ describe('Clean Architecture Backend Gateway', () => {
       await expect(gateway.closeWindow()).resolves.toBeUndefined();
 
       // 3. Desktop mode when runtime window has no methods (fall back to appBindings)
+      (globalThis as any).chrome = { webview: { postMessage: () => {} } };
       (globalThis as any).wails = { Window: {} };
 
       await expect(gateway.minimizeWindow()).resolves.toBeUndefined();
@@ -426,6 +427,41 @@ describe('Clean Architecture Backend Gateway', () => {
       const noopUnsub = gateway.onEvent('unsupported-event', () => {});
       expect(typeof noopUnsub).toBe('function');
       noopUnsub();
+    });
+
+    it('returns empty string when localStorage is unavailable and app has no GetSetting', async () => {
+      const origLocalStorage = globalThis.localStorage;
+      try {
+        Object.defineProperty(globalThis, 'localStorage', {
+          value: undefined,
+          configurable: true,
+          writable: true,
+        });
+        const gw = new WailsBackendGateway();
+        expect(await gw.getSetting('missing_key')).toBe('');
+      } finally {
+        Object.defineProperty(globalThis, 'localStorage', {
+          value: origLocalStorage,
+          configurable: true,
+          writable: true,
+        });
+      }
+    });
+
+    it('clears autosaves using SaveSetting fallback when ClearAllAutosaves is missing', async () => {
+      const saveSettingMock = vi.fn().mockResolvedValue(true);
+      (globalThis as any).go = {
+        main: {
+          App: {
+            SaveSetting: saveSettingMock,
+          },
+        },
+      };
+      const gw = new WailsBackendGateway();
+      expect(await gw.clearAllAutosaves()).toBe(true);
+      expect(saveSettingMock).toHaveBeenCalledTimes(2);
+      expect(saveSettingMock).toHaveBeenCalledWith('auto_saved_profile_latest', '');
+      expect(saveSettingMock).toHaveBeenCalledWith('auto_saved_profile_content', '');
     });
 
     it('handles globalThis.runtime events', () => {

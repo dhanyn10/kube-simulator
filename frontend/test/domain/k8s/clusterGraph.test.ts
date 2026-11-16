@@ -130,6 +130,24 @@ describe('Clean Architecture Domain Layer (K8s Cluster Graph & Simulation Engine
       expect(domainConnection.data?.trafficRate).toBe(50);
     });
 
+    it('handles toClusterNode default type fallback and toClusterConnection without data', () => {
+      const fallbackNode = toClusterNode({
+        id: 'no-type-node',
+        position: { x: 0, y: 0 },
+        data: { label: 'Implicit Pod' },
+      });
+      expect(fallbackNode.type).toBe('Pod');
+
+      const edgeWithoutData = toClusterConnection({
+        id: 'bare-edge',
+        source: 's1',
+        target: 't1',
+      });
+      expect(edgeWithoutData.data).toBeUndefined();
+      expect(edgeWithoutData.sourceHandle).toBeNull();
+      expect(edgeWithoutData.targetHandle).toBeNull();
+    });
+
     it('creates K8sClusterGraph and synchronizes back to React Flow nodes preserving positions', () => {
       const rfNodes: Node[] = [
         {
@@ -164,6 +182,15 @@ describe('Clean Architecture Domain Layer (K8s Cluster Graph & Simulation Engine
       // Visual coordinates must remain completely unchanged
       expect(synchronizedNodes[0].position).toEqual({ x: 50, y: 80 });
       expect(synchronizedNodes[1].position).toEqual({ x: 250, y: 80 });
+
+      // If a node is missing from the cluster graph, syncNodesFromClusterGraph returns it unchanged
+      const missingRfNode: Node = {
+        id: 'missing-node',
+        position: { x: 10, y: 20 },
+        data: { label: 'Unregistered' },
+      };
+      const syncedWithMissing = syncNodesFromClusterGraph([missingRfNode], graph);
+      expect(syncedWithMissing[0]).toBe(missingRfNode);
     });
   });
 

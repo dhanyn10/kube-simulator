@@ -1101,3 +1101,65 @@ func TestApp_PathUtilsAndWindowBridge(t *testing.T) {
 		t.Errorf("Expected /test/path.infra, got %s (err: %v)", selPath, err)
 	}
 }
+
+func TestConfigureStartupWindow_Helpers(t *testing.T) {
+	// 1. getScreenDimensions
+	w, h := getScreenDimensions(application.Screen{Size: application.Size{Width: 1920, Height: 1080}})
+	if w != 1920 || h != 1080 {
+		t.Errorf("Expected 1920x1080, got %dx%d", w, h)
+	}
+
+	wBounds, hBounds := getScreenDimensions(application.Screen{Bounds: application.Rect{Width: 1280, Height: 720}})
+	if wBounds != 1280 || hBounds != 720 {
+		t.Errorf("Expected 1280x720 from Bounds, got %dx%d", wBounds, hBounds)
+	}
+
+	// 2. calculateWindowPosition
+	xNormal := calculateWindowPosition(1920, 1024)
+	if xNormal != (1920-1024)/2 {
+		t.Errorf("Expected %d, got %d", (1920-1024)/2, xNormal)
+	}
+
+	xClamped := calculateWindowPosition(500, 1024)
+	if xClamped != 0 {
+		t.Errorf("Expected 0 for screen narrower than window, got %d", xClamped)
+	}
+
+	// 3. getActiveWindowWidth
+	testCtx := context.WithValue(context.Background(), isTestKey, true)
+	if getActiveWindowWidth(testCtx) != 1024 {
+		t.Errorf("Expected 1024 width in test mode")
+	}
+	if getActiveWindowWidth(context.Background()) != 1024 {
+		t.Errorf("Expected 1024 width fallback when active window is nil")
+	}
+
+	// 4. applyWindowBounds
+	applyWindowBounds(testCtx, 1024, 768, 100)
+	applyWindowBounds(context.Background(), 1024, 768, 100)
+
+	// 5. resolveStartupScreens
+	testScreens := resolveStartupScreens(testCtx)
+	if len(testScreens) != 1 || testScreens[0].Size.Width != 1920 {
+		t.Errorf("Expected 1 screen with 1920 width, got %+v", testScreens)
+	}
+	liveScreens := resolveStartupScreens(context.Background())
+	_ = liveScreens
+}
+
+func TestSelectProjectFileDialog_NilApp(t *testing.T) {
+	app := NewApp()
+	oldCtx := appCtx
+	appCtx = context.Background() // live context without isTestKey
+	defer func() { appCtx = oldCtx }()
+
+	// Calling selectProjectFileDialog in environment without dialog manager returns error
+	_, errSave := app.selectProjectFileDialog(true, "sample.infra", "Save Title")
+	if errSave == nil {
+		t.Log("SaveFileDialog handled or returned safely")
+	}
+	_, errOpen := app.selectProjectFileDialog(false, "", "Open Title")
+	if errOpen == nil {
+		t.Log("OpenFileDialog handled or returned safely")
+	}
+}
