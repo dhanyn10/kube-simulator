@@ -80,6 +80,54 @@ func TestInternetProfileService_CRUD(t *testing.T) {
 	}
 }
 
+func TestInternetProfileService_SaveDeleteFileErrors(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldHome := os.Getenv("HOME")
+	oldUserProfile := os.Getenv("USERPROFILE")
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Setenv("USERPROFILE", oldUserProfile)
+	}()
+
+	svc := NewInternetProfileService()
+	dir, err := svc.GetProfilesDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. MkdirAll error: Create a regular file where profiles dir should be
+	testHomeConflict := filepath.Join(tmpDir, "conflict_home")
+	_ = os.MkdirAll(testHomeConflict, 0755)
+	kubeSimPath := filepath.Join(testHomeConflict, KubeSimulatorDir)
+	_ = os.WriteFile(kubeSimPath, []byte("regular file conflict"), 0644)
+
+	os.Setenv("USERPROFILE", testHomeConflict)
+	os.Setenv("HOME", testHomeConflict)
+	if svc.SaveProfile("Test", `{"name":"Test"}`) {
+		t.Error("Expected SaveProfile to return false when profiles directory cannot be created")
+	}
+
+	// Reset home
+	os.Setenv("USERPROFILE", tmpDir)
+	os.Setenv("HOME", tmpDir)
+	_ = os.MkdirAll(dir, 0755)
+
+	// 2. WriteFile error: create a directory with the same name as the profile file
+	profilePath := svc.GetProfilePath(dir, "DirProfile")
+	_ = os.MkdirAll(profilePath, 0755)
+	if svc.SaveProfile("DirProfile", `{"name":"DirProfile"}`) {
+		t.Error("Expected SaveProfile to return false when target file is a directory")
+	}
+
+	// 3. Delete error: target path is a non-empty directory
+	_ = os.WriteFile(filepath.Join(profilePath, "nested.txt"), []byte("nested"), 0644)
+	if svc.DeleteProfile("DirProfile") {
+		t.Error("Expected DeleteProfile to return false when removing non-empty directory")
+	}
+}
+
 func TestInternetProfileService_HomeDirFailure(t *testing.T) {
 	oldHome := os.Getenv("HOME")
 	oldUserProfile := os.Getenv("USERPROFILE")

@@ -199,10 +199,10 @@ describe('RoleModal component', () => {
     const apiInput = screen.getByLabelText('API Groups');
 
     fireEvent.focus(apiInput);
-    fireEvent.change(apiInput, { target: { value: 'apps' } });
+    fireEvent.change(apiInput, { target: { value: 'batch' } });
     fireEvent.keyDown(apiInput, { key: 'Enter', code: 'Enter' });
 
-    expect(screen.getAllByText('apps').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('batch').length).toBeGreaterThan(0);
   });
 
   it('correctly derives resources for Namespace targets and various node types', () => {

@@ -337,4 +337,82 @@ describe('App Component', () => {
     expect(lastCallD.x).toBeLessThan(0);
     globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'd', bubbles: true }));
   });
+
+  it('handles closing attachment modals and global context menu in App', async () => {
+    const targetNode = { id: 'n1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'my-dep' } };
+
+    // 1. ConfigMapModal close
+    useFlowStore.setState({
+      nodes: [targetNode],
+      configMapModalTargetNode: { id: 'n1', label: 'my-dep' },
+    });
+    let rerenderFn: any;
+    await act(async () => {
+      const res = render(<App />);
+      rerenderFn = res.rerender;
+    });
+    expect(useFlowStore.getState().configMapModalTargetNode).not.toBeNull();
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
+    });
+    expect(useFlowStore.getState().configMapModalTargetNode).toBeNull();
+
+    // 2. SecretModal close
+    useFlowStore.setState({
+      secretModalTargetNode: { id: 'n1', label: 'my-dep' },
+    });
+    await act(async () => {
+      rerenderFn(<App />);
+    });
+    expect(useFlowStore.getState().secretModalTargetNode).not.toBeNull();
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
+    });
+    expect(useFlowStore.getState().secretModalTargetNode).toBeNull();
+
+    // 3. HPAModal close
+    useFlowStore.setState({
+      hpaModalTargetNode: { id: 'n1', label: 'my-dep' },
+    });
+    await act(async () => {
+      rerenderFn(<App />);
+    });
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
+    });
+    expect(useFlowStore.getState().hpaModalTargetNode).toBeNull();
+
+    // 4. ResourceLimitModal close
+    useFlowStore.setState({
+      resourceLimitModalTargetNode: { id: 'n1', label: 'my-dep' },
+    });
+    await act(async () => {
+      rerenderFn(<App />);
+    });
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
+    });
+    expect(useFlowStore.getState().resourceLimitModalTargetNode).toBeNull();
+
+    // 5. AttachedResourceOverviewModal close
+    useFlowStore.setState({
+      activeOverviewModal: 'configmaps',
+    });
+    await act(async () => {
+      rerenderFn(<App />);
+    });
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
+    });
+    expect(useFlowStore.getState().activeOverviewModal).toBeNull();
+
+    // 6. Global default context menu
+    await act(async () => {
+      document.body.dispatchEvent(new MouseEvent('contextmenu', { clientX: 100, clientY: 150, bubbles: true }));
+    });
+    const closeMenuBtn = screen.getByTestId('global-close');
+    await act(async () => {
+      fireEvent.click(closeMenuBtn);
+    });
+  });
 });

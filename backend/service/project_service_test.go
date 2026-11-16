@@ -1,9 +1,13 @@
 package service
 
 import (
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"build-wails/backend/explorer"
 )
 
 func TestProjectService_FileOperations(t *testing.T) {
@@ -51,12 +55,75 @@ func TestProjectService_FileOperations(t *testing.T) {
 		t.Error("Expected non-empty imported content")
 	}
 
-	// 4. OpenFileFolder (with shouldOpenInExplorer = false)
-	if !svc.OpenFileFolder("", false) {
-		t.Error("Expected OpenFileFolder with empty location to succeed")
-	}
+	// 4. OpenFileFolder without explorer
 	if !svc.OpenFileFolder(exportFile, false) {
-		t.Error("Expected OpenFileFolder with file path to succeed")
+		t.Errorf("Expected OpenFileFolder to succeed for existing file")
+	}
+}
+
+func TestProjectService_OpenFileFolder_ExplorerBranches(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldHome := os.Getenv("HOME")
+	oldUserProfile := os.Getenv("USERPROFILE")
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Setenv("USERPROFILE", oldUserProfile)
+	}()
+
+	svc := NewProjectService(nil)
+
+	// 1. Empty location
+	if !svc.OpenFileFolder("", false) {
+		t.Error("Expected OpenFileFolder to succeed for empty location")
+	}
+
+	// 2. Relative path
+	if !svc.OpenFileFolder("relative/path/file.infra", false) {
+		t.Error("Expected OpenFileFolder to succeed for relative path")
+	}
+
+	// 3. File path (non-directory)
+	filePath := filepath.Join(tmpDir, "some-file.txt")
+	_ = os.WriteFile(filePath, []byte("content"), 0644)
+	if !svc.OpenFileFolder(filePath, false) {
+		t.Error("Expected OpenFileFolder to succeed for file path")
+	}
+
+	// 4. Explorer execution success
+	oldStartCmd := explorer.StartCmd
+	defer func() { explorer.StartCmd = oldStartCmd }()
+
+	explorer.StartCmd = func(_ *exec.Cmd) error {
+		return nil
+	}
+	if !svc.OpenFileFolder(filePath, true) {
+		t.Error("Expected OpenFileFolder with explorer true to succeed when StartCmd succeeds")
+	}
+
+	// 5. Explorer execution error
+	explorer.StartCmd = func(_ *exec.Cmd) error {
+		return errors.New("cannot start explorer")
+	}
+	if svc.OpenFileFolder(filePath, true) {
+		t.Error("Expected OpenFileFolder with explorer true to return false when StartCmd fails")
+	}
+}
+
+func TestProjectService_ExportImportErrors(t *testing.T) {
+	svc := NewProjectService(nil)
+
+	// Export to impossible path
+	err := svc.ExportProjectFile(filepath.Join(os.DevNull, "impossible", "path.infra"), "test", "{}", "kind: Pod")
+	if err == nil {
+		t.Error("Expected error when exporting to invalid path")
+	}
+
+	// Import nonexistent file
+	_, err = svc.ImportProjectFile(filepath.Join(t.TempDir(), "does-not-exist.infra"))
+	if err == nil {
+		t.Error("Expected error when importing nonexistent file")
 	}
 }
 

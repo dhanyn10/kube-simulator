@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func setupAppWithDB(t *testing.T) (*App, func()) {
@@ -97,7 +97,7 @@ func TestGetTargetScreenHeight(t *testing.T) {
 	app := NewApp()
 
 	t.Run("empty screen list", func(t *testing.T) {
-		height, ok := app.GetTargetScreenHeight([]wailsRuntime.Screen{})
+		height, ok := app.GetTargetScreenHeight([]application.Screen{})
 		if ok {
 			t.Error("Expected ok to be false for empty screen list")
 		}
@@ -107,10 +107,10 @@ func TestGetTargetScreenHeight(t *testing.T) {
 	})
 
 	t.Run("multiple screens with primary", func(t *testing.T) {
-		screens := []wailsRuntime.Screen{
-			{IsPrimary: false, Height: 800},
-			{IsPrimary: true, Height: 1080},
-			{IsPrimary: false, Height: 900},
+		screens := []application.Screen{
+			{IsPrimary: false, Size: application.Size{Height: 800}},
+			{IsPrimary: true, Size: application.Size{Height: 1080}},
+			{IsPrimary: false, Size: application.Size{Height: 900}},
 		}
 		height, ok := app.GetTargetScreenHeight(screens)
 		if !ok {
@@ -122,9 +122,9 @@ func TestGetTargetScreenHeight(t *testing.T) {
 	})
 
 	t.Run("multiple screens without primary fallback", func(t *testing.T) {
-		screens := []wailsRuntime.Screen{
-			{IsPrimary: false, Height: 800},
-			{IsPrimary: false, Height: 1080},
+		screens := []application.Screen{
+			{IsPrimary: false, Size: application.Size{Height: 800}},
+			{IsPrimary: false, Size: application.Size{Height: 1080}},
 		}
 		height, ok := app.GetTargetScreenHeight(screens)
 		if !ok {
@@ -596,7 +596,7 @@ func TestApp_OpenLogFile_EmptyPath(t *testing.T) {
 
 func TestApp_GetTargetScreen_Empty(t *testing.T) {
 	app := NewApp()
-	_, ok := app.GetTargetScreen([]wailsRuntime.Screen{})
+	_, ok := app.GetTargetScreen([]application.Screen{})
 	if ok {
 		t.Error("Expected GetTargetScreen to return false for empty screens slice")
 	}
@@ -1043,13 +1043,11 @@ func TestApp_ConfigureStartupWindow_EdgeCases(t *testing.T) {
 	app.configureStartupWindow(context.WithValue(context.Background(), isTestKey, true))
 
 	// Screen with Size.Width > 0 and screenW < currWidth (testing x < 0 clamp)
-	var scr wailsRuntime.Screen
+	var scr application.Screen
 	scr.IsPrimary = true
-	scr.Width = 500
-	scr.Height = 400
 	scr.Size.Width = 500
 	scr.Size.Height = 400
-	screens := []wailsRuntime.Screen{scr}
+	screens := []application.Screen{scr}
 	target, ok := app.GetTargetScreen(screens)
 	if !ok || target.Size.Width != 500 {
 		t.Errorf("Expected target screen with Size.Width=500, got: %+v", target)

@@ -1,7 +1,22 @@
 import { generateYamlClientSide } from './manifestGenerator';
 
+export const isWailsDesktop = (): boolean => {
+    if (typeof globalThis === 'undefined') return false;
+    const g = globalThis as any;
+    const win = g.window ?? g;
+    return Boolean(
+        g.chrome?.webview?.postMessage ||
+        win.chrome?.webview?.postMessage ||
+        g.webkit?.messageHandlers?.external?.postMessage ||
+        win.webkit?.messageHandlers?.external?.postMessage ||
+        g.wails?.invoke ||
+        win.wails?.invoke ||
+        (typeof location !== 'undefined' && location.origin.includes('wails.localhost'))
+    );
+};
+
 export const initWailsMocks = () => {
-    if (typeof globalThis === 'undefined' || (globalThis as any).go) return;
+    if (typeof globalThis === 'undefined' || isWailsDesktop() || (globalThis as any).go) return;
 
     const safeLog = (globalThis as any)._originalConsoleLog || console.log;
     const safeWarn = (globalThis as any)._originalConsoleWarn || console.warn;

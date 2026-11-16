@@ -19,6 +19,13 @@ var (
 	apiBaseURL = "https://api.github.com"
 )
 
+// SetAPIBaseURL sets the API base URL for update checks and returns a restore function.
+func SetAPIBaseURL(url string) func() {
+	prev := apiBaseURL
+	apiBaseURL = url
+	return func() { apiBaseURL = prev }
+}
+
 // GitHubRelease represents a release object returned by the GitHub REST API.
 type GitHubRelease struct {
 	TagName    string `json:"tag_name"`

@@ -21,8 +21,9 @@ jobs:
       with:
         node-version: 24
 
-    - name: Enable Corepack
-      run: corepack enable pnpm
+    - name: Install pnpm globally via npm
+      shell: bash
+      run: npm install -g pnpm@10.30.3
 
     - name: Set up pnpm cache
       uses: actions/setup-node@v7
@@ -34,22 +35,6 @@ jobs:
     - name: Install dependencies
       working-directory: frontend
       run: pnpm install
-
-    - name: Set up Go
-      uses: actions/setup-go@v7
-      with:
-        go-version: '1.25.x'
-        cache: true
-
-    - name: Install Wails CLI
-      run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
-
-    - name: Generate Wails bindings
-      shell: bash
-      run: |
-        mkdir -p frontend/dist
-        echo "dummy" > frontend/dist/index.html
-        wails build -s -platform windows/amd64 -nopackage
 
     - name: Get Playwright version
       id: playwright-version

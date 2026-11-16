@@ -1,9 +1,7 @@
 package service
 
 import (
-	"context"
-
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // WindowService handles window metrics, layout sizing, and window controls.
@@ -20,9 +18,9 @@ func (s *WindowService) CalculateAppHeight(screenHeight int) int {
 }
 
 // GetTargetScreen selects the target screen: either the primary screen or the first fallback screen.
-func (s *WindowService) GetTargetScreen(screens []wailsRuntime.Screen) (wailsRuntime.Screen, bool) {
+func (s *WindowService) GetTargetScreen(screens []application.Screen) (application.Screen, bool) {
 	if len(screens) == 0 {
-		return wailsRuntime.Screen{}, false
+		return application.Screen{}, false
 	}
 	for _, screen := range screens {
 		if screen.IsPrimary {
@@ -33,32 +31,55 @@ func (s *WindowService) GetTargetScreen(screens []wailsRuntime.Screen) (wailsRun
 }
 
 // GetTargetScreenHeight selects the target screen's height: either the primary screen or the first fallback screen.
-func (s *WindowService) GetTargetScreenHeight(screens []wailsRuntime.Screen) (int, bool) {
+func (s *WindowService) GetTargetScreenHeight(screens []application.Screen) (int, bool) {
 	screen, ok := s.GetTargetScreen(screens)
-	return screen.Height, ok
+	if !ok {
+		return 0, false
+	}
+	h := screen.Size.Height
+	if h == 0 {
+		h = screen.Bounds.Height
+	}
+	return h, true
+}
+
+// GetActiveWindow returns the current active window or the first available window.
+func GetActiveWindow() application.Window {
+	app := application.Get()
+	if app == nil || app.Window == nil {
+		return nil
+	}
+	if win := app.Window.Current(); win != nil {
+		return win
+	}
+	windows := app.Window.GetAll()
+	if len(windows) > 0 {
+		return windows[0]
+	}
+	return nil
 }
 
 // Minimize minimizes the application window.
-func (s *WindowService) Minimize(ctx context.Context, isLive bool) {
-	if isLive && ctx != nil {
-		wailsRuntime.WindowMinimise(ctx)
+func (s *WindowService) Minimize() {
+	if win := GetActiveWindow(); win != nil {
+		win.Minimise()
 	}
 }
 
 // Maximize toggles window maximize state.
-func (s *WindowService) Maximize(ctx context.Context, isLive bool) {
-	if isLive && ctx != nil {
-		if wailsRuntime.WindowIsMaximised(ctx) {
-			wailsRuntime.WindowUnmaximise(ctx)
-		} else {
-			wailsRuntime.WindowMaximise(ctx)
-		}
+func (s *WindowService) Maximize() {
+	if win := GetActiveWindow(); win != nil {
+		win.ToggleMaximise()
 	}
 }
 
-// Close quits the application window.
-func (s *WindowService) Close(ctx context.Context, isLive bool) {
-	if isLive && ctx != nil {
-		wailsRuntime.Quit(ctx)
+// Close quits or closes the application window.
+func (s *WindowService) Close() {
+	if win := GetActiveWindow(); win != nil {
+		win.Close()
+		return
+	}
+	if app := application.Get(); app != nil {
+		app.Quit()
 	}
 }
