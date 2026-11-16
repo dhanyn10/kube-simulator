@@ -15,9 +15,9 @@ jobs:
       with:
         node-version: 24
 
-    - name: Enable Corepack
+    - name: Install pnpm globally via npm
       shell: bash
-      run: corepack enable pnpm
+      run: npm install -g pnpm@10.30.3
 
     - name: Set up pnpm cache
       uses: actions/setup-node@v7
