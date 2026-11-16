@@ -140,4 +140,72 @@ describe('ResourcePrecedenceView (Secret)', () => {
       screen.getByText(/No Secrets found in profile "prod-session"/i)
     ).toBeInTheDocument();
   });
+
+  it('filters items using the search input when items count is greater than 2', () => {
+    render(
+      <ResourcePrecedenceView
+        resourceType="Secret"
+        profileName="prod-session"
+        items={mockSecretItems}
+        isDark={true}
+        onEditItem={mockOnEditItem}
+        onDeleteItem={mockOnDeleteItem}
+      />
+    );
+
+    const searchInput = screen.getByPlaceholderText('Filter Secrets by ID, key, or value...');
+    expect(searchInput).toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: 'API_KEY' } });
+    expect(screen.getByText('API_KEY')).toBeInTheDocument();
+  });
+
+  it('handles HTML5 dragStart, dragOver, dragEnd and drop between items', () => {
+    const mockUpdateNodeData = vi.fn();
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'pod-auth',
+          data: {
+            secrets: [mockSecretItems[0].rawItem, mockSecretItems[1].rawItem],
+          },
+        },
+      ],
+      savedSecrets: [],
+      updateNodeData: mockUpdateNodeData,
+      setSavedSecrets: vi.fn(),
+      addLog: vi.fn(),
+    });
+
+    render(
+      <ResourcePrecedenceView
+        resourceType="Secret"
+        profileName="prod-session"
+        items={mockSecretItems}
+        isDark={true}
+        onEditItem={mockOnEditItem}
+        onDeleteItem={mockOnDeleteItem}
+      />
+    );
+
+    const firstHandle = screen.getByTestId('sec-drag-handle-sec-1');
+    const secondRowSpan = screen.getByTestId('sec-id-sec-2');
+    const secondRow = secondRowSpan.closest('tr')!;
+
+    const dt = {
+      setData: vi.fn(),
+      getData: vi.fn().mockReturnValue(JSON.stringify({ compId: 'pod-auth', index: 0 })),
+      effectAllowed: 'move',
+      dropEffect: 'move',
+    };
+
+    fireEvent.dragStart(firstHandle, { dataTransfer: dt });
+    fireEvent.dragOver(secondRow, { dataTransfer: dt });
+    fireEvent.drop(secondRow, { dataTransfer: dt });
+
+    expect(mockUpdateNodeData).toHaveBeenCalled();
+
+    // Trigger dragEnd cleanup
+    fireEvent.dragEnd(firstHandle);
+  });
 });

@@ -90,6 +90,7 @@ describe('quickConnectHelpers', () => {
     // Negative cases
     expect(isNodeInDirection(sourceNode, rightPod, 'left', allNodes)).toBe(false);
     expect(isNodeInDirection(sourceNode, sourceNode, 'right', allNodes)).toBe(false);
+    expect(isNodeInDirection(sourceNode, rightPod, 'invalid-direction' as any, allNodes)).toBe(false);
   });
 
   it('maps getQuickConnectHandles for all directions', () => {
@@ -194,5 +195,8 @@ describe('quickConnectHelpers', () => {
     const dirCheck = checkValidConnectionDirection(sourceNode, rightPod, allNodes);
     expect(dirCheck).not.toBeNull();
     expect(dirCheck?.edgeSource.id).toBe('src-1');
+
+    const invalidDirCheck = checkValidConnectionDirection(sourceNode, nsNode, allNodes);
+    expect(invalidDirCheck).toBeNull();
   });
 });

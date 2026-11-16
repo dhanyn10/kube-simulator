@@ -218,4 +218,57 @@ describe("initWailsMocks", () => {
     const profileDeleted = await app.DeleteInternetProfile("non-existent");
     expect(profileDeleted).toBe(true);
   });
+
+  it("covers remaining mock App methods: WriteLog, OpenLogFile, Greet, CalculateAppHeight, screen helpers, and GenerateYaml error catch", async () => {
+    initWailsMocks();
+    const app = (globalThis as any).go.main.App;
+
+    // GenerateYaml invalid JSON error catch block
+    const invalidYaml = await app.GenerateYaml('{ invalid json', '[]');
+    expect(invalidYaml).toBe('');
+
+    // WriteLog and OpenLogFile
+    const logWritten = await app.WriteLog('app', 'info', 'Test log message');
+    expect(logWritten).toBe(true);
+
+    const logOpened = await app.OpenLogFile();
+    expect(logOpened).toBe(true);
+
+    // Greet
+    const greeting = await app.Greet('Developer');
+    expect(greeting).toBe('Hello Developer!');
+
+    // CalculateAppHeight
+    const height = await app.CalculateAppHeight(1000);
+    expect(height).toBe(850);
+
+    // Screen helpers
+    const screenHeight = await app.GetTargetScreenHeight();
+    expect(screenHeight).toBe(1080);
+
+    const targetScreen = await app.GetTargetScreen();
+    expect(targetScreen).toBe(false);
+
+    // DockerHub & Updates
+    const popular = await app.FetchDockerHubPopular();
+    expect(popular).toContain('nginx');
+
+    const tags = await app.FetchDockerHubTags('nginx');
+    expect(tags).toContain('latest');
+
+    const search = await app.SearchDockerHub('redis');
+    expect(search).toContain('redis');
+
+    const updates = await app.CheckForUpdates('0.1.0');
+    expect(updates.currentVersion).toBe('0.1.0');
+
+    // Files and autosaves
+    expect(await app.OpenFileFolder('/test')).toBe(true);
+    expect(await app.FileExists('/test/file')).toBe(true);
+    expect(await app.GetAutosaveProfiles()).toEqual([]);
+    expect(await app.ClearAllAutosaves()).toBe(true);
+
+    // SetInitialFile
+    await expect(app.SetInitialFile('init.infra')).resolves.toBeUndefined();
+  });
 });

@@ -93,3 +93,30 @@ func TestWindowService_Actions_NilContext(t *testing.T) {
 	ws.Maximize()
 	ws.Close()
 }
+
+func TestWindowService_WithActiveWindowBranches(t *testing.T) {
+	testApp := application.New(application.Options{})
+	ws := NewWindowService()
+
+	// Calling GetActiveWindow when application exists with no windows
+	win := GetActiveWindow()
+	if win != nil {
+		t.Errorf("Expected nil active window when application has no windows")
+	}
+
+	ws.Minimize()
+	ws.Maximize()
+	ws.Close()
+
+	if testApp != nil && testApp.Window != nil {
+		w := testApp.Window.NewWithOptions(application.WebviewWindowOptions{
+			Title: "Test Window",
+		})
+		if w != nil {
+			_ = GetActiveWindow()
+			ws.Minimize()
+			ws.Maximize()
+			ws.Close()
+		}
+	}
+}

@@ -130,55 +130,78 @@ func (a *App) startup(ctx context.Context) {
 	a.handleInitialFileOpen(ctx)
 }
 
-func (a *App) configureStartupWindow(ctx context.Context) {
-	var screens []application.Screen
-	if ctx.Value(isTestKey) == nil {
-		if app := application.Get(); app != nil && app.Screen != nil {
-			for _, scr := range app.Screen.GetAll() {
-				if scr != nil {
-					screens = append(screens, *scr)
-				}
-			}
-		}
-	} else {
-		screens = []application.Screen{
+func resolveStartupScreens(ctx context.Context) []application.Screen {
+	if ctx.Value(isTestKey) != nil {
+		return []application.Screen{
 			{IsPrimary: true, Size: application.Size{Width: 1920, Height: 1080}},
 		}
 	}
+	app := application.Get()
+	if app == nil || app.Screen == nil {
+		return nil
+	}
+	var screens []application.Screen
+	for _, scr := range app.Screen.GetAll() {
+		if scr != nil {
+			screens = append(screens, *scr)
+		}
+	}
+	return screens
+}
 
+func getScreenDimensions(screen application.Screen) (int, int) {
+	screenW := screen.Size.Width
+	if screenW == 0 {
+		screenW = screen.Bounds.Width
+	}
+	screenH := screen.Size.Height
+	if screenH == 0 {
+		screenH = screen.Bounds.Height
+	}
+	return screenW, screenH
+}
+
+func getActiveWindowWidth(ctx context.Context) int {
+	if ctx.Value(isTestKey) == nil {
+		if win := service.GetActiveWindow(); win != nil {
+			currWidth, _ := win.Size()
+			return currWidth
+		}
+	}
+	return 1024
+}
+
+func calculateWindowPosition(screenW, currWidth int) int {
+	x := (screenW - currWidth) / 2
+	if x < 0 {
+		return 0
+	}
+	return x
+}
+
+func applyWindowBounds(ctx context.Context, width, height, x int) {
+	if ctx.Value(isTestKey) == nil {
+		if win := service.GetActiveWindow(); win != nil {
+			win.SetSize(width, height)
+			win.SetPosition(x, 0)
+			win.Show()
+		}
+	}
+}
+
+func (a *App) configureStartupWindow(ctx context.Context) {
+	screens := resolveStartupScreens(ctx)
 	targetScreen, ok := a.GetTargetScreen(screens)
 	if !ok {
 		return
 	}
 
-	screenW := targetScreen.Size.Width
-	if screenW == 0 {
-		screenW = targetScreen.Bounds.Width
-	}
-	screenH := targetScreen.Size.Height
-	if screenH == 0 {
-		screenH = targetScreen.Bounds.Height
-	}
+	screenW, screenH := getScreenDimensions(targetScreen)
 	newHeight := a.CalculateAppHeight(screenH)
-	currWidth := 1024
-	if ctx.Value(isTestKey) == nil {
-		if win := service.GetActiveWindow(); win != nil {
-			currWidth, _ = win.Size()
-		}
-	}
+	currWidth := getActiveWindowWidth(ctx)
+	x := calculateWindowPosition(screenW, currWidth)
 
-	x := (screenW - currWidth) / 2
-	if x < 0 {
-		x = 0
-	}
-
-	if ctx.Value(isTestKey) == nil {
-		if win := service.GetActiveWindow(); win != nil {
-			win.SetSize(currWidth, newHeight)
-			win.SetPosition(x, 0)
-			win.Show()
-		}
-	}
+	applyWindowBounds(ctx, currWidth, newHeight, x)
 }
 
 func (a *App) handleInitialFileOpen(ctx context.Context) {

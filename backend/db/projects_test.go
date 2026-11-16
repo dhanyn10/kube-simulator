@@ -216,3 +216,57 @@ func TestProjectManager_AutosaveFiles(t *testing.T) {
 		t.Errorf("Expected at most 5 autosave files after pruning, got %d", count)
 	}
 }
+
+func TestPruneAutosaveFiles_Direct(t *testing.T) {
+	// 1. Non-existent directory
+	pruneAutosaveFiles(filepath.Join(t.TempDir(), "nonexistent"), 5)
+
+	// 2. Directory with subdirs and non-.infra files
+	tmpDir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(tmpDir, "subfolder"), 0755)
+	_ = os.WriteFile(filepath.Join(tmpDir, "readme.txt"), []byte("hello"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "save1.infra"), []byte("{}"), 0644)
+	time.Sleep(10 * time.Millisecond)
+	_ = os.WriteFile(filepath.Join(tmpDir, "save2.infra"), []byte("{}"), 0644)
+
+	// Prune with maxToKeep = 5 (no files removed)
+	pruneAutosaveFiles(tmpDir, 5)
+
+	// Prune with maxToKeep = 1 (removes older save1.infra)
+	pruneAutosaveFiles(tmpDir, 1)
+
+	if _, err := os.Stat(filepath.Join(tmpDir, "save1.infra")); !os.IsNotExist(err) {
+		t.Errorf("Expected save1.infra to be pruned")
+	}
+	if _, err := os.Stat(filepath.Join(tmpDir, "save2.infra")); err != nil {
+		t.Errorf("Expected save2.infra to be preserved: %v", err)
+	}
+}
+
+func TestWritePhysicalAutosaveFile_Branches(t *testing.T) {
+	// 1. Non-autosave key is a safe no-op
+	writePhysicalAutosaveFile("theme-setting", "dark")
+
+	// 2. Valid autosave key with content writes file, empty content deletes file
+	tmpDir := t.TempDir()
+	oldHome := os.Getenv("HOME")
+	oldUserProfile := os.Getenv("USERPROFILE")
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Setenv("USERPROFILE", oldUserProfile)
+	}()
+
+	writePhysicalAutosaveFile("autosave-temp", `{"data":"ok"}`)
+	targetFile := filepath.Join(tmpDir, appDirName, "autosaves", "autosave-temp.infra")
+	if _, err := os.Stat(targetFile); err != nil {
+		t.Errorf("Expected autosave file to be written: %v", err)
+	}
+
+	// Empty content triggers delete
+	writePhysicalAutosaveFile("autosave-temp", "")
+	if _, err := os.Stat(targetFile); !os.IsNotExist(err) {
+		t.Errorf("Expected autosave file to be deleted")
+	}
+}

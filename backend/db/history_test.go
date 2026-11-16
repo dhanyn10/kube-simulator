@@ -348,3 +348,10 @@ func TestIsCorruptFileAndDir(t *testing.T) {
 		t.Error("Dir with corrupt KEYREGISTRY should return true")
 	}
 }
+
+func TestOpenBadger_Invalid(t *testing.T) {
+	_, err := openBadger(badger.Options{})
+	if err == nil {
+		t.Error("Expected error opening badger with unconfigured options")
+	}
+}

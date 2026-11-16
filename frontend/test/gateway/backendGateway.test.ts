@@ -6,6 +6,7 @@ import {
   WailsBackendGateway,
   MockBackendGateway,
 } from '@/gateway';
+import * as fallbackBindings from '@/gateway/bindings-fallback';
 
 describe('Clean Architecture Backend Gateway', () => {
   beforeEach(() => {
@@ -367,6 +368,7 @@ describe('Clean Architecture Backend Gateway', () => {
       await expect(gateway.closeWindow()).resolves.toBeUndefined();
 
       // 3. Desktop mode when runtime window has no methods (fall back to appBindings)
+      (globalThis as any).chrome = { webview: { postMessage: () => {} } };
       (globalThis as any).wails = { Window: {} };
 
       await expect(gateway.minimizeWindow()).resolves.toBeUndefined();
@@ -426,6 +428,41 @@ describe('Clean Architecture Backend Gateway', () => {
       const noopUnsub = gateway.onEvent('unsupported-event', () => {});
       expect(typeof noopUnsub).toBe('function');
       noopUnsub();
+    });
+
+    it('returns empty string when localStorage is unavailable and app has no GetSetting', async () => {
+      const origLocalStorage = globalThis.localStorage;
+      try {
+        Object.defineProperty(globalThis, 'localStorage', {
+          value: undefined,
+          configurable: true,
+          writable: true,
+        });
+        const gw = new WailsBackendGateway();
+        expect(await gw.getSetting('missing_key')).toBe('');
+      } finally {
+        Object.defineProperty(globalThis, 'localStorage', {
+          value: origLocalStorage,
+          configurable: true,
+          writable: true,
+        });
+      }
+    });
+
+    it('clears autosaves using SaveSetting fallback when ClearAllAutosaves is missing', async () => {
+      const saveSettingMock = vi.fn().mockResolvedValue(true);
+      (globalThis as any).go = {
+        main: {
+          App: {
+            SaveSetting: saveSettingMock,
+          },
+        },
+      };
+      const gw = new WailsBackendGateway();
+      expect(await gw.clearAllAutosaves()).toBe(true);
+      expect(saveSettingMock).toHaveBeenCalledTimes(2);
+      expect(saveSettingMock).toHaveBeenCalledWith('auto_saved_profile_latest', '');
+      expect(saveSettingMock).toHaveBeenCalledWith('auto_saved_profile_content', '');
     });
 
     it('handles globalThis.runtime events', () => {
@@ -688,6 +725,16 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(await mock.FetchDockerHubPopular()).toContain('nginx');
       expect(await mock.FetchDockerHubTags('nginx')).toContain('latest');
       expect(await mock.SearchDockerHub('query')).toContain('query');
+    });
+  });
+
+  describe('Bindings Fallback Module', () => {
+    it('returns resolved stub defaults safely when Wails bindings are unavailable', async () => {
+      await expect(fallbackBindings.MinimizeWindow()).resolves.toBeUndefined();
+      await expect(fallbackBindings.MaximizeWindow()).resolves.toBeUndefined();
+      await expect(fallbackBindings.CloseWindow()).resolves.toBeUndefined();
+      await expect(fallbackBindings.Greet('Test')).resolves.toBe('');
+      await expect(fallbackBindings.GetSystemResources()).resolves.toEqual({});
     });
   });
 });

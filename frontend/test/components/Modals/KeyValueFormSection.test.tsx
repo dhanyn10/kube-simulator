@@ -85,4 +85,23 @@ describe('KeyValueFormSection', () => {
     fireEvent.click(removeButtons[1]);
     expect(onRemoveField).toHaveBeenCalledWith('item-2');
   });
+
+  it('renders with rose accent color styling', () => {
+    render(
+      <KeyValueFormSection
+        items={defaultItems}
+        colorMode="dark"
+        accentColor="rose"
+        onAddField={vi.fn()}
+        onRemoveField={vi.fn()}
+        onUpdateField={vi.fn()}
+      />
+    );
+
+    const addButton = screen.getByRole('button', { name: /Add Key-Value/i });
+    expect(addButton.className).toContain('text-rose-400');
+
+    const keyInput = screen.getByPlaceholderText('KEY');
+    expect(keyInput.className).toContain('focus:ring-rose-500');
+  });
 });

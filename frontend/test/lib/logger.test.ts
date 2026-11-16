@@ -91,4 +91,27 @@ describe('Frontend logger', () => {
       setLogConsumer(prevConsumer);
     }
   });
+
+  it('dispatches to globalThis.useFlowStore when activeConsumer is null', () => {
+    const prevConsumer = getLogConsumer();
+    const mockAddLog = vi.fn();
+    const originalStore = (globalThis as any).useFlowStore;
+    try {
+      setLogConsumer(null);
+      (globalThis as any).useFlowStore = {
+        getState: () => ({
+          addLog: mockAddLog,
+        }),
+      };
+
+      logger.info('unscoped fallback message');
+      expect(mockAddLog).toHaveBeenCalledWith('info', 'unscoped fallback message');
+
+      logger.withScope('FallbackScope').error('scoped fallback message');
+      expect(mockAddLog).toHaveBeenCalledWith('error', 'scoped fallback message', 'FallbackScope');
+    } finally {
+      (globalThis as any).useFlowStore = originalStore;
+      setLogConsumer(prevConsumer);
+    }
+  });
 });

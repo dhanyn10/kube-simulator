@@ -34,6 +34,17 @@ func TestIsNewer(t *testing.T) {
 	}
 }
 
+func TestSetAPIBaseURL(t *testing.T) {
+	restore := SetAPIBaseURL("http://localhost:9999")
+	if apiBaseURL != "http://localhost:9999" {
+		t.Errorf("Expected apiBaseURL to be updated, got %s", apiBaseURL)
+	}
+	restore()
+	if apiBaseURL == "http://localhost:9999" {
+		t.Errorf("Expected apiBaseURL to be restored")
+	}
+}
+
 func TestCompareNumericVersions(t *testing.T) {
 	tests := []struct {
 		lVer     []string
