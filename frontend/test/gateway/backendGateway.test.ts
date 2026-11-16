@@ -362,11 +362,25 @@ describe('Clean Architecture Backend Gateway', () => {
       mockToggleMaximise.mockRejectedValue(new Error('runtime window toggle error'));
       mockClose.mockRejectedValue(new Error('runtime window close error'));
 
+      await expect(gateway.minimizeWindow()).resolves.toBeUndefined();
+      await expect(gateway.maximizeWindow()).resolves.toBeUndefined();
+      await expect(gateway.closeWindow()).resolves.toBeUndefined();
+
+      // 3. Desktop mode when runtime window has no methods (fall back to appBindings)
+      (globalThis as any).wails = { Window: {} };
+
+      await expect(gateway.minimizeWindow()).resolves.toBeUndefined();
+      await expect(gateway.maximizeWindow()).resolves.toBeUndefined();
+      await expect(gateway.closeWindow()).resolves.toBeUndefined();
+
+      // 4. Non-desktop mode with plain app methods (isMockFunction returns false, direct invocation)
+      delete (globalThis as any).chrome;
+      delete (globalThis as any).wails;
+
       let appMinimizeCalled = false;
       let appMaximizeCalled = false;
       let appCloseCalled = false;
 
-      // Plain non-mock functions so isMockFunction returns false
       const plainApp = {
         MinimizeWindow: async () => {
           appMinimizeCalled = true;
@@ -389,15 +403,7 @@ describe('Clean Architecture Backend Gateway', () => {
       await gateway.closeWindow();
       expect(appCloseCalled).toBe(true);
 
-      // 3. Desktop mode when runtime window has no methods, falling back to appBindings
-      (globalThis as any).chrome = { webview: { postMessage: () => {} } };
-      (globalThis as any).wails = { Window: {} };
-
-      await expect(gateway.minimizeWindow()).resolves.toBeUndefined();
-      await expect(gateway.maximizeWindow()).resolves.toBeUndefined();
-      await expect(gateway.closeWindow()).resolves.toBeUndefined();
-
-      // 4. Fallback when plain app window methods throw
+      // 5. Fallback when plain app window methods throw
       const throwingApp = {
         MinimizeWindow: async () => {
           throw new Error('minimize error');
@@ -410,14 +416,12 @@ describe('Clean Architecture Backend Gateway', () => {
         },
       };
       (globalThis as any).go = { main: { App: throwingApp } };
-      delete (globalThis as any).chrome;
-      delete (globalThis as any).wails;
 
       await expect(gateway.minimizeWindow()).resolves.toBeUndefined();
       await expect(gateway.maximizeWindow()).resolves.toBeUndefined();
       await expect(gateway.closeWindow()).resolves.toBeUndefined();
 
-      // 5. onEvent fallback when runtime is undefined
+      // 6. onEvent fallback when runtime is undefined
       delete (globalThis as any).runtime;
       const noopUnsub = gateway.onEvent('unsupported-event', () => {});
       expect(typeof noopUnsub).toBe('function');
