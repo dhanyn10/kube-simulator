@@ -7,6 +7,11 @@ import (
 	"path/filepath"
 )
 
+// StartCmd executes the command. Overridable in tests.
+var StartCmd = func(cmd *exec.Cmd) error {
+	return cmd.Start()
+}
+
 // getExplorerCommand constructs the exec.Cmd for launching Windows File Explorer.
 func getExplorerCommand(cleanPath string) *exec.Cmd { //NOSONAR
 	return exec.Command("explorer.exe", cleanPath) //NOSONAR
@@ -17,7 +22,7 @@ func getExplorerCommand(cleanPath string) *exec.Cmd { //NOSONAR
 func OpenInExplorer(filePath string) error {
 	// explorer.exe is a GUI application; do NOT set HideWindow: true as it causes Windows to launch File Explorer in hidden mode.
 	cmd := getExplorerCommand(filepath.Clean(filePath))
-	if err := cmd.Start(); err != nil {
+	if err := StartCmd(cmd); err != nil {
 		return err
 	}
 	return nil

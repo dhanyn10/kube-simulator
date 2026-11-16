@@ -333,6 +333,97 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(await gateway.searchDockerHub('redis')).toContain('redis');
     });
 
+    it('covers desktop runtime and window action fallback chains', async () => {
+      // 1. Desktop mode with runtime window functions that succeed
+      const mockMinimise = vi.fn().mockResolvedValue(undefined);
+      const mockToggleMaximise = vi.fn().mockResolvedValue(undefined);
+      const mockClose = vi.fn().mockResolvedValue(undefined);
+
+      (globalThis as any).chrome = { webview: { postMessage: () => {} } };
+      (globalThis as any).wails = {
+        Window: {
+          Minimise: mockMinimise,
+          ToggleMaximise: mockToggleMaximise,
+          Close: mockClose,
+        },
+      };
+
+      await gateway.minimizeWindow();
+      expect(mockMinimise).toHaveBeenCalledTimes(1);
+
+      await gateway.maximizeWindow();
+      expect(mockToggleMaximise).toHaveBeenCalledTimes(1);
+
+      await gateway.closeWindow();
+      expect(mockClose).toHaveBeenCalledTimes(1);
+
+      // 2. Desktop mode with runtime window functions that throw (fall back gracefully)
+      mockMinimise.mockRejectedValue(new Error('runtime window minimize error'));
+      mockToggleMaximise.mockRejectedValue(new Error('runtime window toggle error'));
+      mockClose.mockRejectedValue(new Error('runtime window close error'));
+
+      let appMinimizeCalled = false;
+      let appMaximizeCalled = false;
+      let appCloseCalled = false;
+
+      // Plain non-mock functions so isMockFunction returns false
+      const plainApp = {
+        MinimizeWindow: async () => {
+          appMinimizeCalled = true;
+        },
+        MaximizeWindow: async () => {
+          appMaximizeCalled = true;
+        },
+        CloseWindow: async () => {
+          appCloseCalled = true;
+        },
+      };
+      (globalThis as any).go = { main: { App: plainApp } };
+
+      await gateway.minimizeWindow();
+      expect(appMinimizeCalled).toBe(true);
+
+      await gateway.maximizeWindow();
+      expect(appMaximizeCalled).toBe(true);
+
+      await gateway.closeWindow();
+      expect(appCloseCalled).toBe(true);
+
+      // 3. Desktop mode when runtime window has no methods, falling back to appBindings
+      (globalThis as any).chrome = { webview: { postMessage: () => {} } };
+      (globalThis as any).wails = { Window: {} };
+
+      await expect(gateway.minimizeWindow()).resolves.toBeUndefined();
+      await expect(gateway.maximizeWindow()).resolves.toBeUndefined();
+      await expect(gateway.closeWindow()).resolves.toBeUndefined();
+
+      // 4. Fallback when plain app window methods throw
+      const throwingApp = {
+        MinimizeWindow: async () => {
+          throw new Error('minimize error');
+        },
+        MaximizeWindow: async () => {
+          throw new Error('maximize error');
+        },
+        CloseWindow: async () => {
+          throw new Error('close error');
+        },
+      };
+      (globalThis as any).go = { main: { App: throwingApp } };
+      delete (globalThis as any).chrome;
+      delete (globalThis as any).wails;
+
+      await expect(gateway.minimizeWindow()).resolves.toBeUndefined();
+      await expect(gateway.maximizeWindow()).resolves.toBeUndefined();
+      await expect(gateway.closeWindow()).resolves.toBeUndefined();
+
+      // 5. onEvent fallback when runtime is undefined
+      delete (globalThis as any).runtime;
+      const noopUnsub = gateway.onEvent('unsupported-event', () => {});
+      expect(typeof noopUnsub).toBe('function');
+      noopUnsub();
+    });
+
     it('handles globalThis.runtime events', () => {
       const mockRuntime = {
         EventsOn: vi.fn().mockReturnValue(() => {}),

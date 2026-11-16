@@ -245,4 +245,10 @@ describe('LogModal', () => {
         fireEvent.click(screen.getByTestId('log-pagination-page-2'));
         expect(screen.getByTestId('log-pagination-page-2').className).toContain('bg-blue-600');
     });
+
+    it('closes modal when Escape key is pressed', () => {
+        render(<LogModal />);
+        fireEvent.keyDown(globalThis, { key: 'Escape' });
+        expect(useFlowStore.getState().isLogModalOpen).toBe(false);
+    });
 });
