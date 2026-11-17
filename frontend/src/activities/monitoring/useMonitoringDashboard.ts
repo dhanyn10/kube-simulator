@@ -2,17 +2,15 @@
  * Custom hooks and state handlers for Monitoring Dashboard.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useFlowStore } from '@/store';
 import { getBackendGateway } from '@/gateway';
-import { broadcastMetrics } from '@/store/slices/simulationManager';
-import { handleSimulationControl, applyTrafficSpike } from './simulationControlHelpers';
+import { useSimulationSync } from './useSimulationSync';
 
 export const useMonitoringDashboardHandler = () => {
   const isMonitoringOpen = useFlowStore((state) => state.isMonitoringOpen);
   const setMonitoringOpen = useFlowStore((state) => state.setMonitoringOpen);
   const isMonitoringDetached = useFlowStore((state) => state.isMonitoringDetached);
-  const setMonitoringDetached = useFlowStore((state) => state.setMonitoringDetached);
   const simulationMetrics = useFlowStore((state) => state.simulationMetrics);
   const nodes = useFlowStore((state) => state.nodes);
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -29,63 +27,11 @@ export const useMonitoringDashboardHandler = () => {
     (n.type === 'Pod' && !n.parentId)
   );
 
-  useEffect(() => {
-    const channel = new BroadcastChannel('monitoring-data');
-    const gw = getBackendGateway();
+  const handleDetachOpen = useCallback(() => {
+    setMonitoringOpen(false);
+  }, [setMonitoringOpen]);
 
-    const sendSnapshot = () => {
-      const state = useFlowStore.getState();
-      const workloadNodes = state.nodes.filter(
-        (n) => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)
-      );
-      broadcastMetrics(state.simulationMetrics, workloadNodes, {
-        isSimulating: state.isSimulating,
-        isPaused: state.isPaused,
-        speed: state.simulationSpeed,
-      });
-    };
-
-    const handleOpen = () => {
-      setMonitoringDetached(true);
-      setMonitoringOpen(false);
-      sendSnapshot();
-    };
-
-    const handleClose = () => {
-      setMonitoringDetached(false);
-    };
-
-    channel.onmessage = (event) => {
-      if (event.data.type === 'DETACHED_OPEN') {
-        handleOpen();
-      } else if (event.data.type === 'DETACHED_CLOSED') {
-        handleClose();
-      } else if (event.data.type === 'REQUEST_SNAPSHOT') {
-        sendSnapshot();
-      } else if (event.data.type === 'SIMULATION_CONTROL') {
-        handleSimulationControl(event.data, useFlowStore.getState);
-      }
-    };
-
-    const unsubOpen = gw.onEvent('detached-open', handleOpen);
-    const unsubClose = gw.onEvent('detached-closed', handleClose);
-    const unsubSpeed = gw.onEvent('simulation-speed-change', (speed: number) => {
-      useFlowStore.getState().setSimulationSpeed(speed as 1 | 5 | 10);
-    });
-    const unsubSpike = gw.onEvent('simulation-traffic-spike', (mult: number) => {
-      applyTrafficSpike(useFlowStore.getState, mult);
-    });
-    const unsubSnapReq = gw.onEvent('request-monitoring-snapshot', sendSnapshot);
-
-    return () => {
-      channel.close();
-      unsubOpen();
-      unsubClose();
-      unsubSpeed();
-      unsubSpike();
-      unsubSnapReq();
-    };
-  }, [setMonitoringDetached, setMonitoringOpen]);
+  useSimulationSync({ onDetachOpen: handleDetachOpen });
 
   const handleDetach = async () => {
     await getBackendGateway().openSimulationWindow();

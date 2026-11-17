@@ -117,4 +117,20 @@ describe('useSimulationSync', () => {
     unmount();
     expect(Object.keys(wailsEvents)).toHaveLength(0);
   });
+
+  it('invokes onDetachOpen callback when detached window is opened', () => {
+    const onDetachOpen = vi.fn();
+    renderHook(() => useSimulationSync({ onDetachOpen }));
+
+    act(() => {
+      broadcastListener?.({ type: 'DETACHED_OPEN' });
+    });
+    expect(onDetachOpen).toHaveBeenCalledTimes(1);
+    expect(useFlowStore.getState().isMonitoringDetached).toBe(true);
+
+    act(() => {
+      wailsEvents['detached-open']?.();
+    });
+    expect(onDetachOpen).toHaveBeenCalledTimes(2);
+  });
 });

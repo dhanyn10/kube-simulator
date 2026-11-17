@@ -1,15 +1,24 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFlowStore } from '@/store';
 import { getBackendGateway } from '@/gateway';
 import { broadcastMetrics } from '@/store/slices/simulationManager';
 import { handleSimulationControl, applyTrafficSpike } from './simulationControlHelpers';
 
+export interface SimulationSyncOptions {
+  onDetachOpen?: () => void;
+}
+
 /**
  * Hook to manage real-time synchronization between the main window simulation
  * and the detached standalone monitoring window (System Monitor view).
  */
-export const useSimulationSync = () => {
+export const useSimulationSync = (options?: SimulationSyncOptions) => {
   const setMonitoringDetached = useFlowStore((state) => state.setMonitoringDetached);
+  const onDetachOpenRef = useRef(options?.onDetachOpen);
+
+  useEffect(() => {
+    onDetachOpenRef.current = options?.onDetachOpen;
+  }, [options?.onDetachOpen]);
 
   useEffect(() => {
     const isDetachedMode =
@@ -34,6 +43,7 @@ export const useSimulationSync = () => {
 
     const handleOpen = () => {
       setMonitoringDetached(true);
+      onDetachOpenRef.current?.();
       sendSnapshot();
     };
 
