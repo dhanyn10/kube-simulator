@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { XAxisTick, YAxisScaleTick } from './chartHelpers';
+import { XAxisTick, YAxisScaleTick, Point2D } from './chartHelpers';
 
 interface SystemMonitorAxisBottomProps {
   xTicks: XAxisTick[];
@@ -58,3 +58,49 @@ export const SystemMonitorVerticalGrid = ({ xTicks }: SystemMonitorVerticalGridP
     ))}
   </div>
 );
+
+interface PulsingLeadingDotProps {
+  point?: Point2D;
+  color: string;
+  isSimulating?: boolean;
+}
+
+export const PulsingLeadingDot = ({
+  point,
+  color,
+  isSimulating = true,
+}: PulsingLeadingDotProps) => {
+  if (!point) return null;
+
+  return (
+    <g className="pointer-events-none select-none">
+      {/* Outer pulsing radar ring */}
+      {isSimulating && (
+        <circle
+          cx={point.x}
+          cy={point.y}
+          r="5"
+          fill={color}
+          className="animate-ping opacity-50 origin-center"
+        />
+      )}
+      {/* Soft glowing halo */}
+      <circle
+        cx={point.x}
+        cy={point.y}
+        r="4"
+        fill={color}
+        fillOpacity="0.35"
+      />
+      {/* Inner high-contrast solid core */}
+      <circle
+        cx={point.x}
+        cy={point.y}
+        r="2.5"
+        fill="#ffffff"
+        stroke={color}
+        strokeWidth="1.5"
+      />
+    </g>
+  );
+};

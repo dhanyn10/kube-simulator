@@ -15,6 +15,7 @@ import {
   SystemMonitorAxisBottom,
   SystemMonitorYScaleOverlay,
   SystemMonitorVerticalGrid,
+  PulsingLeadingDot,
 } from './SystemMonitorChartAxes';
 import { Layers } from 'lucide-react';
 
@@ -23,6 +24,7 @@ interface SystemMonitorReplicasPanelProps {
   metrics: Record<string, SimulationMetricPoint[]>;
   colorMode?: 'dark' | 'light';
   interval?: TimeRangeFilter;
+  isSimulating?: boolean;
 }
 
 export const SystemMonitorReplicasPanel = ({
@@ -30,6 +32,7 @@ export const SystemMonitorReplicasPanel = ({
   metrics,
   colorMode = 'dark',
   interval = '1h',
+  isSimulating = true,
 }: SystemMonitorReplicasPanelProps) => {
   const isDark = colorMode === 'dark';
 
@@ -63,12 +66,29 @@ export const SystemMonitorReplicasPanel = ({
         const current = dep.replicas || 1;
         const capacity = Math.round(1440 / parseIntervalMinutes(interval));
         const svgPoints = buildSvgPoints(data, dynamicMaxReplicas, 500, 100, capacity);
-        return { id: dep.id, label: dep.label, color, current, data, svgPoints };
+        const lastY = Math.round(100 - (Math.min(dynamicMaxReplicas, current) / dynamicMaxReplicas) * 90);
+        return {
+          id: dep.id,
+          label: dep.label,
+          color,
+          current,
+          data,
+          svgPoints,
+          lastPoint: { x: 500, y: lastY },
+        };
       }
 
       const aggregated = aggregateMetricSeries(points, 'replicas', interval, dynamicMaxReplicas, 500, 100);
       const current = Math.round(aggregated.currentVal) || dep.replicas || 1;
-      return { id: dep.id, label: dep.label, color, current, data: aggregated.data, svgPoints: aggregated.svgPoints };
+      return {
+        id: dep.id,
+        label: dep.label,
+        color,
+        current,
+        data: aggregated.data,
+        svgPoints: aggregated.svgPoints,
+        lastPoint: aggregated.lastPoint,
+      };
     });
   }, [deployments, metrics, interval, dynamicMaxReplicas]);
 
@@ -106,16 +126,25 @@ export const SystemMonitorReplicasPanel = ({
         ) : (
           <svg aria-hidden="true" viewBox="0 0 500 100" className="w-full h-full" preserveAspectRatio="none">
             {replicaSeries.map((s) => (
-              <polyline
-                key={`replica-${s.id}`}
-                fill="none"
-                stroke={s.color}
-                strokeWidth="2.5"
-                strokeLinecap="square"
-                strokeLinejoin="miter"
-                points={s.svgPoints}
-                className="transition-all duration-300"
-              />
+              <g key={`replica-${s.id}`}>
+                <polyline
+                  fill="none"
+                  stroke={s.color}
+                  strokeWidth="2.5"
+                  strokeLinecap="square"
+                  strokeLinejoin="miter"
+                  points={s.svgPoints}
+                  style={{
+                    filter: isDark ? `drop-shadow(0 0 4px ${s.color}80)` : undefined,
+                  }}
+                  className="transition-all duration-300"
+                />
+                <PulsingLeadingDot
+                  point={s.lastPoint}
+                  color={s.color}
+                  isSimulating={isSimulating}
+                />
+              </g>
             ))}
           </svg>
         )}

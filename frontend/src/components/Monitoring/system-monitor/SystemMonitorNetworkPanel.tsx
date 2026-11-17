@@ -3,8 +3,9 @@ import { cn } from '@/lib/utils';
 import { SimulationMetricPoint } from '@/store/types';
 import { DeploymentSummary, TimeRangeFilter } from './types';
 import {
-  buildSvgPoints,
-  buildAreaPath,
+  dataToCoords,
+  buildSmoothPath,
+  buildSmoothAreaPath,
   parseIntervalMinutes,
   calculateDynamicYMax,
   generateYAxisScale,
@@ -14,6 +15,7 @@ import {
   SystemMonitorAxisBottom,
   SystemMonitorYScaleOverlay,
   SystemMonitorVerticalGrid,
+  PulsingLeadingDot,
 } from './SystemMonitorChartAxes';
 import { Activity, Globe } from 'lucide-react';
 
@@ -22,6 +24,7 @@ interface SystemMonitorNetworkPanelProps {
   metrics: Record<string, SimulationMetricPoint[]>;
   colorMode?: 'dark' | 'light';
   interval?: TimeRangeFilter;
+  isSimulating?: boolean;
 }
 
 export const SystemMonitorNetworkPanel = ({
@@ -29,6 +32,7 @@ export const SystemMonitorNetworkPanel = ({
   metrics,
   colorMode = 'dark',
   interval = '1h',
+  isSimulating = true,
 }: SystemMonitorNetworkPanelProps) => {
   const isDark = colorMode === 'dark';
 
@@ -94,8 +98,9 @@ export const SystemMonitorNetworkPanel = ({
   }, [rpsData]);
 
   const capacity = Math.round(1440 / parseIntervalMinutes(interval));
-  const rpsPoints = buildSvgPoints(rpsData, dynamicMaxRps, 500, 100, capacity);
-  const areaPath = buildAreaPath(rpsPoints, 500, 100);
+  const coords = dataToCoords(rpsData, dynamicMaxRps, 500, 100, capacity);
+  const { linePath: smoothPath, firstPoint, lastPoint } = buildSmoothPath(coords, 0.25);
+  const areaPath = buildSmoothAreaPath(smoothPath, firstPoint || coords[0], lastPoint || coords.at(-1)!, 100);
   const yScale = useMemo(() => generateYAxisScale(dynamicMaxRps, ' req/s', 3), [dynamicMaxRps]);
   const xTicks = useMemo(() => generateXAxisTicks(interval), [interval]);
 
@@ -144,15 +149,24 @@ export const SystemMonitorNetworkPanel = ({
               fillOpacity="0.15"
               className="transition-all duration-300"
             />
-            {/* Latency line */}
-            <polyline
+            {/* Smooth Ingress Curve with Emerald Neon Glow */}
+            <path
+              d={smoothPath}
               fill="none"
               stroke="#10b981"
-              strokeWidth="2"
+              strokeWidth="2.2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              points={rpsPoints}
+              style={{
+                filter: isDark ? 'drop-shadow(0 0 5px #10b98190)' : undefined,
+              }}
               className="transition-all duration-300"
+            />
+            {/* Pulsing Leading Edge Dot */}
+            <PulsingLeadingDot
+              point={lastPoint}
+              color="#10b981"
+              isSimulating={isSimulating}
             />
           </svg>
         )}

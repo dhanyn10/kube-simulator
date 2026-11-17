@@ -203,6 +203,7 @@ export const SystemMonitorDashboard = () => {
               showThresholds={true}
               colorMode={colorMode}
               interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
             />
 
             <SystemMonitorTimeSeriesPanel
@@ -216,6 +217,7 @@ export const SystemMonitorDashboard = () => {
               showThresholds={false}
               colorMode={colorMode}
               interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
             />
 
             <SystemMonitorNetworkPanel
@@ -223,6 +225,7 @@ export const SystemMonitorDashboard = () => {
               metrics={metrics}
               colorMode={colorMode}
               interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
             />
 
             <SystemMonitorReplicasPanel
@@ -230,6 +233,7 @@ export const SystemMonitorDashboard = () => {
               metrics={metrics}
               colorMode={colorMode}
               interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
             />
           </div>
         )}

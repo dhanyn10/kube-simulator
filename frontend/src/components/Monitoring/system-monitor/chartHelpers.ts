@@ -22,11 +22,19 @@ export interface SeriesStats {
   isOOM?: boolean;
 }
 
+export interface Point2D {
+  x: number;
+  y: number;
+}
+
 export interface AggregatedSeriesResult {
   data: number[];
   svgPoints: string;
+  smoothPath: string;
   areaPath: string;
   currentVal: number;
+  lastPoint?: Point2D;
+  firstPoint?: Point2D;
 }
 
 export interface XAxisTick {
@@ -195,6 +203,99 @@ export const calculateSeriesStats = (
 };
 
 /**
+ * Maps an array of numeric data values to 2D screen coordinates streaming from right to left.
+ */
+export const dataToCoords = (
+  data: number[],
+  maxVal: number = 100,
+  viewWidth: number = 500,
+  viewHeight: number = 140,
+  capacity?: number
+): Point2D[] => {
+  if (data.length === 0) return [];
+  const count = data.length;
+  const effectiveCapacity = capacity ? Math.max(count, capacity) : Math.max(30, count);
+  const stepX = viewWidth / Math.max(1, effectiveCapacity - 1);
+
+  const coords = data.map((val, i) => {
+    const x = Math.max(0, Math.round(viewWidth - (count - 1 - i) * stepX));
+    const safeVal = Math.min(maxVal, Math.max(0, val));
+    const y = Math.round(viewHeight - (safeVal / maxVal) * (viewHeight - 10));
+    return { x, y };
+  });
+
+  if (coords.length === 1) {
+    coords.unshift({ x: Math.max(0, viewWidth - Math.round(stepX)), y: coords[0].y });
+  }
+
+  return coords;
+};
+
+/**
+ * Converts an array of 2D coordinates into a smooth Catmull-Rom cubic bezier SVG path string.
+ */
+export const buildSmoothPath = (
+  coords: Point2D[],
+  tension: number = 0.25
+): { linePath: string; lastPoint?: Point2D; firstPoint?: Point2D } => {
+  if (!coords || coords.length === 0) {
+    return { linePath: '' };
+  }
+  if (coords.length === 1) {
+    const p = coords[0];
+    return { linePath: `M${p.x},${p.y}`, lastPoint: p, firstPoint: p };
+  }
+  if (coords.length === 2) {
+    const [p0, p1] = coords;
+    return {
+      linePath: `M${p0.x},${p0.y} L${p1.x},${p1.y}`,
+      lastPoint: p1,
+      firstPoint: p0,
+    };
+  }
+
+  const n = coords.length;
+  let d = `M${coords[0].x},${coords[0].y}`;
+
+  for (let i = 0; i < n - 1; i++) {
+    const pPrev = coords[Math.max(0, i - 1)];
+    const pCurr = coords[i];
+    const pNext = coords[i + 1];
+    const pAfter = coords[Math.min(n - 1, i + 2)];
+
+    // Control point 1
+    const cp1x = Math.round(pCurr.x + (pNext.x - pPrev.x) * tension);
+    const cp1y = Math.round(pCurr.y + (pNext.y - pPrev.y) * tension);
+
+    // Control point 2
+    const cp2x = Math.round(pNext.x - (pAfter.x - pCurr.x) * tension);
+    const cp2y = Math.round(pNext.y - (pAfter.y - pCurr.y) * tension);
+
+    d += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${pNext.x},${pNext.y}`;
+  }
+
+  return {
+    linePath: d,
+    firstPoint: coords[0],
+    lastPoint: coords.at(-1),
+  };
+};
+
+/**
+ * Builds a closed SVG path for area fill under a smooth cubic bezier line.
+ */
+export const buildSmoothAreaPath = (
+  smoothLinePath: string,
+  firstPoint: Point2D,
+  lastPoint: Point2D,
+  viewHeight: number = 140
+): string => {
+  if (!smoothLinePath) return `M0,${viewHeight} L500,${viewHeight} Z`;
+  const curvePart = smoothLinePath.replace(/^M[0-9.,-]+/, '');
+  return `M${firstPoint.x},${viewHeight} L${firstPoint.x},${firstPoint.y}${curvePart} L${lastPoint.x},${viewHeight} Z`;
+};
+
+/**
  * Constructs an SVG path for area fill under the line, bounded between first point and viewWidth.
  */
 export const buildAreaPath = (
@@ -220,24 +321,8 @@ export const buildSvgPoints = (
   capacity?: number
 ): string => {
   if (data.length === 0) return `0,${viewHeight} ${viewWidth},${viewHeight}`;
-  const count = data.length;
-  const effectiveCapacity = capacity ? Math.max(count, capacity) : Math.max(30, count);
-  const stepX = viewWidth / Math.max(1, effectiveCapacity - 1);
-
-  const coords = data.map((val, i) => {
-    // Windows Task Manager oscilloscope: right-to-left
-    // Newest point (i = count - 1) is at viewWidth
-    const x = Math.max(0, Math.round(viewWidth - (count - 1 - i) * stepX));
-    const safeVal = Math.min(maxVal, Math.max(0, val));
-    const y = Math.round(viewHeight - (safeVal / maxVal) * (viewHeight - 10));
-    return `${x},${y}`;
-  });
-
-  if (coords.length === 1) {
-    coords.unshift(`${Math.max(0, viewWidth - Math.round(stepX))},${coords[0].split(',')[1]}`);
-  }
-
-  return coords.join(' ');
+  const coords = dataToCoords(data, maxVal, viewWidth, viewHeight, capacity);
+  return coords.map((p) => `${p.x},${p.y}`).join(' ');
 };
 
 /**
@@ -252,9 +337,10 @@ export const aggregateMetricSeries = (
   viewWidth: number = 500,
   viewHeight: number = 140
 ): AggregatedSeriesResult => {
-  const defaultEmpty = {
+  const defaultEmpty: AggregatedSeriesResult = {
     data: [],
     svgPoints: `0,${viewHeight} ${viewWidth},${viewHeight}`,
+    smoothPath: `M0,${viewHeight} L${viewWidth},${viewHeight}`,
     areaPath: `M0,${viewHeight} L${viewWidth},${viewHeight} Z`,
     currentVal: 0,
   };
@@ -269,13 +355,18 @@ export const aggregateMetricSeries = (
 
   if (!hasMinuteIndex) {
     const rawData = points.map((p) => Number(p[metricKey]) || 0);
-    const svgPoints = buildSvgPoints(rawData, maxVal, viewWidth, viewHeight, totalBuckets);
-    const areaPath = buildAreaPath(svgPoints, viewWidth, viewHeight);
+    const coordsList = dataToCoords(rawData, maxVal, viewWidth, viewHeight, totalBuckets);
+    const svgPoints = coordsList.map((p) => `${p.x},${p.y}`).join(' ');
+    const { linePath: smoothPath, firstPoint, lastPoint } = buildSmoothPath(coordsList, 0.25);
+    const areaPath = buildSmoothAreaPath(smoothPath, firstPoint || coordsList[0], lastPoint || coordsList.at(-1)!, viewHeight);
     return {
       data: rawData,
       svgPoints,
+      smoothPath,
       areaPath,
       currentVal: rawData.at(-1) || 0,
+      lastPoint,
+      firstPoint,
     };
   }
 
@@ -309,31 +400,21 @@ export const aggregateMetricSeries = (
   }
 
   // Windows Task Manager oscilloscope: stream from right to left
-  const stepX = viewWidth / Math.max(1, totalBuckets - 1);
-  const count = aggregatedData.length;
-  const coords: string[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const avg = aggregatedData[i];
-    const x = Math.max(0, Math.round(viewWidth - (count - 1 - i) * stepX));
-    const safeVal = Math.min(maxVal, Math.max(0, avg));
-    const y = Math.round(viewHeight - (safeVal / maxVal) * (viewHeight - 10));
-    coords.push(`${x},${y}`);
-  }
-
-  if (coords.length === 1) {
-    coords.unshift(`${Math.max(0, viewWidth - Math.round(stepX))},${coords[0].split(',')[1]}`);
-  }
+  const coordsList = dataToCoords(aggregatedData, maxVal, viewWidth, viewHeight, totalBuckets);
+  const svgPoints = coordsList.map((p) => `${p.x},${p.y}`).join(' ');
+  const { linePath: smoothPath, firstPoint, lastPoint } = buildSmoothPath(coordsList, 0.25);
+  const areaPath = buildSmoothAreaPath(smoothPath, firstPoint || coordsList[0], lastPoint || coordsList.at(-1)!, viewHeight);
 
   const latestRaw = points.at(-1);
   const currentVal = latestRaw ? (Number(latestRaw[metricKey]) || 0) : 0;
-  const svgPoints = coords.join(' ');
-  const areaPath = buildAreaPath(svgPoints, viewWidth, viewHeight);
 
   return {
     data: aggregatedData,
     svgPoints,
+    smoothPath,
     areaPath,
     currentVal,
+    lastPoint,
+    firstPoint,
   };
 };

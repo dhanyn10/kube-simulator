@@ -14,6 +14,7 @@ import {
   SystemMonitorAxisBottom,
   SystemMonitorYScaleOverlay,
   SystemMonitorVerticalGrid,
+  PulsingLeadingDot,
 } from './SystemMonitorChartAxes';
 import { ZapOff, AlertTriangle } from 'lucide-react';
 
@@ -28,6 +29,7 @@ interface SystemMonitorTimeSeriesPanelProps {
   showThresholds?: boolean;
   colorMode?: 'dark' | 'light';
   interval?: TimeRangeFilter;
+  isSimulating?: boolean;
 }
 
 interface ThresholdLinesProps {
@@ -69,6 +71,7 @@ export const SystemMonitorTimeSeriesPanel = ({
   showThresholds = true,
   colorMode = 'dark',
   interval = '1h',
+  isSimulating = true,
 }: SystemMonitorTimeSeriesPanelProps) => {
   const isDark = colorMode === 'dark';
 
@@ -98,7 +101,9 @@ export const SystemMonitorTimeSeriesPanel = ({
         ...stats,
         data: aggregated.data,
         svgPoints: aggregated.svgPoints,
+        smoothPath: aggregated.smoothPath,
         areaPath: aggregated.areaPath,
+        lastPoint: aggregated.lastPoint,
         current: Math.round(aggregated.currentVal),
       };
     });
@@ -161,15 +166,24 @@ export const SystemMonitorTimeSeriesPanel = ({
                   fillOpacity="0.12"
                   className="transition-all duration-300"
                 />
-                {/* Main Curve */}
-                <polyline
+                {/* Smooth Curve with Glow Shadow */}
+                <path
+                  d={s.smoothPath}
                   fill="none"
                   stroke={s.color}
-                  strokeWidth="2"
+                  strokeWidth="2.2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  points={s.svgPoints}
+                  style={{
+                    filter: isDark ? `drop-shadow(0 0 5px ${s.color}90)` : undefined,
+                  }}
                   className="transition-all duration-300"
+                />
+                {/* Pulsing Leading Dot at the right edge */}
+                <PulsingLeadingDot
+                  point={s.lastPoint}
+                  color={s.color}
+                  isSimulating={isSimulating}
                 />
               </g>
             ))}
