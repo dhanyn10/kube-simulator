@@ -14,6 +14,9 @@ describe('Clean Architecture Backend Gateway', () => {
     resetBackendGateway();
     delete (globalThis as any).go;
     delete (globalThis as any).runtime;
+    delete (globalThis as any).chrome;
+    delete (globalThis as any).wails;
+    delete (globalThis as any).webkit;
   });
 
   describe('Gateway Registry', () => {
@@ -138,6 +141,16 @@ describe('Clean Architecture Backend Gateway', () => {
       await mock.setInitialFile('/test/path');
       expect(mock.initialFile).toBe('/test/path');
 
+      expect(await mock.openSimulationWindow()).toBe(true);
+      expect(await mock.closeSimulationWindow()).toBe(true);
+      expect(await mock.startSimulation(5)).toBe(true);
+      expect(await mock.pauseSimulation()).toBe(true);
+      expect(await mock.resumeSimulation()).toBe(true);
+      expect(await mock.setSimulationSpeed(10)).toBe(true);
+      expect(await mock.broadcastSimulationSnapshot('{"test":1}')).toBe(true);
+      expect(await mock.getSimulationSnapshot()).toBe('{"test":1}');
+      expect(await mock.triggerTrafficSpike(2.0)).toBe(true);
+      expect(await mock.stopSimulation()).toBe(true);
       expect(await mock.calculateAppHeight(1000)).toBe(850);
       expect(await mock.getTargetScreen([])).toBe(false);
       expect(await mock.getTargetScreenHeight([])).toBe(1080);
@@ -431,6 +444,117 @@ describe('Clean Architecture Backend Gateway', () => {
       noopUnsub();
     });
 
+    it('handles simulation window opening, closing, and browser fallback chains', async () => {
+      // 1. App binding succeeds
+      const appMock = {
+        OpenSimulationWindow: vi.fn().mockResolvedValue(true),
+        CloseSimulationWindow: vi.fn().mockResolvedValue(true),
+      };
+      (globalThis as any).go = { main: { App: appMock } };
+      const gw = new WailsBackendGateway();
+      expect(await gw.openSimulationWindow()).toBe(true);
+      expect(appMock.OpenSimulationWindow).toHaveBeenCalled();
+      expect(await gw.closeSimulationWindow()).toBe(true);
+      expect(appMock.CloseSimulationWindow).toHaveBeenCalled();
+
+      // 2. App binding missing, falling back to globalThis.open
+      delete (globalThis as any).go;
+      const fakePopup = { focus: vi.fn() };
+      const openSpy = vi.fn().mockReturnValue(fakePopup);
+      const origOpen = globalThis.open;
+      globalThis.open = openSpy as any;
+
+      try {
+        const gwFallback = new WailsBackendGateway();
+        expect(await gwFallback.openSimulationWindow()).toBe(true);
+        expect(openSpy).toHaveBeenCalled();
+        expect(await gwFallback.closeSimulationWindow()).toBe(false);
+
+        // When globalThis.open throws or returns null
+        openSpy.mockImplementationOnce(() => {
+          throw new Error('popup blocked');
+        });
+        expect(await gwFallback.openSimulationWindow()).toBe(false);
+
+        openSpy.mockReturnValueOnce(null);
+        expect(await gwFallback.openSimulationWindow()).toBe(false);
+      } finally {
+        globalThis.open = origOpen;
+      }
+
+      // 3. When app binding throws
+      const throwingApp = {
+        OpenSimulationWindow: vi.fn().mockRejectedValue(new Error('fail open')),
+        CloseSimulationWindow: vi.fn().mockRejectedValue(new Error('fail close')),
+      };
+      (globalThis as any).go = { main: { App: throwingApp } };
+      const origOpen2 = globalThis.open;
+      delete (globalThis as any).open;
+      try {
+        const gwThrowing = new WailsBackendGateway();
+        expect(await gwThrowing.openSimulationWindow()).toBe(false);
+        expect(await gwThrowing.closeSimulationWindow()).toBe(false);
+      } finally {
+        globalThis.open = origOpen2;
+      }
+    });
+
+    it('handles simulation broker operations delegation and fallback chains in WailsBackendGateway', async () => {
+      // 1. App binding succeeds
+      const appMock = {
+        StartSimulation: vi.fn().mockResolvedValue(true),
+        PauseSimulation: vi.fn().mockResolvedValue(true),
+        ResumeSimulation: vi.fn().mockResolvedValue(true),
+        StopSimulation: vi.fn().mockResolvedValue(true),
+        SetSimulationSpeed: vi.fn().mockResolvedValue(true),
+        BroadcastSimulationSnapshot: vi.fn().mockResolvedValue(true),
+        GetSimulationSnapshot: vi.fn().mockResolvedValue('{"snap":true}'),
+        TriggerTrafficSpike: vi.fn().mockResolvedValue(true),
+      };
+      (globalThis as any).go = { main: { App: appMock } };
+      const gw = new WailsBackendGateway();
+
+      expect(await gw.startSimulation(5)).toBe(true);
+      expect(appMock.StartSimulation).toHaveBeenCalledWith(5);
+      expect(await gw.pauseSimulation()).toBe(true);
+      expect(appMock.PauseSimulation).toHaveBeenCalled();
+      expect(await gw.resumeSimulation()).toBe(true);
+      expect(appMock.ResumeSimulation).toHaveBeenCalled();
+      expect(await gw.setSimulationSpeed(10)).toBe(true);
+      expect(appMock.SetSimulationSpeed).toHaveBeenCalledWith(10);
+      expect(await gw.broadcastSimulationSnapshot('{}')).toBe(true);
+      expect(appMock.BroadcastSimulationSnapshot).toHaveBeenCalledWith('{}');
+      expect(await gw.getSimulationSnapshot()).toBe('{"snap":true}');
+      expect(appMock.GetSimulationSnapshot).toHaveBeenCalled();
+      expect(await gw.triggerTrafficSpike(2.5)).toBe(true);
+      expect(appMock.TriggerTrafficSpike).toHaveBeenCalledWith(2.5);
+      expect(await gw.stopSimulation()).toBe(true);
+      expect(appMock.StopSimulation).toHaveBeenCalled();
+
+      // 2. App binding throws, falling back gracefully
+      const throwingApp = {
+        StartSimulation: vi.fn().mockRejectedValue(new Error('fail start')),
+        PauseSimulation: vi.fn().mockRejectedValue(new Error('fail pause')),
+        ResumeSimulation: vi.fn().mockRejectedValue(new Error('fail resume')),
+        StopSimulation: vi.fn().mockRejectedValue(new Error('fail stop')),
+        SetSimulationSpeed: vi.fn().mockRejectedValue(new Error('fail speed')),
+        BroadcastSimulationSnapshot: vi.fn().mockRejectedValue(new Error('fail snap')),
+        GetSimulationSnapshot: vi.fn().mockRejectedValue(new Error('fail get snap')),
+        TriggerTrafficSpike: vi.fn().mockRejectedValue(new Error('fail spike')),
+      };
+      (globalThis as any).go = { main: { App: throwingApp } };
+      const gwThrowing = new WailsBackendGateway();
+
+      expect(await gwThrowing.startSimulation(1)).toBe(true);
+      expect(await gwThrowing.pauseSimulation()).toBe(true);
+      expect(await gwThrowing.resumeSimulation()).toBe(true);
+      expect(await gwThrowing.setSimulationSpeed(1)).toBe(true);
+      expect(await gwThrowing.broadcastSimulationSnapshot('{}')).toBe(true);
+      expect(await gwThrowing.getSimulationSnapshot()).toBe('{}');
+      expect(await gwThrowing.triggerTrafficSpike(2)).toBe(true);
+      expect(await gwThrowing.stopSimulation()).toBe(true);
+    });
+
     it('returns empty string when localStorage is unavailable and app has no GetSetting', async () => {
       const origLocalStorage = globalThis.localStorage;
       try {
@@ -718,6 +842,16 @@ describe('Clean Architecture Backend Gateway', () => {
       await mock.MinimizeWindow();
       await mock.MaximizeWindow();
       await mock.CloseWindow();
+      expect(await mock.OpenSimulationWindow()).toBe(true);
+      expect(await mock.CloseSimulationWindow()).toBe(true);
+      expect(await mock.StartSimulation(5)).toBe(true);
+      expect(await mock.PauseSimulation()).toBe(true);
+      expect(await mock.ResumeSimulation()).toBe(true);
+      expect(await mock.SetSimulationSpeed(10)).toBe(true);
+      expect(await mock.BroadcastSimulationSnapshot('{"test":1}')).toBe(true);
+      expect(await mock.GetSimulationSnapshot()).toBe('{"test":1}');
+      expect(await mock.TriggerTrafficSpike(2.0)).toBe(true);
+      expect(await mock.StopSimulation()).toBe(true);
       await mock.SetInitialFile('/init');
       expect(await mock.WriteLog('cat', 'info', 'msg')).toBe(true);
       expect(await mock.GetSystemInfo()).toHaveProperty('version');
@@ -734,6 +868,16 @@ describe('Clean Architecture Backend Gateway', () => {
       await expect(fallbackBindings.MinimizeWindow()).resolves.toBeUndefined();
       await expect(fallbackBindings.MaximizeWindow()).resolves.toBeUndefined();
       await expect(fallbackBindings.CloseWindow()).resolves.toBeUndefined();
+      await expect(fallbackBindings.OpenSimulationWindow()).resolves.toBe(false);
+      await expect(fallbackBindings.CloseSimulationWindow()).resolves.toBe(false);
+      await expect(fallbackBindings.StartSimulation()).resolves.toBe(true);
+      await expect(fallbackBindings.PauseSimulation()).resolves.toBe(true);
+      await expect(fallbackBindings.ResumeSimulation()).resolves.toBe(true);
+      await expect(fallbackBindings.StopSimulation()).resolves.toBe(true);
+      await expect(fallbackBindings.SetSimulationSpeed(1)).resolves.toBe(true);
+      await expect(fallbackBindings.BroadcastSimulationSnapshot('')).resolves.toBe(true);
+      await expect(fallbackBindings.GetSimulationSnapshot()).resolves.toBe('{}');
+      await expect(fallbackBindings.TriggerTrafficSpike()).resolves.toBe(true);
       await expect(fallbackBindings.Greet('Test')).resolves.toBe('');
       await expect(fallbackBindings.GetSystemResources()).resolves.toEqual({});
     });

@@ -92,6 +92,13 @@ func TestWindowService_Actions_NilContext(t *testing.T) {
 	ws.Minimize()
 	ws.Maximize()
 	ws.Close()
+
+	if ws.OpenSimulationWindow() {
+		t.Error("Expected OpenSimulationWindow to return false when application.Get() is nil")
+	}
+	if ws.CloseSimulationWindow() {
+		t.Error("Expected CloseSimulationWindow to return false when application.Get() is nil")
+	}
 }
 
 func TestWindowService_WithActiveWindowBranches(t *testing.T) {
@@ -117,6 +124,30 @@ func TestWindowService_WithActiveWindowBranches(t *testing.T) {
 			ws.Minimize()
 			ws.Maximize()
 			ws.Close()
+		}
+
+		// Test opening simulation window
+		opened := ws.OpenSimulationWindow()
+		if !opened {
+			t.Error("Expected OpenSimulationWindow to return true")
+		}
+
+		// Test opening existing simulation window (focus branch)
+		refocused := ws.OpenSimulationWindow()
+		if !refocused {
+			t.Error("Expected OpenSimulationWindow to return true when window already exists")
+		}
+
+		// Test closing simulation window
+		closed := ws.CloseSimulationWindow()
+		if !closed {
+			t.Error("Expected CloseSimulationWindow to return true")
+		}
+
+		// Test closing again when already closed
+		closedAgain := ws.CloseSimulationWindow()
+		if closedAgain {
+			t.Error("Expected CloseSimulationWindow to return false when window does not exist")
 		}
 	}
 }

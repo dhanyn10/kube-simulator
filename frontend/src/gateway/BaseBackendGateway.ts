@@ -50,9 +50,21 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   abstract minimizeWindow(): Promise<void>;
   abstract maximizeWindow(): Promise<void>;
   abstract closeWindow(): Promise<void>;
+  abstract openSimulationWindow(): Promise<boolean>;
+  abstract closeSimulationWindow(): Promise<boolean>;
   abstract calculateAppHeight(screenHeight: number): Promise<number>;
   abstract getTargetScreen(screens: any[]): Promise<any>;
   abstract getTargetScreenHeight(screens: any[]): Promise<number | boolean>;
+
+  // Simulation operations
+  abstract startSimulation(speed?: number): Promise<boolean>;
+  abstract pauseSimulation(): Promise<boolean>;
+  abstract resumeSimulation(): Promise<boolean>;
+  abstract stopSimulation(): Promise<boolean>;
+  abstract setSimulationSpeed(speed: number): Promise<boolean>;
+  abstract broadcastSimulationSnapshot(snapshotJson: string): Promise<boolean>;
+  abstract getSimulationSnapshot(): Promise<string>;
+  abstract triggerTrafficSpike(multiplier?: number): Promise<boolean>;
 
   // Logging & diagnostics
   abstract writeLog(category: string, level: string, message: string): Promise<boolean>;
@@ -121,6 +133,7 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   CalculateAppHeight(s: number) { return this.calculateAppHeight(s); }
   CheckForUpdates(v: string) { return this.checkForUpdates(v); }
   ClearAllAutosaves() { return this.clearAllAutosaves(); }
+  CloseSimulationWindow() { return this.closeSimulationWindow(); }
   CloseWindow() { return this.closeWindow(); }
   DeleteInternetProfile(n: string) { return this.deleteInternetProfile(n); }
   DeleteProject(id: number) { return this.deleteProject(id); }
@@ -147,6 +160,7 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   MinimizeWindow() { return this.minimizeWindow(); }
   OpenFileFolder(p: string) { return this.openFileFolder(p); }
   OpenLogFile(p?: string) { return this.openLogFile(p); }
+  OpenSimulationWindow() { return this.openSimulationWindow(); }
   PushHistory(s: string) { return this.pushHistory(s); }
   Redo() { return this.redo(); }
   SaveInternetProfile(n: string, p: string) { return this.saveInternetProfile(n, p); }
@@ -154,6 +168,14 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   SaveSetting(k: string, v: string) { return this.saveSetting(k, v); }
   SearchDockerHub(q: string) { return this.searchDockerHub(q); }
   SetInitialFile(p: string) { return this.setInitialFile(p); }
+  SetSimulationSpeed(s: number) { return this.setSimulationSpeed(s); }
+  StartSimulation(s?: number) { return this.startSimulation(s); }
+  PauseSimulation() { return this.pauseSimulation(); }
+  ResumeSimulation() { return this.resumeSimulation(); }
+  StopSimulation() { return this.stopSimulation(); }
+  BroadcastSimulationSnapshot(s: string) { return this.broadcastSimulationSnapshot(s); }
+  GetSimulationSnapshot() { return this.getSimulationSnapshot(); }
+  TriggerTrafficSpike(m?: number) { return this.triggerTrafficSpike(m); }
   Undo() { return this.undo(); }
   UpdateProject(id: number, c: string) { return this.updateProject(id, c); }
   WriteLog(c: string, l: string, m: string) { return this.writeLog(c, l, m); }

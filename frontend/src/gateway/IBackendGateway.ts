@@ -92,9 +92,21 @@ export interface IBackendGateway {
   minimizeWindow(): Promise<void>;
   maximizeWindow(): Promise<void>;
   closeWindow(): Promise<void>;
+  openSimulationWindow(): Promise<boolean>;
+  closeSimulationWindow(): Promise<boolean>;
   calculateAppHeight(screenHeight: number): Promise<number>;
   getTargetScreen(screens: any[]): Promise<any>;
   getTargetScreenHeight(screens: any[]): Promise<number | boolean>;
+
+  // Simulation broker operations
+  startSimulation(speed?: number): Promise<boolean>;
+  pauseSimulation(): Promise<boolean>;
+  resumeSimulation(): Promise<boolean>;
+  stopSimulation(): Promise<boolean>;
+  setSimulationSpeed(speed: number): Promise<boolean>;
+  broadcastSimulationSnapshot(snapshotJson: string): Promise<boolean>;
+  getSimulationSnapshot(): Promise<string>;
+  triggerTrafficSpike(multiplier?: number): Promise<boolean>;
 
   // Logging & diagnostics
   writeLog(category: string, level: string, message: string): Promise<boolean>;
@@ -121,6 +133,7 @@ export interface IBackendGateway {
   CalculateAppHeight(screenHeight: number): Promise<number>;
   CheckForUpdates(currentVersion: string): Promise<UpdateInfoData>;
   ClearAllAutosaves(): Promise<boolean>;
+  CloseSimulationWindow(): Promise<boolean>;
   CloseWindow(): Promise<void>;
   DeleteInternetProfile(name: string): Promise<boolean>;
   DeleteProject(id: number): Promise<boolean>;
@@ -147,6 +160,7 @@ export interface IBackendGateway {
   MinimizeWindow(): Promise<void>;
   OpenFileFolder(filePath: string): Promise<boolean>;
   OpenLogFile(filePath?: string): Promise<boolean>;
+  OpenSimulationWindow(): Promise<boolean>;
   PushHistory(stateJson: string): Promise<void>;
   Redo(): Promise<string | null>;
   SaveInternetProfile(name: string, profileJson: string): Promise<boolean>;
@@ -154,6 +168,14 @@ export interface IBackendGateway {
   SaveSetting(key: string, value: string): Promise<boolean>;
   SearchDockerHub(query: string): Promise<string>;
   SetInitialFile(filePath: string): Promise<void>;
+  SetSimulationSpeed(speed: number): Promise<boolean>;
+  StartSimulation(speed?: number): Promise<boolean>;
+  PauseSimulation(): Promise<boolean>;
+  ResumeSimulation(): Promise<boolean>;
+  StopSimulation(): Promise<boolean>;
+  BroadcastSimulationSnapshot(snapshotJson: string): Promise<boolean>;
+  GetSimulationSnapshot(): Promise<string>;
+  TriggerTrafficSpike(multiplier?: number): Promise<boolean>;
   Undo(): Promise<string | null>;
   UpdateProject(id: number, content: string): Promise<boolean>;
   WriteLog(category: string, level: string, message: string): Promise<boolean>;

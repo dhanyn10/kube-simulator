@@ -207,10 +207,11 @@ describe('MenuBar', () => {
     });
   });
 
-  it('handles View > Simulation menu item when monitoring is closed vs open vs detached', async () => {
+  it('handles View > Simulation menu item by directly opening detached simulation window', async () => {
     const setMonitoringOpen = vi.spyOn(useFlowStore.getState(), 'setMonitoringOpen');
+    const setMonitoringDetached = vi.spyOn(useFlowStore.getState(), 'setMonitoringDetached');
 
-    // Case 1: Monitoring is closed -> opens monitoring
+    // Case 1: Initial state -> clicking Simulation directly enters detached mode (View 2)
     await act(async () => {
       useFlowStore.setState({ isMonitoringOpen: false, isMonitoringDetached: false });
     });
@@ -218,28 +219,19 @@ describe('MenuBar', () => {
 
     fireEvent.click(screen.getByText('View'));
     fireEvent.click(screen.getByText('Simulation'));
+    expect(setMonitoringDetached).toHaveBeenCalledWith(true);
     expect(setMonitoringOpen).toHaveBeenCalledWith(true);
 
-    // Case 2: Monitoring is open -> closes simulation
+    // Case 2: Already in detached mode -> menu shows detached label and clicking refocuses window
     await act(async () => {
-      useFlowStore.setState({ isMonitoringOpen: true, isMonitoringDetached: false });
-    });
-    rerender(<MenuBar {...defaultProps} />);
-
-    fireEvent.click(screen.getByText('View'));
-    fireEvent.click(screen.getByText('Close Simulation'));
-    expect(setMonitoringOpen).toHaveBeenCalledWith(false);
-
-    // Case 3: Monitoring is detached
-    await act(async () => {
-      useFlowStore.setState({ isMonitoringOpen: false, isMonitoringDetached: true });
+      useFlowStore.setState({ isMonitoringOpen: true, isMonitoringDetached: true });
     });
     rerender(<MenuBar {...defaultProps} />);
 
     fireEvent.click(screen.getByText('View'));
     expect(screen.getByText('Monitoring: Detached')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Monitoring: Detached'));
-    expect(setMonitoringOpen).toHaveBeenCalledTimes(2);
+    expect(setMonitoringDetached).toHaveBeenCalledTimes(2);
   });
 
   it('handles View > Utilities menu item when history view is open or closed', async () => {

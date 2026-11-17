@@ -2,15 +2,15 @@
  * Custom hooks and state handlers for Monitoring Dashboard.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useFlowStore } from '@/store';
 import { getBackendGateway } from '@/gateway';
+import { useSimulationSync } from './useSimulationSync';
 
 export const useMonitoringDashboardHandler = () => {
   const isMonitoringOpen = useFlowStore((state) => state.isMonitoringOpen);
   const setMonitoringOpen = useFlowStore((state) => state.setMonitoringOpen);
   const isMonitoringDetached = useFlowStore((state) => state.isMonitoringDetached);
-  const setMonitoringDetached = useFlowStore((state) => state.setMonitoringDetached);
   const simulationMetrics = useFlowStore((state) => state.simulationMetrics);
   const nodes = useFlowStore((state) => state.nodes);
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -27,48 +27,15 @@ export const useMonitoringDashboardHandler = () => {
     (n.type === 'Pod' && !n.parentId)
   );
 
-  useEffect(() => {
-    const channel = new BroadcastChannel('monitoring-data');
-    const gw = getBackendGateway();
+  const handleDetachOpen = useCallback(() => {
+    setMonitoringOpen(false);
+  }, [setMonitoringOpen]);
 
-    const handleOpen = () => {
-      setMonitoringDetached(true);
-      setMonitoringOpen(false);
-    };
+  useSimulationSync({ onDetachOpen: handleDetachOpen });
 
-    const handleClose = () => {
-      setMonitoringDetached(false);
-    };
-
-    channel.onmessage = (event) => {
-      if (event.data.type === 'DETACHED_OPEN') {
-        handleOpen();
-      } else if (event.data.type === 'DETACHED_CLOSED') {
-        handleClose();
-      }
-    };
-
-    const unsubOpen = gw.onEvent('detached-open', handleOpen);
-    const unsubClose = gw.onEvent('detached-closed', handleClose);
-
-    return () => {
-      channel.close();
-      unsubOpen();
-      unsubClose();
-    };
-  }, [setMonitoringDetached, setMonitoringOpen]);
-
-  const handleDetach = () => {
-    const width = 800;
-    const height = 600;
-    const left = (globalThis.screen.width / 2) - (width / 2);
-    const top = (globalThis.screen.height / 2) - (height / 2);
-
-    globalThis.open(
-      `${globalThis.location.origin}${globalThis.location.pathname}?mode=monitoring`,
-      '_blank',
-      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-    );
+  const handleDetach = async () => {
+    await getBackendGateway().openSimulationWindow();
+    setMonitoringOpen(false);
   };
 
   useEffect(() => {
@@ -107,6 +74,26 @@ export const useMonitoringDashboardHandler = () => {
     };
   };
 
+  const isSimulating = useFlowStore((state) => state.isSimulating);
+  const simulationSpeed = useFlowStore((state) => state.simulationSpeed) || 1;
+
+  let totalCpu = 0;
+  let totalMem = 0;
+  let activeCount = 0;
+  workloads.forEach((w) => {
+    const pts = simulationMetrics[w.id];
+    if (pts && pts.length > 0) {
+      const last = pts.at(-1);
+      if (last) {
+        totalCpu += last.cpuPercent || 0;
+        totalMem += last.memoryPercent || 0;
+        activeCount++;
+      }
+    }
+  });
+  const clusterCpuAvg = activeCount > 0 ? Math.round(totalCpu / activeCount) : 0;
+  const clusterMemAvg = activeCount > 0 ? Math.round(totalMem / activeCount) : 0;
+
   return {
     isMonitoringOpen,
     setMonitoringOpen,
@@ -116,6 +103,10 @@ export const useMonitoringDashboardHandler = () => {
     position,
     dashboardRef,
     workloads,
+    isSimulating,
+    simulationSpeed,
+    clusterCpuAvg,
+    clusterMemAvg,
     handleDetach,
     handleMouseDown,
   };

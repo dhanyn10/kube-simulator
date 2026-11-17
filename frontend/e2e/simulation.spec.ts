@@ -51,11 +51,14 @@ test.describe('Traffic Simulation', () => {
     // 4. Start Simulation
     await page.getByRole('button', { name: 'Play', exact: true }).click();
 
-    // 5. Check Dashboard
+    // 5. Check Dashboard in Detached System Monitor window
+    const popupPromise = page.waitForEvent('popup');
     await page.getByText('View', { exact: true }).click();
     await page.getByText('Simulation', { exact: true }).click();
-    await expect(page.getByText('System Monitoring')).toBeVisible();
-    await expect(page.getByText('deployment', { exact: false }).last()).toBeVisible({ timeout: 10000 });
+    const monitorPage = await popupPromise;
+    await expect(monitorPage.getByTestId('system-monitor-header')).toBeVisible();
+    await expect(monitorPage.getByText('System Monitor', { exact: true })).toBeVisible();
+    await expect(monitorPage.getByText('deployment', { exact: false }).last()).toBeVisible({ timeout: 10000 });
   });
 
   test('HPA scaling logic', async ({ page }) => {

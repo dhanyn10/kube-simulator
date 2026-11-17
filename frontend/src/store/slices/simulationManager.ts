@@ -3,6 +3,7 @@ import { Node, Edge } from '@xyflow/react';
 import type { FlowState, SimulationMetricPoint } from '@/store/types';
 import { K8sNodeData } from '@/types';
 import { validateResourceLimits } from '@/lib/utils';
+import { getBackendGateway } from '@/gateway';
 
 // Centralize side-effect handlers
 let metricsChannel: BroadcastChannel | null = new BroadcastChannel('monitoring-data');
@@ -80,10 +81,23 @@ export const stopSimulation = (set: (state: Partial<FlowState>) => void, get: ()
  * @param metrics The current simulation metrics.
  * @param workloads List of active workload nodes.
  */
-export const broadcastMetrics = (metrics: Record<string, SimulationMetricPoint[]>, workloads: Node[]) => {
+export const broadcastMetrics = (
+  metrics: Record<string, SimulationMetricPoint[]>,
+  workloads: Node[],
+  extraState?: { isSimulating?: boolean; isPaused?: boolean; speed?: number }
+) => {
   const payload = {
     metrics,
-    deployments: workloads.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas || 1 }))
+    deployments: workloads.map(d => ({
+      id: d.id,
+      label: d.data.label || d.id,
+      replicas: d.data.replicas || 1,
+      type: d.type
+    })),
+    isSimulating: extraState?.isSimulating ?? true,
+    isPaused: extraState?.isPaused ?? false,
+    speed: extraState?.speed ?? 1,
+    timestamp: Date.now()
   };
 
   if (metricsChannel) {
@@ -92,6 +106,8 @@ export const broadcastMetrics = (metrics: Record<string, SimulationMetricPoint[]
 
   const runtime = getRuntime();
   runtime?.EventsEmit?.('metrics-update', JSON.stringify(payload));
+
+  void getBackendGateway().broadcastSimulationSnapshot(JSON.stringify(payload));
 };
 
 /**
