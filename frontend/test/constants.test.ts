@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { NODE_TYPES, INITIAL_NODES, INITIAL_EDGES } from '@/constants';
+import { NODE_TYPES, INITIAL_NODES, INITIAL_EDGES, APP_VERSION } from '@/constants';
 import { LAYOUT, DEFAULT_DIMENSIONS } from '@/constants/layout';
 
 describe('constants', () => {
+  it('exports valid application version', () => {
+    expect(APP_VERSION).toBe('0.15.0');
+  });
   it('contains valid NODE_TYPES definition for all resource types', () => {
     expect(NODE_TYPES).toBeDefined();
     expect(NODE_TYPES.Pod).toEqual({ color: 'blue', icon: 'Box' });

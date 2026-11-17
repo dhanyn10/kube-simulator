@@ -513,6 +513,10 @@ describe('createUiSlice', () => {
     setSimulatedCurrentVersion('1.0.0');
     expect(useFlowStore.getState().simulatedCurrentVersion).toBe('1.0.0');
 
+    expect(useFlowStore.getState().appVersion).toBe('0.15.0');
+    useFlowStore.getState().setAppVersion('0.15.1');
+    expect(useFlowStore.getState().appVersion).toBe('0.15.1');
+
     setIsAdminAuthenticated(true);
     expect(useFlowStore.getState().isAdminAuthenticated).toBe(true);
 

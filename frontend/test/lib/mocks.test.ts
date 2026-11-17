@@ -158,7 +158,7 @@ describe("initWailsMocks", () => {
       os: "windows",
       arch: "amd64",
       goVersion: "go1.25.0",
-      version: "0.4.0",
+      version: "0.15.0",
     });
 
     // Internet Profiles

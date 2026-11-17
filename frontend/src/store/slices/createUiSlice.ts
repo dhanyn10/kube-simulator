@@ -1,6 +1,7 @@
 import { syncDeployment, hydrateNodes } from '@/store/nodeHelpers';
 import { logger } from '@/lib/logger';
 import { getBackendGateway } from '@/gateway';
+import { APP_VERSION } from '@/constants/config';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import type { FlowState, SimulationMetricPoint } from '@/store/types';
@@ -113,6 +114,8 @@ export interface UiSlice {
   canvasBgOpacity: number;
 
   // Update check & admin state
+  appVersion: string;
+  setAppVersion: (version: string) => void;
   simulatedUpdateInfo: { latestVersion: string; releaseUrl: string } | null;
   simulatedCurrentVersion: string | null;
   isAdminAuthenticated: boolean;
@@ -854,6 +857,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   },
 
   // Update check & cheat code state
+  appVersion: APP_VERSION,
+  setAppVersion: (version) => set({ appVersion: version }),
   simulatedUpdateInfo: null,
   simulatedCurrentVersion: null,
   isAdminAuthenticated: false,

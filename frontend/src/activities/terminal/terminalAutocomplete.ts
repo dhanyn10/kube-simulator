@@ -53,8 +53,8 @@ const createSuggestionMap = (
 };
 
 export const ADMIN_SUGGESTIONS: SuggestionItem[] = createSuggestionMap([
-  ['try version update 0.5.0', 'try version update <version>', 'Admin', 'Simulate update notification badge button'],
-  ['try version current 0.4.0', 'try version current <version>', 'Admin', 'Simulate current application version'],
+  ['try version update 0.16.0', 'try version update <version>', 'Admin', 'Simulate update notification badge button'],
+  ['try version current 0.15.0', 'try version current <version>', 'Admin', 'Simulate current application version'],
   ['try version clear', 'try version clear', 'Admin', 'Clear simulated current version'],
   ['try clear', 'try clear', 'Admin', 'Clear all simulated version settings'],
   ['try status', 'try status', 'Admin', 'View secret mode status'],
@@ -350,8 +350,8 @@ export const ADMIN_SPEC_TREE: CommandSpecNode[] = [
         category: 'Admin',
         description: 'Simulate application versions',
         children: [
-          { name: 'update 0.5.0', category: 'Admin', description: 'Simulate update notification badge button' },
-          { name: 'current 0.4.0', category: 'Admin', description: 'Simulate current application version' },
+          { name: 'update 0.16.0', category: 'Admin', description: 'Simulate update notification badge button' },
+          { name: 'current 0.15.0', category: 'Admin', description: 'Simulate current application version' },
           { name: 'clear', category: 'Admin', description: 'Clear simulated current version' },
         ],
       },

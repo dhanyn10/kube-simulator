@@ -1,3 +1,5 @@
+export const APP_VERSION = '0.15.0';
+
 export const RUNTIMES = {
   none: { label: 'None', frameworks: [] },
   php: { label: 'PHP', frameworks: ['Laravel', 'Symfony', 'WordPress', 'Slim'] },
