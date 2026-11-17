@@ -110,22 +110,30 @@ export const useTerminalCommandSubmit = (
 
     setCommandInput('');
 
+    const isAwaitingPassword = Boolean(useFlowStore.getState().isAwaitingAdminPassword);
+    const displayCmd = isAwaitingPassword ? '*'.repeat(cmd.length) : cmd;
+
     const timestamp = formatCommandTimestamp();
     const newEntry: CommandHistoryEntry = {
       id: String(commandHistoryEntries.length + 1),
-      command: cmd,
+      command: displayCmd,
       timestamp,
     };
 
-    const nextHistoryEntries = [...commandHistoryEntries, newEntry];
-    setCommandHistoryEntries(nextHistoryEntries);
-    setCommandHistory(prev => (prev.at(-1) === cmd ? prev : [...prev, cmd]));
+    const nextHistoryEntries = isAwaitingPassword
+      ? commandHistoryEntries
+      : [...commandHistoryEntries, newEntry];
+
+    if (!isAwaitingPassword) {
+      setCommandHistoryEntries(nextHistoryEntries);
+      setCommandHistory(prev => (prev.at(-1) === cmd ? prev : [...prev, cmd]));
+    }
     setHistoryIndex(-1);
 
     const addActivityLog = useFlowStore.getState().addActivityLog;
-    addActivityLog(`$ ${cmd}`);
+    addActivityLog(`$ ${displayCmd}`);
 
-    getBackendGateway().writeLog('kubeconsole', 'info', `${timestamp} $ ${cmd}`).catch(() => {});
+    getBackendGateway().writeLog('kubeconsole', 'info', `${timestamp} $ ${displayCmd}`).catch(() => {});
 
     if (cmd.toLowerCase() === 'clear') {
       clearTerminalLogs();

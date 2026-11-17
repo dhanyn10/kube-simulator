@@ -220,6 +220,7 @@ export const TerminalPanel = () => {
       isDropdownOpen,
       setIsDropdownOpen: setDropdownOpenCustom,
       setIsNavigatingHistory,
+      isAwaitingAdminPassword,
     });
   };
 

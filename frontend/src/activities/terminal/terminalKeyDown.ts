@@ -15,6 +15,7 @@ export interface HandleTerminalKeyDownOptions {
   isDropdownOpen?: boolean;
   setIsDropdownOpen?: (open: boolean) => void;
   setIsNavigatingHistory?: (navigating: boolean) => void;
+  isAwaitingAdminPassword?: boolean;
 }
 
 interface HandleTabKeyOptions {
@@ -162,6 +163,10 @@ const handleHistoryKeys = (opts: HandleTerminalKeyDownOptions) => {
 };
 
 export const handleTerminalKeyDown = (opts: HandleTerminalKeyDownOptions) => {
+  if (opts.isAwaitingAdminPassword) {
+    return;
+  }
+
   const {
     e,
     suggestions = [],
