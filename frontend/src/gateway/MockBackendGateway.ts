@@ -197,6 +197,14 @@ export class MockBackendGateway extends BaseBackendGateway {
     return 1080;
   }
 
+  async openSimulationWindow(): Promise<boolean> {
+    return true;
+  }
+
+  async closeSimulationWindow(): Promise<boolean> {
+    return true;
+  }
+
   // --- Logging Operations ---
 
   async writeLog(category: string, level: string, message: string): Promise<boolean> {

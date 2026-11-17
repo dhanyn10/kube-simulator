@@ -104,8 +104,8 @@ describe('useMonitoringDashboardHandler', () => {
 
     expect(openSpy).toHaveBeenCalledWith(
       expect.stringContaining('mode=monitoring'),
-      '_blank',
-      expect.stringContaining('width=800,height=600')
+      'simulation-monitoring',
+      expect.stringContaining('width=900,height=650')
     );
   });
 

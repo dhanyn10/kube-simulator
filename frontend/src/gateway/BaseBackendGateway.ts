@@ -121,6 +121,7 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   CalculateAppHeight(s: number) { return this.calculateAppHeight(s); }
   CheckForUpdates(v: string) { return this.checkForUpdates(v); }
   ClearAllAutosaves() { return this.clearAllAutosaves(); }
+  CloseSimulationWindow() { return this.closeSimulationWindow(); }
   CloseWindow() { return this.closeWindow(); }
   DeleteInternetProfile(n: string) { return this.deleteInternetProfile(n); }
   DeleteProject(id: number) { return this.deleteProject(id); }
@@ -147,6 +148,7 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   MinimizeWindow() { return this.minimizeWindow(); }
   OpenFileFolder(p: string) { return this.openFileFolder(p); }
   OpenLogFile(p?: string) { return this.openLogFile(p); }
+  OpenSimulationWindow() { return this.openSimulationWindow(); }
   PushHistory(s: string) { return this.pushHistory(s); }
   Redo() { return this.redo(); }
   SaveInternetProfile(n: string, p: string) { return this.saveInternetProfile(n, p); }

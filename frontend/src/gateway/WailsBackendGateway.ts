@@ -387,6 +387,45 @@ export class WailsBackendGateway extends BaseBackendGateway {
     return 1080;
   }
 
+  async openSimulationWindow(): Promise<boolean> {
+    if (typeof this.app?.OpenSimulationWindow === 'function') {
+      try {
+        const res = await this.app.OpenSimulationWindow();
+        if (res) return true;
+      } catch {
+        // Fallback for browser popup
+      }
+    }
+    const width = 900;
+    const height = 650;
+    const screenW = globalThis.screen?.width || 1920;
+    const screenH = globalThis.screen?.height || 1080;
+    const left = Math.round((screenW - width) / 2);
+    const top = Math.round((screenH - height) / 2);
+
+    try {
+      const win = globalThis.open?.(
+        `${globalThis.location.origin}${globalThis.location.pathname}?mode=monitoring`,
+        'simulation-monitoring',
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      );
+      return Boolean(win);
+    } catch {
+      return false;
+    }
+  }
+
+  async closeSimulationWindow(): Promise<boolean> {
+    if (typeof this.app?.CloseSimulationWindow === 'function') {
+      try {
+        return await this.app.CloseSimulationWindow();
+      } catch {
+        // Fallback
+      }
+    }
+    return false;
+  }
+
   // --- Logging Operations ---
 
   async writeLog(category: string, level: string, message: string): Promise<boolean> {

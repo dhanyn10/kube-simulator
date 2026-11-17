@@ -92,6 +92,8 @@ export interface IBackendGateway {
   minimizeWindow(): Promise<void>;
   maximizeWindow(): Promise<void>;
   closeWindow(): Promise<void>;
+  openSimulationWindow(): Promise<boolean>;
+  closeSimulationWindow(): Promise<boolean>;
   calculateAppHeight(screenHeight: number): Promise<number>;
   getTargetScreen(screens: any[]): Promise<any>;
   getTargetScreenHeight(screens: any[]): Promise<number | boolean>;
@@ -121,6 +123,7 @@ export interface IBackendGateway {
   CalculateAppHeight(screenHeight: number): Promise<number>;
   CheckForUpdates(currentVersion: string): Promise<UpdateInfoData>;
   ClearAllAutosaves(): Promise<boolean>;
+  CloseSimulationWindow(): Promise<boolean>;
   CloseWindow(): Promise<void>;
   DeleteInternetProfile(name: string): Promise<boolean>;
   DeleteProject(id: number): Promise<boolean>;
@@ -147,6 +150,7 @@ export interface IBackendGateway {
   MinimizeWindow(): Promise<void>;
   OpenFileFolder(filePath: string): Promise<boolean>;
   OpenLogFile(filePath?: string): Promise<boolean>;
+  OpenSimulationWindow(): Promise<boolean>;
   PushHistory(stateJson: string): Promise<void>;
   Redo(): Promise<string | null>;
   SaveInternetProfile(name: string, profileJson: string): Promise<boolean>;

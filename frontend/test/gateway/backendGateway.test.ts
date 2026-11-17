@@ -14,6 +14,9 @@ describe('Clean Architecture Backend Gateway', () => {
     resetBackendGateway();
     delete (globalThis as any).go;
     delete (globalThis as any).runtime;
+    delete (globalThis as any).chrome;
+    delete (globalThis as any).wails;
+    delete (globalThis as any).webkit;
   });
 
   describe('Gateway Registry', () => {
@@ -138,6 +141,8 @@ describe('Clean Architecture Backend Gateway', () => {
       await mock.setInitialFile('/test/path');
       expect(mock.initialFile).toBe('/test/path');
 
+      expect(await mock.openSimulationWindow()).toBe(true);
+      expect(await mock.closeSimulationWindow()).toBe(true);
       expect(await mock.calculateAppHeight(1000)).toBe(850);
       expect(await mock.getTargetScreen([])).toBe(false);
       expect(await mock.getTargetScreenHeight([])).toBe(1080);
@@ -431,6 +436,61 @@ describe('Clean Architecture Backend Gateway', () => {
       noopUnsub();
     });
 
+    it('handles simulation window opening, closing, and browser fallback chains', async () => {
+      // 1. App binding succeeds
+      const appMock = {
+        OpenSimulationWindow: vi.fn().mockResolvedValue(true),
+        CloseSimulationWindow: vi.fn().mockResolvedValue(true),
+      };
+      (globalThis as any).go = { main: { App: appMock } };
+      const gw = new WailsBackendGateway();
+      expect(await gw.openSimulationWindow()).toBe(true);
+      expect(appMock.OpenSimulationWindow).toHaveBeenCalled();
+      expect(await gw.closeSimulationWindow()).toBe(true);
+      expect(appMock.CloseSimulationWindow).toHaveBeenCalled();
+
+      // 2. App binding missing, falling back to globalThis.open
+      delete (globalThis as any).go;
+      const fakePopup = { focus: vi.fn() };
+      const openSpy = vi.fn().mockReturnValue(fakePopup);
+      const origOpen = globalThis.open;
+      globalThis.open = openSpy as any;
+
+      try {
+        const gwFallback = new WailsBackendGateway();
+        expect(await gwFallback.openSimulationWindow()).toBe(true);
+        expect(openSpy).toHaveBeenCalled();
+        expect(await gwFallback.closeSimulationWindow()).toBe(false);
+
+        // When globalThis.open throws or returns null
+        openSpy.mockImplementationOnce(() => {
+          throw new Error('popup blocked');
+        });
+        expect(await gwFallback.openSimulationWindow()).toBe(false);
+
+        openSpy.mockReturnValueOnce(null);
+        expect(await gwFallback.openSimulationWindow()).toBe(false);
+      } finally {
+        globalThis.open = origOpen;
+      }
+
+      // 3. When app binding throws
+      const throwingApp = {
+        OpenSimulationWindow: vi.fn().mockRejectedValue(new Error('fail open')),
+        CloseSimulationWindow: vi.fn().mockRejectedValue(new Error('fail close')),
+      };
+      (globalThis as any).go = { main: { App: throwingApp } };
+      const origOpen2 = globalThis.open;
+      delete (globalThis as any).open;
+      try {
+        const gwThrowing = new WailsBackendGateway();
+        expect(await gwThrowing.openSimulationWindow()).toBe(false);
+        expect(await gwThrowing.closeSimulationWindow()).toBe(false);
+      } finally {
+        globalThis.open = origOpen2;
+      }
+    });
+
     it('returns empty string when localStorage is unavailable and app has no GetSetting', async () => {
       const origLocalStorage = globalThis.localStorage;
       try {
@@ -718,6 +778,8 @@ describe('Clean Architecture Backend Gateway', () => {
       await mock.MinimizeWindow();
       await mock.MaximizeWindow();
       await mock.CloseWindow();
+      expect(await mock.OpenSimulationWindow()).toBe(true);
+      expect(await mock.CloseSimulationWindow()).toBe(true);
       await mock.SetInitialFile('/init');
       expect(await mock.WriteLog('cat', 'info', 'msg')).toBe(true);
       expect(await mock.GetSystemInfo()).toHaveProperty('version');
@@ -734,6 +796,8 @@ describe('Clean Architecture Backend Gateway', () => {
       await expect(fallbackBindings.MinimizeWindow()).resolves.toBeUndefined();
       await expect(fallbackBindings.MaximizeWindow()).resolves.toBeUndefined();
       await expect(fallbackBindings.CloseWindow()).resolves.toBeUndefined();
+      await expect(fallbackBindings.OpenSimulationWindow()).resolves.toBe(false);
+      await expect(fallbackBindings.CloseSimulationWindow()).resolves.toBe(false);
       await expect(fallbackBindings.Greet('Test')).resolves.toBe('');
       await expect(fallbackBindings.GetSystemResources()).resolves.toEqual({});
     });

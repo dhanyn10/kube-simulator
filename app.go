@@ -505,6 +505,16 @@ func (a *App) CloseWindow() {
 	a.window.Close()
 }
 
+// OpenSimulationWindow opens or focuses the standalone simulation monitoring window.
+func (a *App) OpenSimulationWindow() bool {
+	return a.window.OpenSimulationWindow()
+}
+
+// CloseSimulationWindow closes the standalone simulation monitoring window if open.
+func (a *App) CloseSimulationWindow() bool {
+	return a.window.CloseSimulationWindow()
+}
+
 // Greet returns a greeting for the given name
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)

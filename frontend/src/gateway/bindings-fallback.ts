@@ -5,5 +5,7 @@
 export const MinimizeWindow = (): Promise<void> => Promise.resolve();
 export const MaximizeWindow = (): Promise<void> => Promise.resolve();
 export const CloseWindow = (): Promise<void> => Promise.resolve();
+export const OpenSimulationWindow = (): Promise<boolean> => Promise.resolve(false);
+export const CloseSimulationWindow = (): Promise<boolean> => Promise.resolve(false);
 export const Greet = (_name: string): Promise<string> => Promise.resolve('');
 export const GetSystemResources = (): Promise<any> => Promise.resolve({});

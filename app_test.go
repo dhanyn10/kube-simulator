@@ -1000,6 +1000,8 @@ func TestApp_WindowActionsAndUpdates(t *testing.T) {
 	// 1. MinimizeWindow and CloseWindow when isLiveRuntime() is false
 	app.MinimizeWindow()
 	app.CloseWindow()
+	app.OpenSimulationWindow()
+	app.CloseSimulationWindow()
 
 	// 2. SaveInternetProfile with empty name or empty profileJson
 	if app.SaveInternetProfile("", `{"test": true}`) {
