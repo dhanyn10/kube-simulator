@@ -42,6 +42,7 @@ export const useMenuBarState = ({
   const isMonitoringOpen = useFlowStore((state: FlowState) => state.isMonitoringOpen);
   const setMonitoringOpen = useFlowStore((state: FlowState) => state.setMonitoringOpen);
   const isMonitoringDetached = useFlowStore((state: FlowState) => state.isMonitoringDetached);
+  const setMonitoringDetached = useFlowStore((state: FlowState) => state.setMonitoringDetached);
   const isSidebarVisible = useFlowStore((state: FlowState) => state.isSidebarVisible);
   const isRightSidebarVisible = useFlowStore((state: FlowState) => state.isRightSidebarVisible);
   const isHistoryViewOpen = useFlowStore((state: FlowState) => state.isHistoryViewOpen);
@@ -110,12 +111,7 @@ export const useMenuBarState = ({
   }, []);
 
   const menuItems = useMemo(() => {
-    let monitoringLabel = 'Simulation';
-    if (isMonitoringDetached) {
-      monitoringLabel = 'Monitoring: Detached';
-    } else if (isMonitoringOpen) {
-      monitoringLabel = 'Close Simulation';
-    }
+    const monitoringLabel = isMonitoringDetached ? 'Monitoring: Detached' : 'Simulation';
 
     return [
       {
@@ -185,7 +181,11 @@ export const useMenuBarState = ({
           {
             label: monitoringLabel,
             icon: isMonitoringDetached ? ExternalLink : Activity,
-            onClick: () => !isMonitoringDetached && setMonitoringOpen(!isMonitoringOpen)
+            onClick: () => {
+              void getBackendGateway().openSimulationWindow();
+              setMonitoringDetached(true);
+              setMonitoringOpen(true);
+            }
           },
           {
             label: 'Canvas Settings...',

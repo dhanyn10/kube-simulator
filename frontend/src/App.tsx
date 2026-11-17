@@ -11,7 +11,8 @@ import '@xyflow/react/dist/style.css';
 import { logger } from './lib/logger';
 import { Sidebar, RightSidebar, MenuBar, TerminalPanel, FileBackstageView, CanvasControlsPanel, CanvasMiniMap, AlignmentGuideOverlay } from './components/Layout';
 import { ContextMenu, ResourceManager, SidebarContextMenu } from './components/UI';
-import { MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
+import { DetachedMonitoring, LogToast } from './components/Monitoring';
+import { useSimulationSync } from './activities/monitoring';
 import {
   YamlModal,
   ScenarioModal,
@@ -101,6 +102,7 @@ const getCanvasBackgroundSize = (variant: string): number => {
 
 export default function App() {
   useThemeSync();
+  useSimulationSync();
   const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
   const isDetachedMode = searchParams.get('mode') === 'monitoring';
 
@@ -353,8 +355,6 @@ export default function App() {
           )}
 
           <ScenarioModal isOpen={isScenarioOpen} onClose={() => setIsScenarioOpen(false)} />
-
-          <MonitoringDashboard />
 
           {contextMenu && (
             <ContextMenu

@@ -126,7 +126,7 @@ describe('useMenuBarState', () => {
     });
     rerender();
     viewMenu = result.current.menuItems.find((m) => m.label === 'View');
-    simulationItem = viewMenu?.items.find((i) => i.label.includes('Simulation'));
+    simulationItem = viewMenu?.items.find((i) => i.label.includes('Simulation') || i.label.includes('Monitoring'));
     act(() => {
       simulationItem?.onClick?.();
     });
@@ -393,10 +393,10 @@ describe('useMenuBarState', () => {
     });
   });
 
-  it('covers Close Simulation monitoring label when isMonitoringOpen is true and History item when right sidebar is already visible', () => {
+  it('covers Monitoring: Detached monitoring label when isMonitoringDetached is true and History item when right sidebar is already visible', () => {
     useFlowStore.setState({
       isMonitoringOpen: true,
-      isMonitoringDetached: false,
+      isMonitoringDetached: true,
       isRightSidebarVisible: true,
     });
 
@@ -414,7 +414,7 @@ describe('useMenuBarState', () => {
     const { result } = renderHook(() => useMenuBarState(defaultProps));
 
     const viewMenu = result.current.menuItems.find((m) => m.label === 'View');
-    const monitoringItem = viewMenu?.items.find((i) => i.label === 'Close Simulation');
+    const monitoringItem = viewMenu?.items.find((i) => i.label === 'Monitoring: Detached');
     expect(monitoringItem).toBeDefined();
 
     const historyItem = viewMenu?.items.find((i) => i.label === 'History');
