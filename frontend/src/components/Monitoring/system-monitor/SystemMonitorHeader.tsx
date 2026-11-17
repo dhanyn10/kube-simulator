@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Play, Pause, Square, Zap, Clock, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isWailsDesktop } from '@/lib/mocks';
 import { getBackendGateway } from '@/gateway';
 import { WindowControls } from '@/components/Layout';
 import { TimeRangeFilter } from './types';
@@ -29,11 +30,11 @@ export const SystemMonitorHeader = ({
 
   const handleWindowClose = () => {
     void getBackendGateway().closeSimulationWindow();
-    if (process.env.NODE_ENV !== 'test') {
+    if (!isWailsDesktop() && process.env.NODE_ENV !== 'test') {
       try {
         globalThis.close?.();
       } catch {
-        // Fallback
+        // Fallback for browser popup
       }
     }
   };

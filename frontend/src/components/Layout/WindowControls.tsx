@@ -44,7 +44,7 @@ export const WindowControls = ({ colorMode, onClose }: WindowControlsProps) => {
       <button
         type="button"
         aria-label="close"
-        data-wml-window="Close"
+        data-wml-window={onClose ? undefined : "Close"}
         onClick={onClose || handleClose}
         onMouseDown={(e) => e.stopPropagation()}
         style={{ '--wails-draggable': 'no-drag' } as CSSProperties}
