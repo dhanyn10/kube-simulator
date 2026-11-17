@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getBackendGateway } from '@/gateway';
 import { SimulationMetricPoint } from '@/store/types';
-import { TimeRangeFilter, DeploymentSummary, SystemMonitorClusterTotals } from './types';
+import { TimeRangeFilter, DeploymentSummary, SystemMonitorClusterTotals, SimulationSpeed, SystemMonitorColorMode } from './types';
 
 export const useSystemMonitorDashboard = () => {
   const [metrics, setMetrics] = useState<Record<string, SimulationMetricPoint[]>>({});
   const [deployments, setDeployments] = useState<DeploymentSummary[]>([]);
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [simulationSpeed, setSimulationSpeed] = useState<1 | 5 | 10>(1);
-  const [colorMode, setColorMode] = useState<'dark' | 'light'>('dark');
+  const [simulationSpeed, setSimulationSpeed] = useState<SimulationSpeed>(1);
+  const [colorMode, setColorMode] = useState<SystemMonitorColorMode>('dark');
   const [timeRange, setTimeRange] = useState<TimeRangeFilter>('5m');
   const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
 
@@ -41,7 +41,7 @@ export const useSystemMonitorDashboard = () => {
       setIsPaused(false);
     } else if (action === 'speed' && options?.speed) {
       await gw.setSimulationSpeed(options.speed);
-      setSimulationSpeed(options.speed as 1 | 5 | 10);
+      setSimulationSpeed(options.speed as SimulationSpeed);
     } else if (action === 'traffic_spike') {
       await gw.triggerTrafficSpike(options?.multiplier || 2.0);
     }

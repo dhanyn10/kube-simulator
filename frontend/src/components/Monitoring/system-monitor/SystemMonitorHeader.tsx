@@ -4,25 +4,25 @@ import { cn } from '@/lib/utils';
 import { isWailsDesktop } from '@/lib/mocks';
 import { getBackendGateway } from '@/gateway';
 import { WindowControls } from '@/components/Layout';
-import { TimeRangeFilter } from './types';
+import { TimeRangeFilter, SimulationSpeed, SystemMonitorColorMode } from './types';
 
 interface SystemMonitorHeaderProps {
   isSimulating: boolean;
   isPaused: boolean;
-  simulationSpeed: 1 | 5 | 10;
+  simulationSpeed: SimulationSpeed;
   timeRange: TimeRangeFilter;
   setTimeRange: (t: TimeRangeFilter) => void;
   sendControl: (action: string, options?: any) => void;
-  colorMode: 'dark' | 'light';
+  colorMode: SystemMonitorColorMode;
 }
 
-const TICK_INTERVAL_MAP: Record<1 | 5 | 10, string> = {
+const TICK_INTERVAL_MAP: Record<SimulationSpeed, string> = {
   10: '15ms',
   5: '30ms',
   1: '150ms',
 };
 
-const SPEED_OPTIONS: Array<1 | 5 | 10> = [1, 5, 10];
+const SPEED_OPTIONS: SimulationSpeed[] = [1, 5, 10];
 const TIME_RANGE_OPTIONS: TimeRangeFilter[] = ['1m', '5m', '15m', 'all'];
 
 const ClusterLogo = () => (
@@ -78,7 +78,7 @@ const SystemMonitorLiveStatus = ({
 interface SimulationPlaybackControlsProps {
   isSimulating: boolean;
   isPaused: boolean;
-  simulationSpeed: 1 | 5 | 10;
+  simulationSpeed: SimulationSpeed;
   sendControl: (action: string, options?: any) => void;
 }
 
@@ -149,7 +149,7 @@ const SpeedSelector = ({
   simulationSpeed,
   sendControl,
 }: {
-  simulationSpeed: 1 | 5 | 10;
+  simulationSpeed: SimulationSpeed;
   sendControl: (action: string, options?: any) => void;
 }) => (
   <div className="flex items-center rounded border border-slate-700/60 bg-slate-900/60 p-0.5 text-[10px] font-mono font-bold">
