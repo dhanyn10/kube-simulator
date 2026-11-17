@@ -1,8 +1,23 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { SimulationMetricPoint } from '@/store/types';
-import { DeploymentSummary } from './types';
-import { CHART_PALETTE, calculateSeriesStats, buildSvgPoints } from './chartHelpers';
+import { DeploymentSummary, TimeRangeFilter } from './types';
+import {
+  CHART_PALETTE,
+  calculateSeriesStats,
+  aggregateMetricSeries,
+  calculateDynamicYMax,
+  generateYAxisScale,
+  generateXAxisTicks,
+  getThresholdReferenceLines,
+  resolveMemoryLimit,
+  ThresholdReferenceLine,
+} from './chartHelpers';
+import {
+  SystemMonitorAxisBottom,
+  SystemMonitorYScaleOverlay,
+  SystemMonitorVerticalGrid,
+} from './SystemMonitorChartAxes';
 import { ZapOff, AlertTriangle } from 'lucide-react';
 
 interface SystemMonitorTimeSeriesPanelProps {
@@ -15,7 +30,63 @@ interface SystemMonitorTimeSeriesPanelProps {
   maxVal?: number;
   showThresholds?: boolean;
   colorMode?: 'dark' | 'light';
+  interval?: TimeRangeFilter;
+  isSimulating?: boolean;
 }
+
+const getThresholdBorderColor = (color: ThresholdReferenceLine['color']): string => {
+  if (color === 'amber') return 'border-amber-500/60';
+  if (color === 'rose') return 'border-rose-500/60';
+  return 'border-red-500/70';
+};
+
+const getThresholdBadgeColor = (color: ThresholdReferenceLine['color']): string => {
+  if (color === 'amber') return 'bg-amber-950/85 text-amber-300 border-amber-600/50';
+  if (color === 'rose') return 'bg-rose-950/85 text-rose-300 border-rose-600/50';
+  return 'bg-red-950/85 text-red-300 border-red-600/50';
+};
+
+const getThresholdLegendTextColor = (color: ThresholdReferenceLine['color']): string => {
+  if (color === 'amber') return 'text-amber-400';
+  if (color === 'rose') return 'text-rose-400';
+  return 'text-red-400';
+};
+
+const getThresholdLegendDotColor = (color: ThresholdReferenceLine['color']): string => {
+  if (color === 'amber') return 'bg-amber-400';
+  if (color === 'rose') return 'bg-rose-400';
+  return 'bg-red-400';
+};
+
+interface DynamicThresholdLinesProps {
+  lines: ThresholdReferenceLine[];
+}
+
+export const DynamicThresholdLines = ({ lines }: DynamicThresholdLinesProps) => {
+  if (lines.length === 0) return null;
+
+  return (
+    <div className="absolute inset-0 pointer-events-none select-none z-10 overflow-hidden">
+      {lines.map((line) => (
+        <div
+          key={`threshold-line-${line.label}-${line.value}`}
+          className="absolute inset-x-0"
+          style={{ top: `${line.percentFromTop}%` }}
+        >
+          <div className={cn('w-full border-t border-dashed', getThresholdBorderColor(line.color))} />
+          <span
+            className={cn(
+              'absolute right-1.5 -translate-y-1/2 px-1.5 py-0.5 rounded text-[8px] font-mono font-medium shadow-sm border backdrop-blur-sm whitespace-nowrap',
+              getThresholdBadgeColor(line.color)
+            )}
+          >
+            {line.badge}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export const SystemMonitorTimeSeriesPanel = ({
   title,
@@ -27,20 +98,51 @@ export const SystemMonitorTimeSeriesPanel = ({
   maxVal = 100,
   showThresholds = true,
   colorMode = 'dark',
+  interval = '1h',
+  isSimulating = true,
 }: SystemMonitorTimeSeriesPanelProps) => {
   const isDark = colorMode === 'dark';
+
+  const dynamicMax = useMemo(() => {
+    const allValues: number[] = [];
+    deployments.forEach((dep) => {
+      const points = metrics[dep.id] || [];
+      points.forEach((p) => {
+        const val = Number(p[metricKey]);
+        if (!Number.isNaN(val)) allValues.push(val);
+      });
+    });
+    const floor =
+      metricKey === 'memoryValue'
+        ? resolveMemoryLimit(deployments, metrics, maxVal)
+        : maxVal;
+    return calculateDynamicYMax(allValues, floor);
+  }, [deployments, metrics, metricKey, maxVal]);
+
+  const yScale = useMemo(() => generateYAxisScale(dynamicMax, unit, 3), [dynamicMax, unit]);
+  const xTicks = useMemo(() => generateXAxisTicks(interval), [interval]);
+
+  const thresholdLines = useMemo(() => {
+    if (!showThresholds) return [];
+    return getThresholdReferenceLines(metricKey, dynamicMax, deployments, metrics, maxVal);
+  }, [showThresholds, metricKey, dynamicMax, deployments, metrics, maxVal]);
 
   const seriesData = useMemo(() => {
     return deployments.map((dep, idx) => {
       const color = CHART_PALETTE[idx % CHART_PALETTE.length];
       const points = metrics[dep.id] || [];
-      const data = points.map((p: any) => p[metricKey] || 0);
+      const aggregated = aggregateMetricSeries(points, metricKey, interval, dynamicMax, 500, 140);
       const lastPoint = points.at(-1);
-      const stats = calculateSeriesStats(dep.id, dep.label, color, data, lastPoint);
-      const svgPoints = buildSvgPoints(data, maxVal, 500, 140);
-      return { ...stats, data, svgPoints };
+      const stats = calculateSeriesStats(dep.id, dep.label, color, aggregated.data, lastPoint);
+      return {
+        ...stats,
+        data: aggregated.data,
+        svgPoints: aggregated.svgPoints,
+        areaPath: aggregated.areaPath,
+        current: Math.round(aggregated.currentVal),
+      };
     });
-  }, [deployments, metrics, metricKey, maxVal]);
+  }, [deployments, metrics, metricKey, dynamicMax, interval]);
 
   return (
     <div
@@ -56,14 +158,17 @@ export const SystemMonitorTimeSeriesPanel = ({
           <h2 className="text-xs font-bold font-mono uppercase tracking-wider">{title}</h2>
           {description && <span className="text-[10px] text-slate-400 font-sans">({description})</span>}
         </div>
-        {showThresholds && (
-          <div className="flex items-center gap-2 text-[9px] font-mono">
-            <span className="flex items-center gap-1 text-amber-400">
-              <span className="w-2 h-0.5 bg-amber-400 inline-block" /> 80% Warn
-            </span>
-            <span className="flex items-center gap-1 text-rose-400">
-              <span className="w-2 h-0.5 bg-rose-400 inline-block" /> 90% Crit
-            </span>
+        {showThresholds && thresholdLines.length > 0 && (
+          <div className="flex items-center gap-2 text-[9px] font-mono flex-wrap">
+            {thresholdLines.map((line) => (
+              <span
+                key={`legend-threshold-${line.label}-${line.color}`}
+                className={cn('flex items-center gap-1 font-medium', getThresholdLegendTextColor(line.color))}
+              >
+                <span className={cn('w-2 h-0.5 inline-block', getThresholdLegendDotColor(line.color))} />
+                {line.label}
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -75,18 +180,16 @@ export const SystemMonitorTimeSeriesPanel = ({
           <div className="border-t border-slate-500 w-full" />
           <div className="border-t border-slate-500 w-full" />
           <div className="border-t border-slate-500 w-full" />
-          <div className="border-t border-slate-500 w-full" />
         </div>
 
-        {/* 80% & 90% Threshold Lines */}
-        {showThresholds && (
-          <div className="absolute inset-x-0 inset-y-0 pointer-events-none">
-            {/* 80% Line: 140 - (0.8 * 130) = 36px from top */}
-            <div className="absolute top-[28%] inset-x-0 border-t border-dashed border-amber-500/50" />
-            {/* 90% Line: 140 - (0.9 * 130) = 23px from top */}
-            <div className="absolute top-[16%] inset-x-0 border-t border-dashed border-rose-500/50" />
-          </div>
-        )}
+        {/* Dynamic Vertical Grid Lines */}
+        <SystemMonitorVerticalGrid xTicks={xTicks} />
+
+        {/* Dynamic Y-Axis Scale Indicator (Windows Task Manager style) */}
+        <SystemMonitorYScaleOverlay ticks={yScale.ticks} />
+
+        {/* Kubernetes-native Dynamic Threshold Lines & Badges */}
+        {showThresholds && <DynamicThresholdLines lines={thresholdLines} />}
 
         {deployments.length === 0 ? (
           <span className="text-xs font-mono text-slate-500">No active workload metrics</span>
@@ -96,26 +199,29 @@ export const SystemMonitorTimeSeriesPanel = ({
               <g key={`series-${s.id}`}>
                 {/* Area under line */}
                 <path
-                  d={`M0,140 ${s.svgPoints} L500,140 Z`}
+                  d={s.areaPath}
                   fill={s.color}
                   fillOpacity="0.12"
-                  className="transition-all duration-300"
+                  className="transition-all duration-150"
                 />
-                {/* Main Curve */}
+                {/* Crisp angular polyline matching Windows 11 Task Manager */}
                 <polyline
+                  points={s.svgPoints}
                   fill="none"
                   stroke={s.color}
-                  strokeWidth="2"
+                  strokeWidth="1.75"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  points={s.svgPoints}
-                  className="transition-all duration-300"
+                  className="transition-all duration-150"
                 />
               </g>
             ))}
           </svg>
         )}
       </div>
+
+      {/* Dynamic 24-Hour Timeline Bottom Axis */}
+      <SystemMonitorAxisBottom xTicks={xTicks} />
 
       {/* Metrics Legend Table */}
       <div className="overflow-x-auto">

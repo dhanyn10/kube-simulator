@@ -188,11 +188,26 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
   const cpuPercent = (cpuValue / cpuLimitMilli) * 100;
   const memoryPercent = (memValue / memLimitMiB) * 100;
 
+  const internetNode = ctx.internetNodes?.[0];
+  const minuteIndex =
+    typeof (internetNode?.data as K8sNodeData)?.currentMinuteIndex === 'number'
+      ? (internetNode!.data as K8sNodeData).currentMinuteIndex!
+      : ((ctx.ticks || 0) % 1440);
+
   const existing = ctx.newMetrics[dep.id] || [];
   ctx.newMetrics[dep.id] = [...existing, {
-    cpuPercent, memoryPercent, cpuValue, memoryValue: memValue,
-    cpuLimit: cpuLimitMilli, memoryLimit: memLimitMiB, isThrottled, isOOM
-  }].slice(-30);
+    cpuPercent,
+    memoryPercent,
+    cpuValue,
+    memoryValue: memValue,
+    cpuLimit: cpuLimitMilli,
+    memoryLimit: memLimitMiB,
+    isThrottled,
+    isOOM,
+    replicas,
+    minuteIndex,
+    timestamp: Date.now(),
+  }].slice(-1440);
 
   return { cpuPercent, isOOM };
 };

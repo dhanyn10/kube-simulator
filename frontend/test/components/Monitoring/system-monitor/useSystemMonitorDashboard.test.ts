@@ -27,6 +27,8 @@ describe('useSystemMonitorDashboard hook', () => {
 
     const { result } = renderHook(() => useSystemMonitorDashboard());
 
+    expect(result.current.canStart).toBe(false);
+
     await act(async () => {
       await result.current.sendControl('start', { speed: 5 });
     });

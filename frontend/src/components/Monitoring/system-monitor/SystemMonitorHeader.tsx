@@ -14,6 +14,8 @@ interface SystemMonitorHeaderProps {
   setTimeRange: (t: TimeRangeFilter) => void;
   sendControl: (action: string, options?: any) => void;
   colorMode: SystemMonitorColorMode;
+  simulatedTime?: string;
+  canStart?: boolean;
 }
 
 const TICK_INTERVAL_MAP: Record<SimulationSpeed, string> = {
@@ -23,7 +25,7 @@ const TICK_INTERVAL_MAP: Record<SimulationSpeed, string> = {
 };
 
 const SPEED_OPTIONS: SimulationSpeed[] = [1, 5, 10];
-const TIME_RANGE_OPTIONS: TimeRangeFilter[] = ['1m', '5m', '15m', 'all'];
+const TIME_RANGE_OPTIONS: TimeRangeFilter[] = ['1h', '30m', '15m', '5m'];
 
 const ClusterLogo = () => (
   <svg aria-hidden="true" viewBox="0 0 512 512" className="w-4 h-4 fill-current text-blue-500 shrink-0">
@@ -80,6 +82,7 @@ interface SimulationPlaybackControlsProps {
   isPaused: boolean;
   simulationSpeed: SimulationSpeed;
   sendControl: (action: string, options?: any) => void;
+  canStart?: boolean;
 }
 
 const SimulationPlaybackControls = ({
@@ -87,15 +90,25 @@ const SimulationPlaybackControls = ({
   isPaused,
   simulationSpeed,
   sendControl,
+  canStart = true,
 }: SimulationPlaybackControlsProps) => {
   const renderPrimaryButton = () => {
     if (!isSimulating) {
       return (
         <button
           type="button"
-          onClick={() => sendControl('start', { speed: simulationSpeed })}
-          className="px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/20 rounded transition-colors"
-          title="Start Simulation"
+          onClick={() => {
+            if (!canStart) return;
+            sendControl('start', { speed: simulationSpeed });
+          }}
+          disabled={!canStart}
+          className={cn(
+            "px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition-colors",
+            canStart
+              ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
+              : "text-slate-500 opacity-40 cursor-not-allowed"
+          )}
+          title={canStart ? "Start Simulation" : "Add an Internet card to start simulation"}
         >
           <Play size={12} fill="currentColor" />
           <span>Start</span>
@@ -106,9 +119,18 @@ const SimulationPlaybackControls = ({
       return (
         <button
           type="button"
-          onClick={() => sendControl('resume')}
-          className="px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/20 rounded transition-colors"
-          title="Resume Simulation"
+          onClick={() => {
+            if (!canStart) return;
+            sendControl('resume');
+          }}
+          disabled={!canStart}
+          className={cn(
+            "px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition-colors",
+            canStart
+              ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
+              : "text-slate-500 opacity-40 cursor-not-allowed"
+          )}
+          title={canStart ? "Resume Simulation" : "Add an Internet card to resume simulation"}
         >
           <Play size={12} fill="currentColor" />
           <span>Resume</span>
@@ -180,6 +202,7 @@ const TimeRangeSelector = ({
 }) => (
   <div className="flex items-center gap-1 px-2 py-1 rounded border border-slate-700/60 bg-slate-900/40 text-[10px] font-mono text-slate-300">
     <Clock size={12} className="text-slate-400" />
+    <span className="text-slate-400 font-sans text-[10px] mr-0.5">Interval:</span>
     {TIME_RANGE_OPTIONS.map((range) => (
       <button
         key={`range-${range}`}
@@ -187,7 +210,7 @@ const TimeRangeSelector = ({
         onClick={() => setTimeRange(range)}
         className={cn(
           'px-1.5 py-0.5 rounded transition-colors',
-          timeRange === range ? 'bg-slate-700 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+          timeRange === range ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
         )}
       >
         {range}
@@ -204,6 +227,8 @@ export const SystemMonitorHeader = ({
   setTimeRange,
   sendControl,
   colorMode,
+  simulatedTime = '00:00',
+  canStart = true,
 }: SystemMonitorHeaderProps) => {
   const isDark = colorMode === 'dark';
   const tickInterval = TICK_INTERVAL_MAP[simulationSpeed] || '150ms';
@@ -259,11 +284,19 @@ export const SystemMonitorHeader = ({
         {/* Left: Live Status & Simulation Controls */}
         <div className="flex items-center gap-3" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
           <SystemMonitorLiveStatus isSimulating={isSimulating} isPaused={isPaused} />
+
+          {/* Simulated 24-Hour Timeline Clock */}
+          <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded border border-slate-700/60 bg-slate-900/60 text-[10px] font-mono text-slate-300">
+            <Clock size={11} className="text-blue-400" />
+            <span>Time: <strong className="text-white font-bold">{simulatedTime}</strong> <span className="text-slate-500 text-[9px]">/ 24h</span></span>
+          </div>
+
           <SimulationPlaybackControls
             isSimulating={isSimulating}
             isPaused={isPaused}
             simulationSpeed={simulationSpeed}
             sendControl={sendControl}
+            canStart={canStart}
           />
           <SpeedSelector simulationSpeed={simulationSpeed} sendControl={sendControl} />
 

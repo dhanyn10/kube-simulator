@@ -254,6 +254,7 @@ export const useMenuBarState = ({
   ]);
 
   const hasInternet = useMemo(() => nodes.some((n: any) => n.type === 'Internet'), [nodes]);
+  const canStart = hasInternet;
 
   const hasHpaValidationError = useMemo(() => !validateHpaTargets(nodes, edges), [nodes, edges]);
 
@@ -264,6 +265,7 @@ export const useMenuBarState = ({
     startSimulation,
     stopSimulation,
     hasInternet,
+    canStart,
     hasHpaValidationError,
     activeIdentity,
     setKubeIamModalOpen,

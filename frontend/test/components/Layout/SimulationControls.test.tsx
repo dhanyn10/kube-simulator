@@ -126,6 +126,24 @@ describe('SimulationControls', () => {
     expect(playButton.title).toBe('Add an Internet card to start simulation');
   });
 
+  it('disables play button when canStart is false (no components to play on canvas)', () => {
+    render(
+      <SimulationControls
+        isSimulating={false}
+        startSimulation={vi.fn()}
+        stopSimulation={vi.fn()}
+        hasInternet={false}
+        hasHpaValidationError={false}
+        colorMode="dark"
+        canStart={false}
+      />
+    );
+
+    const playButton = screen.getByRole('button', { name: /play/i });
+    expect(playButton).toBeDisabled();
+    expect(playButton.title).toBe('Add an Internet card to start simulation');
+  });
+
   it('shows warning title when HPA validation error exists', () => {
     render(
       <SimulationControls

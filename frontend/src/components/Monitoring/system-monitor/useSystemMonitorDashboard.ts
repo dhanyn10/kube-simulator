@@ -10,12 +10,30 @@ export const useSystemMonitorDashboard = () => {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [simulationSpeed, setSimulationSpeed] = useState<SimulationSpeed>(1);
   const [colorMode, setColorMode] = useState<SystemMonitorColorMode>('dark');
-  const [timeRange, setTimeRange] = useState<TimeRangeFilter>('5m');
+  const [timeRange, setTimeRange] = useState<TimeRangeFilter>('1h');
   const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
+  const [canStart, setCanStart] = useState<boolean>(false);
+
+  const simulatedTime = useMemo(() => {
+    const firstDeploymentMetrics = Object.values(metrics)[0];
+    const lastPoint = firstDeploymentMetrics?.at(-1);
+    if (!lastPoint || typeof lastPoint.minuteIndex !== 'number') {
+      return '00:00';
+    }
+    const minute = ((lastPoint.minuteIndex % 1440) + 1440) % 1440;
+    const hh = String(Math.floor(minute / 60)).padStart(2, '0');
+    const mm = String(minute % 60).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }, [metrics]);
 
   const handleUpdate = useCallback((data: any) => {
     if (data.metrics) setMetrics(data.metrics);
     if (data.deployments) setDeployments(data.deployments);
+    if (typeof data.canStart === 'boolean') {
+      setCanStart(data.canStart);
+    } else if (Array.isArray(data.deployments)) {
+      setCanStart(data.deployments.length > 0);
+    }
     if (typeof data.isSimulating === 'boolean') setIsSimulating(data.isSimulating);
     if (typeof data.isPaused === 'boolean') setIsPaused(data.isPaused);
     if (data.speed) setSimulationSpeed(data.speed);
@@ -151,8 +169,10 @@ export const useSystemMonitorDashboard = () => {
     colorMode,
     timeRange,
     setTimeRange,
+    simulatedTime,
     lastUpdated,
     sendControl,
     clusterTotals,
+    canStart,
   };
 };

@@ -93,8 +93,10 @@ export const SystemMonitorDashboard = () => {
     colorMode,
     timeRange,
     setTimeRange,
+    simulatedTime,
     sendControl,
     clusterTotals,
+    canStart,
   } = useSystemMonitorDashboard();
 
   useEffect(() => {
@@ -126,6 +128,8 @@ export const SystemMonitorDashboard = () => {
         setTimeRange={setTimeRange}
         sendControl={sendControl}
         colorMode={colorMode}
+        simulatedTime={simulatedTime}
+        canStart={canStart}
       />
 
       {/* Main Dashboard Body */}
@@ -200,6 +204,8 @@ export const SystemMonitorDashboard = () => {
               maxVal={100}
               showThresholds={true}
               colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
             />
 
             <SystemMonitorTimeSeriesPanel
@@ -209,21 +215,27 @@ export const SystemMonitorDashboard = () => {
               metrics={metrics}
               metricKey="memoryValue"
               unit=" MiB"
-              maxVal={1500}
-              showThresholds={false}
+              maxVal={256}
+              showThresholds={true}
               colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
             />
 
             <SystemMonitorNetworkPanel
               deployments={deployments}
               metrics={metrics}
               colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
             />
 
             <SystemMonitorReplicasPanel
               deployments={deployments}
               metrics={metrics}
               colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
             />
           </div>
         )}

@@ -21,6 +21,7 @@ describe('SystemMonitor UI Components', () => {
         setTimeRange={setTimeRange}
         sendControl={sendControl}
         colorMode="dark"
+        canStart={true}
       />
     );
 
@@ -31,6 +32,22 @@ describe('SystemMonitor UI Components', () => {
     fireEvent.click(screen.getByTitle('Start Simulation'));
     expect(sendControl).toHaveBeenCalledWith('start', { speed: 1 });
 
+    // When canStart is false, Start button is disabled
+    rerender(
+      <SystemMonitorHeader
+        isSimulating={false}
+        isPaused={false}
+        simulationSpeed={1}
+        timeRange="5m"
+        setTimeRange={setTimeRange}
+        sendControl={sendControl}
+        colorMode="dark"
+        canStart={false}
+      />
+    );
+    const disabledStartBtn = screen.getByTitle('Add an Internet card to start simulation');
+    expect(disabledStartBtn.hasAttribute('disabled')).toBe(true);
+
     // Click speed 5x
     fireEvent.click(screen.getByText('5x'));
     expect(sendControl).toHaveBeenCalledWith('speed', { speed: 5 });
@@ -39,9 +56,13 @@ describe('SystemMonitor UI Components', () => {
     fireEvent.click(screen.getByTitle('Inject 2x Traffic Spike (Chaos Test)'));
     expect(sendControl).toHaveBeenCalledWith('traffic_spike', { multiplier: 2 });
 
-    // Click Time Range 1m
-    fireEvent.click(screen.getByText('1m'));
-    expect(setTimeRange).toHaveBeenCalledWith('1m');
+    // Click Interval 1h
+    fireEvent.click(screen.getByText('1h'));
+    expect(setTimeRange).toHaveBeenCalledWith('1h');
+
+    // Click Interval 5m (dynamic max resolution)
+    fireEvent.click(screen.getByText('5m'));
+    expect(setTimeRange).toHaveBeenCalledWith('5m');
 
     // Rerender as Simulating & Running
     rerender(
@@ -49,7 +70,7 @@ describe('SystemMonitor UI Components', () => {
         isSimulating={true}
         isPaused={false}
         simulationSpeed={5}
-        timeRange="1m"
+        timeRange="1h"
         setTimeRange={setTimeRange}
         sendControl={sendControl}
         colorMode="dark"
@@ -65,7 +86,7 @@ describe('SystemMonitor UI Components', () => {
         isSimulating={true}
         isPaused={true}
         simulationSpeed={10}
-        timeRange="1m"
+        timeRange="1h"
         setTimeRange={setTimeRange}
         sendControl={sendControl}
         colorMode="light"
@@ -167,6 +188,40 @@ describe('SystemMonitor UI Components', () => {
     );
     expect(screen.getByText('web-server')).toBeDefined();
     expect(screen.getAllByText('60%')[0]).toBeDefined();
+    expect(screen.getByText('80% HPA')).toBeDefined();
+    expect(screen.getByText('80% HPA Target')).toBeDefined();
+    expect(screen.getByText('90% Throttle')).toBeDefined();
+    expect(screen.getByText('90% Throttle Risk')).toBeDefined();
+
+    // Rerender with Memory Allocation panel
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="Memory Allocation"
+        description="Memory per deployment"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 2 }]}
+        metrics={{
+          'dep-1': [
+            {
+              cpuPercent: 30,
+              memoryPercent: 40,
+              cpuValue: 200,
+              memoryValue: 180,
+              cpuLimit: 1000,
+              memoryLimit: 512,
+              isThrottled: false,
+              isOOM: false,
+            },
+          ],
+        }}
+        metricKey="memoryValue"
+        unit=" MiB"
+        maxVal={256}
+        showThresholds={true}
+      />
+    );
+    expect(screen.getByText('85% OOM Risk')).toBeDefined();
+    expect(screen.getByText('85% OOM Risk (435 MiB)')).toBeDefined();
+    expect(screen.getAllByText('Limit: 512 MiB')).toHaveLength(2);
   });
 
   it('renders SystemMonitorReplicasPanel and SystemMonitorNetworkPanel', () => {
@@ -186,5 +241,81 @@ describe('SystemMonitor UI Components', () => {
     expect(screen.getByText('HPA & Pod Autoscaling Replicas')).toBeDefined();
     expect(screen.getByText('4 Replicas')).toBeDefined();
     expect(screen.getByText('Network Ingress & Response Latency')).toBeDefined();
+  });
+
+  it('dynamically adapts X-axis and Y-axis scale based on interval and Task Manager autoscaling', () => {
+    // 1. Dynamic X-axis with interval 30m (shows 03:00, 06:00, etc.)
+    const { rerender } = render(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 1 }]}
+        metrics={{
+          'dep-1': [
+            { cpuPercent: 40, memoryPercent: 20 },
+            { cpuPercent: 50, memoryPercent: 30 }
+          ]
+        }}
+        metricKey="cpuPercent"
+        interval="30m"
+        maxVal={100}
+      />
+    );
+
+    // 30m interval renders -21h tick and 0 (Now)
+    expect(screen.getByText('-21h')).toBeDefined();
+    expect(screen.getByText('0 (Now)')).toBeDefined();
+    expect(screen.getByText('100%')).toBeDefined(); // Y-axis top tick at 100%
+
+    // 2. Dynamic Y-axis scale UP when peak exceeds limit (e.g. multi-core spike to 140%)
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 1 }]}
+        metrics={{
+          'dep-1': [
+            { cpuPercent: 140, memoryPercent: 20 }
+          ]
+        }}
+        metricKey="cpuPercent"
+        interval="1h"
+        maxVal={100}
+      />
+    );
+
+    // Scaled up to 200% on Y-axis
+    expect(screen.getByText('200%')).toBeDefined();
+    expect(screen.getByText('100% Limit')).toBeDefined();
+    expect(screen.getByText('100% Quota Limit')).toBeDefined();
+
+    // 3. Dynamic Y-axis scale DOWN when values decrease back to normal
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 1 }]}
+        metrics={{
+          'dep-1': [
+            { cpuPercent: 45, memoryPercent: 20 }
+          ]
+        }}
+        metricKey="cpuPercent"
+        interval="1h"
+        maxVal={100}
+      />
+    );
+
+    // Scaled down back to 100%
+    expect(screen.getByText('100%')).toBeDefined();
+
+    // 4. Dynamic X-axis with 15m interval (shows -22h, -20h, etc.)
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 1 }]}
+        metrics={{ 'dep-1': [{ cpuPercent: 30 }] }}
+        metricKey="cpuPercent"
+        interval="15m"
+      />
+    );
+    expect(screen.getByText('-22h')).toBeDefined();
   });
 });
