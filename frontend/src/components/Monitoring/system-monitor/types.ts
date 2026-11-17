@@ -7,7 +7,7 @@ export interface DeploymentSummary {
   type?: string;
 }
 
-export interface GrafanaClusterTotals {
+export interface SystemMonitorClusterTotals {
   cpuPercent: number;
   cpuUsed: number;
   cpuLimit: number;
@@ -19,3 +19,5 @@ export interface GrafanaClusterTotals {
   totalRps: number;
   errorRate: number;
 }
+
+export type ClusterTotals = SystemMonitorClusterTotals;

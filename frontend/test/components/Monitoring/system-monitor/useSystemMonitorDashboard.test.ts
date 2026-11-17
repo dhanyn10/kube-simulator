@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useGrafanaDashboard } from '@/components/Monitoring/grafana/useGrafanaDashboard';
+import { useSystemMonitorDashboard } from '@/components/Monitoring/system-monitor/useSystemMonitorDashboard';
 import { getBackendGateway } from '@/gateway';
 
-describe('useGrafanaDashboard hook', () => {
+describe('useSystemMonitorDashboard hook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('initializes with default state and calculates clusterTotals correctly', () => {
-    const { result } = renderHook(() => useGrafanaDashboard());
+    const { result } = renderHook(() => useSystemMonitorDashboard());
 
     expect(result.current.isSimulating).toBe(false);
     expect(result.current.isPaused).toBe(false);
@@ -25,7 +25,7 @@ describe('useGrafanaDashboard hook', () => {
     const speedSpy = vi.spyOn(gw, 'setSimulationSpeed');
     const spikeSpy = vi.spyOn(gw, 'triggerTrafficSpike');
 
-    const { result } = renderHook(() => useGrafanaDashboard());
+    const { result } = renderHook(() => useSystemMonitorDashboard());
 
     await act(async () => {
       await result.current.sendControl('start', { speed: 5 });

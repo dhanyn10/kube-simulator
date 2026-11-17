@@ -2,10 +2,10 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { SimulationMetricPoint } from '@/store/types';
 import { DeploymentSummary } from './types';
-import { CHART_PALETTE, calculateSeriesStats, buildSvgPoints, SeriesStats } from './chartHelpers';
+import { CHART_PALETTE, calculateSeriesStats, buildSvgPoints } from './chartHelpers';
 import { ZapOff, AlertTriangle } from 'lucide-react';
 
-interface GrafanaTimeSeriesPanelProps {
+interface SystemMonitorTimeSeriesPanelProps {
   title: string;
   description?: string;
   deployments: DeploymentSummary[];
@@ -17,7 +17,7 @@ interface GrafanaTimeSeriesPanelProps {
   colorMode?: 'dark' | 'light';
 }
 
-export const GrafanaTimeSeriesPanel = ({
+export const SystemMonitorTimeSeriesPanel = ({
   title,
   description,
   deployments,
@@ -27,7 +27,7 @@ export const GrafanaTimeSeriesPanel = ({
   maxVal = 100,
   showThresholds = true,
   colorMode = 'dark',
-}: GrafanaTimeSeriesPanelProps) => {
+}: SystemMonitorTimeSeriesPanelProps) => {
   const isDark = colorMode === 'dark';
 
   const seriesData = useMemo(() => {
@@ -52,7 +52,7 @@ export const GrafanaTimeSeriesPanel = ({
       {/* Panel Header */}
       <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded bg-orange-500" />
+          <div className="w-2 h-2 rounded bg-blue-500" />
           <h2 className="text-xs font-bold font-mono uppercase tracking-wider">{title}</h2>
           {description && <span className="text-[10px] text-slate-400 font-sans">({description})</span>}
         </div>
@@ -117,7 +117,7 @@ export const GrafanaTimeSeriesPanel = ({
         )}
       </div>
 
-      {/* Grafana Legend Table */}
+      {/* Metrics Legend Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-[10px] font-mono text-left">
           <thead>

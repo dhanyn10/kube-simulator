@@ -6,7 +6,7 @@ import { handleSimulationControl, applyTrafficSpike } from './simulationControlH
 
 /**
  * Hook to manage real-time synchronization between the main window simulation
- * and the detached standalone monitoring window (Grafana view).
+ * and the detached standalone monitoring window (System Monitor view).
  */
 export const useSimulationSync = () => {
   const setMonitoringDetached = useFlowStore((state) => state.setMonitoringDetached);

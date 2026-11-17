@@ -5,7 +5,7 @@ import { getBackendGateway } from '@/gateway';
 import { WindowControls } from '@/components/Layout';
 import { TimeRangeFilter } from './types';
 
-interface GrafanaHeaderProps {
+interface SystemMonitorHeaderProps {
   isSimulating: boolean;
   isPaused: boolean;
   simulationSpeed: 1 | 5 | 10;
@@ -15,7 +15,7 @@ interface GrafanaHeaderProps {
   colorMode: 'dark' | 'light';
 }
 
-export const GrafanaHeader = ({
+export const SystemMonitorHeader = ({
   isSimulating,
   isPaused,
   simulationSpeed,
@@ -23,7 +23,7 @@ export const GrafanaHeader = ({
   setTimeRange,
   sendControl,
   colorMode,
-}: GrafanaHeaderProps) => {
+}: SystemMonitorHeaderProps) => {
   const isDark = colorMode === 'dark';
   const tickInterval = simulationSpeed === 10 ? '15ms' : simulationSpeed === 5 ? '30ms' : '150ms';
 
@@ -42,7 +42,7 @@ export const GrafanaHeader = ({
     <header className="flex flex-col shrink-0 select-none">
       {/* 1. Native Frameless Titlebar (Identical to main app MenuBar) */}
       <div
-        data-testid="grafana-header"
+        data-testid="system-monitor-header"
         style={{ '--wails-draggable': 'drag' } as CSSProperties}
         onDoubleClick={() => void getBackendGateway().maximizeWindow()}
         className={cn(
@@ -56,8 +56,8 @@ export const GrafanaHeader = ({
           </svg>
           <span className="font-bold text-[11px] tracking-wide">Kube Simulator</span>
           <span className="text-slate-500 text-[11px]">/</span>
-          <span className="font-semibold text-[11px] text-orange-400 font-mono">Real-time Monitoring</span>
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono border border-slate-700">v10.4.0</span>
+          <span className="font-semibold text-[11px] text-blue-400 font-mono">System Monitor</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono border border-slate-700">Cluster</span>
         </div>
 
         {/* Center Draggable Spacer */}
@@ -70,7 +70,7 @@ export const GrafanaHeader = ({
         />
       </div>
 
-      {/* 2. Simulation & Grafana Action Ribbon */}
+      {/* 2. Simulation & System Monitor Action Ribbon */}
       <div
         className={cn(
           'h-11 px-4 border-b flex items-center justify-between z-40 transition-colors',
@@ -159,7 +159,7 @@ export const GrafanaHeader = ({
                 className={cn(
                   'px-2 py-0.5 rounded transition-all',
                   simulationSpeed === s
-                    ? 'bg-orange-500 text-white shadow-sm'
+                    ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                 )}
               >

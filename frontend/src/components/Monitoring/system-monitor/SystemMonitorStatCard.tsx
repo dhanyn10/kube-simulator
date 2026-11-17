@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-interface GrafanaStatCardProps {
+interface SystemMonitorStatCardProps {
   title: string;
   value: string | number;
   unit?: string;
@@ -12,7 +12,7 @@ interface GrafanaStatCardProps {
   colorMode?: 'dark' | 'light';
 }
 
-export const GrafanaStatCard = ({
+export const SystemMonitorStatCard = ({
   title,
   value,
   unit,
@@ -21,7 +21,7 @@ export const GrafanaStatCard = ({
   sparklineData = [],
   threshold = 'normal',
   colorMode = 'dark',
-}: GrafanaStatCardProps) => {
+}: SystemMonitorStatCardProps) => {
   const isDark = colorMode === 'dark';
 
   const thresholdColor =

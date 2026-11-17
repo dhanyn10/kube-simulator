@@ -1,19 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { GrafanaHeader } from '@/components/Monitoring/grafana/GrafanaHeader';
-import { GrafanaStatCard } from '@/components/Monitoring/grafana/GrafanaStatCard';
-import { GrafanaTimeSeriesPanel } from '@/components/Monitoring/grafana/GrafanaTimeSeriesPanel';
-import { GrafanaReplicasPanel } from '@/components/Monitoring/grafana/GrafanaReplicasPanel';
-import { GrafanaNetworkPanel } from '@/components/Monitoring/grafana/GrafanaNetworkPanel';
+import { SystemMonitorHeader } from '@/components/Monitoring/system-monitor/SystemMonitorHeader';
+import { SystemMonitorStatCard } from '@/components/Monitoring/system-monitor/SystemMonitorStatCard';
+import { SystemMonitorTimeSeriesPanel } from '@/components/Monitoring/system-monitor/SystemMonitorTimeSeriesPanel';
+import { SystemMonitorReplicasPanel } from '@/components/Monitoring/system-monitor/SystemMonitorReplicasPanel';
+import { SystemMonitorNetworkPanel } from '@/components/Monitoring/system-monitor/SystemMonitorNetworkPanel';
 import { Activity } from 'lucide-react';
 
-describe('Grafana UI Components', () => {
-  it('renders GrafanaHeader and triggers controls (start, pause, speed, spike, timeRange)', () => {
+describe('SystemMonitor UI Components', () => {
+  it('renders SystemMonitorHeader and triggers controls (start, pause, speed, spike, timeRange)', () => {
     const sendControl = vi.fn();
     const setTimeRange = vi.fn();
 
     const { rerender } = render(
-      <GrafanaHeader
+      <SystemMonitorHeader
         isSimulating={false}
         isPaused={false}
         simulationSpeed={1}
@@ -24,7 +24,7 @@ describe('Grafana UI Components', () => {
       />
     );
 
-    expect(screen.getByText('Real-time Monitoring')).toBeDefined();
+    expect(screen.getByText('System Monitor')).toBeDefined();
     expect(screen.getByText('Idle')).toBeDefined();
 
     // Click Start
@@ -45,7 +45,7 @@ describe('Grafana UI Components', () => {
 
     // Rerender as Simulating & Running
     rerender(
-      <GrafanaHeader
+      <SystemMonitorHeader
         isSimulating={true}
         isPaused={false}
         simulationSpeed={5}
@@ -61,7 +61,7 @@ describe('Grafana UI Components', () => {
 
     // Rerender as Paused
     rerender(
-      <GrafanaHeader
+      <SystemMonitorHeader
         isSimulating={true}
         isPaused={true}
         simulationSpeed={10}
@@ -85,13 +85,13 @@ describe('Grafana UI Components', () => {
     fireEvent.click(screen.getByLabelText('close'));
 
     // Test double click header to maximize
-    const header = screen.getByTestId('grafana-header');
+    const header = screen.getByTestId('system-monitor-header');
     fireEvent.doubleClick(header);
   });
 
-  it('renders GrafanaStatCard with normal, warning, and critical thresholds and sparkline', () => {
+  it('renders SystemMonitorStatCard with normal, warning, and critical thresholds and sparkline', () => {
     const { rerender } = render(
-      <GrafanaStatCard
+      <SystemMonitorStatCard
         title="Cluster CPU"
         value={45}
         unit="%"
@@ -108,7 +108,7 @@ describe('Grafana UI Components', () => {
 
     // Warning threshold
     rerender(
-      <GrafanaStatCard
+      <SystemMonitorStatCard
         title="Cluster CPU"
         value={78}
         unit="%"
@@ -123,7 +123,7 @@ describe('Grafana UI Components', () => {
 
     // Critical threshold with empty sparkline
     rerender(
-      <GrafanaStatCard
+      <SystemMonitorStatCard
         title="Cluster CPU"
         value={96}
         unit="%"
@@ -137,9 +137,9 @@ describe('Grafana UI Components', () => {
     expect(screen.getByText('96')).toBeDefined();
   });
 
-  it('renders GrafanaTimeSeriesPanel with empty and populated metrics', () => {
+  it('renders SystemMonitorTimeSeriesPanel with empty and populated metrics', () => {
     const { rerender } = render(
-      <GrafanaTimeSeriesPanel
+      <SystemMonitorTimeSeriesPanel
         title="CPU Utilization"
         description="CPU per deployment"
         deployments={[]}
@@ -151,7 +151,7 @@ describe('Grafana UI Components', () => {
     expect(screen.getByText('No active workload metrics')).toBeDefined();
 
     rerender(
-      <GrafanaTimeSeriesPanel
+      <SystemMonitorTimeSeriesPanel
         title="CPU Utilization"
         description="CPU per deployment"
         deployments={[{ id: 'dep-1', label: 'web-server', replicas: 2 }]}
@@ -169,14 +169,14 @@ describe('Grafana UI Components', () => {
     expect(screen.getAllByText('60%')[0]).toBeDefined();
   });
 
-  it('renders GrafanaReplicasPanel and GrafanaNetworkPanel', () => {
+  it('renders SystemMonitorReplicasPanel and SystemMonitorNetworkPanel', () => {
     render(
       <div>
-        <GrafanaReplicasPanel
+        <SystemMonitorReplicasPanel
           deployments={[{ id: 'dep-1', label: 'api-service', replicas: 4 }]}
           metrics={{ 'dep-1': [{ cpuPercent: 50, memoryPercent: 40 }] }}
         />
-        <GrafanaNetworkPanel
+        <SystemMonitorNetworkPanel
           deployments={[{ id: 'dep-1', label: 'api-service', replicas: 4 }]}
           metrics={{ 'dep-1': [{ cpuPercent: 50, memoryPercent: 40 }] }}
         />

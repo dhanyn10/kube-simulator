@@ -127,16 +127,19 @@ describe('App Component', () => {
 
   it('renders monitoring mode if URL param is set', async () => {
     const originalLocation = window.location;
-    // @ts-ignore
-    delete window.location;
-    window.location = ({ ...originalLocation, search: '?mode=monitoring' } as any);
+    try {
+      // @ts-ignore
+      delete window.location;
+      window.location = ({ ...originalLocation, search: '?mode=monitoring' } as any);
 
-    await act(async () => {
-      render(<App />);
-    });
+      await act(async () => {
+        render(<App />);
+      });
 
-    expect(screen.getByText('Real-time Monitoring')).toBeDefined();
-    window.location = (originalLocation as any);
+      expect(screen.getByText('System Monitor')).toBeDefined();
+    } finally {
+      window.location = (originalLocation as any);
+    }
   });
 
   it('handles pane context menu and node clicks/context menu', async () => {

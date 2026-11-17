@@ -1,14 +1,14 @@
 import { useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Cpu, Database, Server, Activity, AlertCircle, Radio } from 'lucide-react';
-import { useGrafanaDashboard } from './useGrafanaDashboard';
-import { GrafanaHeader } from './GrafanaHeader';
-import { GrafanaStatCard } from './GrafanaStatCard';
-import { GrafanaTimeSeriesPanel } from './GrafanaTimeSeriesPanel';
-import { GrafanaReplicasPanel } from './GrafanaReplicasPanel';
-import { GrafanaNetworkPanel } from './GrafanaNetworkPanel';
+import { useSystemMonitorDashboard } from './useSystemMonitorDashboard';
+import { SystemMonitorHeader } from './SystemMonitorHeader';
+import { SystemMonitorStatCard } from './SystemMonitorStatCard';
+import { SystemMonitorTimeSeriesPanel } from './SystemMonitorTimeSeriesPanel';
+import { SystemMonitorReplicasPanel } from './SystemMonitorReplicasPanel';
+import { SystemMonitorNetworkPanel } from './SystemMonitorNetworkPanel';
 
-export const GrafanaDashboard = () => {
+export const SystemMonitorDashboard = () => {
   const {
     metrics,
     deployments,
@@ -20,7 +20,7 @@ export const GrafanaDashboard = () => {
     setTimeRange,
     sendControl,
     clusterTotals,
-  } = useGrafanaDashboard();
+  } = useSystemMonitorDashboard();
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', colorMode === 'dark');
@@ -44,8 +44,8 @@ export const GrafanaDashboard = () => {
         isDark ? 'bg-[#111217] text-slate-200' : 'bg-slate-50 text-slate-800'
       )}
     >
-      {/* Grafana Navigation & Control Toolbar */}
-      <GrafanaHeader
+      {/* System Monitor Navigation & Control Toolbar */}
+      <SystemMonitorHeader
         isSimulating={isSimulating}
         isPaused={isPaused}
         simulationSpeed={simulationSpeed}
@@ -59,7 +59,7 @@ export const GrafanaDashboard = () => {
       <main className="flex-1 p-5 space-y-5 max-w-[1600px] w-full mx-auto overflow-y-auto">
         {/* KPI SingleStat Row */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-          <GrafanaStatCard
+          <SystemMonitorStatCard
             title="Cluster CPU"
             value={clusterTotals.cpuPercent}
             unit="%"
@@ -70,7 +70,7 @@ export const GrafanaDashboard = () => {
             colorMode={colorMode}
           />
 
-          <GrafanaStatCard
+          <SystemMonitorStatCard
             title="Cluster Memory"
             value={clusterTotals.memoryPercent}
             unit="%"
@@ -81,7 +81,7 @@ export const GrafanaDashboard = () => {
             colorMode={colorMode}
           />
 
-          <GrafanaStatCard
+          <SystemMonitorStatCard
             title="Workload Pods"
             value={`${clusterTotals.readyPods} / ${clusterTotals.totalPods}`}
             unit="pods"
@@ -91,7 +91,7 @@ export const GrafanaDashboard = () => {
             colorMode={colorMode}
           />
 
-          <GrafanaStatCard
+          <SystemMonitorStatCard
             title="Throughput"
             value={clusterTotals.totalRps.toLocaleString()}
             unit="req/s"
@@ -101,7 +101,7 @@ export const GrafanaDashboard = () => {
             colorMode={colorMode}
           />
 
-          <GrafanaStatCard
+          <SystemMonitorStatCard
             title="Error Rate"
             value={`${clusterTotals.errorRate}.00`}
             unit="%"
@@ -115,12 +115,12 @@ export const GrafanaDashboard = () => {
         {/* Time-Series Charts Grid */}
         {deployments.length === 0 ? (
           <div className="h-64 flex flex-col items-center justify-center text-slate-500 gap-3 border border-dashed border-slate-800 rounded-lg">
-            <Activity size={36} strokeWidth={1.5} className="text-orange-500/60" />
+            <Activity size={36} strokeWidth={1.5} className="text-blue-500/60" />
             <p className="text-sm font-medium uppercase tracking-widest font-mono">Waiting for simulation data...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <GrafanaTimeSeriesPanel
+            <SystemMonitorTimeSeriesPanel
               title="CPU Utilization (%)"
               description="Processor load per deployment"
               deployments={deployments}
@@ -132,7 +132,7 @@ export const GrafanaDashboard = () => {
               colorMode={colorMode}
             />
 
-            <GrafanaTimeSeriesPanel
+            <SystemMonitorTimeSeriesPanel
               title="Memory Allocation (MiB)"
               description="Working set per deployment"
               deployments={deployments}
@@ -144,13 +144,13 @@ export const GrafanaDashboard = () => {
               colorMode={colorMode}
             />
 
-            <GrafanaNetworkPanel
+            <SystemMonitorNetworkPanel
               deployments={deployments}
               metrics={metrics}
               colorMode={colorMode}
             />
 
-            <GrafanaReplicasPanel
+            <SystemMonitorReplicasPanel
               deployments={deployments}
               metrics={metrics}
               colorMode={colorMode}
@@ -159,7 +159,7 @@ export const GrafanaDashboard = () => {
         )}
       </main>
 
-      {/* Grafana Status Footer */}
+      {/* System Monitor Status Footer */}
       <footer
         className={cn(
           'h-9 px-5 flex items-center justify-between border-t text-[10px] font-mono select-none',
@@ -167,15 +167,15 @@ export const GrafanaDashboard = () => {
         )}
       >
         <div className="flex items-center gap-6">
-          <span className="flex items-center gap-1.5 text-orange-400 font-bold">
+          <span className="flex items-center gap-1.5 text-blue-400 font-bold">
             <Radio size={12} className={isSimulating && !isPaused ? 'animate-pulse' : ''} />
-            Grafana v10.4.0 Engine (Go Broker Synced)
+            System Monitor Engine (Go Broker Synced)
           </span>
           <span className="hidden sm:inline">Speed: {simulationSpeed}x</span>
           <span className="hidden sm:inline">IPC: Wails v3 + BroadcastChannel</span>
         </div>
         <div>
-          <span>Multi-Window Cluster Monitor</span>
+          <span>Multi-Window System Monitor</span>
         </div>
       </footer>
     </div>

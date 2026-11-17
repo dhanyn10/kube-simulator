@@ -21,7 +21,7 @@ describe('DetachedMonitoring', () => {
 
   it('renders waiting state initially', () => {
     render(<DetachedMonitoring />);
-    expect(screen.getByText('Real-time Monitoring')).toBeDefined();
+    expect(screen.getByText('System Monitor')).toBeDefined();
     expect(screen.getByText('Waiting for simulation data...')).toBeDefined();
   });
 

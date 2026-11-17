@@ -5,17 +5,17 @@ import { DeploymentSummary } from './types';
 import { buildSvgPoints } from './chartHelpers';
 import { Activity, Globe } from 'lucide-react';
 
-interface GrafanaNetworkPanelProps {
+interface SystemMonitorNetworkPanelProps {
   deployments: DeploymentSummary[];
   metrics: Record<string, SimulationMetricPoint[]>;
   colorMode?: 'dark' | 'light';
 }
 
-export const GrafanaNetworkPanel = ({
+export const SystemMonitorNetworkPanel = ({
   deployments,
   metrics,
   colorMode = 'dark',
-}: GrafanaNetworkPanelProps) => {
+}: SystemMonitorNetworkPanelProps) => {
   const isDark = colorMode === 'dark';
 
   const { rpsData, latencyData, currentRps, currentLatency } = useMemo(() => {
@@ -60,21 +60,26 @@ export const GrafanaNetworkPanel = ({
           <h2 className="text-xs font-bold font-mono uppercase tracking-wider">Network Ingress & Response Latency</h2>
         </div>
         <div className="flex items-center gap-3 text-[10px] font-mono">
-          <span className="text-emerald-400 font-bold">{currentRps} req/s</span>
-          <span className="text-amber-400 font-bold">{currentLatency} ms avg</span>
+          <span className="text-emerald-400 flex items-center gap-1 font-bold">
+            <Activity size={11} /> {currentRps.toLocaleString()} req/s
+          </span>
+          <span className="text-blue-400 font-bold">{currentLatency} ms</span>
         </div>
       </div>
 
       <div className="h-28 w-full bg-[#111217] rounded border border-[#22252b] relative overflow-hidden flex items-center justify-center">
-        {rpsData.length === 0 ? (
-          <span className="text-xs font-mono text-slate-500">Waiting for gateway traffic...</span>
+        {deployments.length === 0 ? (
+          <span className="text-xs font-mono text-slate-500">No active traffic simulation</span>
         ) : (
           <svg aria-hidden="true" viewBox="0 0 500 100" className="w-full h-full" preserveAspectRatio="none">
+            {/* Gradient Area under curve */}
             <path
               d={`M0,100 ${rpsPoints} L500,100 Z`}
               fill="#10b981"
-              fillOpacity="0.12"
+              fillOpacity="0.15"
+              className="transition-all duration-300"
             />
+            {/* Latency line */}
             <polyline
               fill="none"
               stroke="#10b981"
@@ -82,17 +87,15 @@ export const GrafanaNetworkPanel = ({
               strokeLinecap="round"
               strokeLinejoin="round"
               points={rpsPoints}
+              className="transition-all duration-300"
             />
           </svg>
         )}
       </div>
 
       <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1">
-        <span className="flex items-center gap-1.5">
-          <Activity size={11} className="text-emerald-400" />
-          Throughput: Ingress Controller (HTTP 200/OK)
-        </span>
-        <span>Peak: {maxRps} rps</span>
+        <span>Protocol: HTTP/2 (Cluster Ingress)</span>
+        <span>Peak Throughput: {maxRps.toLocaleString()} req/s</span>
       </div>
     </div>
   );

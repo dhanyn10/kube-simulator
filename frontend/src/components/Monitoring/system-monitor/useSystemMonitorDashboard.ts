@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getBackendGateway } from '@/gateway';
 import { SimulationMetricPoint } from '@/store/types';
-import { TimeRangeFilter, DeploymentSummary, GrafanaClusterTotals } from './types';
+import { TimeRangeFilter, DeploymentSummary, SystemMonitorClusterTotals } from './types';
 
-export const useGrafanaDashboard = () => {
+export const useSystemMonitorDashboard = () => {
   const [metrics, setMetrics] = useState<Record<string, SimulationMetricPoint[]>>({});
   const [deployments, setDeployments] = useState<DeploymentSummary[]>([]);
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
@@ -95,7 +95,7 @@ export const useGrafanaDashboard = () => {
   }, [handleUpdate]);
 
   // Aggregate cluster metrics computation
-  const clusterTotals: GrafanaClusterTotals = useMemo(() => {
+  const clusterTotals: SystemMonitorClusterTotals = useMemo(() => {
     let cpuUsed = 0;
     let cpuLimit = 0;
     let memMb = 0;

@@ -5,17 +5,17 @@ import { DeploymentSummary } from './types';
 import { CHART_PALETTE, buildSvgPoints } from './chartHelpers';
 import { Layers } from 'lucide-react';
 
-interface GrafanaReplicasPanelProps {
+interface SystemMonitorReplicasPanelProps {
   deployments: DeploymentSummary[];
   metrics: Record<string, SimulationMetricPoint[]>;
   colorMode?: 'dark' | 'light';
 }
 
-export const GrafanaReplicasPanel = ({
+export const SystemMonitorReplicasPanel = ({
   deployments,
   metrics,
   colorMode = 'dark',
-}: GrafanaReplicasPanelProps) => {
+}: SystemMonitorReplicasPanelProps) => {
   const isDark = colorMode === 'dark';
 
   const replicaSeries = useMemo(() => {
@@ -58,17 +58,19 @@ export const GrafanaReplicasPanel = ({
                 strokeLinecap="square"
                 strokeLinejoin="miter"
                 points={s.svgPoints}
+                className="transition-all duration-300"
               />
             ))}
           </svg>
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
+      <div className="flex flex-wrap items-center gap-3 pt-1">
         {replicaSeries.map((s) => (
-          <div key={`badge-${s.id}`} className="px-2 py-1 rounded bg-slate-900/60 border border-slate-800 flex items-center justify-between">
-            <span className="text-[10px] font-bold font-mono truncate max-w-[100px]">{s.label}</span>
-            <span className="text-[11px] font-mono font-bold" style={{ color: s.color }}>
+          <div key={`rep-badge-${s.id}`} className="flex items-center gap-1.5 text-[10px] font-mono">
+            <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: s.color }} />
+            <span className="text-slate-300 font-medium">{s.label}:</span>
+            <span className="font-bold text-white bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
               {s.current} Replicas
             </span>
           </div>

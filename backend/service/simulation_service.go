@@ -15,7 +15,7 @@ type SimulationState struct {
 }
 
 // SimulationService manages centralized simulation lifecycle, speed synchronization,
-// and state caching between main window and detached Grafana monitoring windows.
+// and state caching between main window and detached System Monitor windows.
 type SimulationService struct {
 	mu               sync.RWMutex
 	isSimulating     bool

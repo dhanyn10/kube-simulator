@@ -106,7 +106,7 @@ func (s *WindowService) OpenSimulationWindow() bool {
 
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:             SimulationWindowName,
-		Title:            "Kube Simulator - Real-time Monitoring",
+		Title:            "Kube Simulator - System Monitor",
 		Width:            900,
 		Height:           650,
 		MinWidth:         500,

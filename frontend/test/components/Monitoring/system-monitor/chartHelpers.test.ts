@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateSeriesStats, buildSvgPoints, CHART_PALETTE } from '@/components/Monitoring/grafana/chartHelpers';
+import { calculateSeriesStats, buildSvgPoints, CHART_PALETTE } from '@/components/Monitoring/system-monitor/chartHelpers';
 
 describe('chartHelpers', () => {
   it('has valid color palette array', () => {
