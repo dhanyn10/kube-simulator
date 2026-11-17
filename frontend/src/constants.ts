@@ -1,6 +1,6 @@
 import { K8sResourceType } from './types';
 
-export { APP_VERSION } from './constants/config';
+export { APP_VERSION, getNextMinorVersion } from './constants/config';
 
 export const NODE_TYPES: Record<K8sResourceType, { color: string; icon: string }> = {
   Pod: { color: 'blue', icon: 'Box' },

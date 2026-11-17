@@ -5,6 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { initWailsMocks } from "@/lib/mocks";
+import { APP_VERSION } from "@/constants/config";
 
 describe("initWailsMocks", () => {
   beforeEach(() => {
@@ -158,7 +159,7 @@ describe("initWailsMocks", () => {
       os: "windows",
       arch: "amd64",
       goVersion: "go1.25.0",
-      version: "0.15.0",
+      version: APP_VERSION,
     });
 
     // Internet Profiles

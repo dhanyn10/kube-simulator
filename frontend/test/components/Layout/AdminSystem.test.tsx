@@ -5,6 +5,7 @@ import React from 'react';
 import { MenuBar } from '@/components/Layout/MenuBar';
 import { useFlowStore } from '@/store';
 import { handleAdminCommands, CommandContext } from '@/activities/terminal/terminalCommands';
+import { APP_VERSION, getNextMinorVersion } from '@/constants/config';
 
 import { handleHelpCommand } from '@/activities/terminal';
 import { getAutocompleteSuggestions } from '@/activities/terminal/terminalAutocomplete';
@@ -57,8 +58,9 @@ describe('Admin Authentication and Dev Commands System', () => {
     expect(logs.some(l => l.includes('Secret Mode Unlocked'))).toBe(true);
 
     // Now test try version update command
-    handleAdminCommands('try version update 0.16.0', ctx);
-    expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.16.0');
+    const nextMinor = getNextMinorVersion(APP_VERSION);
+    handleAdminCommands(`try version update ${nextMinor}`, ctx);
+    expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe(nextMinor);
   });
 
   it('rejects authentication on wrong password', () => {
@@ -74,12 +76,13 @@ describe('Admin Authentication and Dev Commands System', () => {
 
     // try version update default
     handleAdminCommands('try version update', ctx);
-    expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.16.0');
+    const defaultNext = getNextMinorVersion(APP_VERSION);
+    expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe(defaultNext);
 
     // try version current without arg (status check)
     logs = [];
     handleAdminCommands('try version current', ctx);
-    expect(logs.some(l => l.includes('Current assumed version: v0.15.0'))).toBe(true);
+    expect(logs.some(l => l.includes(`Current assumed version: v${APP_VERSION}`))).toBe(true);
 
     // try version current 0.5.0
     logs = [];

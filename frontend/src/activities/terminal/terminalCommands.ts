@@ -1,7 +1,7 @@
 import { Node } from '@xyflow/react';
 import { syncDeployment } from '@/store/nodeHelpers';
 import { extractAttachedResources, findNodeByTargetName, getPodDisplayStatus, printNodeEnvironment, printContainerEnv } from './terminalLogUtils';
-import { APP_VERSION } from '@/constants/config';
+import { APP_VERSION, getNextMinorVersion } from '@/constants/config';
 
 export interface CommandContext {
   nodes: Node[];
@@ -241,7 +241,8 @@ const compareVersions = (v1: string, v2: string): number => {
 
 const processVersionUpdateCmd = (parts: string[], store: any, ctx: CommandContext): boolean => {
   const currentVersion = store.simulatedCurrentVersion || store.appVersion || APP_VERSION;
-  const targetVersion = (parts[3] || '0.16.0').replace(/^v/i, '');
+  const defaultTarget = getNextMinorVersion(currentVersion);
+  const targetVersion = (parts[3] || defaultTarget).replace(/^v/i, '');
 
   if (compareVersions(targetVersion, currentVersion) <= 0) {
     ctx.addActivityLog(`[Dev-Mode Warning] Target update version (v${targetVersion}) cannot be equal or lower than current version (v${currentVersion}). Please reinstall application if you need to use previous version.`);

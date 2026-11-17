@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useFlowStore } from '@/store';
 import { setMetricsChannel } from '@/store/slices/simulationManager';
+import { APP_VERSION } from '@/constants/config';
 
 describe('createUiSlice', () => {
   beforeEach(() => {
@@ -513,7 +514,7 @@ describe('createUiSlice', () => {
     setSimulatedCurrentVersion('1.0.0');
     expect(useFlowStore.getState().simulatedCurrentVersion).toBe('1.0.0');
 
-    expect(useFlowStore.getState().appVersion).toBe('0.15.0');
+    expect(useFlowStore.getState().appVersion).toBe(APP_VERSION);
     useFlowStore.getState().setAppVersion('0.15.1');
     expect(useFlowStore.getState().appVersion).toBe('0.15.1');
 

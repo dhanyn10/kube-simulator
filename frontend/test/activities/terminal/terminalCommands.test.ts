@@ -21,6 +21,7 @@ import {
   CommandContext
 } from '@/activities/terminal/terminalCommands';
 import { printNodeEnvironment, printContainerEnv } from '@/activities/terminal/terminalLogUtils';
+import { APP_VERSION, getNextMinorVersion } from '@/constants/config';
 
 describe('terminalCommands', () => {
   let mockCtx: CommandContext;
@@ -32,7 +33,7 @@ describe('terminalCommands', () => {
     storeState = {
       isAdminAuthenticated: false,
       isAwaitingAdminPassword: false,
-      simulatedCurrentVersion: '0.15.0',
+      simulatedCurrentVersion: APP_VERSION,
       simulatedUpdateInfo: null,
       setSimulatedUpdateInfo: (info: any) => { storeState.simulatedUpdateInfo = info; },
       setSimulatedCurrentVersion: (ver: any) => { storeState.simulatedCurrentVersion = ver; },
@@ -524,10 +525,11 @@ describe('terminalCommands', () => {
       handleAdminCommands('try version update v1.0.0', mockCtx); // compareVersions('1.0.0', '1.0.0') returns 0 -> line 238
       expect(activityLogs.some(l => l.includes('Dev-Mode Warning'))).toBe(true);
 
-      storeState.simulatedCurrentVersion = undefined; // falls back to '0.15.0'
+      storeState.simulatedCurrentVersion = undefined; // falls back to APP_VERSION
       activityLogs = [];
-      handleAdminCommands('try version update', mockCtx); // targetVersion falls back to '0.16.0'
-      expect(activityLogs.some(l => l.includes('Simulated New Version v0.16.0 Available'))).toBe(true);
+      handleAdminCommands('try version update', mockCtx); // targetVersion falls back to getNextMinorVersion(APP_VERSION)
+      const expectedTarget = getNextMinorVersion(APP_VERSION);
+      expect(activityLogs.some(l => l.includes(`Simulated New Version v${expectedTarget} Available`))).toBe(true);
 
       // processVersionCurrentCmd clearing updateInfo when latestVersion <= targetVersion
       storeState.simulatedUpdateInfo = { latestVersion: '0.5.0', releaseUrl: 'http://test' };
@@ -668,11 +670,12 @@ describe('terminalCommands', () => {
     it('covers handleAdminCommands try status with updateInfo and fallback version', () => {
       storeState.isAdminAuthenticated = true;
       storeState.simulatedCurrentVersion = '';
-      storeState.simulatedUpdateInfo = { latestVersion: '0.16.0' };
+      const nextMinor = getNextMinorVersion(APP_VERSION);
+      storeState.simulatedUpdateInfo = { latestVersion: nextMinor };
       let result = handleAdminCommands('try status', mockCtx);
       expect(result).toBe(true);
-      expect(activityLogs.some(l => l.includes('v0.16.0'))).toBe(true);
-      expect(activityLogs.some(l => l.includes('Current Version: v0.15.0'))).toBe(true);
+      expect(activityLogs.some(l => l.includes(`v${nextMinor}`))).toBe(true);
+      expect(activityLogs.some(l => l.includes(`Current Version: v${APP_VERSION}`))).toBe(true);
 
       // Branch 62[1] at line 305: updateInfo is null
       storeState.simulatedUpdateInfo = null;
