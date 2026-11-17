@@ -27,6 +27,14 @@ export function useAppInit(
 
     const gw = getBackendGateway();
 
+    gw.getSystemInfo()
+      .then((info: any) => {
+        if (info?.version) {
+          useFlowStore.getState().setAppVersion(info.version);
+        }
+      })
+      .catch(() => {});
+
     void Promise.all([
       gw.getSetting('globalEdgeColor'),
       gw.getSetting('globalEdgeErrorColor'),

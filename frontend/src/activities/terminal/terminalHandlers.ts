@@ -3,6 +3,7 @@ import { safeRandom } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { CommandContext } from './terminalCommands';
 import { CommandHistoryEntry, findNodeByTargetName, getPodDisplayStatus, printNodeEnvironment } from './terminalLogUtils';
+import { APP_VERSION, getNextMinorVersion } from '@/constants/config';
 
 /**
  * Handles the 'kubectl get pods' command by printing all workload pods present on the canvas.
@@ -198,9 +199,10 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
   }
 
   if (isAdmin) {
+    const nextMinor = getNextMinorVersion(APP_VERSION);
     addActivityLog('Admin CLI Commands:');
-    addActivityLog('  try version update <version>          Simulate update notification button (e.g. try version update 0.5.0)');
-    addActivityLog('  try version current <version>         Simulate current application version (e.g. try version current 0.4.0)');
+    addActivityLog(`  try version update <version>          Simulate update notification button (e.g. try version update ${nextMinor})`);
+    addActivityLog(`  try version current <version>         Simulate current application version (e.g. try version current ${APP_VERSION})`);
     addActivityLog('  try version clear                     Clear simulated current version');
     addActivityLog('  try clear                             Clear all simulated version settings');
     addActivityLog('  try status                            View secret mode status');

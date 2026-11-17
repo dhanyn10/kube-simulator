@@ -291,5 +291,76 @@ describe('useTerminalCommandSubmit', () => {
       expect(result.current.commandInput).toBe('hello');
       expect(result.current.historyIndex).toBe(0);
     });
+
+    it('masks password in terminal output and backend log and excludes it from command history when isAwaitingAdminPassword is true', async () => {
+      const writeLogMock = vi.fn().mockResolvedValue(undefined);
+      (globalThis as any).go = {
+        main: {
+          App: {
+            WriteLog: writeLogMock,
+          },
+        },
+      };
+
+      const addActivityLog = vi.fn();
+      useFlowStore.setState({
+        addActivityLog,
+        isAwaitingAdminPassword: true,
+        isAdminAuthenticated: false,
+      });
+
+      const nodes = useFlowStore.getState().nodes;
+      const { result } = renderHook(() =>
+        useTerminalCommandSubmit(nodes, true, clearTerminalLogs, setTerminalSelectedResourceId, setTerminalActiveTab)
+      );
+
+      act(() => {
+        result.current.processCommandSubmit('admin123', setIsDropdownOpen, setIsNavigatingHistory);
+      });
+
+      // Terminal activity log MUST display masked asterisks, NEVER the raw password
+      expect(addActivityLog).toHaveBeenCalledWith('$ ********');
+      expect(addActivityLog).not.toHaveBeenCalledWith('$ admin123');
+      expect(addActivityLog).toHaveBeenCalledWith(expect.stringContaining('[Secret Mode Unlocked!]'));
+
+      // Backend disk logger MUST receive masked asterisks
+      expect(writeLogMock).toHaveBeenCalledWith('kubeconsole', 'info', expect.stringContaining('$ ********'));
+      expect(writeLogMock).not.toHaveBeenCalledWith('kubeconsole', 'info', expect.stringContaining('admin123'));
+
+      // Command history MUST NOT contain the password
+      expect(result.current.commandHistory).not.toContain('admin123');
+      expect(result.current.commandHistoryEntries).toHaveLength(0);
+
+      // Admin mode should be successfully unlocked
+      expect(useFlowStore.getState().isAdminAuthenticated).toBe(true);
+      expect(useFlowStore.getState().isAwaitingAdminPassword).toBe(false);
+    });
+
+    it('masks invalid password in terminal output when isAwaitingAdminPassword is true', () => {
+      const addActivityLog = vi.fn();
+      useFlowStore.setState({
+        addActivityLog,
+        isAwaitingAdminPassword: true,
+        isAdminAuthenticated: false,
+      });
+
+      const nodes = useFlowStore.getState().nodes;
+      const { result } = renderHook(() =>
+        useTerminalCommandSubmit(nodes, true, clearTerminalLogs, setTerminalSelectedResourceId, setTerminalActiveTab)
+      );
+
+      act(() => {
+        result.current.processCommandSubmit('wrongpass', setIsDropdownOpen, setIsNavigatingHistory);
+      });
+
+      // Masked output (9 asterisks for 'wrongpass')
+      expect(addActivityLog).toHaveBeenCalledWith('$ *********');
+      expect(addActivityLog).not.toHaveBeenCalledWith('$ wrongpass');
+      expect(addActivityLog).toHaveBeenCalledWith(expect.stringContaining('[Access Denied] Incorrect password.'));
+
+      expect(useFlowStore.getState().isAdminAuthenticated).toBe(false);
+      expect(useFlowStore.getState().isAwaitingAdminPassword).toBe(false);
+      expect(result.current.commandHistory).toEqual([]);
+    });
   });
 });

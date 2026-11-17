@@ -8,6 +8,7 @@ import {
   UpdateInfoData,
 } from './IBackendGateway';
 import { BaseBackendGateway } from './BaseBackendGateway';
+import { APP_VERSION } from '@/constants/config';
 
 /**
  * In-memory Mock Adapter for IBackendGateway.
@@ -214,7 +215,7 @@ export class MockBackendGateway extends BaseBackendGateway {
       os: 'mock-os',
       arch: 'mock-arch',
       goVersion: 'go1.25.0',
-      version: '0.4.0',
+      version: APP_VERSION,
     };
   }
 

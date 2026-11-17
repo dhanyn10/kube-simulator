@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { NODE_TYPES, INITIAL_NODES, INITIAL_EDGES } from '@/constants';
+import { NODE_TYPES, INITIAL_NODES, INITIAL_EDGES, APP_VERSION, getNextMinorVersion } from '@/constants';
 import { LAYOUT, DEFAULT_DIMENSIONS } from '@/constants/layout';
+import packageJson from '../package.json';
 
 describe('constants', () => {
+  it('exports valid application version dynamically from package.json', () => {
+    expect(APP_VERSION).toBe(packageJson.version);
+    expect(getNextMinorVersion('1.2.3')).toBe('1.3.0');
+    expect(getNextMinorVersion(APP_VERSION)).toBe(getNextMinorVersion());
+  });
   it('contains valid NODE_TYPES definition for all resource types', () => {
     expect(NODE_TYPES).toBeDefined();
     expect(NODE_TYPES.Pod).toEqual({ color: 'blue', icon: 'Box' });

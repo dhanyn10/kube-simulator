@@ -7,6 +7,7 @@ import {
   MockBackendGateway,
 } from '@/gateway';
 import * as fallbackBindings from '@/gateway/bindings-fallback';
+import { APP_VERSION } from '@/constants/config';
 
 describe('Clean Architecture Backend Gateway', () => {
   beforeEach(() => {
@@ -669,10 +670,10 @@ describe('Clean Architecture Backend Gateway', () => {
 
       expect(await mock.writeLog('sys', 'info', 'hello')).toBe(true);
       const sysInfo = await mock.getSystemInfo();
-      expect(sysInfo.version).toBe('0.4.0');
+      expect(sysInfo.version).toBe(APP_VERSION);
       const sysRes = await mock.getSystemResources();
       expect(sysRes.cpuCores).toBe(8);
-      const updateInfo = await mock.checkForUpdates('0.4.0');
+      const updateInfo = await mock.checkForUpdates(APP_VERSION);
       expect(updateInfo.updateAvailable).toBe(false);
       expect(await mock.greet('Kube')).toBe('Hello Kube!');
     });
@@ -695,7 +696,7 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(await mock.CalculateAppHeight(1000)).toBe(850);
       expect(await mock.GetTargetScreen([])).toBe(false);
       expect(await mock.GetTargetScreenHeight([])).toBe(1080);
-      expect(await mock.CheckForUpdates('0.4.0')).toHaveProperty('updateAvailable', false);
+      expect(await mock.CheckForUpdates(APP_VERSION)).toHaveProperty('updateAvailable', false);
       expect(await mock.Greet('User')).toBe('Hello User!');
       expect(await mock.FileExists('/path')).toBe(true);
       expect(await mock.OpenFileFolder('/path')).toBe(true);

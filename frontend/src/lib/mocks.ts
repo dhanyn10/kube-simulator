@@ -1,4 +1,5 @@
 import { generateYamlClientSide } from './manifestGenerator';
+import { APP_VERSION } from '@/constants/config';
 
 export const isWailsDesktop = (): boolean => {
     if (typeof globalThis === 'undefined') return false;
@@ -116,7 +117,7 @@ export const initWailsMocks = () => {
                     os: 'windows',
                     arch: 'amd64',
                     goVersion: 'go1.25.0',
-                    version: '0.4.0'
+                    version: APP_VERSION
                 }),
                 MinimizeWindow: () => {
                     safeLog('Minimize Window');

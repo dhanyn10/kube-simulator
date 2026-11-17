@@ -1,3 +1,14 @@
+import packageJson from '../../package.json';
+
+export const APP_VERSION: string = packageJson.version || '0.15.0';
+
+export const getNextMinorVersion = (version: string = APP_VERSION): string => {
+  const parts = version.replace(/^v/i, '').split('.').map(n => Number.parseInt(n, 10) || 0);
+  const major = parts[0] || 0;
+  const minor = (parts[1] ?? 0) + 1;
+  return `${major}.${minor}.0`;
+};
+
 export const RUNTIMES = {
   none: { label: 'None', frameworks: [] },
   php: { label: 'PHP', frameworks: ['Laravel', 'Symfony', 'WordPress', 'Slim'] },

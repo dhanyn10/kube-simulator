@@ -679,5 +679,33 @@ describe('terminalKeyDown', () => {
       });
       expect(eEsc.preventDefault).toHaveBeenCalled();
     });
+
+    it('returns early on all keydowns when isAwaitingAdminPassword is true to protect password field', () => {
+      const eTab = createKeyboardEvent('Tab');
+      const setCommandInput = vi.fn();
+      handleTerminalKeyDown({
+        e: eTab,
+        commandHistory: ['kubectl get pods'],
+        historyIndex: -1,
+        setHistoryIndex: vi.fn(),
+        setCommandInput,
+        suggestions: suggestionsSimple,
+        isAwaitingAdminPassword: true,
+      });
+      expect(eTab.preventDefault).not.toHaveBeenCalled();
+      expect(setCommandInput).not.toHaveBeenCalled();
+
+      const eUp = createKeyboardEvent('ArrowUp');
+      handleTerminalKeyDown({
+        e: eUp,
+        commandHistory: ['kubectl get pods'],
+        historyIndex: -1,
+        setHistoryIndex: vi.fn(),
+        setCommandInput,
+        isAwaitingAdminPassword: true,
+      });
+      expect(eUp.preventDefault).not.toHaveBeenCalled();
+      expect(setCommandInput).not.toHaveBeenCalled();
+    });
   });
 });

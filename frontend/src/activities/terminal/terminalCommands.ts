@@ -1,6 +1,7 @@
 import { Node } from '@xyflow/react';
 import { syncDeployment } from '@/store/nodeHelpers';
 import { extractAttachedResources, findNodeByTargetName, getPodDisplayStatus, printNodeEnvironment, printContainerEnv } from './terminalLogUtils';
+import { APP_VERSION, getNextMinorVersion } from '@/constants/config';
 
 export interface CommandContext {
   nodes: Node[];
@@ -239,8 +240,9 @@ const compareVersions = (v1: string, v2: string): number => {
 };
 
 const processVersionUpdateCmd = (parts: string[], store: any, ctx: CommandContext): boolean => {
-  const targetVersion = (parts[3] || '0.5.0').replace(/^v/i, '');
-  const currentVersion = store.simulatedCurrentVersion || '0.4.0';
+  const currentVersion = store.simulatedCurrentVersion || store.appVersion || APP_VERSION;
+  const defaultTarget = getNextMinorVersion(currentVersion);
+  const targetVersion = (parts[3] || defaultTarget).replace(/^v/i, '');
 
   if (compareVersions(targetVersion, currentVersion) <= 0) {
     ctx.addActivityLog(`[Dev-Mode Warning] Target update version (v${targetVersion}) cannot be equal or lower than current version (v${currentVersion}). Please reinstall application if you need to use previous version.`);
@@ -257,7 +259,7 @@ const processVersionUpdateCmd = (parts: string[], store: any, ctx: CommandContex
 
 const processVersionCurrentCmd = (parts: string[], store: any, ctx: CommandContext): boolean => {
   const targetVersion = parts[3]?.replace(/^v/i, '') || null;
-  const currentAssumed = store.simulatedCurrentVersion || '0.4.0';
+  const currentAssumed = store.simulatedCurrentVersion || store.appVersion || APP_VERSION;
 
   if (!targetVersion) {
     ctx.addActivityLog(`[Dev-Mode Status] Current assumed version: v${currentAssumed}`);
@@ -301,7 +303,7 @@ const processAdminCommands = (cmd: string, cmdLower: string, ctx: CommandContext
 
   if (cmdLower === 'try status') {
     const updateInfo = store.simulatedUpdateInfo;
-    const currentVer = store.simulatedCurrentVersion || '0.4.0';
+    const currentVer = store.simulatedCurrentVersion || store.appVersion || APP_VERSION;
     const updateText = updateInfo ? 'v' + updateInfo.latestVersion : 'None';
     ctx.addActivityLog(`[Dev-Mode Status] Authenticated: true | Current Version: v${currentVer} | Simulated Update: ${updateText}`);
     return true;

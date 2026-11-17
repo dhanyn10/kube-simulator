@@ -13,6 +13,7 @@ import * as wailsRuntime from '@wailsjs/runtime';
 import { Window } from '@wailsio/runtime';
 import * as appBindings from '@bindings/build-wails/app';
 import { isWailsDesktop } from '../lib/mocks';
+import { APP_VERSION } from '@/constants/config';
 
 function isMockFunction(fn: any): boolean {
   return typeof fn === 'function' && (Boolean(fn._isMockFunction) || Boolean(fn.mock));
@@ -412,7 +413,7 @@ export class WailsBackendGateway extends BaseBackendGateway {
       os: 'unknown',
       arch: 'unknown',
       goVersion: '',
-      version: '0.4.0',
+      version: APP_VERSION,
     };
   }
 
