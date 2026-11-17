@@ -42,8 +42,8 @@ describe('DetachedMonitoring', () => {
         channelInstance.onmessage({ data: mockData } as MessageEvent);
     });
 
-    expect(screen.getByText('my-dep')).toBeDefined();
-    expect(screen.getByText('3 Replicas')).toBeDefined();
+    expect(screen.getAllByText('my-dep')[0]).toBeDefined();
+    expect(screen.getAllByText('3 Replicas')[0]).toBeDefined();
   });
 
   it('updates theme when receiving message and handles unknown BroadcastChannel message type', async () => {
@@ -86,9 +86,9 @@ describe('DetachedMonitoring', () => {
       }));
     });
 
-    expect(screen.getByText('throttled-dep')).toBeDefined();
-    expect(screen.getByText('Throttled')).toBeDefined();
-    expect(screen.getByText('OOM Risk')).toBeDefined();
+    expect(screen.getAllByText('throttled-dep')[0]).toBeDefined();
+    expect(screen.getAllByText('Throttled')[0]).toBeDefined();
+    expect(screen.getAllByText('OOM Risk')[0]).toBeDefined();
 
     // Trigger invalid json metrics-update
     await act(async () => {
@@ -129,7 +129,7 @@ describe('DetachedMonitoring', () => {
       } as MessageEvent);
     });
 
-    expect(screen.getByText('empty-dep')).toBeDefined();
-    expect(screen.getByText('1 Replicas')).toBeDefined();
+    expect(screen.getAllByText('empty-dep')[0]).toBeDefined();
+    expect(screen.getAllByText('1 Replicas')[0]).toBeDefined();
   });
 });

@@ -205,6 +205,60 @@ export class MockBackendGateway extends BaseBackendGateway {
     return true;
   }
 
+  private mockSimulationSnapshot: string = '{}';
+  private mockSimulationSpeed: number = 1;
+  private mockIsSimulating: boolean = false;
+  private mockIsPaused: boolean = false;
+
+  async startSimulation(speed: number = 1): Promise<boolean> {
+    this.mockIsSimulating = true;
+    this.mockIsPaused = false;
+    this.mockSimulationSpeed = speed > 0 ? speed : 1;
+    this.emitEvent('simulation-state-change', JSON.stringify({ isSimulating: true, isPaused: false, speed: this.mockSimulationSpeed }));
+    return true;
+  }
+
+  async pauseSimulation(): Promise<boolean> {
+    this.mockIsPaused = true;
+    this.emitEvent('simulation-state-change', JSON.stringify({ isSimulating: this.mockIsSimulating, isPaused: true, speed: this.mockSimulationSpeed }));
+    return true;
+  }
+
+  async resumeSimulation(): Promise<boolean> {
+    this.mockIsPaused = false;
+    this.emitEvent('simulation-state-change', JSON.stringify({ isSimulating: this.mockIsSimulating, isPaused: false, speed: this.mockSimulationSpeed }));
+    return true;
+  }
+
+  async stopSimulation(): Promise<boolean> {
+    this.mockIsSimulating = false;
+    this.mockIsPaused = false;
+    this.emitEvent('simulation-state-change', JSON.stringify({ isSimulating: false, isPaused: false, speed: this.mockSimulationSpeed }));
+    return true;
+  }
+
+  async setSimulationSpeed(speed: number): Promise<boolean> {
+    this.mockSimulationSpeed = speed > 0 ? speed : 1;
+    this.emitEvent('simulation-speed-change', this.mockSimulationSpeed);
+    this.emitEvent('simulation-state-change', JSON.stringify({ isSimulating: this.mockIsSimulating, isPaused: this.mockIsPaused, speed: this.mockSimulationSpeed }));
+    return true;
+  }
+
+  async broadcastSimulationSnapshot(snapshotJson: string): Promise<boolean> {
+    this.mockSimulationSnapshot = snapshotJson || '{}';
+    this.emitEvent('simulation-snapshot-updated', this.mockSimulationSnapshot);
+    return true;
+  }
+
+  async getSimulationSnapshot(): Promise<string> {
+    return this.mockSimulationSnapshot;
+  }
+
+  async triggerTrafficSpike(multiplier: number = 2.0): Promise<boolean> {
+    this.emitEvent('simulation-traffic-spike', multiplier > 0 ? multiplier : 2.0);
+    return true;
+  }
+
   // --- Logging Operations ---
 
   async writeLog(category: string, level: string, message: string): Promise<boolean> {

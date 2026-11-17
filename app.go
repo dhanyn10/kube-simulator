@@ -85,6 +85,7 @@ type App struct {
 	autosave        *service.AutosaveService
 	internetProfile *service.InternetProfileService
 	window          *service.WindowService
+	simulation      *service.SimulationService
 	dockerHub       *dockerhub.Client
 	initialFilePath string
 }
@@ -97,6 +98,7 @@ func NewApp() *App {
 		autosave:        service.NewAutosaveService(),
 		internetProfile: service.NewInternetProfileService(),
 		window:          service.NewWindowService(),
+		simulation:      service.NewSimulationService(),
 		dockerHub:       dockerhub.NewClient(),
 	}
 }
@@ -513,6 +515,46 @@ func (a *App) OpenSimulationWindow() bool {
 // CloseSimulationWindow closes the standalone simulation monitoring window if open.
 func (a *App) CloseSimulationWindow() bool {
 	return a.window.CloseSimulationWindow()
+}
+
+// StartSimulation starts the cluster simulation with given speed.
+func (a *App) StartSimulation(speed int) bool {
+	return a.simulation.StartSimulation(speed)
+}
+
+// PauseSimulation pauses the cluster simulation.
+func (a *App) PauseSimulation() bool {
+	return a.simulation.PauseSimulation()
+}
+
+// ResumeSimulation resumes the cluster simulation.
+func (a *App) ResumeSimulation() bool {
+	return a.simulation.ResumeSimulation()
+}
+
+// StopSimulation terminates the cluster simulation.
+func (a *App) StopSimulation() bool {
+	return a.simulation.StopSimulation()
+}
+
+// SetSimulationSpeed updates the cluster simulation speed.
+func (a *App) SetSimulationSpeed(speed int) bool {
+	return a.simulation.SetSimulationSpeed(speed)
+}
+
+// BroadcastSimulationSnapshot updates cached metrics snapshot and broadcasts it.
+func (a *App) BroadcastSimulationSnapshot(snapshotJson string) bool {
+	return a.simulation.BroadcastSnapshot(snapshotJson)
+}
+
+// GetSimulationSnapshot returns the last cached snapshot and state.
+func (a *App) GetSimulationSnapshot() string {
+	return a.simulation.GetSimulationSnapshot()
+}
+
+// TriggerTrafficSpike triggers a traffic surge across all active ingress/internet nodes.
+func (a *App) TriggerTrafficSpike(multiplier float64) bool {
+	return a.simulation.TriggerTrafficSpike(multiplier)
 }
 
 // Greet returns a greeting for the given name

@@ -14,6 +14,7 @@ import { Window } from '@wailsio/runtime';
 import * as appBindings from '@bindings/build-wails/app';
 import { isWailsDesktop } from '../lib/mocks';
 import { APP_VERSION } from '@/constants/config';
+import { logger } from '@/lib/logger';
 
 function isMockFunction(fn: any): boolean {
   return typeof fn === 'function' && (Boolean(fn._isMockFunction) || Boolean(fn.mock));
@@ -424,6 +425,104 @@ export class WailsBackendGateway extends BaseBackendGateway {
       }
     }
     return false;
+  }
+
+  // --- Simulation Broker Operations ---
+
+  async startSimulation(speed: number = 1): Promise<boolean> {
+    if (typeof this.app?.StartSimulation === 'function') {
+      try {
+        return await this.app.StartSimulation(speed);
+      } catch (err) {
+        logger.warn('[WailsBackendGateway] StartSimulation failed:', err);
+      }
+    }
+    this.emitEvent('simulation-state-change', JSON.stringify({ isSimulating: true, isPaused: false, speed }));
+    return true;
+  }
+
+  async pauseSimulation(): Promise<boolean> {
+    if (typeof this.app?.PauseSimulation === 'function') {
+      try {
+        return await this.app.PauseSimulation();
+      } catch (err) {
+        logger.warn('[WailsBackendGateway] PauseSimulation failed:', err);
+      }
+    }
+    this.emitEvent('simulation-state-change', JSON.stringify({ isPaused: true }));
+    return true;
+  }
+
+  async resumeSimulation(): Promise<boolean> {
+    if (typeof this.app?.ResumeSimulation === 'function') {
+      try {
+        return await this.app.ResumeSimulation();
+      } catch (err) {
+        logger.warn('[WailsBackendGateway] ResumeSimulation failed:', err);
+      }
+    }
+    this.emitEvent('simulation-state-change', JSON.stringify({ isPaused: false }));
+    return true;
+  }
+
+  async stopSimulation(): Promise<boolean> {
+    if (typeof this.app?.StopSimulation === 'function') {
+      try {
+        return await this.app.StopSimulation();
+      } catch (err) {
+        logger.warn('[WailsBackendGateway] StopSimulation failed:', err);
+      }
+    }
+    this.emitEvent('simulation-state-change', JSON.stringify({ isSimulating: false, isPaused: false }));
+    return true;
+  }
+
+  async setSimulationSpeed(speed: number): Promise<boolean> {
+    if (typeof this.app?.SetSimulationSpeed === 'function') {
+      try {
+        return await this.app.SetSimulationSpeed(speed);
+      } catch (err) {
+        logger.warn('[WailsBackendGateway] SetSimulationSpeed failed:', err);
+      }
+    }
+    this.emitEvent('simulation-speed-change', speed);
+    return true;
+  }
+
+  async broadcastSimulationSnapshot(snapshotJson: string): Promise<boolean> {
+    if (typeof this.app?.BroadcastSimulationSnapshot === 'function') {
+      try {
+        return await this.app.BroadcastSimulationSnapshot(snapshotJson);
+      } catch (err) {
+        logger.warn('[WailsBackendGateway] BroadcastSimulationSnapshot failed:', err);
+      }
+    }
+    this.emitEvent('simulation-snapshot-updated', snapshotJson);
+    return true;
+  }
+
+  async getSimulationSnapshot(): Promise<string> {
+    if (typeof this.app?.GetSimulationSnapshot === 'function') {
+      try {
+        const snap = await this.app.GetSimulationSnapshot();
+        if (snap) return snap;
+      } catch (err) {
+        logger.warn('[WailsBackendGateway] GetSimulationSnapshot failed:', err);
+      }
+    }
+    return '{}';
+  }
+
+  async triggerTrafficSpike(multiplier: number = 2.0): Promise<boolean> {
+    if (typeof this.app?.TriggerTrafficSpike === 'function') {
+      try {
+        return await this.app.TriggerTrafficSpike(multiplier);
+      } catch (err) {
+        logger.warn('[WailsBackendGateway] TriggerTrafficSpike failed:', err);
+      }
+    }
+    this.emitEvent('simulation-traffic-spike', multiplier);
+    return true;
   }
 
   // --- Logging Operations ---

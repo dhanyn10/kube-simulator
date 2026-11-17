@@ -98,6 +98,16 @@ export interface IBackendGateway {
   getTargetScreen(screens: any[]): Promise<any>;
   getTargetScreenHeight(screens: any[]): Promise<number | boolean>;
 
+  // Simulation broker operations
+  startSimulation(speed?: number): Promise<boolean>;
+  pauseSimulation(): Promise<boolean>;
+  resumeSimulation(): Promise<boolean>;
+  stopSimulation(): Promise<boolean>;
+  setSimulationSpeed(speed: number): Promise<boolean>;
+  broadcastSimulationSnapshot(snapshotJson: string): Promise<boolean>;
+  getSimulationSnapshot(): Promise<string>;
+  triggerTrafficSpike(multiplier?: number): Promise<boolean>;
+
   // Logging & diagnostics
   writeLog(category: string, level: string, message: string): Promise<boolean>;
   openLogFile(filePath?: string): Promise<boolean>;
@@ -158,6 +168,14 @@ export interface IBackendGateway {
   SaveSetting(key: string, value: string): Promise<boolean>;
   SearchDockerHub(query: string): Promise<string>;
   SetInitialFile(filePath: string): Promise<void>;
+  SetSimulationSpeed(speed: number): Promise<boolean>;
+  StartSimulation(speed?: number): Promise<boolean>;
+  PauseSimulation(): Promise<boolean>;
+  ResumeSimulation(): Promise<boolean>;
+  StopSimulation(): Promise<boolean>;
+  BroadcastSimulationSnapshot(snapshotJson: string): Promise<boolean>;
+  GetSimulationSnapshot(): Promise<string>;
+  TriggerTrafficSpike(multiplier?: number): Promise<boolean>;
   Undo(): Promise<string | null>;
   UpdateProject(id: number, content: string): Promise<boolean>;
   WriteLog(category: string, level: string, message: string): Promise<boolean>;

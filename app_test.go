@@ -1002,6 +1002,16 @@ func TestApp_WindowActionsAndUpdates(t *testing.T) {
 	app.CloseWindow()
 	app.OpenSimulationWindow()
 	app.CloseSimulationWindow()
+	app.StartSimulation(5)
+	app.PauseSimulation()
+	app.ResumeSimulation()
+	app.SetSimulationSpeed(10)
+	app.BroadcastSimulationSnapshot(`{"metrics":{}}`)
+	if app.GetSimulationSnapshot() != `{"metrics":{}}` {
+		t.Errorf("Unexpected snapshot from App: %s", app.GetSimulationSnapshot())
+	}
+	app.TriggerTrafficSpike(2.0)
+	app.StopSimulation()
 
 	// 2. SaveInternetProfile with empty name or empty profileJson
 	if app.SaveInternetProfile("", `{"test": true}`) {
