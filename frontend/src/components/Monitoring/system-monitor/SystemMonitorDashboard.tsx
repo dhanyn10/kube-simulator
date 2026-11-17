@@ -1,12 +1,87 @@
 import { useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Cpu, Database, Server, Activity, AlertCircle, Radio } from 'lucide-react';
+import { SimulationMetricPoint } from '@/store/types';
+import { DeploymentSummary } from './types';
 import { useSystemMonitorDashboard } from './useSystemMonitorDashboard';
 import { SystemMonitorHeader } from './SystemMonitorHeader';
 import { SystemMonitorStatCard } from './SystemMonitorStatCard';
 import { SystemMonitorTimeSeriesPanel } from './SystemMonitorTimeSeriesPanel';
 import { SystemMonitorReplicasPanel } from './SystemMonitorReplicasPanel';
 import { SystemMonitorNetworkPanel } from './SystemMonitorNetworkPanel';
+
+const getUtilizationThreshold = (percent: number): 'normal' | 'warning' | 'critical' => {
+  if (percent > 85) {
+    return 'critical';
+  }
+  if (percent > 70) {
+    return 'warning';
+  }
+  return 'normal';
+};
+
+const getPodThreshold = (ready: number, total: number): 'normal' | 'warning' => {
+  if (total > 0 && ready < total) {
+    return 'warning';
+  }
+  return 'normal';
+};
+
+const extractSparkline = (
+  deployments: DeploymentSummary[],
+  metrics: Record<string, SimulationMetricPoint[]>,
+  key: 'cpuPercent' | 'memoryPercent'
+): number[] => {
+  const firstDeploymentId = deployments[0]?.id;
+  if (!firstDeploymentId) {
+    return [];
+  }
+  const points = metrics[firstDeploymentId];
+  if (!points) {
+    return [];
+  }
+  return points.map((p) => p[key] || 0);
+};
+
+const EmptySimulationState = () => (
+  <div className="h-64 flex flex-col items-center justify-center text-slate-500 gap-3 border border-dashed border-slate-800 rounded-lg">
+    <Activity size={36} strokeWidth={1.5} className="text-blue-500/60" />
+    <p className="text-sm font-medium uppercase tracking-widest font-mono">Waiting for simulation data...</p>
+  </div>
+);
+
+interface SystemMonitorFooterProps {
+  isDark: boolean;
+  isSimulating: boolean;
+  isPaused: boolean;
+  simulationSpeed: number;
+}
+
+const SystemMonitorFooter = ({
+  isDark,
+  isSimulating,
+  isPaused,
+  simulationSpeed,
+}: SystemMonitorFooterProps) => (
+  <footer
+    className={cn(
+      'h-9 px-5 flex items-center justify-between border-t text-[10px] font-mono select-none',
+      isDark ? 'bg-[#181b1f] border-[#22252b] text-slate-400' : 'bg-white border-slate-200 text-slate-500'
+    )}
+  >
+    <div className="flex items-center gap-6">
+      <span className="flex items-center gap-1.5 text-blue-400 font-bold">
+        <Radio size={12} className={isSimulating && !isPaused ? 'animate-pulse' : ''} />
+        System Monitor Engine (Go Broker Synced)
+      </span>
+      <span className="hidden sm:inline">Speed: {simulationSpeed}x</span>
+      <span className="hidden sm:inline">IPC: Wails v3 + BroadcastChannel</span>
+    </div>
+    <div>
+      <span>Multi-Window System Monitor</span>
+    </div>
+  </footer>
+);
 
 export const SystemMonitorDashboard = () => {
   const {
@@ -27,15 +102,13 @@ export const SystemMonitorDashboard = () => {
   }, [colorMode]);
 
   const isDark = colorMode === 'dark';
+  const cpuSparkline = extractSparkline(deployments, metrics, 'cpuPercent');
+  const memSparkline = extractSparkline(deployments, metrics, 'memoryPercent');
 
-  // Sample CPU history for sparkline
-  const cpuSparkline = deployments.length > 0 && deployments[0].id && metrics[deployments[0].id]
-    ? metrics[deployments[0].id].map((p) => p.cpuPercent || 0)
-    : [];
-
-  const memSparkline = deployments.length > 0 && deployments[0].id && metrics[deployments[0].id]
-    ? metrics[deployments[0].id].map((p) => p.memoryPercent || 0)
-    : [];
+  const cpuThreshold = getUtilizationThreshold(clusterTotals.cpuPercent);
+  const memThreshold = getUtilizationThreshold(clusterTotals.memoryPercent);
+  const podThreshold = getPodThreshold(clusterTotals.readyPods, clusterTotals.totalPods);
+  const errorThreshold = clusterTotals.errorRate > 0 ? 'critical' : 'normal';
 
   return (
     <div
@@ -66,7 +139,7 @@ export const SystemMonitorDashboard = () => {
             subtitle={`${clusterTotals.cpuUsed}m / ${clusterTotals.cpuLimit || 1000}m`}
             icon={<Cpu size={15} />}
             sparklineData={cpuSparkline}
-            threshold={clusterTotals.cpuPercent > 85 ? 'critical' : clusterTotals.cpuPercent > 70 ? 'warning' : 'normal'}
+            threshold={cpuThreshold}
             colorMode={colorMode}
           />
 
@@ -77,7 +150,7 @@ export const SystemMonitorDashboard = () => {
             subtitle={`${clusterTotals.memoryMb} MiB / ${clusterTotals.memoryLimitMb || 1024} MiB`}
             icon={<Database size={15} />}
             sparklineData={memSparkline}
-            threshold={clusterTotals.memoryPercent > 85 ? 'critical' : clusterTotals.memoryPercent > 70 ? 'warning' : 'normal'}
+            threshold={memThreshold}
             colorMode={colorMode}
           />
 
@@ -87,7 +160,7 @@ export const SystemMonitorDashboard = () => {
             unit="pods"
             subtitle="Ready / Desired"
             icon={<Server size={15} />}
-            threshold={clusterTotals.totalPods > 0 && clusterTotals.readyPods < clusterTotals.totalPods ? 'warning' : 'normal'}
+            threshold={podThreshold}
             colorMode={colorMode}
           />
 
@@ -107,17 +180,14 @@ export const SystemMonitorDashboard = () => {
             unit="%"
             subtitle="5xx / Throttled"
             icon={<AlertCircle size={15} />}
-            threshold={clusterTotals.errorRate > 0 ? 'critical' : 'normal'}
+            threshold={errorThreshold}
             colorMode={colorMode}
           />
         </div>
 
         {/* Time-Series Charts Grid */}
         {deployments.length === 0 ? (
-          <div className="h-64 flex flex-col items-center justify-center text-slate-500 gap-3 border border-dashed border-slate-800 rounded-lg">
-            <Activity size={36} strokeWidth={1.5} className="text-blue-500/60" />
-            <p className="text-sm font-medium uppercase tracking-widest font-mono">Waiting for simulation data...</p>
-          </div>
+          <EmptySimulationState />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <SystemMonitorTimeSeriesPanel
@@ -160,24 +230,12 @@ export const SystemMonitorDashboard = () => {
       </main>
 
       {/* System Monitor Status Footer */}
-      <footer
-        className={cn(
-          'h-9 px-5 flex items-center justify-between border-t text-[10px] font-mono select-none',
-          isDark ? 'bg-[#181b1f] border-[#22252b] text-slate-400' : 'bg-white border-slate-200 text-slate-500'
-        )}
-      >
-        <div className="flex items-center gap-6">
-          <span className="flex items-center gap-1.5 text-blue-400 font-bold">
-            <Radio size={12} className={isSimulating && !isPaused ? 'animate-pulse' : ''} />
-            System Monitor Engine (Go Broker Synced)
-          </span>
-          <span className="hidden sm:inline">Speed: {simulationSpeed}x</span>
-          <span className="hidden sm:inline">IPC: Wails v3 + BroadcastChannel</span>
-        </div>
-        <div>
-          <span>Multi-Window System Monitor</span>
-        </div>
-      </footer>
+      <SystemMonitorFooter
+        isDark={isDark}
+        isSimulating={isSimulating}
+        isPaused={isPaused}
+        simulationSpeed={simulationSpeed}
+      />
     </div>
   );
 };

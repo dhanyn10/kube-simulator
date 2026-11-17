@@ -1,6 +1,16 @@
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 
+const getTransitionClass = (speed: number): string => {
+  if (speed === 10) {
+    return 'transition-none';
+  }
+  if (speed === 5) {
+    return 'transition-all duration-[30ms] ease-linear';
+  }
+  return 'transition-all duration-[150ms] ease-linear';
+};
+
 export const LineChart = ({
   data,
   color,
@@ -32,12 +42,7 @@ export const LineChart = ({
   const areaPath = count > 0 ? `M${firstX},100 L${points} L200,100 Z` : 'M0,100 L200,100 Z';
 
   // Fast real-time transition synced with simulation speed (eliminates sluggish 1-second CSS lag)
-  const transitionClass =
-    simulationSpeed === 10
-      ? 'transition-none'
-      : simulationSpeed === 5
-      ? 'transition-all duration-[30ms] ease-linear'
-      : 'transition-all duration-[150ms] ease-linear';
+  const transitionClass = getTransitionClass(simulationSpeed);
 
   return (
     <div className="flex flex-col gap-1 pointer-events-none select-none">

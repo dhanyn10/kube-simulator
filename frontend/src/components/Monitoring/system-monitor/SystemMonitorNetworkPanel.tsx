@@ -18,7 +18,7 @@ export const SystemMonitorNetworkPanel = ({
 }: SystemMonitorNetworkPanelProps) => {
   const isDark = colorMode === 'dark';
 
-  const { rpsData, latencyData, currentRps, currentLatency } = useMemo(() => {
+  const { rpsData, currentRps, currentLatency } = useMemo(() => {
     let rpsArr: number[] = [];
     let latArr: number[] = [];
 
@@ -38,7 +38,6 @@ export const SystemMonitorNetworkPanel = ({
 
     return {
       rpsData: rpsArr,
-      latencyData: latArr,
       currentRps: cRps,
       currentLatency: cLat,
     };
