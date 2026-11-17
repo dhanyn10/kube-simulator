@@ -210,8 +210,9 @@ describe('SystemMonitor UI Components', () => {
       />
     );
 
-    // 30m interval renders 03:00 tick
-    expect(screen.getByText('03:00')).toBeDefined();
+    // 30m interval renders -21h tick and 0 (Now)
+    expect(screen.getByText('-21h')).toBeDefined();
+    expect(screen.getByText('0 (Now)')).toBeDefined();
     expect(screen.getByText('100%')).toBeDefined(); // Y-axis top tick at 100%
 
     // 2. Dynamic Y-axis scale UP when peak exceeds limit (e.g. multi-core spike to 140%)
@@ -252,7 +253,7 @@ describe('SystemMonitor UI Components', () => {
     // Scaled down back to 100%
     expect(screen.getByText('100%')).toBeDefined();
 
-    // 4. Dynamic X-axis with 15m interval (shows 02:00, 04:00, etc.)
+    // 4. Dynamic X-axis with 15m interval (shows -22h, -20h, etc.)
     rerender(
       <SystemMonitorTimeSeriesPanel
         title="CPU Utilization"
@@ -262,6 +263,6 @@ describe('SystemMonitor UI Components', () => {
         interval="15m"
       />
     );
-    expect(screen.getByText('02:00')).toBeDefined();
+    expect(screen.getByText('-22h')).toBeDefined();
   });
 });

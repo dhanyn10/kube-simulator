@@ -34,26 +34,26 @@ describe('chartHelpers', () => {
     expect(getIntervalStepMinutes('5m')).toBe(60);
     expect(getIntervalStepMinutes('1m')).toBe(60);
 
-    // 1h interval ticks (4-hour steps: 00:00 to 24:00 => 7 ticks)
+    // 1h interval ticks (4-hour steps: -24h to 0 (Now) => 7 ticks)
     const ticks1h = generateXAxisTicks('1h');
     expect(ticks1h).toHaveLength(7);
-    expect(ticks1h[0]).toEqual({ label: '00:00', minute: 0, percent: 0 });
-    expect(ticks1h.at(-1)).toEqual({ label: '24:00', minute: 1440, percent: 100 });
+    expect(ticks1h[0]).toEqual({ label: '-24h', minute: 1440, percent: 0 });
+    expect(ticks1h.at(-1)).toEqual({ label: '0 (Now)', minute: 0, percent: 100 });
 
     // 30m interval ticks (3-hour steps => 9 ticks)
     const ticks30m = generateXAxisTicks('30m');
     expect(ticks30m).toHaveLength(9);
-    expect(ticks30m[1].label).toBe('03:00');
+    expect(ticks30m[1].label).toBe('-21h');
 
     // 15m interval ticks (2-hour steps => 13 ticks)
     const ticks15m = generateXAxisTicks('15m');
     expect(ticks15m).toHaveLength(13);
-    expect(ticks15m[1].label).toBe('02:00');
+    expect(ticks15m[1].label).toBe('-22h');
 
     // 5m interval ticks (1-hour steps => 25 ticks)
     const ticks5m = generateXAxisTicks('5m');
     expect(ticks5m).toHaveLength(25);
-    expect(ticks5m[1].label).toBe('01:00');
+    expect(ticks5m[1].label).toBe('-23h');
   });
 
   it('calculates nice ceiling values for autoscaling', () => {
@@ -112,15 +112,18 @@ describe('chartHelpers', () => {
     ];
 
     // 1h interval aggregates points at 0 and 30 into hour 0 (average = 30), and point at 65 into hour 1 (60)
+    // Points stream from right to left, latest point is at viewWidth (500)
     const hourlyResult = aggregateMetricSeries(mockPoints, 'cpuPercent', '1h');
     expect(hourlyResult.data).toEqual([30, 60]);
     expect(hourlyResult.currentVal).toBe(60);
-    expect(hourlyResult.svgPoints).toContain('0,');
+    expect(hourlyResult.svgPoints).toContain('500,');
+    expect(hourlyResult.areaPath).toContain('M');
 
     // 5m interval produces discrete 5m buckets
     const dynamic5mResult = aggregateMetricSeries(mockPoints, 'cpuPercent', '5m');
     expect(dynamic5mResult.data.length).toBeGreaterThan(2);
     expect(dynamic5mResult.currentVal).toBe(60);
+    expect(dynamic5mResult.svgPoints).toContain('500,');
 
     // Fallback when minuteIndex is missing
     const fallbackResult = aggregateMetricSeries([{ cpuPercent: 80 } as any], 'cpuPercent', '1h');
@@ -145,9 +148,10 @@ describe('chartHelpers', () => {
 
   it('builds SVG points accurately', () => {
     expect(buildSvgPoints([])).toContain('0,140');
-    expect(buildSvgPoints([50])).toContain('0,140');
+    expect(buildSvgPoints([50])).toContain('500,');
 
     const points = buildSvgPoints([0, 50, 100], 100, 200, 100);
     expect(points.split(' ')).toHaveLength(3);
+    expect(points).toContain('200,');
   });
 });

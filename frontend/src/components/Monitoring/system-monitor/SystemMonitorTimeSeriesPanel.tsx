@@ -98,6 +98,7 @@ export const SystemMonitorTimeSeriesPanel = ({
         ...stats,
         data: aggregated.data,
         svgPoints: aggregated.svgPoints,
+        areaPath: aggregated.areaPath,
         current: Math.round(aggregated.currentVal),
       };
     });
@@ -155,7 +156,7 @@ export const SystemMonitorTimeSeriesPanel = ({
               <g key={`series-${s.id}`}>
                 {/* Area under line */}
                 <path
-                  d={`M0,140 ${s.svgPoints} L500,140 Z`}
+                  d={s.areaPath}
                   fill={s.color}
                   fillOpacity="0.12"
                   className="transition-all duration-300"

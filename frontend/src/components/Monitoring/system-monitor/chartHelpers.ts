@@ -25,6 +25,7 @@ export interface SeriesStats {
 export interface AggregatedSeriesResult {
   data: number[];
   svgPoints: string;
+  areaPath: string;
   currentVal: number;
 }
 
@@ -78,16 +79,22 @@ export const getIntervalStepMinutes = (interval?: TimeRangeFilter): number => {
 
 /**
  * Generates dynamic X-axis time marks and percentage positions across the 24-hour cycle.
+ * Formatted from left (-24h) to right (0 / Now), matching Windows Task Manager oscilloscope.
  */
 export const generateXAxisTicks = (interval?: TimeRangeFilter): XAxisTick[] => {
   const stepMins = getIntervalStepMinutes(interval);
   const ticks: XAxisTick[] = [];
 
-  for (let m = 0; m <= 1440; m += stepMins) {
-    const hh = String(Math.floor(m / 60)).padStart(2, '0');
-    const mm = String(m % 60).padStart(2, '0');
-    const label = `${hh}:${mm}`;
-    const percent = Math.round((m / 1440) * 1000) / 10;
+  for (let m = 1440; m >= 0; m -= stepMins) {
+    const percent = Math.round(((1440 - m) / 1440) * 1000) / 10;
+    let label = `-${Math.round(m / 60)}h`;
+    if (m === 0) {
+      label = '0 (Now)';
+    } else if (m % 60 !== 0) {
+      const hh = Math.floor(m / 60);
+      const mm = m % 60;
+      label = `-${hh}h${mm}m`;
+    }
     ticks.push({ label, minute: m, percent });
   }
 
@@ -188,30 +195,54 @@ export const calculateSeriesStats = (
 };
 
 /**
- * Generates an SVG polyline points string from data points.
+ * Constructs an SVG path for area fill under the line, bounded between first point and viewWidth.
+ */
+export const buildAreaPath = (
+  svgPoints: string,
+  viewWidth: number = 500,
+  viewHeight: number = 140
+): string => {
+  if (!svgPoints) return `M0,${viewHeight} L${viewWidth},${viewHeight} Z`;
+  const firstCoord = svgPoints.split(' ')[0] || `0,${viewHeight}`;
+  const firstX = firstCoord.split(',')[0] || '0';
+  return `M${firstX},${viewHeight} L${svgPoints} L${viewWidth},${viewHeight} Z`;
+};
+
+/**
+ * Generates an SVG polyline points string from data points streaming from right to left
+ * (Windows Task Manager oscilloscope behavior).
  */
 export const buildSvgPoints = (
   data: number[],
   maxVal: number = 100,
-  viewWidth: number = 400,
-  viewHeight: number = 140
+  viewWidth: number = 500,
+  viewHeight: number = 140,
+  capacity?: number
 ): string => {
-  if (data.length <= 1) return `0,${viewHeight} ${viewWidth},${viewHeight}`;
+  if (data.length === 0) return `0,${viewHeight} ${viewWidth},${viewHeight}`;
   const count = data.length;
+  const effectiveCapacity = capacity ? Math.max(count, capacity) : Math.max(30, count);
+  const stepX = viewWidth / Math.max(1, effectiveCapacity - 1);
 
-  return data
-    .map((val, i) => {
-      const x = Math.round((i / (count - 1)) * viewWidth);
-      const safeVal = Math.min(maxVal, Math.max(0, val));
-      const y = Math.round(viewHeight - (safeVal / maxVal) * (viewHeight - 10));
-      return `${x},${y}`;
-    })
-    .join(' ');
+  const coords = data.map((val, i) => {
+    // Windows Task Manager oscilloscope: right-to-left
+    // Newest point (i = count - 1) is at viewWidth
+    const x = Math.max(0, Math.round(viewWidth - (count - 1 - i) * stepX));
+    const safeVal = Math.min(maxVal, Math.max(0, val));
+    const y = Math.round(viewHeight - (safeVal / maxVal) * (viewHeight - 10));
+    return `${x},${y}`;
+  });
+
+  if (coords.length === 1) {
+    coords.unshift(`${Math.max(0, viewWidth - Math.round(stepX))},${coords[0].split(',')[1]}`);
+  }
+
+  return coords.join(' ');
 };
 
 /**
- * Aggregates 24-hour simulation metric points based on the specified interval
- * (default: 1 hour / 60m, dynamic up to 5 minutes).
+ * Aggregates 24-hour simulation metric points based on the specified interval,
+ * streaming from right to left like Windows Task Manager oscilloscope.
  */
 export const aggregateMetricSeries = (
   points: SimulationMetricPoint[],
@@ -221,27 +252,34 @@ export const aggregateMetricSeries = (
   viewWidth: number = 500,
   viewHeight: number = 140
 ): AggregatedSeriesResult => {
+  const defaultEmpty = {
+    data: [],
+    svgPoints: `0,${viewHeight} ${viewWidth},${viewHeight}`,
+    areaPath: `M0,${viewHeight} L${viewWidth},${viewHeight} Z`,
+    currentVal: 0,
+  };
+
   if (!points || points.length === 0) {
-    return {
-      data: [],
-      svgPoints: `0,${viewHeight} ${viewWidth},${viewHeight}`,
-      currentVal: 0,
-    };
+    return defaultEmpty;
   }
 
+  const intervalMinutes = parseIntervalMinutes(interval);
+  const totalBuckets = Math.round(1440 / intervalMinutes);
   const hasMinuteIndex = points.some((p) => typeof p.minuteIndex === 'number');
+
   if (!hasMinuteIndex) {
     const rawData = points.map((p) => Number(p[metricKey]) || 0);
+    const svgPoints = buildSvgPoints(rawData, maxVal, viewWidth, viewHeight, totalBuckets);
+    const areaPath = buildAreaPath(svgPoints, viewWidth, viewHeight);
     return {
       data: rawData,
-      svgPoints: buildSvgPoints(rawData, maxVal, viewWidth, viewHeight),
+      svgPoints,
+      areaPath,
       currentVal: rawData.at(-1) || 0,
     };
   }
 
-  const intervalMinutes = parseIntervalMinutes(interval);
   const bucketMap = new Map<number, number[]>();
-
   points.forEach((p) => {
     const minIdx = ((p.minuteIndex ?? 0) % 1440 + 1440) % 1440;
     const bIdx = Math.floor(minIdx / intervalMinutes);
@@ -253,16 +291,11 @@ export const aggregateMetricSeries = (
 
   const sortedBucketIndices = Array.from(bucketMap.keys()).sort((a, b) => a - b);
   if (sortedBucketIndices.length === 0) {
-    return {
-      data: [],
-      svgPoints: `0,${viewHeight} ${viewWidth},${viewHeight}`,
-      currentVal: 0,
-    };
+    return defaultEmpty;
   }
 
   const maxBucket = sortedBucketIndices.at(-1)!;
   const aggregatedData: number[] = [];
-  const coords: string[] = [];
 
   let lastAvg = 0;
   for (let b = 0; b <= maxBucket; b++) {
@@ -272,27 +305,35 @@ export const aggregateMetricSeries = (
       avg = vals.reduce((acc, curr) => acc + curr, 0) / vals.length;
       lastAvg = avg;
     }
+    aggregatedData.push(Math.round(avg * 10) / 10);
+  }
 
-    const rounded = Math.round(avg * 10) / 10;
-    aggregatedData.push(rounded);
+  // Windows Task Manager oscilloscope: stream from right to left
+  const stepX = viewWidth / Math.max(1, totalBuckets - 1);
+  const count = aggregatedData.length;
+  const coords: string[] = [];
 
-    const x = Math.round(((b * intervalMinutes) / 1440) * viewWidth);
+  for (let i = 0; i < count; i++) {
+    const avg = aggregatedData[i];
+    const x = Math.max(0, Math.round(viewWidth - (count - 1 - i) * stepX));
     const safeVal = Math.min(maxVal, Math.max(0, avg));
     const y = Math.round(viewHeight - (safeVal / maxVal) * (viewHeight - 10));
     coords.push(`${x},${y}`);
   }
 
   if (coords.length === 1) {
-    const singleX = Math.round((intervalMinutes / 1440) * viewWidth);
-    coords.push(`${Math.min(viewWidth, singleX + 10)},${coords[0].split(',')[1]}`);
+    coords.unshift(`${Math.max(0, viewWidth - Math.round(stepX))},${coords[0].split(',')[1]}`);
   }
 
   const latestRaw = points.at(-1);
   const currentVal = latestRaw ? (Number(latestRaw[metricKey]) || 0) : 0;
+  const svgPoints = coords.join(' ');
+  const areaPath = buildAreaPath(svgPoints, viewWidth, viewHeight);
 
   return {
     data: aggregatedData,
-    svgPoints: coords.join(' '),
+    svgPoints,
+    areaPath,
     currentVal,
   };
 };

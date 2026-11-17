@@ -6,6 +6,7 @@ import {
   CHART_PALETTE,
   aggregateMetricSeries,
   buildSvgPoints,
+  parseIntervalMinutes,
   calculateDynamicYMax,
   generateYAxisScale,
   generateXAxisTicks,
@@ -60,7 +61,8 @@ export const SystemMonitorReplicasPanel = ({
       if (!hasMinuteIndex) {
         const data = points.map(() => dep.replicas || 1);
         const current = dep.replicas || 1;
-        const svgPoints = buildSvgPoints(data, dynamicMaxReplicas, 500, 100);
+        const capacity = Math.round(1440 / parseIntervalMinutes(interval));
+        const svgPoints = buildSvgPoints(data, dynamicMaxReplicas, 500, 100, capacity);
         return { id: dep.id, label: dep.label, color, current, data, svgPoints };
       }
 

@@ -4,6 +4,7 @@ import { SimulationMetricPoint } from '@/store/types';
 import { DeploymentSummary, TimeRangeFilter } from './types';
 import {
   buildSvgPoints,
+  buildAreaPath,
   parseIntervalMinutes,
   calculateDynamicYMax,
   generateYAxisScale,
@@ -92,7 +93,9 @@ export const SystemMonitorNetworkPanel = ({
     return calculateDynamicYMax(rpsData, 100, 1.2);
   }, [rpsData]);
 
-  const rpsPoints = buildSvgPoints(rpsData, dynamicMaxRps, 500, 100);
+  const capacity = Math.round(1440 / parseIntervalMinutes(interval));
+  const rpsPoints = buildSvgPoints(rpsData, dynamicMaxRps, 500, 100, capacity);
+  const areaPath = buildAreaPath(rpsPoints, 500, 100);
   const yScale = useMemo(() => generateYAxisScale(dynamicMaxRps, ' req/s', 3), [dynamicMaxRps]);
   const xTicks = useMemo(() => generateXAxisTicks(interval), [interval]);
 
@@ -136,7 +139,7 @@ export const SystemMonitorNetworkPanel = ({
           <svg aria-hidden="true" viewBox="0 0 500 100" className="w-full h-full" preserveAspectRatio="none">
             {/* Gradient Area under curve */}
             <path
-              d={`M0,100 ${rpsPoints} L500,100 Z`}
+              d={areaPath}
               fill="#10b981"
               fillOpacity="0.15"
               className="transition-all duration-300"
