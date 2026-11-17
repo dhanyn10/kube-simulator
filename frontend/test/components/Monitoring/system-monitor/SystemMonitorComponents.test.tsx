@@ -21,6 +21,7 @@ describe('SystemMonitor UI Components', () => {
         setTimeRange={setTimeRange}
         sendControl={sendControl}
         colorMode="dark"
+        canStart={true}
       />
     );
 
@@ -30,6 +31,22 @@ describe('SystemMonitor UI Components', () => {
     // Click Start
     fireEvent.click(screen.getByTitle('Start Simulation'));
     expect(sendControl).toHaveBeenCalledWith('start', { speed: 1 });
+
+    // When canStart is false, Start button is disabled
+    rerender(
+      <SystemMonitorHeader
+        isSimulating={false}
+        isPaused={false}
+        simulationSpeed={1}
+        timeRange="5m"
+        setTimeRange={setTimeRange}
+        sendControl={sendControl}
+        colorMode="dark"
+        canStart={false}
+      />
+    );
+    const disabledStartBtn = screen.getByTitle('Add architecture workloads and an Internet card to start simulation');
+    expect(disabledStartBtn.hasAttribute('disabled')).toBe(true);
 
     // Click speed 5x
     fireEvent.click(screen.getByText('5x'));

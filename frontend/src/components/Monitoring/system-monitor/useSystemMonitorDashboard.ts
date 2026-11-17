@@ -12,6 +12,7 @@ export const useSystemMonitorDashboard = () => {
   const [colorMode, setColorMode] = useState<SystemMonitorColorMode>('dark');
   const [timeRange, setTimeRange] = useState<TimeRangeFilter>('1h');
   const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
+  const [canStart, setCanStart] = useState<boolean>(false);
 
   const simulatedTime = useMemo(() => {
     const firstDeploymentMetrics = Object.values(metrics)[0];
@@ -28,6 +29,11 @@ export const useSystemMonitorDashboard = () => {
   const handleUpdate = useCallback((data: any) => {
     if (data.metrics) setMetrics(data.metrics);
     if (data.deployments) setDeployments(data.deployments);
+    if (typeof data.canStart === 'boolean') {
+      setCanStart(data.canStart);
+    } else if (Array.isArray(data.deployments)) {
+      setCanStart(data.deployments.length > 0);
+    }
     if (typeof data.isSimulating === 'boolean') setIsSimulating(data.isSimulating);
     if (typeof data.isPaused === 'boolean') setIsPaused(data.isPaused);
     if (data.speed) setSimulationSpeed(data.speed);
@@ -167,5 +173,6 @@ export const useSystemMonitorDashboard = () => {
     lastUpdated,
     sendControl,
     clusterTotals,
+    canStart,
   };
 };

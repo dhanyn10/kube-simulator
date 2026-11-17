@@ -96,6 +96,7 @@ export const SystemMonitorDashboard = () => {
     simulatedTime,
     sendControl,
     clusterTotals,
+    canStart,
   } = useSystemMonitorDashboard();
 
   useEffect(() => {
@@ -128,6 +129,7 @@ export const SystemMonitorDashboard = () => {
         sendControl={sendControl}
         colorMode={colorMode}
         simulatedTime={simulatedTime}
+        canStart={canStart}
       />
 
       {/* Main Dashboard Body */}

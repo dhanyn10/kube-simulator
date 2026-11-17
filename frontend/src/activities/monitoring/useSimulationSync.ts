@@ -34,10 +34,14 @@ export const useSimulationSync = (options?: SimulationSyncOptions) => {
       const workloadNodes = state.nodes.filter(
         (n) => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)
       );
+      const hasInternet = state.nodes.some((n) => n.type === 'Internet');
+      const canStart = hasInternet && workloadNodes.length > 0;
       broadcastMetrics(state.simulationMetrics, workloadNodes, {
         isSimulating: state.isSimulating,
         isPaused: state.isPaused,
         speed: state.simulationSpeed,
+        canStart,
+        hasInternet,
       });
     };
 
@@ -72,8 +76,14 @@ export const useSimulationSync = (options?: SimulationSyncOptions) => {
       applyTrafficSpike(useFlowStore.getState, mult);
     });
     const unsubSnapReq = gw.onEvent('request-monitoring-snapshot', sendSnapshot);
+    const unsubStore = useFlowStore.subscribe((state, prevState) => {
+      if (state.nodes !== prevState.nodes) {
+        sendSnapshot();
+      }
+    });
 
     return () => {
+      unsubStore();
       channel.close();
       unsubOpen();
       unsubClose();

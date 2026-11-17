@@ -35,6 +35,7 @@ export const MenuBar = ({
     startSimulation,
     stopSimulation,
     hasInternet,
+    canStart,
     hasHpaValidationError,
     activeIdentity,
     setKubeIamModalOpen,
@@ -114,6 +115,7 @@ export const MenuBar = ({
           hasInternet={hasInternet}
           hasHpaValidationError={hasHpaValidationError}
           colorMode={colorMode}
+          canStart={canStart}
         />
 
         {/* K8s Active Identity Badge - Only visible if switched to a Kube IAM identity */}

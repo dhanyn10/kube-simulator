@@ -77,6 +77,19 @@ export const stopSimulation = (set: (state: Partial<FlowState>) => void, get: ()
 };
 
 /**
+ * Determines whether the canvas has sufficient components to start simulation.
+ * Requires at least one Internet node for traffic and at least one workload.
+ */
+export const canStartSimulation = (nodes: Node[]): boolean => {
+  if (!nodes || nodes.length === 0) return false;
+  const hasInternet = nodes.some((n) => n.type === 'Internet');
+  if (!hasInternet) return false;
+  return nodes.some(
+    (n) => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)
+  );
+};
+
+/**
  * Broadcasts metrics to detached monitoring window and Wails backend.
  * @param metrics The current simulation metrics.
  * @param workloads List of active workload nodes.
@@ -84,8 +97,17 @@ export const stopSimulation = (set: (state: Partial<FlowState>) => void, get: ()
 export const broadcastMetrics = (
   metrics: Record<string, SimulationMetricPoint[]>,
   workloads: Node[],
-  extraState?: { isSimulating?: boolean; isPaused?: boolean; speed?: number }
+  extraState?: {
+    isSimulating?: boolean;
+    isPaused?: boolean;
+    speed?: number;
+    canStart?: boolean;
+    hasInternet?: boolean;
+  }
 ) => {
+  const hasWorkloads = workloads.length > 0;
+  const canStart = extraState?.canStart ?? (hasWorkloads && (extraState?.hasInternet ?? true));
+
   const payload = {
     metrics,
     deployments: workloads.map(d => ({
@@ -97,6 +119,8 @@ export const broadcastMetrics = (
     isSimulating: extraState?.isSimulating ?? true,
     isPaused: extraState?.isPaused ?? false,
     speed: extraState?.speed ?? 1,
+    canStart,
+    hasInternet: extraState?.hasInternet ?? false,
     timestamp: Date.now()
   };
 

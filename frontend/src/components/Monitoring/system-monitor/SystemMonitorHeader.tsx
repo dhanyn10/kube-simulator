@@ -15,6 +15,7 @@ interface SystemMonitorHeaderProps {
   sendControl: (action: string, options?: any) => void;
   colorMode: SystemMonitorColorMode;
   simulatedTime?: string;
+  canStart?: boolean;
 }
 
 const TICK_INTERVAL_MAP: Record<SimulationSpeed, string> = {
@@ -81,6 +82,7 @@ interface SimulationPlaybackControlsProps {
   isPaused: boolean;
   simulationSpeed: SimulationSpeed;
   sendControl: (action: string, options?: any) => void;
+  canStart?: boolean;
 }
 
 const SimulationPlaybackControls = ({
@@ -88,15 +90,25 @@ const SimulationPlaybackControls = ({
   isPaused,
   simulationSpeed,
   sendControl,
+  canStart = true,
 }: SimulationPlaybackControlsProps) => {
   const renderPrimaryButton = () => {
     if (!isSimulating) {
       return (
         <button
           type="button"
-          onClick={() => sendControl('start', { speed: simulationSpeed })}
-          className="px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/20 rounded transition-colors"
-          title="Start Simulation"
+          onClick={() => {
+            if (!canStart) return;
+            sendControl('start', { speed: simulationSpeed });
+          }}
+          disabled={!canStart}
+          className={cn(
+            "px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition-colors",
+            canStart
+              ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
+              : "text-slate-500 opacity-40 cursor-not-allowed"
+          )}
+          title={canStart ? "Start Simulation" : "Add architecture workloads and an Internet card to start simulation"}
         >
           <Play size={12} fill="currentColor" />
           <span>Start</span>
@@ -107,9 +119,18 @@ const SimulationPlaybackControls = ({
       return (
         <button
           type="button"
-          onClick={() => sendControl('resume')}
-          className="px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/20 rounded transition-colors"
-          title="Resume Simulation"
+          onClick={() => {
+            if (!canStart) return;
+            sendControl('resume');
+          }}
+          disabled={!canStart}
+          className={cn(
+            "px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition-colors",
+            canStart
+              ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
+              : "text-slate-500 opacity-40 cursor-not-allowed"
+          )}
+          title={canStart ? "Resume Simulation" : "Add architecture workloads and an Internet card to resume simulation"}
         >
           <Play size={12} fill="currentColor" />
           <span>Resume</span>
@@ -207,6 +228,7 @@ export const SystemMonitorHeader = ({
   sendControl,
   colorMode,
   simulatedTime = '00:00',
+  canStart = true,
 }: SystemMonitorHeaderProps) => {
   const isDark = colorMode === 'dark';
   const tickInterval = TICK_INTERVAL_MAP[simulationSpeed] || '150ms';
@@ -274,6 +296,7 @@ export const SystemMonitorHeader = ({
             isPaused={isPaused}
             simulationSpeed={simulationSpeed}
             sendControl={sendControl}
+            canStart={canStart}
           />
           <SpeedSelector simulationSpeed={simulationSpeed} sendControl={sendControl} />
 

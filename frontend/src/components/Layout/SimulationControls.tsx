@@ -13,6 +13,7 @@ interface SimulationControlsProps {
   readonly hasInternet: boolean;
   readonly hasHpaValidationError: boolean;
   readonly colorMode: 'dark' | 'light';
+  readonly canStart?: boolean;
 }
 
 /**
@@ -26,7 +27,8 @@ export const SimulationControls = ({
   pauseSimulation,
   hasInternet,
   hasHpaValidationError,
-  colorMode
+  colorMode,
+  canStart: canStartProp,
 }: SimulationControlsProps) => {
   const {
     title,
@@ -38,6 +40,7 @@ export const SimulationControls = ({
     simulationSpeed,
     setSimulationSpeed,
     showSpeedControls,
+    canStart,
   } = useSimulationControls({
     isSimulating,
     isPaused: isPausedProp,
@@ -45,6 +48,7 @@ export const SimulationControls = ({
     hasHpaValidationError,
     pauseSimulation,
     startSimulation,
+    canStart: canStartProp,
   });
 
   const isGroupActive = isSimulating || isPaused;
@@ -84,8 +88,8 @@ export const SimulationControls = ({
             <button
               type="button"
               onClick={() => handleStart()}
-              disabled={!hasInternet}
-              title="Resume Simulation"
+              disabled={!canStart}
+              title={canStart ? "Resume Simulation" : title}
               className={cn(
                 "h-7 px-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-l-md rounded-r-none shadow-sm",
                 buttonClass
@@ -113,7 +117,7 @@ export const SimulationControls = ({
         <button
           type="button"
           onClick={() => handleStart()}
-          disabled={!hasInternet}
+          disabled={!canStart}
           title={title}
           className={cn(
             "h-7 px-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",

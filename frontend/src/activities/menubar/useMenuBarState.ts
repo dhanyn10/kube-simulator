@@ -254,6 +254,12 @@ export const useMenuBarState = ({
   ]);
 
   const hasInternet = useMemo(() => nodes.some((n: any) => n.type === 'Internet'), [nodes]);
+  const hasWorkloads = useMemo(() => {
+    return nodes.some(
+      (n: any) => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)
+    );
+  }, [nodes]);
+  const canStart = nodes.length > 0 && hasInternet && hasWorkloads;
 
   const hasHpaValidationError = useMemo(() => !validateHpaTargets(nodes, edges), [nodes, edges]);
 
@@ -264,6 +270,7 @@ export const useMenuBarState = ({
     startSimulation,
     stopSimulation,
     hasInternet,
+    canStart,
     hasHpaValidationError,
     activeIdentity,
     setKubeIamModalOpen,
