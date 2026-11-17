@@ -39,9 +39,13 @@ describe('SystemMonitor UI Components', () => {
     fireEvent.click(screen.getByTitle('Inject 2x Traffic Spike (Chaos Test)'));
     expect(sendControl).toHaveBeenCalledWith('traffic_spike', { multiplier: 2 });
 
-    // Click Time Range 1m
-    fireEvent.click(screen.getByText('1m'));
-    expect(setTimeRange).toHaveBeenCalledWith('1m');
+    // Click Interval 1h
+    fireEvent.click(screen.getByText('1h'));
+    expect(setTimeRange).toHaveBeenCalledWith('1h');
+
+    // Click Interval 5m (dynamic max resolution)
+    fireEvent.click(screen.getByText('5m'));
+    expect(setTimeRange).toHaveBeenCalledWith('5m');
 
     // Rerender as Simulating & Running
     rerender(
@@ -49,7 +53,7 @@ describe('SystemMonitor UI Components', () => {
         isSimulating={true}
         isPaused={false}
         simulationSpeed={5}
-        timeRange="1m"
+        timeRange="1h"
         setTimeRange={setTimeRange}
         sendControl={sendControl}
         colorMode="dark"
@@ -65,7 +69,7 @@ describe('SystemMonitor UI Components', () => {
         isSimulating={true}
         isPaused={true}
         simulationSpeed={10}
-        timeRange="1m"
+        timeRange="1h"
         setTimeRange={setTimeRange}
         sendControl={sendControl}
         colorMode="light"

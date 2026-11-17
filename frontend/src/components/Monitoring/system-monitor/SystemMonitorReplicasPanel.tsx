@@ -1,20 +1,22 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { SimulationMetricPoint } from '@/store/types';
-import { DeploymentSummary } from './types';
-import { CHART_PALETTE, buildSvgPoints } from './chartHelpers';
+import { DeploymentSummary, TimeRangeFilter } from './types';
+import { CHART_PALETTE, aggregateMetricSeries, buildSvgPoints } from './chartHelpers';
 import { Layers } from 'lucide-react';
 
 interface SystemMonitorReplicasPanelProps {
   deployments: DeploymentSummary[];
   metrics: Record<string, SimulationMetricPoint[]>;
   colorMode?: 'dark' | 'light';
+  interval?: TimeRangeFilter;
 }
 
 export const SystemMonitorReplicasPanel = ({
   deployments,
   metrics,
   colorMode = 'dark',
+  interval = '1h',
 }: SystemMonitorReplicasPanelProps) => {
   const isDark = colorMode === 'dark';
 
@@ -22,12 +24,20 @@ export const SystemMonitorReplicasPanel = ({
     return deployments.map((dep, idx) => {
       const color = CHART_PALETTE[idx % CHART_PALETTE.length];
       const points = metrics[dep.id] || [];
-      const data = points.map(() => dep.replicas || 1);
-      const current = dep.replicas || 1;
-      const svgPoints = buildSvgPoints(data, 10, 500, 100);
-      return { id: dep.id, label: dep.label, color, current, data, svgPoints };
+      const hasMinuteIndex = points.some((p) => typeof p.minuteIndex === 'number');
+
+      if (!hasMinuteIndex) {
+        const data = points.map(() => dep.replicas || 1);
+        const current = dep.replicas || 1;
+        const svgPoints = buildSvgPoints(data, 10, 500, 100);
+        return { id: dep.id, label: dep.label, color, current, data, svgPoints };
+      }
+
+      const aggregated = aggregateMetricSeries(points, 'replicas', interval, 10, 500, 100);
+      const current = Math.round(aggregated.currentVal) || dep.replicas || 1;
+      return { id: dep.id, label: dep.label, color, current, data: aggregated.data, svgPoints: aggregated.svgPoints };
     });
-  }, [deployments, metrics]);
+  }, [deployments, metrics, interval]);
 
   return (
     <div
@@ -63,6 +73,17 @@ export const SystemMonitorReplicasPanel = ({
             ))}
           </svg>
         )}
+      </div>
+
+      {/* 24-Hour Timeline Bottom Axis */}
+      <div className="flex justify-between items-center px-1 text-[9px] font-mono text-slate-500 -mt-1 pb-1 border-b border-slate-800/40">
+        <span>00:00</span>
+        <span>04:00</span>
+        <span>08:00</span>
+        <span>12:00</span>
+        <span>16:00</span>
+        <span>20:00</span>
+        <span>24:00</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 pt-1">

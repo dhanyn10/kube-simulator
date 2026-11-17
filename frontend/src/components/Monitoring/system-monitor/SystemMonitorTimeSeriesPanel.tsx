@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { SimulationMetricPoint } from '@/store/types';
-import { DeploymentSummary } from './types';
-import { CHART_PALETTE, calculateSeriesStats, buildSvgPoints } from './chartHelpers';
+import { DeploymentSummary, TimeRangeFilter } from './types';
+import { CHART_PALETTE, calculateSeriesStats, aggregateMetricSeries } from './chartHelpers';
 import { ZapOff, AlertTriangle } from 'lucide-react';
 
 interface SystemMonitorTimeSeriesPanelProps {
@@ -15,6 +15,7 @@ interface SystemMonitorTimeSeriesPanelProps {
   maxVal?: number;
   showThresholds?: boolean;
   colorMode?: 'dark' | 'light';
+  interval?: TimeRangeFilter;
 }
 
 export const SystemMonitorTimeSeriesPanel = ({
@@ -27,6 +28,7 @@ export const SystemMonitorTimeSeriesPanel = ({
   maxVal = 100,
   showThresholds = true,
   colorMode = 'dark',
+  interval = '1h',
 }: SystemMonitorTimeSeriesPanelProps) => {
   const isDark = colorMode === 'dark';
 
@@ -34,13 +36,17 @@ export const SystemMonitorTimeSeriesPanel = ({
     return deployments.map((dep, idx) => {
       const color = CHART_PALETTE[idx % CHART_PALETTE.length];
       const points = metrics[dep.id] || [];
-      const data = points.map((p: any) => p[metricKey] || 0);
+      const aggregated = aggregateMetricSeries(points, metricKey, interval, maxVal, 500, 140);
       const lastPoint = points.at(-1);
-      const stats = calculateSeriesStats(dep.id, dep.label, color, data, lastPoint);
-      const svgPoints = buildSvgPoints(data, maxVal, 500, 140);
-      return { ...stats, data, svgPoints };
+      const stats = calculateSeriesStats(dep.id, dep.label, color, aggregated.data, lastPoint);
+      return {
+        ...stats,
+        data: aggregated.data,
+        svgPoints: aggregated.svgPoints,
+        current: Math.round(aggregated.currentVal),
+      };
     });
-  }, [deployments, metrics, metricKey, maxVal]);
+  }, [deployments, metrics, metricKey, maxVal, interval]);
 
   return (
     <div
@@ -115,6 +121,17 @@ export const SystemMonitorTimeSeriesPanel = ({
             ))}
           </svg>
         )}
+      </div>
+
+      {/* 24-Hour Timeline Bottom Axis */}
+      <div className="flex justify-between items-center px-1 text-[9px] font-mono text-slate-500 -mt-1 pb-1 border-b border-slate-800/40">
+        <span>00:00</span>
+        <span>04:00</span>
+        <span>08:00</span>
+        <span>12:00</span>
+        <span>16:00</span>
+        <span>20:00</span>
+        <span>24:00</span>
       </div>
 
       {/* Metrics Legend Table */}

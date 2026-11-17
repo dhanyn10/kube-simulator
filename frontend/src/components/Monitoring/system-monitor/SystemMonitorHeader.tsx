@@ -14,6 +14,7 @@ interface SystemMonitorHeaderProps {
   setTimeRange: (t: TimeRangeFilter) => void;
   sendControl: (action: string, options?: any) => void;
   colorMode: SystemMonitorColorMode;
+  simulatedTime?: string;
 }
 
 const TICK_INTERVAL_MAP: Record<SimulationSpeed, string> = {
@@ -23,7 +24,7 @@ const TICK_INTERVAL_MAP: Record<SimulationSpeed, string> = {
 };
 
 const SPEED_OPTIONS: SimulationSpeed[] = [1, 5, 10];
-const TIME_RANGE_OPTIONS: TimeRangeFilter[] = ['1m', '5m', '15m', 'all'];
+const TIME_RANGE_OPTIONS: TimeRangeFilter[] = ['1h', '30m', '15m', '5m'];
 
 const ClusterLogo = () => (
   <svg aria-hidden="true" viewBox="0 0 512 512" className="w-4 h-4 fill-current text-blue-500 shrink-0">
@@ -180,6 +181,7 @@ const TimeRangeSelector = ({
 }) => (
   <div className="flex items-center gap-1 px-2 py-1 rounded border border-slate-700/60 bg-slate-900/40 text-[10px] font-mono text-slate-300">
     <Clock size={12} className="text-slate-400" />
+    <span className="text-slate-400 font-sans text-[10px] mr-0.5">Interval:</span>
     {TIME_RANGE_OPTIONS.map((range) => (
       <button
         key={`range-${range}`}
@@ -187,7 +189,7 @@ const TimeRangeSelector = ({
         onClick={() => setTimeRange(range)}
         className={cn(
           'px-1.5 py-0.5 rounded transition-colors',
-          timeRange === range ? 'bg-slate-700 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+          timeRange === range ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
         )}
       >
         {range}
@@ -204,6 +206,7 @@ export const SystemMonitorHeader = ({
   setTimeRange,
   sendControl,
   colorMode,
+  simulatedTime = '00:00',
 }: SystemMonitorHeaderProps) => {
   const isDark = colorMode === 'dark';
   const tickInterval = TICK_INTERVAL_MAP[simulationSpeed] || '150ms';
@@ -259,6 +262,13 @@ export const SystemMonitorHeader = ({
         {/* Left: Live Status & Simulation Controls */}
         <div className="flex items-center gap-3" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
           <SystemMonitorLiveStatus isSimulating={isSimulating} isPaused={isPaused} />
+
+          {/* Simulated 24-Hour Timeline Clock */}
+          <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded border border-slate-700/60 bg-slate-900/60 text-[10px] font-mono text-slate-300">
+            <Clock size={11} className="text-blue-400" />
+            <span>Time: <strong className="text-white font-bold">{simulatedTime}</strong> <span className="text-slate-500 text-[9px]">/ 24h</span></span>
+          </div>
+
           <SimulationPlaybackControls
             isSimulating={isSimulating}
             isPaused={isPaused}

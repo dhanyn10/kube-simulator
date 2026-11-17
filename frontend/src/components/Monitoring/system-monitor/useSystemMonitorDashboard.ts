@@ -10,8 +10,20 @@ export const useSystemMonitorDashboard = () => {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [simulationSpeed, setSimulationSpeed] = useState<SimulationSpeed>(1);
   const [colorMode, setColorMode] = useState<SystemMonitorColorMode>('dark');
-  const [timeRange, setTimeRange] = useState<TimeRangeFilter>('5m');
+  const [timeRange, setTimeRange] = useState<TimeRangeFilter>('1h');
   const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
+
+  const simulatedTime = useMemo(() => {
+    const firstDeploymentMetrics = Object.values(metrics)[0];
+    const lastPoint = firstDeploymentMetrics?.at(-1);
+    if (!lastPoint || typeof lastPoint.minuteIndex !== 'number') {
+      return '00:00';
+    }
+    const minute = ((lastPoint.minuteIndex % 1440) + 1440) % 1440;
+    const hh = String(Math.floor(minute / 60)).padStart(2, '0');
+    const mm = String(minute % 60).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }, [metrics]);
 
   const handleUpdate = useCallback((data: any) => {
     if (data.metrics) setMetrics(data.metrics);
@@ -151,6 +163,7 @@ export const useSystemMonitorDashboard = () => {
     colorMode,
     timeRange,
     setTimeRange,
+    simulatedTime,
     lastUpdated,
     sendControl,
     clusterTotals,

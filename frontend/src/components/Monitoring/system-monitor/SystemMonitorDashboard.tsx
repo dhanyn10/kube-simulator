@@ -93,6 +93,7 @@ export const SystemMonitorDashboard = () => {
     colorMode,
     timeRange,
     setTimeRange,
+    simulatedTime,
     sendControl,
     clusterTotals,
   } = useSystemMonitorDashboard();
@@ -126,6 +127,7 @@ export const SystemMonitorDashboard = () => {
         setTimeRange={setTimeRange}
         sendControl={sendControl}
         colorMode={colorMode}
+        simulatedTime={simulatedTime}
       />
 
       {/* Main Dashboard Body */}
@@ -200,6 +202,7 @@ export const SystemMonitorDashboard = () => {
               maxVal={100}
               showThresholds={true}
               colorMode={colorMode}
+              interval={timeRange}
             />
 
             <SystemMonitorTimeSeriesPanel
@@ -212,18 +215,21 @@ export const SystemMonitorDashboard = () => {
               maxVal={1500}
               showThresholds={false}
               colorMode={colorMode}
+              interval={timeRange}
             />
 
             <SystemMonitorNetworkPanel
               deployments={deployments}
               metrics={metrics}
               colorMode={colorMode}
+              interval={timeRange}
             />
 
             <SystemMonitorReplicasPanel
               deployments={deployments}
               metrics={metrics}
               colorMode={colorMode}
+              interval={timeRange}
             />
           </div>
         )}
