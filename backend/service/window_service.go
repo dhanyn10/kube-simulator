@@ -111,6 +111,7 @@ func (s *WindowService) OpenSimulationWindow() bool {
 		Height:           650,
 		MinWidth:         500,
 		MinHeight:        400,
+		Frameless:        true,
 		URL:              "/?mode=monitoring",
 		BackgroundColour: application.NewRGBA(15, 23, 42, 255),
 	})

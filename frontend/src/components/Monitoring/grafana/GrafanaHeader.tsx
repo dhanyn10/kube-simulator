@@ -1,5 +1,8 @@
+import type { CSSProperties } from 'react';
 import { Play, Pause, Square, Zap, Clock, RefreshCw, BarChart2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getBackendGateway } from '@/gateway';
+import { WindowControls } from '@/components/Layout';
 import { TimeRangeFilter } from './types';
 
 interface GrafanaHeaderProps {
@@ -26,8 +29,11 @@ export const GrafanaHeader = ({
 
   return (
     <header
+      data-testid="grafana-header"
+      style={{ '--wails-draggable': 'drag' } as CSSProperties}
+      onDoubleClick={() => void getBackendGateway().maximizeWindow()}
       className={cn(
-        'h-14 px-4 flex items-center justify-between border-b sticky top-0 z-20 select-none transition-colors',
+        'h-12 pl-4 pr-0 flex items-center justify-between border-b sticky top-0 z-20 select-none transition-colors',
         isDark ? 'bg-[#181b1f] border-[#22252b] text-slate-200' : 'bg-white border-slate-200 text-slate-800'
       )}
     >
@@ -50,7 +56,7 @@ export const GrafanaHeader = ({
       </div>
 
       {/* Center: Live Status & Simulation Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
         {/* Live Status Badge */}
         <div
           className={cn(
@@ -152,8 +158,8 @@ export const GrafanaHeader = ({
         </button>
       </div>
 
-      {/* Right: Time Range & Refresh Clock */}
-      <div className="flex items-center gap-2">
+      {/* Right: Time Range & Refresh Clock & Frameless Window Controls */}
+      <div className="flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
         {/* Time Range Selector */}
         <div className="flex items-center gap-1 px-2 py-1 rounded border border-slate-700/60 bg-slate-900/40 text-[10px] font-mono text-slate-300">
           <Clock size={12} className="text-slate-400" />
@@ -177,6 +183,21 @@ export const GrafanaHeader = ({
           <RefreshCw size={11} className={cn('text-blue-400', isSimulating && !isPaused && 'animate-spin')} />
           <span>{tickInterval}</span>
         </div>
+
+        {/* Window Controls */}
+        <WindowControls
+          colorMode={colorMode}
+          onClose={() => {
+            void getBackendGateway().closeSimulationWindow();
+            if (process.env.NODE_ENV !== 'test') {
+              try {
+                globalThis.close?.();
+              } catch {
+                // Ignore fallback error
+              }
+            }
+          }}
+        />
       </div>
     </header>
   );

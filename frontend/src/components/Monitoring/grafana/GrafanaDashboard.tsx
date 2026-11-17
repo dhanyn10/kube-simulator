@@ -40,7 +40,7 @@ export const GrafanaDashboard = () => {
   return (
     <div
       className={cn(
-        'min-h-screen w-full flex flex-col font-sans transition-colors',
+        'h-screen w-screen flex flex-col font-sans transition-colors overflow-hidden select-none',
         isDark ? 'bg-[#111217] text-slate-200' : 'bg-slate-50 text-slate-800'
       )}
     >
@@ -56,7 +56,7 @@ export const GrafanaDashboard = () => {
       />
 
       {/* Main Dashboard Body */}
-      <main className="flex-1 p-5 space-y-5 max-w-[1600px] w-full mx-auto">
+      <main className="flex-1 p-5 space-y-5 max-w-[1600px] w-full mx-auto overflow-y-auto">
         {/* KPI SingleStat Row */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
           <GrafanaStatCard

@@ -78,6 +78,15 @@ describe('Grafana UI Components', () => {
     // Click Stop
     fireEvent.click(screen.getByTitle('Stop Simulation'));
     expect(sendControl).toHaveBeenCalledWith('stop');
+
+    // Test frameless window controls (minimize, maximize, close)
+    fireEvent.click(screen.getByLabelText('minimize'));
+    fireEvent.click(screen.getByLabelText('maximize'));
+    fireEvent.click(screen.getByLabelText('close'));
+
+    // Test double click header to maximize
+    const header = screen.getByTestId('grafana-header');
+    fireEvent.doubleClick(header);
   });
 
   it('renders GrafanaStatCard with normal, warning, and critical thresholds and sparkline', () => {

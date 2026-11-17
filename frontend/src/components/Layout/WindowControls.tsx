@@ -3,7 +3,12 @@ import { Minus, Square, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWindowControls } from '@/activities/layout';
 
-export const WindowControls = ({ colorMode }: { colorMode: string }) => {
+interface WindowControlsProps {
+  colorMode: string;
+  onClose?: () => void;
+}
+
+export const WindowControls = ({ colorMode, onClose }: WindowControlsProps) => {
   const { handleMinimize, handleMaximize, handleClose } = useWindowControls();
 
   return (
@@ -40,7 +45,7 @@ export const WindowControls = ({ colorMode }: { colorMode: string }) => {
         type="button"
         aria-label="close"
         data-wml-window="Close"
-        onClick={handleClose}
+        onClick={onClose || handleClose}
         onMouseDown={(e) => e.stopPropagation()}
         style={{ '--wails-draggable': 'no-drag' } as CSSProperties}
         className="w-11 h-10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors text-slate-500"
