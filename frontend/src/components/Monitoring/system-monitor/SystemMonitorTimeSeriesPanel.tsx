@@ -109,7 +109,7 @@ export const SystemMonitorTimeSeriesPanel = ({
       const points = metrics[dep.id] || [];
       points.forEach((p) => {
         const val = Number(p[metricKey]);
-        if (!isNaN(val)) allValues.push(val);
+        if (!Number.isNaN(val)) allValues.push(val);
       });
     });
     const floor =

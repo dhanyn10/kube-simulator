@@ -65,7 +65,6 @@ export const SystemMonitorReplicasPanel = ({
         const current = dep.replicas || 1;
         const capacity = Math.round(1440 / parseIntervalMinutes(interval));
         const svgPoints = buildSvgPoints(data, dynamicMaxReplicas, 500, 100, capacity);
-        const lastY = Math.round(100 - (Math.min(dynamicMaxReplicas, current) / dynamicMaxReplicas) * 90);
         return {
           id: dep.id,
           label: dep.label,
