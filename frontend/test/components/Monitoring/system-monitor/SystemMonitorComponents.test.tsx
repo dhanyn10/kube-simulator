@@ -191,4 +191,77 @@ describe('SystemMonitor UI Components', () => {
     expect(screen.getByText('4 Replicas')).toBeDefined();
     expect(screen.getByText('Network Ingress & Response Latency')).toBeDefined();
   });
+
+  it('dynamically adapts X-axis and Y-axis scale based on interval and Task Manager autoscaling', () => {
+    // 1. Dynamic X-axis with interval 30m (shows 03:00, 06:00, etc.)
+    const { rerender } = render(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 1 }]}
+        metrics={{
+          'dep-1': [
+            { cpuPercent: 40, memoryPercent: 20 },
+            { cpuPercent: 50, memoryPercent: 30 }
+          ]
+        }}
+        metricKey="cpuPercent"
+        interval="30m"
+        maxVal={100}
+      />
+    );
+
+    // 30m interval renders 03:00 tick
+    expect(screen.getByText('03:00')).toBeDefined();
+    expect(screen.getByText('100%')).toBeDefined(); // Y-axis top tick at 100%
+
+    // 2. Dynamic Y-axis scale UP when peak exceeds limit (e.g. multi-core spike to 140%)
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 1 }]}
+        metrics={{
+          'dep-1': [
+            { cpuPercent: 140, memoryPercent: 20 }
+          ]
+        }}
+        metricKey="cpuPercent"
+        interval="1h"
+        maxVal={100}
+      />
+    );
+
+    // Scaled up to 200% on Y-axis
+    expect(screen.getByText('200%')).toBeDefined();
+
+    // 3. Dynamic Y-axis scale DOWN when values decrease back to normal
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 1 }]}
+        metrics={{
+          'dep-1': [
+            { cpuPercent: 45, memoryPercent: 20 }
+          ]
+        }}
+        metricKey="cpuPercent"
+        interval="1h"
+        maxVal={100}
+      />
+    );
+
+    // Scaled down back to 100%
+    expect(screen.getByText('100%')).toBeDefined();
+
+    // 4. Dynamic X-axis with 15m interval (shows 02:00, 04:00, etc.)
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 1 }]}
+        metrics={{ 'dep-1': [{ cpuPercent: 30 }] }}
+        metricKey="cpuPercent"
+        interval="15m"
+      />
+    );
+    expect(screen.getByText('02:00')).toBeDefined();
+  });
 });

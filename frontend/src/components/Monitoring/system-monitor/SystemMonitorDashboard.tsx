@@ -212,7 +212,7 @@ export const SystemMonitorDashboard = () => {
               metrics={metrics}
               metricKey="memoryValue"
               unit=" MiB"
-              maxVal={1500}
+              maxVal={256}
               showThresholds={false}
               colorMode={colorMode}
               interval={timeRange}

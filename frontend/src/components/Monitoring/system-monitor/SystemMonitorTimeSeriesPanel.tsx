@@ -2,7 +2,19 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { SimulationMetricPoint } from '@/store/types';
 import { DeploymentSummary, TimeRangeFilter } from './types';
-import { CHART_PALETTE, calculateSeriesStats, aggregateMetricSeries } from './chartHelpers';
+import {
+  CHART_PALETTE,
+  calculateSeriesStats,
+  aggregateMetricSeries,
+  calculateDynamicYMax,
+  generateYAxisScale,
+  generateXAxisTicks,
+} from './chartHelpers';
+import {
+  SystemMonitorAxisBottom,
+  SystemMonitorYScaleOverlay,
+  SystemMonitorVerticalGrid,
+} from './SystemMonitorChartAxes';
 import { ZapOff, AlertTriangle } from 'lucide-react';
 
 interface SystemMonitorTimeSeriesPanelProps {
@@ -18,6 +30,34 @@ interface SystemMonitorTimeSeriesPanelProps {
   interval?: TimeRangeFilter;
 }
 
+interface ThresholdLinesProps {
+  dynamicMax: number;
+}
+
+const ThresholdLines = ({ dynamicMax }: ThresholdLinesProps) => {
+  const show80 = 80 <= dynamicMax;
+  const show90 = 90 <= dynamicMax;
+  const top80 = Math.max(0, Math.round(100 - (80 / dynamicMax) * 90));
+  const top90 = Math.max(0, Math.round(100 - (90 / dynamicMax) * 90));
+
+  return (
+    <div className="absolute inset-x-0 inset-y-0 pointer-events-none">
+      {show80 && (
+        <div
+          className="absolute inset-x-0 border-t border-dashed border-amber-500/50"
+          style={{ top: `${top80}%` }}
+        />
+      )}
+      {show90 && (
+        <div
+          className="absolute inset-x-0 border-t border-dashed border-rose-500/50"
+          style={{ top: `${top90}%` }}
+        />
+      )}
+    </div>
+  );
+};
+
 export const SystemMonitorTimeSeriesPanel = ({
   title,
   description,
@@ -32,11 +72,26 @@ export const SystemMonitorTimeSeriesPanel = ({
 }: SystemMonitorTimeSeriesPanelProps) => {
   const isDark = colorMode === 'dark';
 
+  const dynamicMax = useMemo(() => {
+    const allValues: number[] = [];
+    deployments.forEach((dep) => {
+      const points = metrics[dep.id] || [];
+      points.forEach((p) => {
+        const val = Number(p[metricKey]);
+        if (!isNaN(val)) allValues.push(val);
+      });
+    });
+    return calculateDynamicYMax(allValues, maxVal);
+  }, [deployments, metrics, metricKey, maxVal]);
+
+  const yScale = useMemo(() => generateYAxisScale(dynamicMax, unit, 3), [dynamicMax, unit]);
+  const xTicks = useMemo(() => generateXAxisTicks(interval), [interval]);
+
   const seriesData = useMemo(() => {
     return deployments.map((dep, idx) => {
       const color = CHART_PALETTE[idx % CHART_PALETTE.length];
       const points = metrics[dep.id] || [];
-      const aggregated = aggregateMetricSeries(points, metricKey, interval, maxVal, 500, 140);
+      const aggregated = aggregateMetricSeries(points, metricKey, interval, dynamicMax, 500, 140);
       const lastPoint = points.at(-1);
       const stats = calculateSeriesStats(dep.id, dep.label, color, aggregated.data, lastPoint);
       return {
@@ -46,7 +101,7 @@ export const SystemMonitorTimeSeriesPanel = ({
         current: Math.round(aggregated.currentVal),
       };
     });
-  }, [deployments, metrics, metricKey, maxVal, interval]);
+  }, [deployments, metrics, metricKey, dynamicMax, interval]);
 
   return (
     <div
@@ -81,18 +136,16 @@ export const SystemMonitorTimeSeriesPanel = ({
           <div className="border-t border-slate-500 w-full" />
           <div className="border-t border-slate-500 w-full" />
           <div className="border-t border-slate-500 w-full" />
-          <div className="border-t border-slate-500 w-full" />
         </div>
 
-        {/* 80% & 90% Threshold Lines */}
-        {showThresholds && (
-          <div className="absolute inset-x-0 inset-y-0 pointer-events-none">
-            {/* 80% Line: 140 - (0.8 * 130) = 36px from top */}
-            <div className="absolute top-[28%] inset-x-0 border-t border-dashed border-amber-500/50" />
-            {/* 90% Line: 140 - (0.9 * 130) = 23px from top */}
-            <div className="absolute top-[16%] inset-x-0 border-t border-dashed border-rose-500/50" />
-          </div>
-        )}
+        {/* Dynamic Vertical Grid Lines */}
+        <SystemMonitorVerticalGrid xTicks={xTicks} />
+
+        {/* Dynamic Y-Axis Scale Indicator (Windows Task Manager style) */}
+        <SystemMonitorYScaleOverlay ticks={yScale.ticks} />
+
+        {/* 80% & 90% Dynamic Threshold Lines */}
+        {showThresholds && <ThresholdLines dynamicMax={dynamicMax} />}
 
         {deployments.length === 0 ? (
           <span className="text-xs font-mono text-slate-500">No active workload metrics</span>
@@ -123,16 +176,8 @@ export const SystemMonitorTimeSeriesPanel = ({
         )}
       </div>
 
-      {/* 24-Hour Timeline Bottom Axis */}
-      <div className="flex justify-between items-center px-1 text-[9px] font-mono text-slate-500 -mt-1 pb-1 border-b border-slate-800/40">
-        <span>00:00</span>
-        <span>04:00</span>
-        <span>08:00</span>
-        <span>12:00</span>
-        <span>16:00</span>
-        <span>20:00</span>
-        <span>24:00</span>
-      </div>
+      {/* Dynamic 24-Hour Timeline Bottom Axis */}
+      <SystemMonitorAxisBottom xTicks={xTicks} />
 
       {/* Metrics Legend Table */}
       <div className="overflow-x-auto">

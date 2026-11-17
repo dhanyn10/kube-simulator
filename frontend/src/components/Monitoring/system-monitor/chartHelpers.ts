@@ -28,6 +28,23 @@ export interface AggregatedSeriesResult {
   currentVal: number;
 }
 
+export interface XAxisTick {
+  label: string;
+  minute: number;
+  percent: number;
+}
+
+export interface YAxisScaleTick {
+  value: number;
+  label: string;
+  percentFromTop: number;
+}
+
+export interface YAxisScale {
+  maxVal: number;
+  ticks: YAxisScaleTick[];
+}
+
 /**
  * Resolves interval minutes for simulation profile calculation.
  * Default is 60 minutes (1 hour), and dynamic up to 5 minutes.
@@ -46,6 +63,96 @@ export const parseIntervalMinutes = (interval?: TimeRangeFilter): number => {
     default:
       return 60;
   }
+};
+
+/**
+ * Determines dynamic tick step in minutes based on active interval.
+ */
+export const getIntervalStepMinutes = (interval?: TimeRangeFilter): number => {
+  const mins = parseIntervalMinutes(interval);
+  if (mins <= 5) return 60;
+  if (mins <= 15) return 120;
+  if (mins <= 30) return 180;
+  return 240;
+};
+
+/**
+ * Generates dynamic X-axis time marks and percentage positions across the 24-hour cycle.
+ */
+export const generateXAxisTicks = (interval?: TimeRangeFilter): XAxisTick[] => {
+  const stepMins = getIntervalStepMinutes(interval);
+  const ticks: XAxisTick[] = [];
+
+  for (let m = 0; m <= 1440; m += stepMins) {
+    const hh = String(Math.floor(m / 60)).padStart(2, '0');
+    const mm = String(m % 60).padStart(2, '0');
+    const label = `${hh}:${mm}`;
+    const percent = Math.round((m / 1440) * 1000) / 10;
+    ticks.push({ label, minute: m, percent });
+  }
+
+  return ticks;
+};
+
+/**
+ * Calculates a clean, human-friendly ceiling number for graph scaling.
+ */
+export const getNiceCeiling = (target: number): number => {
+  const power = Math.pow(10, Math.floor(Math.log10(target)));
+  const fraction = target / power;
+
+  if (fraction <= 1) return 1 * power;
+  if (fraction <= 1.5) return 1.5 * power;
+  if (fraction <= 2) return 2 * power;
+  if (fraction <= 2.5) return 2.5 * power;
+  if (fraction <= 5) return 5 * power;
+  return 10 * power;
+};
+
+/**
+ * Calculates a dynamic Y-axis maximum that scales up when peak exceeds current boundaries,
+ * and scales down when values drop (similar to Windows Task Manager autoscaling),
+ * rounding to clean, human-readable numbers with headroom.
+ */
+export const calculateDynamicYMax = (
+  values: number[],
+  minFloor: number = 100,
+  headroom: number = 1.15
+): number => {
+  if (!values || values.length === 0) {
+    return minFloor;
+  }
+  const peak = Math.max(0, ...values);
+  if (peak <= 0) {
+    return minFloor;
+  }
+  const target = peak * headroom;
+  if (target <= minFloor) {
+    return minFloor;
+  }
+  return Math.round(getNiceCeiling(target));
+};
+
+/**
+ * Generates dynamic Y-axis tick values and formatted labels (Windows Task Manager style).
+ */
+export const generateYAxisScale = (
+  maxVal: number,
+  unit: string = '',
+  tickCount: number = 3
+): YAxisScale => {
+  const safeCount = Math.max(2, tickCount);
+  const ticks: YAxisScaleTick[] = [];
+  const step = maxVal / (safeCount - 1);
+
+  for (let i = safeCount - 1; i >= 0; i--) {
+    const val = Math.round(i * step);
+    const percentFromTop = Math.round(((maxVal - val) / Math.max(1, maxVal)) * 100);
+    const label = `${val.toLocaleString('en-US')}${unit}`;
+    ticks.push({ value: val, label, percentFromTop });
+  }
+
+  return { maxVal, ticks };
 };
 
 /**

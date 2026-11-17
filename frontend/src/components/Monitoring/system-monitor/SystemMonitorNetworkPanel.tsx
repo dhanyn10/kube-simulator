@@ -2,7 +2,18 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { SimulationMetricPoint } from '@/store/types';
 import { DeploymentSummary, TimeRangeFilter } from './types';
-import { buildSvgPoints, parseIntervalMinutes } from './chartHelpers';
+import {
+  buildSvgPoints,
+  parseIntervalMinutes,
+  calculateDynamicYMax,
+  generateYAxisScale,
+  generateXAxisTicks,
+} from './chartHelpers';
+import {
+  SystemMonitorAxisBottom,
+  SystemMonitorYScaleOverlay,
+  SystemMonitorVerticalGrid,
+} from './SystemMonitorChartAxes';
 import { Activity, Globe } from 'lucide-react';
 
 interface SystemMonitorNetworkPanelProps {
@@ -77,8 +88,13 @@ export const SystemMonitorNetworkPanel = ({
     };
   }, [deployments, metrics, interval]);
 
-  const maxRps = Math.max(2000, ...rpsData);
-  const rpsPoints = buildSvgPoints(rpsData, maxRps, 500, 100);
+  const dynamicMaxRps = useMemo(() => {
+    return calculateDynamicYMax(rpsData, 100, 1.2);
+  }, [rpsData]);
+
+  const rpsPoints = buildSvgPoints(rpsData, dynamicMaxRps, 500, 100);
+  const yScale = useMemo(() => generateYAxisScale(dynamicMaxRps, ' req/s', 3), [dynamicMaxRps]);
+  const xTicks = useMemo(() => generateXAxisTicks(interval), [interval]);
 
   return (
     <div
@@ -94,13 +110,26 @@ export const SystemMonitorNetworkPanel = ({
         </div>
         <div className="flex items-center gap-3 text-[10px] font-mono">
           <span className="text-emerald-400 flex items-center gap-1 font-bold">
-            <Activity size={11} /> {currentRps.toLocaleString()} req/s
+            <Activity size={11} /> {currentRps.toLocaleString('en-US')} req/s
           </span>
           <span className="text-blue-400 font-bold">{currentLatency} ms</span>
         </div>
       </div>
 
       <div className="h-28 w-full bg-[#111217] rounded border border-[#22252b] relative overflow-hidden flex items-center justify-center">
+        {/* Horizontal Background Grid Lines */}
+        <div className="absolute inset-0 flex flex-col justify-between p-2 pointer-events-none opacity-20">
+          <div className="border-t border-slate-500 w-full" />
+          <div className="border-t border-slate-500 w-full" />
+          <div className="border-t border-slate-500 w-full" />
+        </div>
+
+        {/* Dynamic Vertical Grid Lines */}
+        <SystemMonitorVerticalGrid xTicks={xTicks} />
+
+        {/* Dynamic Y-Axis Scale Indicator (Windows Task Manager style) */}
+        <SystemMonitorYScaleOverlay ticks={yScale.ticks} />
+
         {deployments.length === 0 ? (
           <span className="text-xs font-mono text-slate-500">No active traffic simulation</span>
         ) : (
@@ -126,20 +155,12 @@ export const SystemMonitorNetworkPanel = ({
         )}
       </div>
 
-      {/* 24-Hour Timeline Bottom Axis */}
-      <div className="flex justify-between items-center px-1 text-[9px] font-mono text-slate-500 -mt-1 pb-1 border-b border-slate-800/40">
-        <span>00:00</span>
-        <span>04:00</span>
-        <span>08:00</span>
-        <span>12:00</span>
-        <span>16:00</span>
-        <span>20:00</span>
-        <span>24:00</span>
-      </div>
+      {/* Dynamic 24-Hour Timeline Bottom Axis */}
+      <SystemMonitorAxisBottom xTicks={xTicks} />
 
       <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1">
         <span>Protocol: HTTP/2 (Cluster Ingress)</span>
-        <span>Peak Throughput: {maxRps.toLocaleString()} req/s</span>
+        <span>Peak Scale: {dynamicMaxRps.toLocaleString('en-US')} req/s</span>
       </div>
     </div>
   );
