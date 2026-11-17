@@ -14,6 +14,9 @@ export const MonitoringDashboard = () => {
     position,
     dashboardRef,
     workloads,
+    isSimulating,
+    clusterCpuAvg,
+    clusterMemAvg,
     handleDetach,
     handleMouseDown,
   } = useMonitoringDashboardHandler();
@@ -25,14 +28,14 @@ export const MonitoringDashboard = () => {
       ref={dashboardRef}
       style={{ left: position.x, top: position.y }}
       className={cn(
-        "fixed w-[400px] rounded-xl shadow-2xl border z-[500] flex flex-col overflow-hidden backdrop-blur-md",
-        colorMode === 'dark' ? "bg-slate-900/90 border-slate-700" : "bg-white/90 border-slate-200"
+        "fixed w-[420px] rounded-xl shadow-2xl border z-[500] flex flex-col overflow-hidden backdrop-blur-md transition-colors",
+        colorMode === 'dark' ? "bg-slate-900/95 border-slate-700" : "bg-white/95 border-slate-200"
       )}
     >
       {/* Header / Drag Handle */}
       <div className={cn(
-          "h-10 flex items-center justify-between border-b",
-          colorMode === 'dark' ? "bg-slate-800/50 border-slate-700/50" : "bg-slate-100 border-slate-200"
+          "h-10 flex items-center justify-between border-b select-none",
+          colorMode === 'dark' ? "bg-slate-800/60 border-slate-700/50" : "bg-slate-100 border-slate-200"
         )}>
         <button
           type="button"
@@ -41,7 +44,7 @@ export const MonitoringDashboard = () => {
           aria-label="Drag to move dashboard"
         >
           <Activity size={14} className="text-blue-500" />
-          <span className="text-[11px] font-bold uppercase tracking-widest">System Monitoring</span>
+          <span className="text-[11px] font-bold uppercase tracking-widest font-mono">System Monitoring</span>
         </button>
         <button
           type="button"
@@ -53,17 +56,33 @@ export const MonitoringDashboard = () => {
         </button>
       </div>
 
+      {/* Task Manager Real-Time Quick Stats Banner */}
       <div className={cn(
-        "px-4 py-2 border-b flex items-center justify-between",
-        colorMode === 'dark' ? "bg-blue-500/5" : "bg-blue-50"
+        "px-4 py-2 border-b flex items-center justify-between text-[10px] font-mono select-none",
+        colorMode === 'dark' ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"
       )}>
-        <span className="text-[10px] text-slate-500">View on separate window?</span>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 font-bold">
+            <span className={cn(
+              "w-2 h-2 rounded-full",
+              isSimulating ? "bg-emerald-400 animate-ping" : "bg-slate-500"
+            )} />
+            {isSimulating ? "LIVE" : "IDLE"}
+          </span>
+          <span className="text-slate-400">
+            CPU: <b className="text-blue-400">{clusterCpuAvg}%</b>
+          </span>
+          <span className="text-slate-400">
+            MEM: <b className="text-purple-400">{clusterMemAvg}%</b>
+          </span>
+        </div>
         <button
           type="button"
           onClick={handleDetach}
-          className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition-colors"
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[9px] font-bold transition-colors"
+          title="Open in separate window"
         >
-          <ExternalLink size={10} />
+          <ExternalLink size={9} />
           Detach
         </button>
       </div>

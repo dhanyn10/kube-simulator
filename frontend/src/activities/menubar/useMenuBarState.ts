@@ -185,16 +185,7 @@ export const useMenuBarState = ({
           {
             label: monitoringLabel,
             icon: isMonitoringDetached ? ExternalLink : Activity,
-            onClick: () => {
-              if (isMonitoringDetached) {
-                void getBackendGateway().openSimulationWindow();
-              } else if (isMonitoringOpen) {
-                setMonitoringOpen(false);
-              } else {
-                void getBackendGateway().openSimulationWindow();
-                setMonitoringOpen(true);
-              }
-            }
+            onClick: () => !isMonitoringDetached && setMonitoringOpen(!isMonitoringOpen)
           },
           {
             label: 'Canvas Settings...',

@@ -128,6 +128,26 @@ export const useMonitoringDashboardHandler = () => {
     };
   };
 
+  const isSimulating = useFlowStore((state) => state.isSimulating);
+  const simulationSpeed = useFlowStore((state) => state.simulationSpeed) || 1;
+
+  let totalCpu = 0;
+  let totalMem = 0;
+  let activeCount = 0;
+  workloads.forEach((w) => {
+    const pts = simulationMetrics[w.id];
+    if (pts && pts.length > 0) {
+      const last = pts.at(-1);
+      if (last) {
+        totalCpu += last.cpuPercent || 0;
+        totalMem += last.memoryPercent || 0;
+        activeCount++;
+      }
+    }
+  });
+  const clusterCpuAvg = activeCount > 0 ? Math.round(totalCpu / activeCount) : 0;
+  const clusterMemAvg = activeCount > 0 ? Math.round(totalMem / activeCount) : 0;
+
   return {
     isMonitoringOpen,
     setMonitoringOpen,
@@ -137,6 +157,10 @@ export const useMonitoringDashboardHandler = () => {
     position,
     dashboardRef,
     workloads,
+    isSimulating,
+    simulationSpeed,
+    clusterCpuAvg,
+    clusterMemAvg,
     handleDetach,
     handleMouseDown,
   };
