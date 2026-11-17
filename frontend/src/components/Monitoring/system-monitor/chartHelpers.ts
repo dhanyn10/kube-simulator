@@ -1,5 +1,5 @@
 import { SimulationMetricPoint } from '@/store/types';
-import { TimeRangeFilter } from './types';
+import { DeploymentSummary, TimeRangeFilter } from './types';
 
 export const CHART_PALETTE = [
   '#3b82f6', // blue
@@ -339,4 +339,119 @@ export const aggregateMetricSeries = (
     areaPath,
     currentVal,
   };
+};
+
+export interface ThresholdReferenceLine {
+  value: number;
+  label: string;
+  badge: string;
+  color: 'amber' | 'rose' | 'red';
+  percentFromTop: number;
+}
+
+/**
+ * Calculates percentage from top of chart canvas for threshold positioning,
+ * aligned with dataToCoords SVG coordinate mapping (10px top headroom in 140px height).
+ */
+export const calculatePercentFromTop = (value: number, dynamicMax: number): number => {
+  if (dynamicMax <= 0) return 0;
+  const ratio = Math.min(1, Math.max(0, value / dynamicMax));
+  return Math.round((1 - ratio * (130 / 140)) * 1000) / 10;
+};
+
+const getCpuThresholdLines = (dynamicMax: number): ThresholdReferenceLine[] => {
+  const lines: ThresholdReferenceLine[] = [];
+  if (80 <= dynamicMax) {
+    lines.push({
+      value: 80,
+      label: '80% HPA',
+      badge: '80% HPA Target',
+      color: 'amber',
+      percentFromTop: calculatePercentFromTop(80, dynamicMax),
+    });
+  }
+  if (90 <= dynamicMax) {
+    lines.push({
+      value: 90,
+      label: '90% Throttle',
+      badge: '90% Throttle Risk',
+      color: 'rose',
+      percentFromTop: calculatePercentFromTop(90, dynamicMax),
+    });
+  }
+  if (dynamicMax > 100) {
+    lines.push({
+      value: 100,
+      label: '100% Limit',
+      badge: '100% Quota Limit',
+      color: 'red',
+      percentFromTop: calculatePercentFromTop(100, dynamicMax),
+    });
+  }
+  return lines;
+};
+
+export const resolveMemoryLimit = (
+  deployments: DeploymentSummary[] = [],
+  metrics: Record<string, SimulationMetricPoint[]> = {},
+  fallbackLimit: number = 256
+): number => {
+  let highestLimit = 0;
+  for (const dep of deployments) {
+    const lastPoint = metrics[dep.id]?.at(-1);
+    if (lastPoint?.memoryLimit && lastPoint.memoryLimit > highestLimit) {
+      highestLimit = lastPoint.memoryLimit;
+    }
+  }
+  return highestLimit > 0 ? highestLimit : fallbackLimit;
+};
+
+const getMemoryThresholdLines = (
+  dynamicMax: number,
+  deployments: DeploymentSummary[] = [],
+  metrics: Record<string, SimulationMetricPoint[]> = {},
+  maxVal: number = 256
+): ThresholdReferenceLine[] => {
+  const memLimit = resolveMemoryLimit(deployments, metrics, maxVal);
+  const softLimit = Math.round(memLimit * 0.85);
+  const lines: ThresholdReferenceLine[] = [];
+
+  if (softLimit <= dynamicMax && softLimit > 0) {
+    lines.push({
+      value: softLimit,
+      label: '85% OOM Risk',
+      badge: `85% OOM Risk (${softLimit} MiB)`,
+      color: 'amber',
+      percentFromTop: calculatePercentFromTop(softLimit, dynamicMax),
+    });
+  }
+  if (memLimit <= dynamicMax && memLimit > 0) {
+    lines.push({
+      value: memLimit,
+      label: `Limit: ${memLimit} MiB`,
+      badge: `Limit: ${memLimit} MiB`,
+      color: 'rose',
+      percentFromTop: calculatePercentFromTop(memLimit, dynamicMax),
+    });
+  }
+  return lines;
+};
+
+/**
+ * Generates Kubernetes-native threshold reference lines (HPA, Throttle risk, Quota limit, OOM risk).
+ */
+export const getThresholdReferenceLines = (
+  metricKey: string,
+  dynamicMax: number,
+  deployments: DeploymentSummary[] = [],
+  metrics: Record<string, SimulationMetricPoint[]> = {},
+  maxVal: number = 100
+): ThresholdReferenceLine[] => {
+  if (metricKey === 'cpuPercent') {
+    return getCpuThresholdLines(dynamicMax);
+  }
+  if (metricKey === 'memoryValue') {
+    return getMemoryThresholdLines(dynamicMax, deployments, metrics, maxVal);
+  }
+  return [];
 };

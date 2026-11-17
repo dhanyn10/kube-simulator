@@ -9,6 +9,9 @@ import {
   calculateDynamicYMax,
   generateYAxisScale,
   generateXAxisTicks,
+  getThresholdReferenceLines,
+  resolveMemoryLimit,
+  ThresholdReferenceLine,
 } from './chartHelpers';
 import {
   SystemMonitorAxisBottom,
@@ -31,30 +34,56 @@ interface SystemMonitorTimeSeriesPanelProps {
   isSimulating?: boolean;
 }
 
-interface ThresholdLinesProps {
-  dynamicMax: number;
+const getThresholdBorderColor = (color: ThresholdReferenceLine['color']): string => {
+  if (color === 'amber') return 'border-amber-500/60';
+  if (color === 'rose') return 'border-rose-500/60';
+  return 'border-red-500/70';
+};
+
+const getThresholdBadgeColor = (color: ThresholdReferenceLine['color']): string => {
+  if (color === 'amber') return 'bg-amber-950/85 text-amber-300 border-amber-600/50';
+  if (color === 'rose') return 'bg-rose-950/85 text-rose-300 border-rose-600/50';
+  return 'bg-red-950/85 text-red-300 border-red-600/50';
+};
+
+const getThresholdLegendTextColor = (color: ThresholdReferenceLine['color']): string => {
+  if (color === 'amber') return 'text-amber-400';
+  if (color === 'rose') return 'text-rose-400';
+  return 'text-red-400';
+};
+
+const getThresholdLegendDotColor = (color: ThresholdReferenceLine['color']): string => {
+  if (color === 'amber') return 'bg-amber-400';
+  if (color === 'rose') return 'bg-rose-400';
+  return 'bg-red-400';
+};
+
+interface DynamicThresholdLinesProps {
+  lines: ThresholdReferenceLine[];
 }
 
-const ThresholdLines = ({ dynamicMax }: ThresholdLinesProps) => {
-  const show80 = 80 <= dynamicMax;
-  const show90 = 90 <= dynamicMax;
-  const top80 = Math.max(0, Math.round(100 - (80 / dynamicMax) * 90));
-  const top90 = Math.max(0, Math.round(100 - (90 / dynamicMax) * 90));
+export const DynamicThresholdLines = ({ lines }: DynamicThresholdLinesProps) => {
+  if (lines.length === 0) return null;
 
   return (
-    <div className="absolute inset-x-0 inset-y-0 pointer-events-none">
-      {show80 && (
+    <div className="absolute inset-0 pointer-events-none select-none z-10 overflow-hidden">
+      {lines.map((line) => (
         <div
-          className="absolute inset-x-0 border-t border-dashed border-amber-500/50"
-          style={{ top: `${top80}%` }}
-        />
-      )}
-      {show90 && (
-        <div
-          className="absolute inset-x-0 border-t border-dashed border-rose-500/50"
-          style={{ top: `${top90}%` }}
-        />
-      )}
+          key={`threshold-line-${line.label}-${line.value}`}
+          className="absolute inset-x-0"
+          style={{ top: `${line.percentFromTop}%` }}
+        >
+          <div className={cn('w-full border-t border-dashed', getThresholdBorderColor(line.color))} />
+          <span
+            className={cn(
+              'absolute right-1.5 -translate-y-1/2 px-1.5 py-0.5 rounded text-[8px] font-mono font-medium shadow-sm border backdrop-blur-sm whitespace-nowrap',
+              getThresholdBadgeColor(line.color)
+            )}
+          >
+            {line.badge}
+          </span>
+        </div>
+      ))}
     </div>
   );
 };
@@ -83,11 +112,20 @@ export const SystemMonitorTimeSeriesPanel = ({
         if (!isNaN(val)) allValues.push(val);
       });
     });
-    return calculateDynamicYMax(allValues, maxVal);
+    const floor =
+      metricKey === 'memoryValue'
+        ? resolveMemoryLimit(deployments, metrics, maxVal)
+        : maxVal;
+    return calculateDynamicYMax(allValues, floor);
   }, [deployments, metrics, metricKey, maxVal]);
 
   const yScale = useMemo(() => generateYAxisScale(dynamicMax, unit, 3), [dynamicMax, unit]);
   const xTicks = useMemo(() => generateXAxisTicks(interval), [interval]);
+
+  const thresholdLines = useMemo(() => {
+    if (!showThresholds) return [];
+    return getThresholdReferenceLines(metricKey, dynamicMax, deployments, metrics, maxVal);
+  }, [showThresholds, metricKey, dynamicMax, deployments, metrics, maxVal]);
 
   const seriesData = useMemo(() => {
     return deployments.map((dep, idx) => {
@@ -120,14 +158,17 @@ export const SystemMonitorTimeSeriesPanel = ({
           <h2 className="text-xs font-bold font-mono uppercase tracking-wider">{title}</h2>
           {description && <span className="text-[10px] text-slate-400 font-sans">({description})</span>}
         </div>
-        {showThresholds && (
-          <div className="flex items-center gap-2 text-[9px] font-mono">
-            <span className="flex items-center gap-1 text-amber-400">
-              <span className="w-2 h-0.5 bg-amber-400 inline-block" /> 80% Warn
-            </span>
-            <span className="flex items-center gap-1 text-rose-400">
-              <span className="w-2 h-0.5 bg-rose-400 inline-block" /> 90% Crit
-            </span>
+        {showThresholds && thresholdLines.length > 0 && (
+          <div className="flex items-center gap-2 text-[9px] font-mono flex-wrap">
+            {thresholdLines.map((line) => (
+              <span
+                key={`legend-threshold-${line.label}-${line.color}`}
+                className={cn('flex items-center gap-1 font-medium', getThresholdLegendTextColor(line.color))}
+              >
+                <span className={cn('w-2 h-0.5 inline-block', getThresholdLegendDotColor(line.color))} />
+                {line.label}
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -147,8 +188,8 @@ export const SystemMonitorTimeSeriesPanel = ({
         {/* Dynamic Y-Axis Scale Indicator (Windows Task Manager style) */}
         <SystemMonitorYScaleOverlay ticks={yScale.ticks} />
 
-        {/* 80% & 90% Dynamic Threshold Lines */}
-        {showThresholds && <ThresholdLines dynamicMax={dynamicMax} />}
+        {/* Kubernetes-native Dynamic Threshold Lines & Badges */}
+        {showThresholds && <DynamicThresholdLines lines={thresholdLines} />}
 
         {deployments.length === 0 ? (
           <span className="text-xs font-mono text-slate-500">No active workload metrics</span>

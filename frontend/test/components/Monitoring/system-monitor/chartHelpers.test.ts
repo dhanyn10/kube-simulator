@@ -11,6 +11,8 @@ import {
   calculateDynamicYMax,
   generateYAxisScale,
   dataToCoords,
+  calculatePercentFromTop,
+  getThresholdReferenceLines,
 } from '@/components/Monitoring/system-monitor/chartHelpers';
 import { SimulationMetricPoint } from '@/store/types';
 
@@ -166,5 +168,84 @@ describe('chartHelpers', () => {
     expect(coords).toHaveLength(3);
     expect(coords.at(-1)?.x).toBe(500); // newest point at right edge
     expect(coords[0].x).toBeLessThan(500);
+  });
+
+  it('calculates percentFromTop for threshold lines aligned with chart headroom', () => {
+    expect(calculatePercentFromTop(0, 100)).toBe(100);
+    expect(calculatePercentFromTop(100, 100)).toBe(7.1);
+    expect(calculatePercentFromTop(80, 100)).toBe(25.7);
+    expect(calculatePercentFromTop(50, 0)).toBe(0);
+  });
+
+  it('generates Kubernetes-native threshold reference lines for CPU and Memory', () => {
+    // 1. CPU at normal 100% max: 80% HPA and 90% Throttle lines
+    const cpuLines100 = getThresholdReferenceLines('cpuPercent', 100);
+    expect(cpuLines100).toHaveLength(2);
+    expect(cpuLines100[0]).toEqual({
+      value: 80,
+      label: '80% HPA',
+      badge: '80% HPA Target',
+      color: 'amber',
+      percentFromTop: 25.7,
+    });
+    expect(cpuLines100[1]).toEqual({
+      value: 90,
+      label: '90% Throttle',
+      badge: '90% Throttle Risk',
+      color: 'rose',
+      percentFromTop: 16.4,
+    });
+
+    // 2. CPU multi-core spike with dynamicMax = 200: shows 100% Quota Limit line
+    const cpuLinesSpike = getThresholdReferenceLines('cpuPercent', 200);
+    expect(cpuLinesSpike).toHaveLength(3);
+    expect(cpuLinesSpike[2]).toEqual({
+      value: 100,
+      label: '100% Limit',
+      badge: '100% Quota Limit',
+      color: 'red',
+      percentFromTop: 53.6,
+    });
+
+    // 3. Low dynamicMax below 80 returns empty array
+    expect(getThresholdReferenceLines('cpuPercent', 50)).toHaveLength(0);
+
+    // 4. Memory threshold lines derived from deployments metric memoryLimit
+    const memLines = getThresholdReferenceLines(
+      'memoryValue',
+      512,
+      [{ id: 'dep-1', label: 'api', replicas: 1 }],
+      {
+        'dep-1': [
+          {
+            cpuPercent: 10,
+            memoryPercent: 20,
+            cpuValue: 100,
+            memoryValue: 200,
+            cpuLimit: 1000,
+            memoryLimit: 512,
+            isThrottled: false,
+            isOOM: false,
+          },
+        ],
+      },
+      256
+    );
+    expect(memLines).toHaveLength(2);
+    expect(memLines[0].label).toBe('85% OOM Risk');
+    expect(memLines[0].badge).toBe('85% OOM Risk (435 MiB)');
+    expect(memLines[0].color).toBe('amber');
+    expect(memLines[1].label).toBe('Limit: 512 MiB');
+    expect(memLines[1].badge).toBe('Limit: 512 MiB');
+    expect(memLines[1].color).toBe('rose');
+
+    // 5. Memory fallback to maxVal when deployments have no memoryLimit
+    const fallbackMemLines = getThresholdReferenceLines('memoryValue', 256, [], {}, 256);
+    expect(fallbackMemLines).toHaveLength(2);
+    expect(fallbackMemLines[0].badge).toBe('85% OOM Risk (218 MiB)');
+    expect(fallbackMemLines[1].badge).toBe('Limit: 256 MiB');
+
+    // 6. Unknown metricKey returns empty array
+    expect(getThresholdReferenceLines('unknown', 100)).toHaveLength(0);
   });
 });

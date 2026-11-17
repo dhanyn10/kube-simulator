@@ -188,6 +188,40 @@ describe('SystemMonitor UI Components', () => {
     );
     expect(screen.getByText('web-server')).toBeDefined();
     expect(screen.getAllByText('60%')[0]).toBeDefined();
+    expect(screen.getByText('80% HPA')).toBeDefined();
+    expect(screen.getByText('80% HPA Target')).toBeDefined();
+    expect(screen.getByText('90% Throttle')).toBeDefined();
+    expect(screen.getByText('90% Throttle Risk')).toBeDefined();
+
+    // Rerender with Memory Allocation panel
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="Memory Allocation"
+        description="Memory per deployment"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 2 }]}
+        metrics={{
+          'dep-1': [
+            {
+              cpuPercent: 30,
+              memoryPercent: 40,
+              cpuValue: 200,
+              memoryValue: 180,
+              cpuLimit: 1000,
+              memoryLimit: 512,
+              isThrottled: false,
+              isOOM: false,
+            },
+          ],
+        }}
+        metricKey="memoryValue"
+        unit=" MiB"
+        maxVal={256}
+        showThresholds={true}
+      />
+    );
+    expect(screen.getByText('85% OOM Risk')).toBeDefined();
+    expect(screen.getByText('85% OOM Risk (435 MiB)')).toBeDefined();
+    expect(screen.getAllByText('Limit: 512 MiB')).toHaveLength(2);
   });
 
   it('renders SystemMonitorReplicasPanel and SystemMonitorNetworkPanel', () => {
@@ -250,6 +284,8 @@ describe('SystemMonitor UI Components', () => {
 
     // Scaled up to 200% on Y-axis
     expect(screen.getByText('200%')).toBeDefined();
+    expect(screen.getByText('100% Limit')).toBeDefined();
+    expect(screen.getByText('100% Quota Limit')).toBeDefined();
 
     // 3. Dynamic Y-axis scale DOWN when values decrease back to normal
     rerender(
