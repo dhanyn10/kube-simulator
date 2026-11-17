@@ -11,8 +11,7 @@ export const getSimulationButtonTitle = (
   isPaused: boolean = false,
   canStart: boolean = true
 ): string => {
-  if (!hasInternet) return 'Add an Internet card to start simulation';
-  if (!canStart) return 'Add at least one workload (Deployment or Pod) to start simulation';
+  if (!hasInternet || !canStart) return 'Add an Internet card to start simulation';
   if (hasHpaValidationError) return 'HPA requires Resource Limits on target workloads';
   if (isSimulating) return 'Pause Simulation';
   if (isPaused) return 'Resume Simulation';
@@ -93,18 +92,7 @@ export const useSimulationControls = (props: UseSimulationControlsProps) => {
   const storeStartSimulation = useFlowStore((state) => state.startSimulation);
 
   const isPaused = isPausedProp ?? isPausedStore;
-  const hasNodes = nodes.length > 0;
-  const hasWorkloads = useMemo(() => {
-    return nodes.some(
-      (n) => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)
-    );
-  }, [nodes]);
-
-  const canStart = canStartProp ?? (
-    nodes.length === 0
-      ? (hasInternet ?? false)
-      : (hasInternet && hasWorkloads)
-  );
+  const canStart = canStartProp ?? (hasInternet ?? false);
 
   const title = getSimulationButtonTitle(hasInternet, hasHpaValidationError, isSimulating, isPaused, canStart);
   const buttonClass = getSimulationButtonClass(hasInternet, isSimulating, hasHpaValidationError, isPaused, canStart);

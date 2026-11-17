@@ -35,7 +35,7 @@ export const useSimulationSync = (options?: SimulationSyncOptions) => {
         (n) => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)
       );
       const hasInternet = state.nodes.some((n) => n.type === 'Internet');
-      const canStart = hasInternet && workloadNodes.length > 0;
+      const canStart = hasInternet;
       broadcastMetrics(state.simulationMetrics, workloadNodes, {
         isSimulating: state.isSimulating,
         isPaused: state.isPaused,

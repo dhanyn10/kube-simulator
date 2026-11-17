@@ -45,7 +45,7 @@ describe('SystemMonitor UI Components', () => {
         canStart={false}
       />
     );
-    const disabledStartBtn = screen.getByTitle('Add architecture workloads and an Internet card to start simulation');
+    const disabledStartBtn = screen.getByTitle('Add an Internet card to start simulation');
     expect(disabledStartBtn.hasAttribute('disabled')).toBe(true);
 
     // Click speed 5x

@@ -108,7 +108,7 @@ const SimulationPlaybackControls = ({
               ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
               : "text-slate-500 opacity-40 cursor-not-allowed"
           )}
-          title={canStart ? "Start Simulation" : "Add architecture workloads and an Internet card to start simulation"}
+          title={canStart ? "Start Simulation" : "Add an Internet card to start simulation"}
         >
           <Play size={12} fill="currentColor" />
           <span>Start</span>
@@ -130,7 +130,7 @@ const SimulationPlaybackControls = ({
               ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
               : "text-slate-500 opacity-40 cursor-not-allowed"
           )}
-          title={canStart ? "Resume Simulation" : "Add architecture workloads and an Internet card to resume simulation"}
+          title={canStart ? "Resume Simulation" : "Add an Internet card to resume simulation"}
         >
           <Play size={12} fill="currentColor" />
           <span>Resume</span>
