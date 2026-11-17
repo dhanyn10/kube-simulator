@@ -3,9 +3,8 @@ import { cn } from '@/lib/utils';
 import { SimulationMetricPoint } from '@/store/types';
 import { DeploymentSummary, TimeRangeFilter } from './types';
 import {
-  dataToCoords,
-  buildSmoothPath,
-  buildSmoothAreaPath,
+  buildSvgPoints,
+  buildAreaPath,
   parseIntervalMinutes,
   calculateDynamicYMax,
   generateYAxisScale,
@@ -15,7 +14,6 @@ import {
   SystemMonitorAxisBottom,
   SystemMonitorYScaleOverlay,
   SystemMonitorVerticalGrid,
-  PulsingLeadingDot,
 } from './SystemMonitorChartAxes';
 import { Activity, Globe } from 'lucide-react';
 
@@ -98,9 +96,8 @@ export const SystemMonitorNetworkPanel = ({
   }, [rpsData]);
 
   const capacity = Math.round(1440 / parseIntervalMinutes(interval));
-  const coords = dataToCoords(rpsData, dynamicMaxRps, 500, 100, capacity);
-  const { linePath: smoothPath, firstPoint, lastPoint } = buildSmoothPath(coords, 0.25);
-  const areaPath = buildSmoothAreaPath(smoothPath, firstPoint || coords[0], lastPoint || coords.at(-1)!, 100);
+  const rpsPoints = buildSvgPoints(rpsData, dynamicMaxRps, 500, 100, capacity);
+  const areaPath = buildAreaPath(rpsPoints, 500, 100);
   const yScale = useMemo(() => generateYAxisScale(dynamicMaxRps, ' req/s', 3), [dynamicMaxRps]);
   const xTicks = useMemo(() => generateXAxisTicks(interval), [interval]);
 
@@ -142,31 +139,22 @@ export const SystemMonitorNetworkPanel = ({
           <span className="text-xs font-mono text-slate-500">No active traffic simulation</span>
         ) : (
           <svg aria-hidden="true" viewBox="0 0 500 100" className="w-full h-full" preserveAspectRatio="none">
-            {/* Gradient Area under curve */}
+            {/* Area under line */}
             <path
               d={areaPath}
               fill="#10b981"
               fillOpacity="0.15"
-              className="transition-all duration-300"
+              className="transition-all duration-150"
             />
-            {/* Smooth Ingress Curve with Emerald Neon Glow */}
-            <path
-              d={smoothPath}
+            {/* Crisp angular polyline matching Windows 11 Task Manager */}
+            <polyline
               fill="none"
               stroke="#10b981"
-              strokeWidth="2.2"
+              strokeWidth="1.75"
               strokeLinecap="round"
               strokeLinejoin="round"
-              style={{
-                filter: isDark ? 'drop-shadow(0 0 5px #10b98190)' : undefined,
-              }}
-              className="transition-all duration-300"
-            />
-            {/* Pulsing Leading Edge Dot */}
-            <PulsingLeadingDot
-              point={lastPoint}
-              color="#10b981"
-              isSimulating={isSimulating}
+              points={rpsPoints}
+              className="transition-all duration-150"
             />
           </svg>
         )}

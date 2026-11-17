@@ -14,7 +14,6 @@ import {
   SystemMonitorAxisBottom,
   SystemMonitorYScaleOverlay,
   SystemMonitorVerticalGrid,
-  PulsingLeadingDot,
 } from './SystemMonitorChartAxes';
 import { ZapOff, AlertTriangle } from 'lucide-react';
 
@@ -101,9 +100,7 @@ export const SystemMonitorTimeSeriesPanel = ({
         ...stats,
         data: aggregated.data,
         svgPoints: aggregated.svgPoints,
-        smoothPath: aggregated.smoothPath,
         areaPath: aggregated.areaPath,
-        lastPoint: aggregated.lastPoint,
         current: Math.round(aggregated.currentVal),
       };
     });
@@ -164,26 +161,17 @@ export const SystemMonitorTimeSeriesPanel = ({
                   d={s.areaPath}
                   fill={s.color}
                   fillOpacity="0.12"
-                  className="transition-all duration-300"
+                  className="transition-all duration-150"
                 />
-                {/* Smooth Curve with Glow Shadow */}
-                <path
-                  d={s.smoothPath}
+                {/* Crisp angular polyline matching Windows 11 Task Manager */}
+                <polyline
+                  points={s.svgPoints}
                   fill="none"
                   stroke={s.color}
-                  strokeWidth="2.2"
+                  strokeWidth="1.75"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  style={{
-                    filter: isDark ? `drop-shadow(0 0 5px ${s.color}90)` : undefined,
-                  }}
-                  className="transition-all duration-300"
-                />
-                {/* Pulsing Leading Dot at the right edge */}
-                <PulsingLeadingDot
-                  point={s.lastPoint}
-                  color={s.color}
-                  isSimulating={isSimulating}
+                  className="transition-all duration-150"
                 />
               </g>
             ))}

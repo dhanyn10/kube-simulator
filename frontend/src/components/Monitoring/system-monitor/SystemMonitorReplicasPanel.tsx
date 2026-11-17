@@ -15,7 +15,6 @@ import {
   SystemMonitorAxisBottom,
   SystemMonitorYScaleOverlay,
   SystemMonitorVerticalGrid,
-  PulsingLeadingDot,
 } from './SystemMonitorChartAxes';
 import { Layers } from 'lucide-react';
 
@@ -74,7 +73,6 @@ export const SystemMonitorReplicasPanel = ({
           current,
           data,
           svgPoints,
-          lastPoint: { x: 500, y: lastY },
         };
       }
 
@@ -87,7 +85,6 @@ export const SystemMonitorReplicasPanel = ({
         current,
         data: aggregated.data,
         svgPoints: aggregated.svgPoints,
-        lastPoint: aggregated.lastPoint,
       };
     });
   }, [deployments, metrics, interval, dynamicMaxReplicas]);
@@ -126,25 +123,16 @@ export const SystemMonitorReplicasPanel = ({
         ) : (
           <svg aria-hidden="true" viewBox="0 0 500 100" className="w-full h-full" preserveAspectRatio="none">
             {replicaSeries.map((s) => (
-              <g key={`replica-${s.id}`}>
-                <polyline
-                  fill="none"
-                  stroke={s.color}
-                  strokeWidth="2.5"
-                  strokeLinecap="square"
-                  strokeLinejoin="miter"
-                  points={s.svgPoints}
-                  style={{
-                    filter: isDark ? `drop-shadow(0 0 4px ${s.color}80)` : undefined,
-                  }}
-                  className="transition-all duration-300"
-                />
-                <PulsingLeadingDot
-                  point={s.lastPoint}
-                  color={s.color}
-                  isSimulating={isSimulating}
-                />
-              </g>
+              <polyline
+                key={`replica-${s.id}`}
+                fill="none"
+                stroke={s.color}
+                strokeWidth="2"
+                strokeLinecap="square"
+                strokeLinejoin="miter"
+                points={s.svgPoints}
+                className="transition-all duration-150"
+              />
             ))}
           </svg>
         )}

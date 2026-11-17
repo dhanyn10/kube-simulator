@@ -11,8 +11,6 @@ import {
   calculateDynamicYMax,
   generateYAxisScale,
   dataToCoords,
-  buildSmoothPath,
-  buildSmoothAreaPath,
 } from '@/components/Monitoring/system-monitor/chartHelpers';
 import { SimulationMetricPoint } from '@/store/types';
 
@@ -168,30 +166,5 @@ describe('chartHelpers', () => {
     expect(coords).toHaveLength(3);
     expect(coords.at(-1)?.x).toBe(500); // newest point at right edge
     expect(coords[0].x).toBeLessThan(500);
-  });
-
-  it('builds smooth cubic bezier paths and area fill paths', () => {
-    expect(buildSmoothPath([]).linePath).toBe('');
-    expect(buildSmoothPath([{ x: 10, y: 20 }]).linePath).toBe('M10,20');
-    expect(buildSmoothPath([{ x: 10, y: 20 }, { x: 30, y: 40 }]).linePath).toBe('M10,20 L30,40');
-
-    const smoothResult = buildSmoothPath([
-      { x: 100, y: 50 },
-      { x: 200, y: 30 },
-      { x: 300, y: 70 },
-      { x: 400, y: 20 },
-      { x: 500, y: 40 },
-    ]);
-    expect(smoothResult.linePath).toContain('C');
-    expect(smoothResult.lastPoint?.x).toBe(500);
-
-    const areaPath = buildSmoothAreaPath(
-      smoothResult.linePath,
-      smoothResult.firstPoint!,
-      smoothResult.lastPoint!,
-      140
-    );
-    expect(areaPath).toContain('M100,140');
-    expect(areaPath).toContain('L500,140 Z');
   });
 });
