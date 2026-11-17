@@ -7,6 +7,14 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
+// Event names for simulation lifecycle broadcast.
+const (
+	EventSimulationStateChange    = "simulation-state-change"
+	EventSimulationSpeedChange    = "simulation-speed-change"
+	EventSimulationSnapshotUpdate = "simulation-snapshot-updated"
+	EventSimulationTrafficSpike   = "simulation-traffic-spike"
+)
+
 // SimulationState holds the current runtime state of the cluster simulation.
 type SimulationState struct {
 	IsSimulating bool `json:"isSimulating"`
@@ -58,7 +66,7 @@ func (s *SimulationService) StartSimulation(speed int) bool {
 	s.mu.Unlock()
 
 	stateBytes, _ := json.Marshal(state)
-	s.emitEvent("simulation-state-change", string(stateBytes))
+	s.emitEvent(EventSimulationStateChange, string(stateBytes))
 	return true
 }
 
@@ -74,7 +82,7 @@ func (s *SimulationService) PauseSimulation() bool {
 	s.mu.Unlock()
 
 	stateBytes, _ := json.Marshal(state)
-	s.emitEvent("simulation-state-change", string(stateBytes))
+	s.emitEvent(EventSimulationStateChange, string(stateBytes))
 	return true
 }
 
@@ -90,7 +98,7 @@ func (s *SimulationService) ResumeSimulation() bool {
 	s.mu.Unlock()
 
 	stateBytes, _ := json.Marshal(state)
-	s.emitEvent("simulation-state-change", string(stateBytes))
+	s.emitEvent(EventSimulationStateChange, string(stateBytes))
 	return true
 }
 
@@ -107,7 +115,7 @@ func (s *SimulationService) StopSimulation() bool {
 	s.mu.Unlock()
 
 	stateBytes, _ := json.Marshal(state)
-	s.emitEvent("simulation-state-change", string(stateBytes))
+	s.emitEvent(EventSimulationStateChange, string(stateBytes))
 	return true
 }
 
@@ -126,8 +134,8 @@ func (s *SimulationService) SetSimulationSpeed(speed int) bool {
 	s.mu.Unlock()
 
 	stateBytes, _ := json.Marshal(state)
-	s.emitEvent("simulation-speed-change", speed)
-	s.emitEvent("simulation-state-change", string(stateBytes))
+	s.emitEvent(EventSimulationSpeedChange, speed)
+	s.emitEvent(EventSimulationStateChange, string(stateBytes))
 	return true
 }
 
@@ -151,7 +159,7 @@ func (s *SimulationService) BroadcastSnapshot(snapshotJson string) bool {
 	s.lastSnapshotJson = snapshotJson
 	s.mu.Unlock()
 
-	s.emitEvent("simulation-snapshot-updated", snapshotJson)
+	s.emitEvent(EventSimulationSnapshotUpdate, snapshotJson)
 	return true
 }
 
@@ -170,6 +178,6 @@ func (s *SimulationService) TriggerTrafficSpike(multiplier float64) bool {
 	if multiplier <= 0 {
 		multiplier = 2.0
 	}
-	s.emitEvent("simulation-traffic-spike", multiplier)
+	s.emitEvent(EventSimulationTrafficSpike, multiplier)
 	return true
 }

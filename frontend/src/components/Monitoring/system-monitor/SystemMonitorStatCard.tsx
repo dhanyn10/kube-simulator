@@ -12,6 +12,12 @@ interface SystemMonitorStatCardProps {
   colorMode?: 'dark' | 'light';
 }
 
+const THRESHOLD_COLORS: Record<'normal' | 'warning' | 'critical', { text: string; stroke: string }> = {
+  critical: { text: 'text-rose-400', stroke: '#ef4444' },
+  warning: { text: 'text-amber-400', stroke: '#f59e0b' },
+  normal: { text: 'text-emerald-400', stroke: '#10b981' },
+};
+
 export const SystemMonitorStatCard = ({
   title,
   value,
@@ -24,15 +30,8 @@ export const SystemMonitorStatCard = ({
 }: SystemMonitorStatCardProps) => {
   const isDark = colorMode === 'dark';
 
-  const thresholdColor =
-    threshold === 'critical'
-      ? 'text-rose-400'
-      : threshold === 'warning'
-      ? 'text-amber-400'
-      : 'text-emerald-400';
-
-  const strokeColor =
-    threshold === 'critical' ? '#ef4444' : threshold === 'warning' ? '#f59e0b' : '#10b981';
+  const { text: thresholdColor, stroke: strokeColor } =
+    THRESHOLD_COLORS[threshold] || THRESHOLD_COLORS.normal;
 
   const sparklinePoints = sparklineData.length > 1
     ? sparklineData
