@@ -175,11 +175,11 @@ export const deduplicateOrAppendLogLine = (
   existingLines: string[],
   newLine: string
 ): string[] => {
-  if (existingLines.length === 0) {
+  const lastLine = existingLines.at(-1);
+  if (!lastLine) {
     return [newLine];
   }
 
-  const lastLine = existingLines[existingLines.length - 1];
   const lastParsed = parseLogLine(lastLine);
   const newParsed = parseLogLine(newLine);
 

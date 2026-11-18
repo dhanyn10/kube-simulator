@@ -82,7 +82,7 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
     addLog: (level, message, scope) => {
       const effectiveScope = scope || 'System';
       const currentLogs = get().logs;
-      const lastLog = currentLogs.length > 0 ? currentLogs[currentLogs.length - 1] : null;
+      const lastLog = currentLogs.at(-1) ?? null;
 
       const lastParsed = lastLog ? parseLogLine(lastLog.message) : null;
       const newParsed = parseLogLine(message);

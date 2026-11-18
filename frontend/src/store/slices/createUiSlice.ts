@@ -449,7 +449,7 @@ const runSimulationTick = (params: {
   });
 
   // Simulate logs for ALL resources continuously in the background
-  const hasActiveInternet = internetNodes.length > 0 && internetNodes.some(n => Number(n.data?.traffic ?? n.data?.trafficSpeed ?? 1) > 0);
+  const hasActiveInternet = internetNodes.some(n => Number(n.data?.traffic ?? n.data?.trafficSpeed ?? 1) > 0);
   const activeReachableNodeIds = new Set<string>();
   if (ctx.internetReachableMap) {
     for (const reachableSet of ctx.internetReachableMap.values()) {
