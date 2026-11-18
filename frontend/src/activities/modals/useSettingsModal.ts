@@ -11,6 +11,8 @@ export const useSettingsModal = () => {
   const isRightSidebarVisible = useFlowStore((state) => state.isRightSidebarVisible);
   const isMonitoringOpen = useFlowStore((state) => state.isMonitoringOpen);
   const isAutofocusEnabled = useFlowStore((state) => state.isAutofocusEnabled);
+  const isTerminalAutoOpenOnPlay = useFlowStore((state) => state.isTerminalAutoOpenOnPlay);
+  const toggleTerminalAutoOpenOnPlay = useFlowStore((state) => state.toggleTerminalAutoOpenOnPlay);
 
   const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
   const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
@@ -65,6 +67,8 @@ export const useSettingsModal = () => {
     setMonitoringOpen,
     isAutofocusEnabled,
     toggleAutofocus,
+    isTerminalAutoOpenOnPlay,
+    toggleTerminalAutoOpenOnPlay,
     canvasBgVariant,
     setCanvasBgVariant,
     canvasBgColor,

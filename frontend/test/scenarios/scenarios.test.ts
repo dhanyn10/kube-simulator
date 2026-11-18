@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { scenarios } from '@/scenarios';
+import { useFlowStore } from '@/store';
 
 describe('Scenarios', () => {
   it('should have scenarios defined', () => {
@@ -140,5 +141,23 @@ describe('Scenarios', () => {
     expect(ingress?.data.backendServiceName).toBe('app-service');
     expect(clusterIpSvc?.data.serviceType).toBe('ClusterIP');
     expect(clusterIpSvc?.data.selector).toBe('app-deployment');
+  });
+
+  it('loads scenario into store and starts simulation successfully', () => {
+    const basicScenario = scenarios.find((s) => s.id === 'basic-web')!;
+    expect(basicScenario).toBeDefined();
+
+    useFlowStore.setState({
+      nodes: basicScenario.data.nodes,
+      edges: basicScenario.data.edges,
+      isSimulating: false,
+    });
+
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
+    expect(() => startSimulation()).not.toThrow();
+    expect(useFlowStore.getState().isSimulating).toBe(true);
+
+    stopSimulation();
+    expect(useFlowStore.getState().isSimulating).toBe(false);
   });
 });

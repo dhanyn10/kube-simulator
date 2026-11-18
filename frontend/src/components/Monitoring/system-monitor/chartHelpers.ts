@@ -359,15 +359,19 @@ export const calculatePercentFromTop = (value: number, dynamicMax: number): numb
   return Math.round((1 - ratio * (130 / 140)) * 1000) / 10;
 };
 
-const getCpuThresholdLines = (dynamicMax: number): ThresholdReferenceLine[] => {
+const getCpuThresholdLines = (
+  dynamicMax: number,
+  hasHpa: boolean = false,
+  hpaTarget: number = 80
+): ThresholdReferenceLine[] => {
   const lines: ThresholdReferenceLine[] = [];
-  if (80 <= dynamicMax) {
+  if (hasHpa && hpaTarget <= dynamicMax) {
     lines.push({
-      value: 80,
-      label: '80% HPA',
-      badge: '80% HPA Target',
+      value: hpaTarget,
+      label: `${hpaTarget}% HPA`,
+      badge: `${hpaTarget}% HPA Target`,
       color: 'amber',
-      percentFromTop: calculatePercentFromTop(80, dynamicMax),
+      percentFromTop: calculatePercentFromTop(hpaTarget, dynamicMax),
     });
   }
   if (90 <= dynamicMax) {
@@ -445,10 +449,23 @@ export const getThresholdReferenceLines = (
   dynamicMax: number,
   deployments: DeploymentSummary[] = [],
   metrics: Record<string, SimulationMetricPoint[]> = {},
-  maxVal: number = 100
+  maxVal: number = 100,
+  hasHpa: boolean = false,
+  hpaTarget: number = 80
 ): ThresholdReferenceLine[] => {
   if (metricKey === 'cpuPercent') {
-    return getCpuThresholdLines(dynamicMax);
+    const isHpaPresent =
+      hasHpa || deployments.some((d) => d.hasHpa || (Array.isArray(d.hpas) && d.hpas.length > 0));
+    let resolvedHpaTarget = hpaTarget;
+    if (resolvedHpaTarget === 80) {
+      for (const d of deployments) {
+        if (Array.isArray(d.hpas) && d.hpas.length > 0 && d.hpas[0]?.targetCPU) {
+          resolvedHpaTarget = Number(d.hpas[0].targetCPU) || 80;
+          break;
+        }
+      }
+    }
+    return getCpuThresholdLines(dynamicMax, isHpaPresent, resolvedHpaTarget);
   }
   if (metricKey === 'memoryValue') {
     return getMemoryThresholdLines(dynamicMax, deployments, metrics, maxVal);

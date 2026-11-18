@@ -178,8 +178,19 @@ describe('chartHelpers', () => {
   });
 
   it('generates Kubernetes-native threshold reference lines for CPU and Memory', () => {
-    // 1. CPU at normal 100% max: 80% HPA and 90% Throttle lines
-    const cpuLines100 = getThresholdReferenceLines('cpuPercent', 100);
+    // 1a. CPU without HPA: only 90% Throttle line (NO HPA helper line)
+    const cpuLinesNoHpa = getThresholdReferenceLines('cpuPercent', 100);
+    expect(cpuLinesNoHpa).toHaveLength(1);
+    expect(cpuLinesNoHpa[0]).toEqual({
+      value: 90,
+      label: '90% Throttle',
+      badge: '90% Throttle Risk',
+      color: 'rose',
+      percentFromTop: 16.4,
+    });
+
+    // 1b. CPU with HPA present: 80% HPA and 90% Throttle lines
+    const cpuLines100 = getThresholdReferenceLines('cpuPercent', 100, [], {}, 100, true);
     expect(cpuLines100).toHaveLength(2);
     expect(cpuLines100[0]).toEqual({
       value: 80,
@@ -196,8 +207,17 @@ describe('chartHelpers', () => {
       percentFromTop: 16.4,
     });
 
-    // 2. CPU multi-core spike with dynamicMax = 200: shows 100% Quota Limit line
-    const cpuLinesSpike = getThresholdReferenceLines('cpuPercent', 200);
+    // 1c. CPU with HPA in deployments: custom 70% HPA target
+    const cpuLinesDepHpa = getThresholdReferenceLines(
+      'cpuPercent',
+      100,
+      [{ id: 'd1', label: 'dep1', replicas: 1, hasHpa: true, hpas: [{ targetCPU: 70 }] }]
+    );
+    expect(cpuLinesDepHpa).toHaveLength(2);
+    expect(cpuLinesDepHpa[0].label).toBe('70% HPA');
+
+    // 2. CPU multi-core spike with dynamicMax = 200 and HPA present: shows 100% Quota Limit line
+    const cpuLinesSpike = getThresholdReferenceLines('cpuPercent', 200, [], {}, 100, true);
     expect(cpuLinesSpike).toHaveLength(3);
     expect(cpuLinesSpike[2]).toEqual({
       value: 100,

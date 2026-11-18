@@ -83,14 +83,21 @@ describe('createUiSlice', () => {
     expect((globalThis as any).go.main.App.SaveSetting).toHaveBeenCalledWith('isRightSidebarVisible', 'false');
   });
 
-  it('toggles autosave and autofocus', () => {
-    const { toggleAutosave, toggleAutofocus } = useFlowStore.getState();
+  it('toggles autosave, autofocus, and terminal auto open on play', () => {
+    const { toggleAutosave, toggleAutofocus, toggleTerminalAutoOpenOnPlay, setTerminalAutoOpenOnPlay } = useFlowStore.getState();
 
     toggleAutosave();
     expect(useFlowStore.getState().isAutosaveEnabled).toBe(true);
 
     toggleAutofocus();
     expect(useFlowStore.getState().isAutofocusEnabled).toBe(true);
+
+    expect(useFlowStore.getState().isTerminalAutoOpenOnPlay).toBe(false);
+    toggleTerminalAutoOpenOnPlay();
+    expect(useFlowStore.getState().isTerminalAutoOpenOnPlay).toBe(true);
+
+    setTerminalAutoOpenOnPlay(false);
+    expect(useFlowStore.getState().isTerminalAutoOpenOnPlay).toBe(false);
   });
 
   it('handles custom images correctly', () => {

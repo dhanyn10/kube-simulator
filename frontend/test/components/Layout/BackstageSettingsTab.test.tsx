@@ -36,6 +36,7 @@ describe('BackstageSettingsTab', () => {
     const setRightSidebarVisible = vi.fn();
     const setMonitoringOpen = vi.fn();
     const toggleAutofocus = vi.fn();
+    const toggleTerminalAutoOpenOnPlay = vi.fn();
 
     render(
       <BackstageSettingsTab
@@ -46,10 +47,12 @@ describe('BackstageSettingsTab', () => {
         isRightSidebarVisible={false}
         isMonitoringOpen={true}
         isAutofocusEnabled={false}
+        isTerminalAutoOpenOnPlay={false}
         setSidebarVisible={setSidebarVisible}
         setRightSidebarVisible={setRightSidebarVisible}
         setMonitoringOpen={setMonitoringOpen}
         toggleAutofocus={toggleAutofocus}
+        toggleTerminalAutoOpenOnPlay={toggleTerminalAutoOpenOnPlay}
       />
     );
 
@@ -70,6 +73,10 @@ describe('BackstageSettingsTab', () => {
     const autofocusCheckbox = screen.getByLabelText('Autofocus');
     fireEvent.click(autofocusCheckbox);
     expect(toggleAutofocus).toHaveBeenCalled();
+
+    const autoOpenCheckbox = screen.getByLabelText('Auto-open Terminal on Play');
+    fireEvent.click(autoOpenCheckbox);
+    expect(toggleTerminalAutoOpenOnPlay).toHaveBeenCalled();
   });
 
   it('renders view & layout settings tab in light mode', () => {

@@ -15,6 +15,8 @@ describe('useSystemMonitorDashboard hook', () => {
     expect(result.current.isPaused).toBe(false);
     expect(result.current.simulationSpeed).toBe(1);
     expect(result.current.clusterTotals.cpuPercent).toBe(0);
+    expect(result.current.hasHpa).toBe(false);
+    expect(result.current.hpaTarget).toBe(80);
   });
 
   it('handles simulation controls: start, pause, resume, stop, speed, traffic_spike', async () => {
@@ -63,5 +65,22 @@ describe('useSystemMonitorDashboard hook', () => {
     });
     expect(stopSpy).toHaveBeenCalled();
     expect(result.current.isSimulating).toBe(false);
+  });
+
+  it('updates hasHpa and hpaTarget from storeNodes and broadcast messages', async () => {
+    // 1. When storeNodes has an HPA node with custom targetCPU
+    const { useFlowStore } = await import('@/store');
+    useFlowStore.setState({
+      nodes: [
+        { id: 'hpa-1', type: 'HPA', data: { targetCPU: 75 }, position: { x: 0, y: 0 } },
+      ],
+    });
+
+    const { result, unmount } = renderHook(() => useSystemMonitorDashboard());
+    expect(result.current.hasHpa).toBe(true);
+    expect(result.current.hpaTarget).toBe(75);
+
+    unmount();
+    useFlowStore.setState({ nodes: [] });
   });
 });

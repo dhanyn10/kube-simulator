@@ -17,6 +17,7 @@ export const applyParsedSettings = (val: string, set: (state: Partial<FlowState>
       ...(typeof settings.isRightSidebarVisible === 'boolean' ? { isRightSidebarVisible: settings.isRightSidebarVisible } : {}),
       ...(typeof settings.isAutofocusEnabled === 'boolean' ? { isAutofocusEnabled: settings.isAutofocusEnabled } : {}),
       ...(typeof settings.isMonitoringOpen === 'boolean' ? { isMonitoringOpen: settings.isMonitoringOpen } : {}),
+      ...(typeof settings.isTerminalAutoOpenOnPlay === 'boolean' ? { isTerminalAutoOpenOnPlay: settings.isTerminalAutoOpenOnPlay } : {}),
       ...(settings.canvasBgVariant === 'dots' || settings.canvasBgVariant === 'lines' ? { canvasBgVariant: settings.canvasBgVariant } : {}),
       ...(typeof settings.canvasBgColor === 'string' ? { canvasBgColor: settings.canvasBgColor } : {}),
       ...(typeof settings.canvasBgOpacity === 'number' ? { canvasBgOpacity: settings.canvasBgOpacity } : {}),
@@ -108,15 +109,142 @@ export const createServiceKubeProxyLog = (node: Node, allNodes: Node[]): string 
   return `${prefix} Ingress on ${route.entryNode} -> Direct local routing to ${route.targetNode} (${route.localEndpointCount}/${route.endpointCount} local endpoints, client IP preserved).`;
 };
 
+export interface ParsedLogLine {
+  timestamp: string | null;
+  coreMessage: string;
+  count: number;
+}
+
+const parseTimestampPrefix = (line: string): { timestamp: string | null; rest: string } => {
+  if (line.startsWith('[')) {
+    const closeBracketIdx = line.indexOf(']');
+    if (closeBracketIdx > 0 && closeBracketIdx <= 40) {
+      return {
+        timestamp: line.slice(1, closeBracketIdx),
+        rest: line.slice(closeBracketIdx + 1).trimStart(),
+      };
+    }
+  }
+  return { timestamp: null, rest: line };
+};
+
+const parseRepeatCountSuffix = (rest: string): { coreMessage: string; count: number } => {
+  if (rest.endsWith(')')) {
+    const openParenIdx = rest.lastIndexOf(' (x');
+    if (openParenIdx !== -1) {
+      const countStr = rest.slice(openParenIdx + 3, -1);
+      const parsedNum = Number(countStr);
+      if (!Number.isNaN(parsedNum) && parsedNum > 1 && parsedNum < 1_000_000) {
+        return {
+          coreMessage: rest.slice(0, openParenIdx),
+          count: parsedNum,
+        };
+      }
+    }
+  }
+  return { coreMessage: rest, count: 1 };
+};
+
+/**
+ * Parses a log line string, separating optional timestamp prefix and repeat count suffix.
+ */
+export const parseLogLine = (line: string): ParsedLogLine => {
+  const { timestamp, rest } = parseTimestampPrefix(line);
+  const { coreMessage, count } = parseRepeatCountSuffix(rest);
+  return { timestamp, coreMessage, count };
+};
+
+/**
+ * Re-constructs a log line with optional timestamp and repeat count suffix.
+ */
+export const formatLogLineWithCount = (
+  coreMessage: string,
+  timestamp: string | null,
+  count: number
+): string => {
+  const prefix = timestamp ? `[${timestamp}] ` : '';
+  const suffix = count > 1 ? ` (x${count})` : '';
+  return `${prefix}${coreMessage}${suffix}`;
+};
+
+/**
+ * Deduplicates consecutive similar log lines by updating the timestamp in-place
+ * and incrementing the repeat counter badge (e.g. `(x2)`, `(x3)`).
+ */
+export const deduplicateOrAppendLogLine = (
+  existingLines: string[],
+  newLine: string
+): string[] => {
+  if (existingLines.length === 0) {
+    return [newLine];
+  }
+
+  const lastLine = existingLines[existingLines.length - 1];
+  const lastParsed = parseLogLine(lastLine);
+  const newParsed = parseLogLine(newLine);
+
+  if (lastParsed.coreMessage === newParsed.coreMessage) {
+    const nextTimestamp = newParsed.timestamp ?? lastParsed.timestamp;
+    const updatedLine = formatLogLineWithCount(
+      lastParsed.coreMessage,
+      nextTimestamp,
+      lastParsed.count + 1
+    );
+    return [...existingLines.slice(0, -1), updatedLine];
+  }
+
+  return [...existingLines, newLine];
+};
+
+/**
+ * Sequentially appends and deduplicates an array of log lines.
+ */
+export const deduplicateOrAppendLogLines = (
+  existingLines: string[],
+  newLines: string[]
+): string[] => {
+  let result = existingLines;
+  for (const line of newLines) {
+    result = deduplicateOrAppendLogLine(result, line);
+  }
+  return result;
+};
+
+export interface LogLineOptions {
+  hasTraffic?: boolean;
+  allowAccessLogs?: boolean;
+}
+
+export interface SimulateLogsOptions {
+  ticks?: number;
+  hasActiveInternetTraffic?: boolean;
+  reachableNodeIds?: Set<string>;
+}
+
+const generateHttpAccessLogLine = (nodeName: string, point?: any): string => {
+  const timestamp = new Date().toISOString();
+  const paths = ['/index.html', '/api/v1/data', '/api/v1/status', '/healthz', '/metrics'];
+  const path = paths[Math.floor(safeRandom() * paths.length)];
+  const clientIp = `10.244.0.${Math.floor(safeRandom() * 254) + 1}`;
+  const statusCode = point?.isOOM ? '503' : '200 OK';
+  return `[${timestamp}] ${clientIp} - GET ${path} - ${statusCode} - ${nodeName}`;
+};
+
 /**
  * Generates continuous background log lines for a specific resource node.
  *
  * @param node Target resource node
  * @param point Optional simulation metric point
  * @param allNodes Optional list of all canvas nodes
+ * @param options Optional flags controlling access log generation
  * @returns Log line string or null
  */
-export const createLogLineForResource = (node: Node, point?: any, allNodes?: Node[]): string | null => {
+export const createLogLineForResource = (
+  node: Node,
+  point?: any,
+  allNodes?: Node[],
+  options?: LogLineOptions
+): string | null => {
   if (node.type === 'Service') {
     return allNodes ? createServiceKubeProxyLog(node, allNodes) : null;
   }
@@ -131,15 +259,20 @@ export const createLogLineForResource = (node: Node, point?: any, allNodes?: Nod
     return `[${timestamp}] [WARNING] CPU limit reached for ${name}. Container execution throttled.`;
   }
 
-  if (safeRandom() > 0.3) {
-    const paths = ['/index.html', '/api/v1/data', '/api/v1/status', '/healthz', '/metrics'];
-    const path = paths[Math.floor(safeRandom() * paths.length)];
-    const clientIp = `10.244.0.${Math.floor(safeRandom() * 254) + 1}`;
-    const statusCode = point?.isOOM ? '503' : '200 OK';
-    return `[${timestamp}] ${clientIp} - GET ${path} - ${statusCode} - ${name}`;
+  const allowAccessLogs = options?.allowAccessLogs ?? true;
+  const hasTraffic = options?.hasTraffic ?? true;
+  if (allowAccessLogs && hasTraffic && safeRandom() > 0.3) {
+    return generateHttpAccessLogLine(name, point);
   }
 
   return null;
+};
+
+const collectServiceActivityLog = (node: Node, logLine: string, ticks?: number): string | null => {
+  if (node.type !== 'Service') return null;
+  const isCrucial = logLine.includes('Packet dropped') || logLine.includes('Node Hop');
+  const isSampleTick = ticks === undefined || ticks % 20 === 0;
+  return isCrucial || isSampleTick ? logLine : null;
 };
 
 /**
@@ -148,29 +281,36 @@ export const createLogLineForResource = (node: Node, point?: any, allNodes?: Nod
  * @param nodes Current nodes
  * @param metrics Current simulation metrics
  * @param set Store state setter
+ * @param options Optional flags and active internet state to throttle synthetic access logs
  */
 export const simulateAllResourceLogs = (
   nodes: Node[],
   metrics: Record<string, any[]>,
-  set: (partial: Partial<FlowState> | ((state: FlowState) => Partial<FlowState>)) => void
+  set: (partial: Partial<FlowState> | ((state: FlowState) => Partial<FlowState>)) => void,
+  options?: SimulateLogsOptions
 ) => {
   const loggableNodes = nodes.filter(n => ['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet', 'Service'].includes(n.type));
   if (loggableNodes.length === 0) return;
 
   const newLogEntries: Record<string, string[]> = {};
   const newActivityLines: string[] = [];
+  const allowAccessLogs = options?.ticks === undefined || options.ticks % 10 === 0;
+  const hasActiveInternet = options?.hasActiveInternetTraffic ?? true;
 
   for (const node of loggableNodes) {
     const metricKey = node.parentId || node.id;
     const points = metrics[metricKey] || [];
     const lastPoint = points.at(-1);
 
-    const logLine = createLogLineForResource(node, lastPoint, nodes);
+    const logLine = createLogLineForResource(node, lastPoint, nodes, {
+      hasTraffic: hasActiveInternet,
+      allowAccessLogs,
+    });
+
     if (logLine) {
       newLogEntries[node.id] = [logLine];
-      if (node.type === 'Service') {
-        newActivityLines.push(logLine);
-      }
+      const svcActivity = collectServiceActivityLog(node, logLine, options?.ticks);
+      if (svcActivity) newActivityLines.push(svcActivity);
     }
   }
 
@@ -179,12 +319,12 @@ export const simulateAllResourceLogs = (
       const updatedTerminalLogs = { ...state.terminalLogs };
       for (const [id, lines] of Object.entries(newLogEntries)) {
         const existing = updatedTerminalLogs[id] || [];
-        updatedTerminalLogs[id] = [...existing, ...lines].slice(-150);
+        updatedTerminalLogs[id] = deduplicateOrAppendLogLines(existing, lines).slice(-150);
       }
       return {
         terminalLogs: updatedTerminalLogs,
         ...(newActivityLines.length > 0
-          ? { activityLogs: [...state.activityLogs, ...newActivityLines].slice(-200) }
+          ? { activityLogs: deduplicateOrAppendLogLines(state.activityLogs, newActivityLines).slice(-200) }
           : {}),
       };
     });

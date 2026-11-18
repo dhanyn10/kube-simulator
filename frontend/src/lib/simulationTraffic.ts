@@ -367,6 +367,13 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
 
   if (desiredReplicas !== replicas) {
     hasChanges = scaleDeploymentReplicas(dep, desiredReplicas - replicas, ctx);
+    if (hasChanges) {
+      const depLabel = dep.data?.label || dep.id;
+      const targetCpu = hpaConfig.targetCPU || 50;
+      const direction = desiredReplicas > replicas ? 'up' : 'down';
+      const logMsg = `[HPA Autoscaler] Scaled ${direction} deployment/${depLabel} from ${replicas} to ${desiredReplicas} replicas (CPU: ${Math.round(cpuPercent)}%, Target: ${targetCpu}%)`;
+      ctx.get?.()?.addActivityLog?.(logMsg);
+    }
   }
 
   if (connectedHPA && updateNodeData(ctx, connectedHPA.id, { currentCPU: Math.round(cpuPercent) })) {

@@ -99,9 +99,22 @@ export const broadcastMetrics = (
     speed?: number;
     canStart?: boolean;
     hasInternet?: boolean;
+    hasHpa?: boolean;
+    hpaTarget?: number;
   }
 ) => {
   const canStart = extraState?.canStart ?? (extraState?.hasInternet ?? false);
+  const hasWorkloadHpa = workloads.some(d => Array.isArray(d.data?.hpas) && d.data.hpas.length > 0);
+  const hasHpa = extraState?.hasHpa ?? hasWorkloadHpa;
+  let hpaTarget = extraState?.hpaTarget;
+  if (hpaTarget === undefined) {
+    for (const d of workloads) {
+      if (Array.isArray(d.data?.hpas) && d.data.hpas.length > 0 && d.data.hpas[0]?.targetCPU) {
+        hpaTarget = Number(d.data.hpas[0].targetCPU);
+        break;
+      }
+    }
+  }
 
   const payload = {
     metrics,
@@ -109,13 +122,17 @@ export const broadcastMetrics = (
       id: d.id,
       label: d.data.label || d.id,
       replicas: d.data.replicas || 1,
-      type: d.type
+      type: d.type,
+      hasHpa: Array.isArray(d.data?.hpas) && d.data.hpas.length > 0,
+      hpas: d.data?.hpas,
     })),
     isSimulating: extraState?.isSimulating ?? true,
     isPaused: extraState?.isPaused ?? false,
     speed: extraState?.speed ?? 1,
     canStart,
     hasInternet: extraState?.hasInternet ?? false,
+    hasHpa,
+    hpaTarget: hpaTarget ?? 80,
     timestamp: Date.now()
   };
 

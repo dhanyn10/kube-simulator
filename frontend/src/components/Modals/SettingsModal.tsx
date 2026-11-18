@@ -24,6 +24,8 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     setMonitoringOpen,
     isAutofocusEnabled,
     toggleAutofocus,
+    isTerminalAutoOpenOnPlay,
+    toggleTerminalAutoOpenOnPlay,
     canvasBgVariant,
     setCanvasBgVariant,
     canvasBgColor,
@@ -111,6 +113,24 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
             onChange={() => toggleAutofocus()}
             className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
             aria-label="Toggle Autofocus"
+          />
+        </label>
+
+        {/* Toggle Auto-open Terminal on Play */}
+        <label className={cn(
+          "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all select-none",
+          colorMode === 'dark' ? "bg-slate-800/40 border-slate-800 hover:bg-slate-800/60" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+        )}>
+          <div className="flex flex-col">
+            <span className="text-xs font-bold">Auto-open Terminal on Play</span>
+            <span className="text-[10px] opacity-60">Automatically open Kube Console when starting simulation</span>
+          </div>
+          <input
+            type="checkbox"
+            checked={isTerminalAutoOpenOnPlay}
+            onChange={() => toggleTerminalAutoOpenOnPlay()}
+            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+            aria-label="Toggle Auto-open Terminal on Play"
           />
         </label>
       </div>

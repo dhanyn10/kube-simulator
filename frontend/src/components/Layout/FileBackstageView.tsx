@@ -33,11 +33,13 @@ export const FileBackstageView: React.FC<FileBackstageViewProps> = ({
     isMonitoringOpen,
     isAutofocusEnabled,
     isAutosaveEnabled,
+    isTerminalAutoOpenOnPlay,
     setSidebarVisible,
     setRightSidebarVisible,
     setMonitoringOpen,
     toggleAutofocus,
     toggleAutosave,
+    toggleTerminalAutoOpenOnPlay,
     canvasBgVariant,
     canvasBgColor,
     canvasBgOpacity,
@@ -134,6 +136,7 @@ export const FileBackstageView: React.FC<FileBackstageViewProps> = ({
               isRightSidebarVisible={isRightSidebarVisible}
               isMonitoringOpen={isMonitoringOpen}
               isAutofocusEnabled={isAutofocusEnabled}
+              isTerminalAutoOpenOnPlay={isTerminalAutoOpenOnPlay}
               canvasBgVariant={canvasBgVariant}
               canvasBgColor={canvasBgColor}
               canvasBgOpacity={canvasBgOpacity}
@@ -141,6 +144,7 @@ export const FileBackstageView: React.FC<FileBackstageViewProps> = ({
               setRightSidebarVisible={setRightSidebarVisible}
               setMonitoringOpen={setMonitoringOpen}
               toggleAutofocus={toggleAutofocus}
+              toggleTerminalAutoOpenOnPlay={toggleTerminalAutoOpenOnPlay}
               setCanvasBgVariant={setCanvasBgVariant}
               setCanvasBgColor={setCanvasBgColor}
               setCanvasBgOpacity={setCanvasBgOpacity}

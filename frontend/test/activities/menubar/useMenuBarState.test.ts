@@ -103,9 +103,10 @@ describe('useMenuBarState', () => {
     });
     expect(useFlowStore.getState().isRightSidebarVisible).toBe(false);
 
-    let simulationItem = viewMenu?.items.find((i) => i.label === 'Simulation');
+    let simulationItem = viewMenu?.items.find((i) => i.label === 'System Monitor');
     let componentsItem = viewMenu?.items.find((i) => i.label === 'Components');
     let autofocusItem = viewMenu?.items.find((i) => i.label === 'Autofocus');
+    let autoOpenTerminalItem = viewMenu?.items.find((i) => i.label === 'Auto-open Terminal on Play');
     let logsItem = viewMenu?.items.find((i) => i.label === 'Logs');
     let terminalItem = viewMenu?.items.find((i) => i.label === 'Terminal');
 
@@ -113,10 +114,12 @@ describe('useMenuBarState', () => {
       simulationItem?.onClick?.();
       componentsItem?.onClick?.();
       autofocusItem?.onClick?.();
+      autoOpenTerminalItem?.onClick?.();
       logsItem?.onClick?.();
       terminalItem?.onClick?.();
     });
     expect(useFlowStore.getState().isMonitoringOpen).toBe(true);
+    expect(useFlowStore.getState().isTerminalAutoOpenOnPlay).toBe(true);
     expect(useFlowStore.getState().isLogModalOpen).toBe(true);
     expect(useFlowStore.getState().isTerminalOpen).toBe(true);
 
@@ -126,7 +129,7 @@ describe('useMenuBarState', () => {
     });
     rerender();
     viewMenu = result.current.menuItems.find((m) => m.label === 'View');
-    simulationItem = viewMenu?.items.find((i) => i.label.includes('Simulation') || i.label.includes('Monitoring'));
+    simulationItem = viewMenu?.items.find((i) => i.label === 'System Monitor');
     act(() => {
       simulationItem?.onClick?.();
     });
@@ -393,7 +396,7 @@ describe('useMenuBarState', () => {
     });
   });
 
-  it('covers Monitoring: Detached monitoring label when isMonitoringDetached is true and History item when right sidebar is already visible', () => {
+  it('covers System Monitor label even when isMonitoringDetached is true and History item when right sidebar is already visible', () => {
     useFlowStore.setState({
       isMonitoringOpen: true,
       isMonitoringDetached: true,
@@ -414,8 +417,10 @@ describe('useMenuBarState', () => {
     const { result } = renderHook(() => useMenuBarState(defaultProps));
 
     const viewMenu = result.current.menuItems.find((m) => m.label === 'View');
-    const monitoringItem = viewMenu?.items.find((i) => i.label === 'Monitoring: Detached');
+    const monitoringItem = viewMenu?.items.find((i) => i.label === 'System Monitor');
     expect(monitoringItem).toBeDefined();
+    expect(viewMenu?.items.find((i) => i.label === 'Monitoring: Detached')).toBeUndefined();
+    expect(viewMenu?.items.find((i) => i.label === 'Simulation')).toBeUndefined();
 
     const historyItem = viewMenu?.items.find((i) => i.label === 'History');
     act(() => {
