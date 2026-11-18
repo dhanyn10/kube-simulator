@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
+import { getBackendGateway } from '@/gateway';
 import { DetachedMonitoring } from '@/components/Monitoring/DetachedMonitoring';
 
 // Mock BroadcastChannel
@@ -131,5 +132,64 @@ describe('DetachedMonitoring', () => {
 
     expect(screen.getAllByText('empty-dep')[0]).toBeDefined();
     expect(screen.getAllByText('1 Replicas')[0]).toBeDefined();
+  });
+
+  it('opens context menu on right click and handles Change Theme, Close, and Escape key', async () => {
+    const mockCloseWindow = vi.fn().mockResolvedValue(true);
+    (getBackendGateway() as any).closeSimulationWindow = mockCloseWindow;
+
+    render(<DetachedMonitoring />);
+
+    const header = screen.getByText('System Monitor');
+    const dashboard = header.closest('.h-screen') || header.parentElement;
+    expect(dashboard).toBeDefined();
+
+    // Context menu should not be initially visible
+    expect(screen.queryByTestId('system-monitor-context-menu')).toBeNull();
+
+    // Right-click dashboard
+    await act(async () => {
+      fireEvent.contextMenu(dashboard!, { clientX: 200, clientY: 150 });
+    });
+
+    // Context menu should now be visible
+    expect(screen.getByTestId('system-monitor-context-menu')).toBeDefined();
+    expect(screen.getByText('Change Theme')).toBeDefined();
+    expect(screen.getByText('Close')).toBeDefined();
+
+    // Test Change Theme updates app store and broadcasts THEME_SYNC to all windows
+    useFlowStore.setState({ colorMode: 'dark' });
+    const changeThemeBtn = screen.getByTestId('system-monitor-menu-change-theme');
+    await act(async () => {
+      fireEvent.click(changeThemeBtn);
+    });
+    expect(screen.queryByTestId('system-monitor-context-menu')).toBeNull();
+    expect(useFlowStore.getState().colorMode).toBe('light');
+    expect(latestChannelInstance.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'THEME_SYNC', colorMode: 'light' })
+    );
+
+    // Right click again to test Close
+    await act(async () => {
+      fireEvent.contextMenu(dashboard!, { clientX: 250, clientY: 200 });
+    });
+    expect(screen.getByTestId('system-monitor-context-menu')).toBeDefined();
+
+    const closeBtn = screen.getByTestId('system-monitor-menu-close');
+    await act(async () => {
+      fireEvent.click(closeBtn);
+    });
+    expect(mockCloseWindow).toHaveBeenCalled();
+    expect(screen.queryByTestId('system-monitor-context-menu')).toBeNull();
+
+    // Right click again and test Escape key closes menu
+    await act(async () => {
+      fireEvent.contextMenu(dashboard!, { clientX: 250, clientY: 200 });
+    });
+    expect(screen.getByTestId('system-monitor-context-menu')).toBeDefined();
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
+    });
+    expect(screen.queryByTestId('system-monitor-context-menu')).toBeNull();
   });
 });

@@ -79,7 +79,12 @@ export const MonitoringDashboard = () => {
         <button
           type="button"
           onClick={handleDetach}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[9px] font-bold transition-colors"
+          className={cn(
+            "flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors border",
+            colorMode === 'dark'
+              ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+              : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+          )}
           title="Open in separate window"
         >
           <ExternalLink size={9} />

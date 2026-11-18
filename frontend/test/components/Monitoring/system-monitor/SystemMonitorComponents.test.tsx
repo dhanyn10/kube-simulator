@@ -5,6 +5,12 @@ import { SystemMonitorStatCard } from '@/components/Monitoring/system-monitor/Sy
 import { SystemMonitorTimeSeriesPanel } from '@/components/Monitoring/system-monitor/SystemMonitorTimeSeriesPanel';
 import { SystemMonitorReplicasPanel } from '@/components/Monitoring/system-monitor/SystemMonitorReplicasPanel';
 import { SystemMonitorNetworkPanel } from '@/components/Monitoring/system-monitor/SystemMonitorNetworkPanel';
+import { SystemMonitorContextMenu } from '@/components/Monitoring/system-monitor/SystemMonitorContextMenu';
+import {
+  SystemMonitorChartCanvas,
+  SystemMonitorPanelCard,
+  SystemMonitorHorizontalGrid,
+} from '@/components/Monitoring/system-monitor/SystemMonitorChartAxes';
 import { Activity } from 'lucide-react';
 
 describe('SystemMonitor UI Components', () => {
@@ -338,5 +344,90 @@ describe('SystemMonitor UI Components', () => {
       />
     );
     expect(screen.getByText('-22h')).toBeDefined();
+  });
+
+  it('renders SystemMonitorContextMenu and triggers Change Theme, Close, and Escape key', () => {
+    const onToggleTheme = vi.fn();
+    const onCloseWindow = vi.fn();
+    const onCloseMenu = vi.fn();
+
+    const { rerender } = render(
+      <SystemMonitorContextMenu
+        x={100}
+        y={150}
+        isDark={true}
+        onToggleTheme={onToggleTheme}
+        onCloseWindow={onCloseWindow}
+        onCloseMenu={onCloseMenu}
+      />
+    );
+
+    const menu = screen.getByTestId('system-monitor-context-menu');
+    expect(menu).toBeDefined();
+    expect(screen.getByText('Change Theme')).toBeDefined();
+    expect(screen.getByText('Close')).toBeDefined();
+
+    // Click Change Theme
+    fireEvent.click(screen.getByTestId('system-monitor-menu-change-theme'));
+    expect(onToggleTheme).toHaveBeenCalledTimes(1);
+    expect(onCloseMenu).toHaveBeenCalledTimes(1);
+
+    // Rerender in Light mode
+    rerender(
+      <SystemMonitorContextMenu
+        x={100}
+        y={150}
+        isDark={false}
+        onToggleTheme={onToggleTheme}
+        onCloseWindow={onCloseWindow}
+        onCloseMenu={onCloseMenu}
+      />
+    );
+
+    // Click Close
+    fireEvent.click(screen.getByTestId('system-monitor-menu-close'));
+    expect(onCloseWindow).toHaveBeenCalledTimes(1);
+    expect(onCloseMenu).toHaveBeenCalledTimes(2);
+
+    // Press Escape key
+    fireEvent.keyDown(globalThis, { key: 'Escape' });
+    expect(onCloseMenu).toHaveBeenCalledTimes(3);
+  });
+
+  it('renders SystemMonitorPanelCard and SystemMonitorChartCanvas with empty state', () => {
+    render(
+      <SystemMonitorPanelCard
+        isDark={false}
+        headerLeft={<span>Test Header</span>}
+        headerRight={<span>Test Action</span>}
+        footer={<span>Test Footer</span>}
+      >
+        <SystemMonitorChartCanvas
+          isDark={false}
+          xTicks={[{ label: '0h', minute: 0, percent: 100 }]}
+          yScaleTicks={[{ value: 100, label: '100%', percentFromTop: 0 }]}
+          isEmpty={true}
+          emptyText="No items found"
+        />
+      </SystemMonitorPanelCard>
+    );
+
+    expect(screen.getByText('Test Header')).toBeDefined();
+    expect(screen.getByText('Test Action')).toBeDefined();
+    expect(screen.getByText('Test Footer')).toBeDefined();
+    expect(screen.getByText('No items found')).toBeDefined();
+    expect(screen.getByText('100%')).toBeDefined();
+  });
+
+  it('renders empty states for Network and Replicas panels when deployments is empty', () => {
+    render(
+      <div>
+        <SystemMonitorNetworkPanel deployments={[]} metrics={{}} />
+        <SystemMonitorReplicasPanel deployments={[]} metrics={{}} />
+      </div>
+    );
+
+    expect(screen.getByText('No active traffic simulation')).toBeDefined();
+    expect(screen.getByText('No workload deployments active')).toBeDefined();
   });
 });

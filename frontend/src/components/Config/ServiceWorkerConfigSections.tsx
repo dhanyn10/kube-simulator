@@ -1,5 +1,6 @@
 import React from 'react';
 import { Network, Server, Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ConfigSection } from '@/components/UI/ConfigUI';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { WORKER_NODE_OPTIONS } from '@/lib/workerNodeHelpers';
@@ -49,7 +50,7 @@ export const ExternalTrafficPolicySection: React.FC<ExternalTrafficPolicySection
             <Info size={11} className="text-blue-400 shrink-0" />
             <span>{currentPolicy === 'Cluster' ? 'Cluster Policy Behavior' : 'Local Policy Behavior'}</span>
           </div>
-          <p className="leading-tight text-slate-300/80">
+          <p className={cn("leading-tight", colorMode === 'dark' ? "text-slate-300/80" : "text-slate-700")}>
             {currentPolicy === 'Cluster'
               ? 'kube-proxy may forward packets to target pods on other worker nodes (SNAT applied, client IP is replaced by the node IP).'
               : 'Preserves client IP without SNAT. If incoming traffic arrives at a worker node without local pod endpoints, packets are dropped.'}

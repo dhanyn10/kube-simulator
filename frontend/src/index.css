@@ -40,6 +40,16 @@
     overscroll-behavior: none;
   }
 
+  html.light body,
+  body.light {
+    @apply bg-white text-slate-800;
+  }
+
+  html.dark body,
+  body.dark {
+    @apply bg-slate-950 text-slate-200;
+  }
+
   html {
     overscroll-behavior: none;
   }

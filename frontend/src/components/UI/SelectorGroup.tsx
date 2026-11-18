@@ -25,8 +25,8 @@ const getSelectorButtonClasses = (
   }
 
   const baseState = colorMode === 'dark'
-    ? "bg-slate-800 border-slate-700 hover:border-slate-600"
-    : "bg-slate-50 border-slate-200 hover:border-slate-300";
+    ? "bg-slate-800 border-slate-700 hover:border-slate-600 text-slate-300"
+    : "bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-700";
 
   if (!isInvalid) return baseState;
 

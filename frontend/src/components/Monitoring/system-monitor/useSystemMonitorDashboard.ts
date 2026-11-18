@@ -24,12 +24,19 @@ export const useSystemMonitorDashboard = () => {
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [simulationSpeed, setSimulationSpeed] = useState<SimulationSpeed>(1);
-  const [colorMode, setColorMode] = useState<SystemMonitorColorMode>('dark');
+  const storeColorMode = useFlowStore((state) => state.colorMode);
+  const [colorMode, setColorMode] = useState<SystemMonitorColorMode>(() => (useFlowStore.getState().colorMode as SystemMonitorColorMode) || 'dark');
   const [timeRange, setTimeRange] = useState<TimeRangeFilter>('1h');
   const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
   const [canStart, setCanStart] = useState<boolean>(false);
   const [hasHpa, setHasHpa] = useState<boolean>(false);
   const [hpaTarget, setHpaTarget] = useState<number>(80);
+
+  useEffect(() => {
+    if (storeColorMode) {
+      setColorMode(storeColorMode as SystemMonitorColorMode);
+    }
+  }, [storeColorMode]);
 
   const storeNodes = useFlowStore((state) => state.nodes);
   const storeHpaInfo = useMemo(() => resolveStoreHpaInfo(storeNodes), [storeNodes]);
@@ -203,6 +210,18 @@ export const useSystemMonitorDashboard = () => {
     return hpaTarget;
   }, [storeNodes, storeHpaInfo, hpaTarget]);
 
+  const toggleTheme = useCallback(() => {
+    const newMode: SystemMonitorColorMode = colorMode === 'dark' ? 'light' : 'dark';
+    setColorMode(newMode);
+    useFlowStore.getState().setColorMode(newMode);
+    const channel = new BroadcastChannel('monitoring-data');
+    channel.postMessage({ type: 'THEME_SYNC', colorMode: newMode });
+    channel.close();
+    getBackendGateway().emitEvent('theme-sync', newMode);
+    const runtime = (globalThis as any).runtime;
+    runtime?.EventsEmit?.('theme-sync', newMode);
+  }, [colorMode]);
+
   return {
     metrics,
     deployments,
@@ -210,6 +229,7 @@ export const useSystemMonitorDashboard = () => {
     isPaused,
     simulationSpeed,
     colorMode,
+    toggleTheme,
     timeRange,
     setTimeRange,
     simulatedTime,

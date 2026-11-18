@@ -166,6 +166,159 @@ export interface InteractiveTrafficChartProps {
   readonly onUpdateName: (newName: string) => void;
 }
 
+const hydrateSubHourlyPoints = (
+  hourly: Record<string, number>,
+  newInterval: number
+): { updatedHourly: Record<string, number>; modified: boolean } => {
+  const totalSteps = Math.floor(1380 / newInterval);
+  const updatedHourly = { ...hourly };
+  let modified = false;
+
+  for (let i = 0; i <= totalSteps; i++) {
+    const minuteIdx = Math.min(1380, i * newInterval);
+    const hh = String(Math.floor(minuteIdx / 60)).padStart(2, '0');
+    const mm = String(minuteIdx % 60).padStart(2, '0');
+    const key = `${hh}:${mm}`;
+
+    if (updatedHourly[key] === undefined) {
+      const h1 = Math.min(22, Math.floor(minuteIdx / 60));
+      const mInH = minuteIdx - h1 * 60;
+      const frac = mInH / 60;
+      const k1 = `${String(h1).padStart(2, '0')}:00`;
+      const k2 = `${String(h1 + 1).padStart(2, '0')}:00`;
+      const v1 = hourly?.[k1] ?? 0;
+      const v2 = hourly?.[k2] ?? v1;
+      updatedHourly[key] = Math.round(v1 + frac * (v2 - v1));
+      modified = true;
+    }
+  }
+
+  return { updatedHourly, modified };
+};
+
+const hydrateMissingPoints = (
+  hourly: Record<string, number>,
+  points: Array<{ hour: string; val: number }>
+): { updatedHourly: Record<string, number>; modified: boolean } => {
+  const updatedHourly = { ...hourly };
+  let modified = false;
+
+  for (const pt of points) {
+    if (updatedHourly[pt.hour] === undefined) {
+      updatedHourly[pt.hour] = pt.val;
+      modified = true;
+    }
+  }
+
+  return { updatedHourly, modified };
+};
+
+interface ResampleWarningOverlayProps {
+  readonly pendingInterval: number | null;
+  readonly onCancel: () => void;
+  readonly onConfirm: () => void;
+}
+
+const ResampleWarningOverlay: React.FC<ResampleWarningOverlayProps> = ({
+  pendingInterval,
+  onCancel,
+  onConfirm,
+}) => {
+  if (pendingInterval === null) return null;
+
+  return (
+    <div
+      data-testid="interval-resample-warning-overlay"
+      className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200 rounded-xl"
+    >
+      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 mb-3 border border-amber-500/30">
+        <AlertTriangle size={24} />
+      </div>
+      <h4 className="text-sm font-bold text-slate-100 mb-1">
+        Simplify Data Warning
+      </h4>
+      <p className="text-xs text-slate-300 max-w-md mb-5 leading-relaxed">
+        Changing the interval will simplify your data to hourly reference points. Continue?
+      </p>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          data-testid="cancel-resample-btn"
+          onClick={onCancel}
+          className="px-4 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          data-testid="confirm-resample-btn"
+          onClick={onConfirm}
+          className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-xs font-bold text-slate-950 shadow-md transition-colors cursor-pointer"
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+};
+
+interface ChartControlsBarProps {
+  readonly intervalMinutes: number;
+  readonly onIntervalChange: (newInterval: number) => void;
+  readonly zoomScale: number;
+  readonly onZoomChange: (newZoom: number) => void;
+  readonly isDark: boolean;
+  readonly colorMode: string;
+}
+
+const ChartControlsBar: React.FC<ChartControlsBarProps> = ({
+  intervalMinutes,
+  onIntervalChange,
+  zoomScale,
+  onZoomChange,
+  isDark,
+  colorMode,
+}) => (
+  <div className={cn(
+    "flex flex-wrap items-center justify-between gap-4 mb-3 px-2 py-1.5 rounded-lg border text-xs",
+    isDark ? "bg-slate-900/40 border-slate-800" : "bg-slate-50 border-slate-200"
+  )}>
+    <div className="flex items-center gap-2">
+      <Clock size={14} className="text-blue-500" />
+      <span className={cn("font-semibold", isDark ? "text-slate-300" : "text-slate-700")}>Interval:</span>
+      <select
+        value={intervalMinutes}
+        onChange={(e) => onIntervalChange(Number(e.target.value))}
+        className={cn(
+          "px-2 py-1 rounded border text-xs font-bold outline-none cursor-pointer transition-all",
+          colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-blue-400" : "bg-white border-slate-300 text-blue-600"
+        )}
+      >
+        {PROFILE_INTERVAL_OPTIONS.map((opt) => (
+          <option key={opt.minutes} value={opt.minutes}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    <div className="flex items-center gap-2 flex-1 max-w-xs justify-end">
+      <ZoomIn size={14} className="text-blue-500 shrink-0" />
+      <span className={cn("font-semibold text-[11px] shrink-0", isDark ? "text-slate-300" : "text-slate-700")}>Horizontal Zoom:</span>
+      <input
+        type="range"
+        min={100}
+        max={800}
+        step={10}
+        value={zoomScale}
+        onChange={(e) => onZoomChange(Number(e.target.value))}
+        className={cn("w-28 accent-blue-500 cursor-pointer h-1.5 rounded-lg", isDark ? "bg-slate-700" : "bg-slate-200")}
+      />
+      <span className={cn("font-mono text-[10px] w-10 text-right shrink-0", isDark ? "text-slate-400" : "text-slate-500")}>{zoomScale}%</span>
+    </div>
+  </div>
+);
+
 export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = ({
   profile,
   colorMode,
@@ -178,6 +331,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   onUpdateName
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
+  const isDark = colorMode === 'dark';
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
   const [intervalMinutes, setIntervalMinutes] = useState<number>(() => detectProfileInterval(profile.hourly));
@@ -226,27 +380,46 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const handlePointerDown = (hour: string, e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
 
-    // Hydrate all current points into explicit hourly keys if any are missing
     if (intervalMinutes < 60 && onUpdateProfile) {
-      const updatedHourly = { ...profile.hourly };
-      let modified = false;
-
-      for (const pt of points) {
-        if (updatedHourly[pt.hour] === undefined) {
-          updatedHourly[pt.hour] = pt.val;
-          modified = true;
-        }
-      }
-
+      const { updatedHourly, modified } = hydrateMissingPoints(profile.hourly, points);
       if (modified) {
         onUpdateProfile({
           ...profile,
-          hourly: updatedHourly
+          hourly: updatedHourly,
         });
       }
     }
 
     setDraggingHour(hour);
+  };
+
+  const handleIntervalChange = (newInterval: number) => {
+    if (newInterval !== intervalMinutes && hasSubHourlyKeys(profile.hourly)) {
+      setPendingInterval(newInterval);
+      return;
+    }
+
+    setIntervalMinutes(newInterval);
+
+    if (newInterval < 60 && onUpdateProfile) {
+      const { updatedHourly, modified } = hydrateSubHourlyPoints(profile.hourly, newInterval);
+      if (modified) {
+        onUpdateProfile({
+          ...profile,
+          hourly: updatedHourly,
+        });
+      }
+    }
+  };
+
+  const handleConfirmResample = () => {
+    if (pendingInterval === null) return;
+    const resampled = resampleProfileHourly(profile);
+    if (onUpdateProfile) {
+      onUpdateProfile(resampled);
+    }
+    setIntervalMinutes(pendingInterval);
+    setPendingInterval(null);
   };
 
   const [hoverData, setHoverData] = useState<ProfileHoverData | null>(null);
@@ -299,44 +472,11 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
       colorMode === 'dark' ? "bg-slate-950/80 border-slate-800" : "bg-slate-50 border-slate-200"
     )}>
       {/* Simplify Data Confirmation Warning Overlay */}
-      {pendingInterval !== null && (
-        <div data-testid="interval-resample-warning-overlay" className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200 rounded-xl">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 mb-3 border border-amber-500/30">
-            <AlertTriangle size={24} />
-          </div>
-          <h4 className="text-sm font-bold text-slate-100 mb-1">
-            Simplify Data Warning
-          </h4>
-          <p className="text-xs text-slate-300 max-w-md mb-5 leading-relaxed">
-            Changing the interval will simplify your data to hourly reference points. Continue?
-          </p>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              data-testid="cancel-resample-btn"
-              onClick={() => setPendingInterval(null)}
-              className="px-4 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              data-testid="confirm-resample-btn"
-              onClick={() => {
-                const resampled = resampleProfileHourly(profile);
-                if (onUpdateProfile) {
-                  onUpdateProfile(resampled);
-                }
-                setIntervalMinutes(pendingInterval);
-                setPendingInterval(null);
-              }}
-              className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-xs font-bold text-slate-950 shadow-md transition-colors cursor-pointer"
-            >
-              Continue
-            </button>
-          </div>
-        </div>
-      )}
+      <ResampleWarningOverlay
+        pendingInterval={pendingInterval}
+        onCancel={() => setPendingInterval(null)}
+        onConfirm={handleConfirmResample}
+      />
 
       {/* Title Header with In-Place Editable Name */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3 px-1">
@@ -362,92 +502,26 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         </div>
 
         <div className="flex items-center gap-4 text-xs font-mono font-semibold">
-          <span className="text-slate-400">Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></span>
-          <span className="text-slate-400">Peak: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong> users</span>
+          <span className={cn(isDark ? "text-slate-400" : "text-slate-500")}>
+            Min: <strong className={isDark ? "text-slate-200" : "text-slate-800"}>{Math.min(...values).toLocaleString()}</strong>
+          </span>
+          <span className={cn(isDark ? "text-slate-400" : "text-slate-500")}>
+            Peak: <strong className="text-blue-500">{Math.max(...values).toLocaleString()}</strong> users
+          </span>
         </div>
       </div>
 
       {/* Interactive Controls Bar: Interval Resolution Dropdown & Horizontal Zoom Slider */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-3 px-1 py-1.5 rounded-lg border bg-slate-900/40 border-slate-800 text-xs">
-        {/* Interval Dropdown */}
-        <div className="flex items-center gap-2">
-          <Clock size={14} className="text-blue-400" />
-          <span className="font-semibold text-slate-300">Interval:</span>
-          <select
-            value={intervalMinutes}
-            onChange={(e) => {
-              const newInterval = Number(e.target.value);
-              if (newInterval !== intervalMinutes && hasSubHourlyKeys(profile.hourly)) {
-                setPendingInterval(newInterval);
-                return;
-              }
+      <ChartControlsBar
+        intervalMinutes={intervalMinutes}
+        onIntervalChange={handleIntervalChange}
+        zoomScale={zoomScale}
+        onZoomChange={setZoomScale}
+        isDark={isDark}
+        colorMode={colorMode}
+      />
 
-              setIntervalMinutes(newInterval);
-
-              // Hydrate profile points into explicit keys for non-60m intervals so dragging a point does not affect intermediate points
-              if (newInterval < 60) {
-                const totalSteps = Math.floor(1380 / newInterval);
-                const updatedHourly = { ...profile.hourly };
-                let modified = false;
-
-                for (let i = 0; i <= totalSteps; i++) {
-                  const minuteIdx = Math.min(1380, i * newInterval);
-                  const hh = String(Math.floor(minuteIdx / 60)).padStart(2, '0');
-                  const mm = String(minuteIdx % 60).padStart(2, '0');
-                  const key = `${hh}:${mm}`;
-
-                  if (updatedHourly[key] === undefined) {
-                    const h1 = Math.min(22, Math.floor(minuteIdx / 60));
-                    const mInH = minuteIdx - h1 * 60;
-                    const frac = mInH / 60;
-                    const k1 = `${String(h1).padStart(2, '0')}:00`;
-                    const k2 = `${String(h1 + 1).padStart(2, '0')}:00`;
-                    const v1 = profile.hourly?.[k1] ?? 0;
-                    const v2 = profile.hourly?.[k2] ?? v1;
-                    updatedHourly[key] = Math.round(v1 + frac * (v2 - v1));
-                    modified = true;
-                  }
-                }
-
-                if (modified && onUpdateProfile) {
-                  onUpdateProfile({
-                    ...profile,
-                    hourly: updatedHourly
-                  });
-                }
-              }
-            }}
-            className={cn(
-              "px-2 py-1 rounded border text-xs font-bold outline-none cursor-pointer transition-all",
-              colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-blue-400" : "bg-white border-slate-300 text-blue-600"
-            )}
-          >
-            {PROFILE_INTERVAL_OPTIONS.map((opt) => (
-              <option key={opt.minutes} value={opt.minutes}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Horizontal Zoom Slider */}
-        <div className="flex items-center gap-2 flex-1 max-w-xs justify-end">
-          <ZoomIn size={14} className="text-blue-400 shrink-0" />
-          <span className="font-semibold text-slate-300 text-[11px] shrink-0">Horizontal Zoom:</span>
-          <input
-            type="range"
-            min={100}
-            max={800}
-            step={10}
-            value={zoomScale}
-            onChange={(e) => setZoomScale(Number(e.target.value))}
-            className="w-28 accent-blue-500 cursor-pointer h-1.5 rounded-lg bg-slate-700"
-          />
-          <span className="font-mono text-[10px] text-slate-400 w-10 text-right shrink-0">{zoomScale}%</span>
-        </div>
-      </div>
-
-      <p className="text-[11px] font-medium text-slate-400 mb-2 px-1">
+      <p className={cn("text-[11px] font-medium mb-2 px-1", isDark ? "text-slate-400" : "text-slate-600")}>
         💡 Drag data points vertically up/down on the Y-axis to dynamically modify traffic values.
       </p>
 

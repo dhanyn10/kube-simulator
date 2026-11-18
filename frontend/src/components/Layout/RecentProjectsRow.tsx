@@ -122,7 +122,9 @@ export const RecentProjectsTableRow: React.FC<RecentProjectsTableRowProps> = ({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-200 truncate max-w-[280px]">{file.name}</span>
+              <span className={cn("font-bold truncate max-w-[280px]", isDark ? "text-slate-200" : "text-slate-800")}>
+                {file.name}
+              </span>
               {file.isAutosave && (
                 <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
                   Auto-Save
@@ -167,7 +169,7 @@ export const RecentProjectsTableRow: React.FC<RecentProjectsTableRowProps> = ({
     </td>
 
     {/* Date Modified Column */}
-    <td className="py-2.5 px-3 text-right text-[11px] font-mono text-slate-300 whitespace-nowrap align-top pt-2">
+    <td className={cn("py-2.5 px-3 text-right text-[11px] font-mono whitespace-nowrap align-top pt-2", isDark ? "text-slate-300" : "text-slate-600")}>
       <div className="flex items-center justify-end gap-2.5">
         <span>{file.updatedAt}</span>
         <button

@@ -12,10 +12,19 @@ interface SystemMonitorStatCardProps {
   colorMode?: 'dark' | 'light';
 }
 
-const THRESHOLD_COLORS: Record<'normal' | 'warning' | 'critical', { text: string; stroke: string }> = {
-  critical: { text: 'text-rose-400', stroke: '#ef4444' },
-  warning: { text: 'text-amber-400', stroke: '#f59e0b' },
-  normal: { text: 'text-emerald-400', stroke: '#10b981' },
+const getThresholdStyles = (
+  threshold: 'normal' | 'warning' | 'critical',
+  isDark: boolean
+): { text: string; stroke: string } => {
+  if (isDark) {
+    if (threshold === 'critical') return { text: 'text-rose-400', stroke: '#ef4444' };
+    if (threshold === 'warning') return { text: 'text-amber-400', stroke: '#f59e0b' };
+    return { text: 'text-emerald-400', stroke: '#10b981' };
+  }
+
+  if (threshold === 'critical') return { text: 'text-rose-700', stroke: '#dc2626' };
+  if (threshold === 'warning') return { text: 'text-amber-700', stroke: '#d97706' };
+  return { text: 'text-emerald-700', stroke: '#059669' };
 };
 
 export const SystemMonitorStatCard = ({
@@ -30,8 +39,7 @@ export const SystemMonitorStatCard = ({
 }: SystemMonitorStatCardProps) => {
   const isDark = colorMode === 'dark';
 
-  const { text: thresholdColor, stroke: strokeColor } =
-    THRESHOLD_COLORS[threshold] || THRESHOLD_COLORS.normal;
+  const { text: thresholdColor, stroke: strokeColor } = getThresholdStyles(threshold, isDark);
 
   const sparklinePoints = sparklineData.length > 1
     ? sparklineData
@@ -52,7 +60,7 @@ export const SystemMonitorStatCard = ({
       )}
     >
       {/* Top Header */}
-      <div className="flex items-center justify-between text-slate-400">
+      <div className={cn("flex items-center justify-between", isDark ? "text-slate-400" : "text-slate-600")}>
         <span className="text-[11px] font-bold uppercase tracking-wider font-mono">{title}</span>
         <div className="opacity-70">{icon}</div>
       </div>
@@ -62,12 +70,12 @@ export const SystemMonitorStatCard = ({
         <span className={cn('text-2xl font-bold font-mono tracking-tight', thresholdColor)}>
           {value}
         </span>
-        {unit && <span className="text-xs font-mono text-slate-400">{unit}</span>}
+        {unit && <span className={cn("text-xs font-mono", isDark ? "text-slate-400" : "text-slate-600")}>{unit}</span>}
       </div>
 
       {/* Subtitle & Sparkline Footer */}
-      <div className="flex items-end justify-between pt-1 border-t border-slate-800/40">
-        <span className="text-[10px] text-slate-400 truncate max-w-[120px] font-mono">{subtitle}</span>
+      <div className={cn("flex items-end justify-between pt-1 border-t", isDark ? "border-slate-800/40" : "border-slate-200")}>
+        <span className={cn("text-[10px] truncate max-w-[120px] font-mono", isDark ? "text-slate-400" : "text-slate-600")}>{subtitle}</span>
         {sparklinePoints && (
           <svg aria-hidden="true" className="w-[80px] h-[24px] overflow-visible" viewBox="0 0 120 30">
             <polyline

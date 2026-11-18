@@ -186,7 +186,7 @@ export const RangeInput = ({ value, onChange, min, max, step = 1, unit = "%", di
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(Number.parseInt(e.target.value, 10))}
-      className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+      className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
     />
     <div className="flex justify-between text-[8px] font-mono text-slate-500">
       <span>{min}{unit}</span>

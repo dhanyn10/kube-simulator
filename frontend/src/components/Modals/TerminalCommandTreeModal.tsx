@@ -19,6 +19,72 @@ interface TreeNodeItemProps {
   readonly colorMode: string;
 }
 
+const getNodeTextColor = (hasChildren: boolean, isDark: boolean): string => {
+  if (hasChildren) {
+    return isDark ? 'text-amber-400 font-bold' : 'text-amber-700 font-bold';
+  }
+  return isDark ? 'text-emerald-400' : 'text-emerald-700 font-medium';
+};
+
+const getItemContainerClass = (isDark: boolean, isExecutable: boolean): string => {
+  if (isDark) {
+    return cn("hover:bg-slate-800/70 text-slate-200", isExecutable && "hover:bg-blue-950/40");
+  }
+  return cn("hover:bg-slate-100 text-slate-800", isExecutable && "hover:bg-blue-50/80");
+};
+
+const TreeNodeChevron = ({
+  isExpanded,
+  nodeName,
+  isDark,
+  onClick,
+}: {
+  readonly isExpanded: boolean;
+  readonly nodeName: string;
+  readonly isDark: boolean;
+  readonly onClick: (e: React.MouseEvent) => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      "p-0.5 rounded inline-flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-blue-500",
+      isDark ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-800"
+    )}
+    aria-label={isExpanded ? `Collapse ${nodeName}` : `Expand ${nodeName}`}
+  >
+    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+  </button>
+);
+
+const TreeNodeRunButton = ({
+  command,
+  isDark,
+  onSelectCommand,
+}: {
+  readonly command: string;
+  readonly isDark: boolean;
+  readonly onSelectCommand: (cmd: string) => void;
+}) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+      onSelectCommand(command);
+    }}
+    className={cn(
+      "flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded border transition-all shrink-0 ml-2 focus:outline-none focus:ring-1 focus:ring-blue-500",
+      isDark
+        ? "bg-blue-900/40 text-blue-300 border-blue-700/50 hover:bg-blue-800/60 hover:text-white"
+        : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+    )}
+    title={`Insert "${command}" into Kube Console`}
+  >
+    <span>Run</span>
+    <ArrowRight size={10} />
+  </button>
+);
+
 const TreeNodeItem = ({
   node,
   level,
@@ -30,6 +96,7 @@ const TreeNodeItem = ({
   const hasChildren = Boolean(node.children && node.children.length > 0);
   const isExpanded = expandedNodes.has(node.id);
   const isExecutable = Boolean(node.command);
+  const isDark = colorMode === 'dark';
 
   const handleClick = () => {
     if (hasChildren) {
@@ -51,26 +118,21 @@ const TreeNodeItem = ({
       <div
         className={cn(
           "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg transition-colors group my-0.5 text-left",
-          colorMode === 'dark'
-            ? "hover:bg-slate-800/70 text-slate-200"
-            : "hover:bg-slate-100 text-slate-800",
-          isExecutable && (colorMode === 'dark' ? "hover:bg-blue-950/40" : "hover:bg-blue-50/80")
+          getItemContainerClass(isDark, isExecutable)
         )}
         style={{ paddingLeft: `${level * 18 + 10}px` }}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {hasChildren ? (
-            <button
-              type="button"
+            <TreeNodeChevron
+              isExpanded={isExpanded}
+              nodeName={node.name}
+              isDark={isDark}
               onClick={(e) => {
                 e.stopPropagation();
                 toggleExpand(node.id);
               }}
-              className="p-0.5 rounded text-slate-400 hover:text-slate-200 inline-flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-blue-500"
-              aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
-            >
-              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            </button>
+            />
           ) : (
             <span className="w-3.5 h-3.5 inline-block shrink-0" />
           )}
@@ -81,17 +143,14 @@ const TreeNodeItem = ({
             onKeyDown={handleKeyDown}
             className="flex items-center gap-2 truncate text-left border-none bg-transparent p-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
           >
-            <span className={cn(
-              "font-mono font-semibold text-xs",
-              hasChildren ? "text-amber-300 dark:text-amber-400 font-bold" : "text-emerald-400"
-            )}>
+            <span className={cn("font-mono text-xs", getNodeTextColor(hasChildren, isDark))}>
               {node.name}
             </span>
 
             {node.description && (
               <span className={cn(
                 "text-[11px] truncate hidden sm:inline-block",
-                colorMode === 'dark' ? "text-slate-400" : "text-slate-500"
+                isDark ? "text-slate-400" : "text-slate-500"
               )}>
                 — {node.description}
               </span>
@@ -100,28 +159,16 @@ const TreeNodeItem = ({
         </div>
 
         {isExecutable && node.command && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelectCommand(node.command!);
-            }}
-            className={cn(
-              "flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded border transition-all shrink-0 ml-2 focus:outline-none focus:ring-1 focus:ring-blue-500",
-              colorMode === 'dark'
-                ? "bg-blue-900/40 text-blue-300 border-blue-700/50 hover:bg-blue-800/60 hover:text-white"
-                : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-            )}
-            title={`Insert "${node.command}" into Kube Console`}
-          >
-            <span>Run</span>
-            <ArrowRight size={10} />
-          </button>
+          <TreeNodeRunButton
+            command={node.command}
+            isDark={isDark}
+            onSelectCommand={onSelectCommand}
+          />
         )}
       </div>
 
       {hasChildren && isExpanded && node.children && (
-        <div className="border-l border-slate-700/40 dark:border-slate-800 ml-4">
+        <div className={cn("border-l ml-4", isDark ? "border-slate-800" : "border-slate-200")}>
           {node.children.map((child) => (
             <TreeNodeItem
               key={child.id}

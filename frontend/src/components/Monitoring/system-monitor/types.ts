@@ -1,3 +1,5 @@
+import { SimulationMetricPoint } from '@/store/types';
+
 export type TimeRangeFilter = '1h' | '30m' | '15m' | '5m' | '1m' | 'all';
 export type SimulationSpeed = 1 | 5 | 10;
 export type SystemMonitorColorMode = 'dark' | 'light';
@@ -9,6 +11,14 @@ export interface DeploymentSummary {
   type?: string;
   hasHpa?: boolean;
   hpas?: Array<{ targetCPU?: number }>;
+}
+
+export interface BaseSystemMonitorPanelProps {
+  deployments: DeploymentSummary[];
+  metrics: Record<string, SimulationMetricPoint[]>;
+  colorMode?: 'dark' | 'light';
+  interval?: TimeRangeFilter;
+  isSimulating?: boolean;
 }
 
 export interface SystemMonitorClusterTotals {

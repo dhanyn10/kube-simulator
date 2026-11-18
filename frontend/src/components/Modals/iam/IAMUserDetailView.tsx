@@ -69,10 +69,10 @@ export const IAMUserPolicyTable: React.FC<IAMUserPolicyTableProps> = ({ policies
             <th className="py-2 px-3">Description</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800/40">
+        <tbody className={cn("divide-y", isDark ? "divide-slate-800/40" : "divide-slate-100")}>
           {policies.map((p) => (
             <tr key={p.name} className="text-xs">
-              <td className="py-2 px-3 font-semibold text-emerald-400">{p.name}</td>
+              <td className="py-2 px-3 font-semibold text-emerald-500 dark:text-emerald-400">{p.name}</td>
               <td className="py-2 px-3">
                 <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium border', isDark ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500')}>
                   {p.type}
@@ -124,7 +124,7 @@ export const IAMUserRoleBindingsTable: React.FC<IAMUserRoleBindingsTableProps> =
               <th className="py-2 px-3">Created At</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/40">
+          <tbody className={cn("divide-y", isDark ? "divide-slate-800/40" : "divide-slate-100")}>
             {attachedRoles.map((r) => {
               const bindingId = `${r.roleName}-rb-${r.nodeId.split('-')[0]}`;
               const createdDate = formatTs(r.createdAt);
@@ -137,28 +137,33 @@ export const IAMUserRoleBindingsTable: React.FC<IAMUserRoleBindingsTableProps> =
                     isDark ? 'hover:bg-slate-800/60' : 'hover:bg-slate-50'
                   )}
                 >
-                  <td className="py-2 px-3 text-slate-400 text-[11px] font-mono">
+                  <td className={cn("py-2 px-3 text-[11px] font-mono", isDark ? "text-slate-400" : "text-slate-500")}>
                     <button
                       type="button"
                       onClick={() => onNavigateToRole(r.nodeId, r.nodeLabel)}
-                      className="text-left font-mono hover:text-emerald-400 hover:underline cursor-pointer"
+                      className="text-left font-mono hover:text-emerald-500 dark:hover:text-emerald-400 hover:underline cursor-pointer"
                     >
                       {bindingId}
                     </button>
                   </td>
-                  <td className="py-2 px-3 font-sans font-semibold text-emerald-400">{user.username}</td>
+                  <td className="py-2 px-3 font-sans font-semibold text-emerald-600 dark:text-emerald-400">{user.username}</td>
                   <td className="py-2 px-3 font-sans">
-                    <span className="font-semibold text-slate-200">{r.nodeLabel}</span>
+                    <span className={cn("font-semibold", isDark ? "text-slate-200" : "text-slate-800")}>{r.nodeLabel}</span>
                     {r.nodeType && (
                       <span className="text-[10px] text-slate-500 ml-1">({r.nodeType})</span>
                     )}
                   </td>
                   <td className="py-2 px-3">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-medium border bg-indigo-500/10 border-indigo-500/30 text-indigo-300">
+                    <span className={cn(
+                      "px-2 py-0.5 rounded text-[10px] font-medium border",
+                      isDark
+                        ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-300"
+                        : "bg-indigo-50 border-indigo-200 text-indigo-700"
+                    )}>
                       {r.roleName}
                     </span>
                   </td>
-                  <td className="py-2 px-3 text-slate-400 text-[11px] font-mono">{createdDate}</td>
+                  <td className={cn("py-2 px-3 text-[11px] font-mono", isDark ? "text-slate-400" : "text-slate-500")}>{createdDate}</td>
                 </tr>
               );
             })}
@@ -226,7 +231,7 @@ export const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
   return (
     <div className="flex flex-col h-full space-y-4">
       {/* Header with Back & Edit Buttons */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-700/50">
+      <div className={cn("flex items-center justify-between pb-3 border-b", isDark ? "border-slate-700/50" : "border-slate-200")}>
         <div className="flex items-center gap-3">
           <button
             type="button"

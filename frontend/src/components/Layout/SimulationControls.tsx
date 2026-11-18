@@ -115,6 +115,15 @@ const SPEED_OPTIONS = [
   { speed: 10, label: '>>>', title: 'Ultra Speed (10x)', testId: 'speed-btn-10x' },
 ] as const;
 
+const getSpeedButtonClass = (isActive: boolean, isDark: boolean): string => {
+  if (isActive) {
+    return 'bg-blue-600 text-white shadow-sm';
+  }
+  return isDark
+    ? 'text-slate-400 hover:text-slate-200'
+    : 'text-slate-600 hover:text-slate-900';
+};
+
 const SimulationSpeedControls = ({
   simulationSpeed,
   setSimulationSpeed,
@@ -139,9 +148,7 @@ const SimulationSpeedControls = ({
           title={opt.title}
           className={cn(
             'px-2 py-1 rounded transition-colors flex items-center gap-0.5',
-            simulationSpeed === opt.speed
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200'
+            getSpeedButtonClass(simulationSpeed === opt.speed, isDark)
           )}
         >
           <span>{opt.label}</span>

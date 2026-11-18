@@ -298,7 +298,7 @@ const ResourceTableRow: React.FC<ResourceTableRowProps> = ({
       )}
     >
       <td className="py-2.5 px-3">
-        <span className="font-semibold text-xs text-slate-200 truncate block max-w-[200px]">
+        <span className={cn("font-semibold text-xs truncate block max-w-[200px]", isDark ? "text-slate-200" : "text-slate-800")}>
           {item.name}
         </span>
       </td>

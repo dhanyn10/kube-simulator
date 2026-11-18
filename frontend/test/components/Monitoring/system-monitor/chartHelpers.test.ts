@@ -13,6 +13,9 @@ import {
   dataToCoords,
   calculatePercentFromTop,
   getThresholdReferenceLines,
+  calculateNetworkMetrics,
+  extractReplicaCounts,
+  calculateReplicaSeries,
 } from '@/components/Monitoring/system-monitor/chartHelpers';
 import { SimulationMetricPoint } from '@/store/types';
 
@@ -267,5 +270,66 @@ describe('chartHelpers', () => {
 
     // 6. Unknown metricKey returns empty array
     expect(getThresholdReferenceLines('unknown', 100)).toHaveLength(0);
+  });
+
+  it('calculates network metrics correctly for unindexed and bucketed data', () => {
+    // 1. Unindexed data
+    const unindexed = calculateNetworkMetrics(
+      [{ id: 'dep-1', label: 'api', replicas: 2 }],
+      {
+        'dep-1': [
+          { cpuPercent: 10, memoryPercent: 20 },
+          { cpuPercent: 20, memoryPercent: 30 },
+        ],
+      },
+      '1h'
+    );
+    // rps = cpuPercent * 15 * replicas = 20 * 15 * 2 = 600
+    // lat = 5 + cpuPercent * 0.4 = 5 + 8 = 13
+    expect(unindexed.rpsData).toEqual([300, 600]);
+    expect(unindexed.currentRps).toBe(600);
+    expect(unindexed.currentLatency).toBe(13);
+
+    // 2. Bucketed data with minuteIndex
+    const bucketed = calculateNetworkMetrics(
+      [{ id: 'dep-1', label: 'api', replicas: 1 }],
+      {
+        'dep-1': [
+          { cpuPercent: 10, memoryPercent: 20, minuteIndex: 0 },
+          { cpuPercent: 30, memoryPercent: 30, minuteIndex: 120 },
+        ],
+      },
+      '1h'
+    );
+    expect(bucketed.rpsData.length).toBeGreaterThan(1);
+    expect(bucketed.currentRps).toBe(450);
+  });
+
+  it('extracts replica counts and calculates replica series correctly', () => {
+    const deps = [{ id: 'd1', label: 'web', replicas: 3 }];
+    const metrics = {
+      d1: [
+        { cpuPercent: 10, memoryPercent: 20, replicas: 3 },
+        { cpuPercent: 10, memoryPercent: 20, replicas: 5 },
+      ],
+    };
+    const counts = extractReplicaCounts(deps, metrics);
+    expect(counts).toEqual([3, 3, 5]);
+
+    // Unindexed series
+    const seriesUnindexed = calculateReplicaSeries(deps, metrics, '1h', 10);
+    expect(seriesUnindexed).toHaveLength(1);
+    expect(seriesUnindexed[0].current).toBe(3);
+    expect(seriesUnindexed[0].svgPoints).toBeDefined();
+
+    // Bucketed series with minuteIndex
+    const bucketedMetrics = {
+      d1: [
+        { cpuPercent: 10, memoryPercent: 20, replicas: 4, minuteIndex: 10 },
+      ],
+    };
+    const seriesBucketed = calculateReplicaSeries(deps, bucketedMetrics, '1h', 10);
+    expect(seriesBucketed).toHaveLength(1);
+    expect(seriesBucketed[0].current).toBe(4);
   });
 });

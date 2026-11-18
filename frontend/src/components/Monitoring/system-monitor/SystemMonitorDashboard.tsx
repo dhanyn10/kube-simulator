@@ -1,6 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { Cpu, Database, Server, Activity, AlertCircle, Radio } from 'lucide-react';
+import { getBackendGateway } from '@/gateway';
+import { isWailsDesktop } from '@/lib/mocks';
+import { useFlowStore } from '@/store';
 import { SimulationMetricPoint } from '@/store/types';
 import { DeploymentSummary } from './types';
 import { useSystemMonitorDashboard } from './useSystemMonitorDashboard';
@@ -9,6 +12,7 @@ import { SystemMonitorStatCard } from './SystemMonitorStatCard';
 import { SystemMonitorTimeSeriesPanel } from './SystemMonitorTimeSeriesPanel';
 import { SystemMonitorReplicasPanel } from './SystemMonitorReplicasPanel';
 import { SystemMonitorNetworkPanel } from './SystemMonitorNetworkPanel';
+import { SystemMonitorContextMenu } from './SystemMonitorContextMenu';
 
 const getUtilizationThreshold = (percent: number): 'normal' | 'warning' | 'critical' => {
   if (percent > 85) {
@@ -43,9 +47,12 @@ const extractSparkline = (
   return points.map((p) => p[key] || 0);
 };
 
-const EmptySimulationState = () => (
-  <div className="h-64 flex flex-col items-center justify-center text-slate-500 gap-3 border border-dashed border-slate-800 rounded-lg">
-    <Activity size={36} strokeWidth={1.5} className="text-blue-500/60" />
+const EmptySimulationState = ({ isDark }: { isDark: boolean }) => (
+  <div className={cn(
+    "h-64 flex flex-col items-center justify-center gap-3 border border-dashed rounded-lg",
+    isDark ? "border-slate-800 text-slate-500" : "border-slate-300 text-slate-600"
+  )}>
+    <Activity size={36} strokeWidth={1.5} className={isDark ? "text-blue-500/60" : "text-blue-600/70"} />
     <p className="text-sm font-medium uppercase tracking-widest font-mono">Waiting for simulation data...</p>
   </div>
 );
@@ -70,7 +77,7 @@ const SystemMonitorFooter = ({
     )}
   >
     <div className="flex items-center gap-6">
-      <span className="flex items-center gap-1.5 text-blue-400 font-bold">
+      <span className={cn("flex items-center gap-1.5 font-bold", isDark ? "text-blue-400" : "text-blue-600")}>
         <Radio size={12} className={isSimulating && !isPaused ? 'animate-pulse' : ''} />
         System Monitor Engine (Go Broker Synced)
       </span>
@@ -91,6 +98,7 @@ export const SystemMonitorDashboard = () => {
     isPaused,
     simulationSpeed,
     colorMode,
+    toggleTheme,
     timeRange,
     setTimeRange,
     simulatedTime,
@@ -101,8 +109,32 @@ export const SystemMonitorDashboard = () => {
     hpaTarget,
   } = useSystemMonitorDashboard();
 
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const handleContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleCloseWindow = () => {
+    void getBackendGateway().closeSimulationWindow();
+    useFlowStore.getState().setMonitoringOpen(false);
+    useFlowStore.getState().setMonitoringDetached(false);
+    if (!isWailsDesktop() && process.env.NODE_ENV !== 'test') {
+      try {
+        globalThis.close?.();
+      } catch {
+        // Fallback for browser popup
+      }
+    }
+  };
+
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', colorMode === 'dark');
+    const isDarkMode = colorMode === 'dark';
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    document.documentElement.classList.toggle('light', !isDarkMode);
+    document.body.classList.toggle('dark', isDarkMode);
+    document.body.classList.toggle('light', !isDarkMode);
   }, [colorMode]);
 
   const isDark = colorMode === 'dark';
@@ -116,6 +148,7 @@ export const SystemMonitorDashboard = () => {
 
   return (
     <div
+      onContextMenu={handleContextMenu}
       className={cn(
         'h-screen w-screen flex flex-col font-sans transition-colors overflow-hidden select-none',
         isDark ? 'bg-[#111217] text-slate-200' : 'bg-slate-50 text-slate-800'
@@ -193,7 +226,7 @@ export const SystemMonitorDashboard = () => {
 
         {/* Time-Series Charts Grid */}
         {deployments.length === 0 ? (
-          <EmptySimulationState />
+          <EmptySimulationState isDark={isDark} />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <SystemMonitorTimeSeriesPanel
@@ -252,6 +285,18 @@ export const SystemMonitorDashboard = () => {
         isPaused={isPaused}
         simulationSpeed={simulationSpeed}
       />
+
+      {/* System Monitor Right-Click Context Menu */}
+      {contextMenu && (
+        <SystemMonitorContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+          onCloseWindow={handleCloseWindow}
+          onCloseMenu={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 };

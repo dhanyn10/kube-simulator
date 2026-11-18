@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Network, Sparkles, Activity } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ConfigSection } from '@/components/UI/ConfigUI';
 import { InternetProfileModal } from '@/components/Modals/InternetProfileModal';
 import { calculateMinutePoint, calculateMinuteIndexFromX, calculateProfileHoverData, computeChartLayout, detectProfileInterval, ProfileHoverData } from '@/activities/modals';
@@ -53,6 +54,8 @@ const ReadOnlyProfileChart = ({
   readonly onSeekMinute?: (targetMinute: number) => void;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
+  const colorMode = useFlowStore((state) => state.colorMode);
+  const isDark = colorMode === 'dark';
   const [hoverData, setHoverData] = useState<ProfileHoverData | null>(null);
 
   const width = 240;
@@ -119,20 +122,31 @@ const ReadOnlyProfileChart = ({
     );
   } else {
     trafficStatsContent = (
-      <>Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></>
+      <>Min: <strong className={isDark ? "text-slate-200" : "text-slate-800"}>{Math.min(...values).toLocaleString()}</strong></>
     );
   }
 
   return (
-    <div className="p-2.5 rounded-lg border border-blue-500/30 bg-slate-900/60 space-y-1.5" data-testid="profile-chart-preview">
+    <div
+      className={cn(
+        "p-2.5 rounded-lg border space-y-1.5",
+        isDark ? "bg-slate-900/60 border-blue-500/30" : "bg-blue-50/40 border-blue-200"
+      )}
+      data-testid="profile-chart-preview"
+    >
       <div className="flex items-center justify-between text-[11px] font-bold">
-        <div className="flex items-center gap-1.5 text-blue-400">
+        <div className="flex items-center gap-1.5 text-blue-500">
           <Activity size={13} className="shrink-0" />
           <span className="truncate max-w-[140px]">{profile.name}</span>
         </div>
         {isSimulating && (
-          <span className="text-[10px] font-mono text-emerald-400 font-extrabold flex items-center gap-1 bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.5 rounded">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className={cn(
+            "text-[10px] font-mono font-extrabold flex items-center gap-1 px-1.5 py-0.5 rounded border",
+            isDark
+              ? "text-emerald-400 bg-emerald-950/60 border-emerald-500/30"
+              : "text-emerald-700 bg-emerald-50 border-emerald-300"
+          )}>
+            <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isDark ? "bg-emerald-400" : "bg-emerald-600")} />
             {currentPt.hour}
           </span>
         )}
@@ -197,9 +211,9 @@ const ReadOnlyProfileChart = ({
         </svg>
       </div>
 
-      <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 pt-0.5 border-t border-slate-800">
+      <div className={cn("flex justify-between items-center text-[9px] font-mono pt-0.5 border-t", isDark ? "border-slate-800 text-slate-400" : "border-blue-200/60 text-slate-600")}>
         <span>{trafficStatsContent}</span>
-        <span>Peak: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong></span>
+        <span>Peak: <strong className="text-blue-500">{Math.max(...values).toLocaleString()}</strong></span>
       </div>
     </div>
   );
@@ -214,6 +228,8 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
 
   const edges = useFlowStore((state) => state.edges);
   const nodes = useFlowStore((state) => state.nodes);
+  const colorMode = useFlowStore((state) => state.colorMode);
+  const isDark = colorMode === 'dark';
 
   // Determine if internet connection is disconnected / has error / missing outgoing edge
   const isRed = useMemo(() => {
@@ -273,7 +289,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
           ) : (
             <>
               <div className="flex justify-between items-center text-xs font-mono">
-                <span className="text-[10px] text-slate-400 uppercase font-bold">Visits / Duration</span>
+                <span className={cn("text-[10px] uppercase font-bold", isDark ? "text-slate-400" : "text-slate-600")}>Visits / Duration</span>
                 <div className="flex items-center gap-1">
                   <input
                     type="number"
@@ -281,9 +297,14 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
                     value={currentTraffic}
                     onChange={(e) => handleSliderChange(Number.parseInt(e.target.value, 10) || 1)}
                     data-testid="traffic-numeric-input"
-                    className="w-20 text-right bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-xs font-bold text-blue-400 font-mono outline-none focus:border-blue-500"
+                    className={cn(
+                      "w-20 text-right rounded px-1.5 py-0.5 text-xs font-bold font-mono outline-none border transition-colors",
+                      isDark
+                        ? "bg-slate-900 border-slate-700 text-blue-400 focus:border-blue-500"
+                        : "bg-white border-slate-300 text-blue-600 focus:border-blue-500"
+                    )}
                   />
-                  <span className="text-[9px] font-normal text-slate-400">visits</span>
+                  <span className={cn("text-[9px] font-normal", isDark ? "text-slate-400" : "text-slate-500")}>visits</span>
                 </div>
               </div>
 
@@ -295,7 +316,10 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
                   step={maxRange > 10000 ? 50 : 1}
                   value={currentTraffic}
                   onChange={(e) => handleSliderChange(Number.parseInt(e.target.value, 10) || 1)}
-                  className="w-full h-2 bg-slate-800 rounded appearance-none cursor-pointer custom-traffic-slider outline-none"
+                  className={cn(
+                    "w-full h-2 rounded appearance-none cursor-pointer custom-traffic-slider outline-none",
+                    isDark ? "bg-slate-800" : "bg-slate-200"
+                  )}
                 />
 
                 {/* Interactive 4-part ruler scale with track padding offset matching 20px thumb center */}

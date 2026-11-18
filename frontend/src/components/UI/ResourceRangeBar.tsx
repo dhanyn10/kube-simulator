@@ -27,6 +27,7 @@ export const ResourceRangeBar: React.FC<ResourceRangeBarProps> = ({
   const isInvalid = parsedRequest > parsedLimit;
   const isGuaranteed = parsedRequest === parsedLimit;
   const burstValue = Math.max(0, parsedLimit - parsedRequest);
+  const isDark = colorMode === 'dark';
 
   const effectiveMax = Math.max(maxScale, parsedLimit, parsedRequest, 1);
   const reqPercent = Math.min(100, Math.max(0, (parsedRequest / effectiveMax) * 100));
@@ -44,7 +45,12 @@ export const ResourceRangeBar: React.FC<ResourceRangeBarProps> = ({
       return (
         <span
           data-testid={`range-status-invalid-${labelKey}`}
-          className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-rose-500/20 text-rose-300 border border-rose-500/40"
+          className={cn(
+            "px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide border",
+            isDark
+              ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+              : "bg-rose-50 text-rose-700 border-rose-200"
+          )}
         >
           Invalid: Request &gt; Limit
         </span>
@@ -54,7 +60,12 @@ export const ResourceRangeBar: React.FC<ResourceRangeBarProps> = ({
       return (
         <span
           data-testid={`range-status-guaranteed-${labelKey}`}
-          className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+          className={cn(
+            "px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide border",
+            isDark
+              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+              : "bg-emerald-50 text-emerald-700 border-emerald-200"
+          )}
         >
           Guaranteed ({requestStr})
         </span>
@@ -63,7 +74,12 @@ export const ResourceRangeBar: React.FC<ResourceRangeBarProps> = ({
     return (
       <span
         data-testid={`range-status-burstable-${labelKey}`}
-        className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-purple-500/15 text-purple-300 border border-purple-500/30"
+        className={cn(
+          "px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide border",
+          isDark
+            ? "bg-purple-500/15 text-purple-300 border-purple-500/30"
+            : "bg-purple-50 text-purple-700 border-purple-200"
+        )}
       >
         {requestStr} &rarr; {limitStr} (+{formatText(burstValue)} burst)
       </span>
@@ -73,7 +89,7 @@ export const ResourceRangeBar: React.FC<ResourceRangeBarProps> = ({
   return (
     <div className="space-y-1.5 pt-1" data-testid={`resource-range-${label.toLowerCase()}`}>
       <div className="flex items-center justify-between text-[11px]">
-        <span className="font-semibold text-slate-400">{label} Range</span>
+        <span className={cn("font-semibold", isDark ? "text-slate-400" : "text-slate-600")}>{label} Range</span>
         {renderStatusBadge()}
       </div>
 

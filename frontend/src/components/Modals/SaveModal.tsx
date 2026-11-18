@@ -9,13 +9,203 @@ import {
   getHeaderProfileName,
 } from '@/activities/layout/fileBackstageHelpers';
 import { renderRecentProjectsBody } from '@/components/Layout/RecentProjectsRow';
-import { detectScenarioResources, ResourceBadgeList } from '@/scenarios';
+import { detectScenarioResources, ResourceBadgeList, DetectedResource } from '@/scenarios';
+import { RecentProjectItem } from '@/activities/layout';
 
 export interface SaveModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly onSaveAs: () => void;
 }
+
+interface SaveModalHeaderProps {
+  readonly currentProject: RecentProjectItem | null;
+  readonly newProjectName: string;
+  readonly activeLocation: string;
+  readonly currentCanvasResources: DetectedResource[];
+  readonly colorMode: string;
+}
+
+const SaveModalHeader: React.FC<SaveModalHeaderProps> = ({
+  currentProject,
+  newProjectName,
+  activeLocation,
+  currentCanvasResources,
+  colorMode,
+}) => {
+  const isDark = colorMode === 'dark';
+  return (
+    <div className={cn(
+      "p-3.5 rounded-xl border flex items-center justify-between",
+      isDark ? "bg-slate-900/90 border-slate-800" : "bg-slate-50 border-slate-200"
+    )}>
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+          <Folder size={18} />
+        </div>
+        <div>
+          <div className={cn("text-xs font-bold tracking-tight font-mono", isDark ? "text-slate-200" : "text-slate-800")}>
+            {getHeaderProfileName(currentProject, newProjectName)}
+          </div>
+          <p
+            title={activeLocation}
+            className={cn("text-[11px] font-mono flex items-center gap-1.5 mt-0.5 cursor-help", isDark ? "text-slate-400" : "text-slate-600")}
+          >
+            <span>Location:</span>
+            <span className="text-blue-500 font-bold truncate max-w-[360px]">{activeLocation}</span>
+          </p>
+          <ResourceBadgeList
+            resources={currentCanvasResources}
+            colorMode={colorMode}
+            testId="current-profile-badges"
+            prefixKey="current-profile"
+            className="mt-1.5"
+          />
+        </div>
+      </div>
+      <div className="text-right">
+        <span className={cn("text-[10px] uppercase font-bold tracking-wider block", isDark ? "text-slate-400" : "text-slate-500")}>Date Modified</span>
+        <span className={cn("text-[11px] font-mono font-medium", isDark ? "text-slate-300" : "text-slate-600")}>{formatDateModified(Date.now())}</span>
+      </div>
+    </div>
+  );
+};
+
+interface SaveModalContextMenuProps {
+  readonly contextMenu: { x: number; y: number; item: RecentProjectItem | null } | null;
+  readonly contextMenuRef: React.RefObject<HTMLDivElement | null>;
+  readonly position: { top: number; left: number };
+  readonly colorMode: string;
+  readonly toggleColorMode: () => void;
+  readonly setContextMenu: (val: null) => void;
+  readonly handleRestoreFile: (item: RecentProjectItem) => void;
+  readonly handleOpenFolder: (item: RecentProjectItem) => void;
+  readonly handleDeleteFile: (item: RecentProjectItem) => void;
+  readonly onClose: () => void;
+}
+
+const SaveModalContextMenu: React.FC<SaveModalContextMenuProps> = ({
+  contextMenu,
+  contextMenuRef,
+  position,
+  colorMode,
+  toggleColorMode,
+  setContextMenu,
+  handleRestoreFile,
+  handleOpenFolder,
+  handleDeleteFile,
+  onClose,
+}) => {
+  if (!contextMenu) return null;
+
+  const isDark = colorMode === 'dark';
+
+  return (
+    <div
+      ref={contextMenuRef}
+      role="menu"
+      tabIndex={-1}
+      aria-label="Save modal context menu"
+      style={{ top: position.top, left: position.left }}
+      className={cn(
+        "save-modal-context-menu",
+        isDark
+          ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
+          : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"
+      )}
+    >
+      {/* 1. Change Theme */}
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          toggleColorMode();
+          setContextMenu(null);
+        }}
+        className={cn(
+          "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors",
+          isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+        )}
+      >
+        {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-slate-600" />}
+        <span>Change Theme</span>
+      </button>
+
+      {/* 2. Load Profile */}
+      {contextMenu.item && (
+        <>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              const targetItem = contextMenu.item;
+              setContextMenu(null);
+              if (targetItem) void handleRestoreFile(targetItem);
+            }}
+            className={cn(
+              "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-blue-400 hover:text-blue-300 cursor-pointer",
+              isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"
+            )}
+          >
+            <PackageOpen size={14} />
+            <span>Load Profile</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              const targetItem = contextMenu.item;
+              setContextMenu(null);
+              if (targetItem) void handleOpenFolder(targetItem);
+            }}
+            className={cn(
+              "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-emerald-400 hover:text-emerald-300 cursor-pointer",
+              isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"
+            )}
+          >
+            <FolderOpen size={14} />
+            <span>Open Folder Location</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              const targetItem = contextMenu.item;
+              setContextMenu(null);
+              if (targetItem) void handleDeleteFile(targetItem);
+            }}
+            className={cn(
+              "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-rose-400 hover:text-rose-300 cursor-pointer",
+              isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"
+            )}
+          >
+            <Trash2 size={14} />
+            <span>Delete Document</span>
+          </button>
+        </>
+      )}
+
+      <div className={cn("my-1 border-t", isDark ? "border-slate-800" : "border-slate-100")} />
+
+      {/* 3. Exit / Close */}
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          setContextMenu(null);
+          onClose();
+        }}
+        className={cn(
+          "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-rose-400 hover:text-rose-300",
+          isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"
+        )}
+      >
+        <X size={14} />
+        <span>Close</span>
+      </button>
+    </div>
+  );
+};
 
 export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs }) => {
   const {
@@ -48,6 +238,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
   );
 
   const position = useContextMenuPosition(contextMenu?.x ?? 0, contextMenu?.y ?? 0, contextMenuRef);
+  const isDark = colorMode === 'dark';
 
   if (!isOpen) return null;
 
@@ -55,7 +246,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
     renderRecentProjectsBody({
       isLoading,
       recentFiles,
-      isDark: colorMode === 'dark',
+      isDark,
       currentProjectId: currentProject?.id,
       activeContextId: contextMenu?.item?.id,
       loadingFileId,
@@ -75,43 +266,17 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
     >
       <div className="space-y-5 p-1 font-sans">
         {/* Current Location & Status Header */}
-        <div className={cn(
-          "p-3.5 rounded-xl border flex items-center justify-between",
-          colorMode === 'dark' ? "bg-slate-900/90 border-slate-800" : "bg-slate-50 border-slate-200"
-        )}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
-              <Folder size={18} />
-            </div>
-            <div>
-              <div className="text-xs font-bold tracking-tight text-slate-200 font-mono">
-                {getHeaderProfileName(currentProject, newProjectName)}
-              </div>
-              <p
-                title={activeLocation}
-                className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 mt-0.5 cursor-help"
-              >
-                <span>Location:</span>
-                <span className="text-blue-400 font-bold truncate max-w-[360px]">{activeLocation}</span>
-              </p>
-              <ResourceBadgeList
-                resources={currentCanvasResources}
-                colorMode={colorMode}
-                testId="current-profile-badges"
-                prefixKey="current-profile"
-                className="mt-1.5"
-              />
-            </div>
-          </div>
-          <div className="text-right">
-            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">Date Modified</span>
-            <span className="text-[11px] font-mono font-medium text-slate-300">{formatDateModified(Date.now())}</span>
-          </div>
-        </div>
+        <SaveModalHeader
+          currentProject={currentProject}
+          newProjectName={newProjectName}
+          activeLocation={activeLocation}
+          currentCanvasResources={currentCanvasResources}
+          colorMode={colorMode}
+        />
 
         {/* Quick Save / Name Input */}
         <div className="space-y-2">
-          <label htmlFor="save-modal-project-name" className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block">
+          <label htmlFor="save-modal-project-name" className={cn("text-[11px] uppercase font-bold tracking-wider block", isDark ? "text-slate-400" : "text-slate-600")}>
             Save Current Architecture
           </label>
           <div className="flex gap-2">
@@ -123,7 +288,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
               onChange={(e) => setNewProjectName(e.target.value)}
               className={cn(
                 "flex-1 px-3 py-2 text-xs outline-none rounded-lg border font-medium transition-all",
-                colorMode === 'dark'
+                isDark
                   ? "bg-slate-950 border-slate-800 text-slate-200 focus:border-blue-500"
                   : "bg-white border-slate-200 text-slate-800 focus:border-blue-400"
               )}
@@ -144,7 +309,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
               }}
               className={cn(
                 "px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all",
-                colorMode === 'dark'
+                isDark
                   ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200"
                   : "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700"
               )}
@@ -192,7 +357,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
             <table className="w-full text-left font-sans border-collapse">
               <thead className={cn(
                 "sticky top-0 text-[10px] uppercase font-bold tracking-wider select-none z-10 border-b",
-                colorMode === 'dark' ? "bg-slate-900 text-slate-400 border-slate-800" : "bg-slate-100 text-slate-500 border-slate-200"
+                isDark ? "bg-slate-900 text-slate-400 border-slate-800" : "bg-slate-100 text-slate-500 border-slate-200"
               )}>
                 <tr>
                   <th className="py-2.5 px-3">Name</th>
@@ -207,103 +372,18 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
         </div>
 
         {/* Dedicated Context Menu for Profile Items (3 Options: Change Theme, Restore, Close) */}
-        {contextMenu && (
-          <div
-            ref={contextMenuRef}
-            style={{ top: position.top, left: position.left }}
-            className={cn(
-              "save-modal-context-menu",
-              colorMode === 'dark'
-                ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
-                : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"
-            )}
-          >
-            {/* 1. Change Theme */}
-            <button
-              type="button"
-              onClick={() => {
-                toggleColorMode();
-                setContextMenu(null);
-              }}
-              className={cn(
-                "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors",
-                colorMode === 'dark' ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-100 text-slate-700"
-              )}
-            >
-              {colorMode === 'dark' ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-slate-600" />}
-              <span>Change Theme</span>
-            </button>
-
-            {/* 2. Load Profile */}
-            {contextMenu.item && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetItem = contextMenu.item;
-                    setContextMenu(null);
-                    if (targetItem) void handleRestoreFile(targetItem);
-                  }}
-                  className={cn(
-                    "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-blue-400 hover:text-blue-300 cursor-pointer",
-                    colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100"
-                  )}
-                >
-                  <PackageOpen size={14} />
-                  <span>Load Profile</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetItem = contextMenu.item;
-                    setContextMenu(null);
-                    if (targetItem) void handleOpenFolder(targetItem);
-                  }}
-                  className={cn(
-                    "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-emerald-400 hover:text-emerald-300 cursor-pointer",
-                    colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100"
-                  )}
-                >
-                  <FolderOpen size={14} />
-                  <span>Open Folder Location</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetItem = contextMenu.item;
-                    setContextMenu(null);
-                    if (targetItem) void handleDeleteFile(targetItem);
-                  }}
-                  className={cn(
-                    "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-rose-400 hover:text-rose-300 cursor-pointer",
-                    colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100"
-                  )}
-                >
-                  <Trash2 size={14} />
-                  <span>Delete Document</span>
-                </button>
-              </>
-            )}
-
-            <div className={cn("my-1 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")} />
-
-            {/* 3. Exit / Close */}
-            <button
-              type="button"
-              onClick={() => {
-                setContextMenu(null);
-                onClose();
-              }}
-              className={cn(
-                "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-rose-400 hover:text-rose-300",
-                colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100"
-              )}
-            >
-              <X size={14} />
-              <span>Close</span>
-            </button>
-          </div>
-        )}
+        <SaveModalContextMenu
+          contextMenu={contextMenu}
+          contextMenuRef={contextMenuRef}
+          position={position}
+          colorMode={colorMode}
+          toggleColorMode={toggleColorMode}
+          setContextMenu={setContextMenu}
+          handleRestoreFile={handleRestoreFile}
+          handleOpenFolder={handleOpenFolder}
+          handleDeleteFile={handleDeleteFile}
+          onClose={onClose}
+        />
       </div>
     </Modal>
   );

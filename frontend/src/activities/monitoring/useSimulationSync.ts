@@ -76,6 +76,10 @@ export const useSimulationSync = (options?: SimulationSyncOptions) => {
         sendSnapshot();
       } else if (event.data?.type === 'SIMULATION_CONTROL') {
         handleSimulationControl(event.data, useFlowStore.getState);
+      } else if (event.data?.type === 'THEME_SYNC' && event.data.colorMode) {
+        if (useFlowStore.getState().colorMode !== event.data.colorMode) {
+          useFlowStore.setState({ colorMode: event.data.colorMode });
+        }
       }
     };
 
