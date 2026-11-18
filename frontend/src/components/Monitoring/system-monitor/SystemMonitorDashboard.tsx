@@ -1,6 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { Cpu, Database, Server, Activity, AlertCircle, Radio } from 'lucide-react';
+import { getBackendGateway } from '@/gateway';
+import { isWailsDesktop } from '@/lib/mocks';
+import { useFlowStore } from '@/store';
 import { SimulationMetricPoint } from '@/store/types';
 import { DeploymentSummary } from './types';
 import { useSystemMonitorDashboard } from './useSystemMonitorDashboard';
@@ -9,6 +12,7 @@ import { SystemMonitorStatCard } from './SystemMonitorStatCard';
 import { SystemMonitorTimeSeriesPanel } from './SystemMonitorTimeSeriesPanel';
 import { SystemMonitorReplicasPanel } from './SystemMonitorReplicasPanel';
 import { SystemMonitorNetworkPanel } from './SystemMonitorNetworkPanel';
+import { SystemMonitorContextMenu } from './SystemMonitorContextMenu';
 
 const getUtilizationThreshold = (percent: number): 'normal' | 'warning' | 'critical' => {
   if (percent > 85) {
@@ -94,6 +98,7 @@ export const SystemMonitorDashboard = () => {
     isPaused,
     simulationSpeed,
     colorMode,
+    toggleTheme,
     timeRange,
     setTimeRange,
     simulatedTime,
@@ -103,6 +108,26 @@ export const SystemMonitorDashboard = () => {
     hasHpa,
     hpaTarget,
   } = useSystemMonitorDashboard();
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const handleContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleCloseWindow = () => {
+    void getBackendGateway().closeSimulationWindow();
+    useFlowStore.getState().setMonitoringOpen(false);
+    useFlowStore.getState().setMonitoringDetached(false);
+    if (!isWailsDesktop() && process.env.NODE_ENV !== 'test') {
+      try {
+        globalThis.close?.();
+      } catch {
+        // Fallback for browser popup
+      }
+    }
+  };
 
   useEffect(() => {
     const isDarkMode = colorMode === 'dark';
@@ -123,6 +148,7 @@ export const SystemMonitorDashboard = () => {
 
   return (
     <div
+      onContextMenu={handleContextMenu}
       className={cn(
         'h-screen w-screen flex flex-col font-sans transition-colors overflow-hidden select-none',
         isDark ? 'bg-[#111217] text-slate-200' : 'bg-slate-50 text-slate-800'
@@ -259,6 +285,18 @@ export const SystemMonitorDashboard = () => {
         isPaused={isPaused}
         simulationSpeed={simulationSpeed}
       />
+
+      {/* System Monitor Right-Click Context Menu */}
+      {contextMenu && (
+        <SystemMonitorContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+          onCloseWindow={handleCloseWindow}
+          onCloseMenu={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 };

@@ -166,6 +166,7 @@ export interface UiSlice {
   setAlignmentGuideLines: (lines: { horizontal: number | null; vertical: number | null; snapX?: number; snapY?: number } | null) => void;
 
   toggleColorMode: () => void;
+  setColorMode: (mode: 'dark' | 'light') => void;
   setGlobalEdgeColors: (color: string, errorColor: string) => void;
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
   toggleAutosave: () => void;
@@ -1058,6 +1059,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   toggleColorMode: () => {
     const newMode = get().colorMode === 'dark' ? 'light' : 'dark';
     set({ colorMode: newMode });
+    saveSettingIfAvailable('color_mode', newMode);
 
     const metricsChannel = getMetricsChannel();
     if (metricsChannel) {
@@ -1066,6 +1068,18 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
 
     const runtime = getRuntime();
     runtime?.EventsEmit?.('theme-sync', newMode);
+  },
+  setColorMode: (mode: 'dark' | 'light') => {
+    set({ colorMode: mode });
+    saveSettingIfAvailable('color_mode', mode);
+
+    const metricsChannel = getMetricsChannel();
+    if (metricsChannel) {
+      metricsChannel.postMessage({ type: 'THEME_SYNC', colorMode: mode });
+    }
+
+    const runtime = getRuntime();
+    runtime?.EventsEmit?.('theme-sync', mode);
   },
   setGlobalEdgeColors: (color, errorColor) => {
     set({ globalEdgeColor: color, globalEdgeErrorColor: errorColor });

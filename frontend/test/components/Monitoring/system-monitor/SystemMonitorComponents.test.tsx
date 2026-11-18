@@ -5,6 +5,7 @@ import { SystemMonitorStatCard } from '@/components/Monitoring/system-monitor/Sy
 import { SystemMonitorTimeSeriesPanel } from '@/components/Monitoring/system-monitor/SystemMonitorTimeSeriesPanel';
 import { SystemMonitorReplicasPanel } from '@/components/Monitoring/system-monitor/SystemMonitorReplicasPanel';
 import { SystemMonitorNetworkPanel } from '@/components/Monitoring/system-monitor/SystemMonitorNetworkPanel';
+import { SystemMonitorContextMenu } from '@/components/Monitoring/system-monitor/SystemMonitorContextMenu';
 import { Activity } from 'lucide-react';
 
 describe('SystemMonitor UI Components', () => {
@@ -338,5 +339,53 @@ describe('SystemMonitor UI Components', () => {
       />
     );
     expect(screen.getByText('-22h')).toBeDefined();
+  });
+
+  it('renders SystemMonitorContextMenu and triggers Change Theme, Close, and Escape key', () => {
+    const onToggleTheme = vi.fn();
+    const onCloseWindow = vi.fn();
+    const onCloseMenu = vi.fn();
+
+    const { rerender } = render(
+      <SystemMonitorContextMenu
+        x={100}
+        y={150}
+        isDark={true}
+        onToggleTheme={onToggleTheme}
+        onCloseWindow={onCloseWindow}
+        onCloseMenu={onCloseMenu}
+      />
+    );
+
+    const menu = screen.getByTestId('system-monitor-context-menu');
+    expect(menu).toBeDefined();
+    expect(screen.getByText('Change Theme')).toBeDefined();
+    expect(screen.getByText('Close')).toBeDefined();
+
+    // Click Change Theme
+    fireEvent.click(screen.getByTestId('system-monitor-menu-change-theme'));
+    expect(onToggleTheme).toHaveBeenCalledTimes(1);
+    expect(onCloseMenu).toHaveBeenCalledTimes(1);
+
+    // Rerender in Light mode
+    rerender(
+      <SystemMonitorContextMenu
+        x={100}
+        y={150}
+        isDark={false}
+        onToggleTheme={onToggleTheme}
+        onCloseWindow={onCloseWindow}
+        onCloseMenu={onCloseMenu}
+      />
+    );
+
+    // Click Close
+    fireEvent.click(screen.getByTestId('system-monitor-menu-close'));
+    expect(onCloseWindow).toHaveBeenCalledTimes(1);
+    expect(onCloseMenu).toHaveBeenCalledTimes(2);
+
+    // Press Escape key
+    fireEvent.keyDown(globalThis, { key: 'Escape' });
+    expect(onCloseMenu).toHaveBeenCalledTimes(3);
   });
 });

@@ -210,6 +210,18 @@ export const useSystemMonitorDashboard = () => {
     return hpaTarget;
   }, [storeNodes, storeHpaInfo, hpaTarget]);
 
+  const toggleTheme = useCallback(() => {
+    const newMode: SystemMonitorColorMode = colorMode === 'dark' ? 'light' : 'dark';
+    setColorMode(newMode);
+    useFlowStore.getState().setColorMode(newMode);
+    const channel = new BroadcastChannel('monitoring-data');
+    channel.postMessage({ type: 'THEME_SYNC', colorMode: newMode });
+    channel.close();
+    getBackendGateway().emitEvent('theme-sync', newMode);
+    const runtime = (globalThis as any).runtime;
+    runtime?.EventsEmit?.('theme-sync', newMode);
+  }, [colorMode]);
+
   return {
     metrics,
     deployments,
@@ -217,6 +229,7 @@ export const useSystemMonitorDashboard = () => {
     isPaused,
     simulationSpeed,
     colorMode,
+    toggleTheme,
     timeRange,
     setTimeRange,
     simulatedTime,
