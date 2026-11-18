@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+
+declare const BrowserOpenURL: (url: string) => void;
 import {
   FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug,
-  Activity, ExternalLink, Bell, PlayCircle, Sliders, Terminal, FilePlus
+  Activity, Bell, PlayCircle, Sliders, Terminal, FilePlus
 } from 'lucide-react';
 import { useFlowStore, FlowState } from '@/store';
 import { validateHpaTargets } from '@/store/slices/simulationManager';
@@ -41,13 +43,14 @@ export const useMenuBarState = ({
   const stopSimulation = useFlowStore((state: FlowState) => state.stopSimulation);
   const isMonitoringOpen = useFlowStore((state: FlowState) => state.isMonitoringOpen);
   const setMonitoringOpen = useFlowStore((state: FlowState) => state.setMonitoringOpen);
-  const isMonitoringDetached = useFlowStore((state: FlowState) => state.isMonitoringDetached);
   const setMonitoringDetached = useFlowStore((state: FlowState) => state.setMonitoringDetached);
   const isSidebarVisible = useFlowStore((state: FlowState) => state.isSidebarVisible);
   const isRightSidebarVisible = useFlowStore((state: FlowState) => state.isRightSidebarVisible);
   const isHistoryViewOpen = useFlowStore((state: FlowState) => state.isHistoryViewOpen);
   const setHistoryViewOpen = useFlowStore((state: FlowState) => state.setHistoryViewOpen);
   const isAutofocusEnabled = useFlowStore((state: FlowState) => state.isAutofocusEnabled);
+  const isTerminalAutoOpenOnPlay = useFlowStore((state: FlowState) => state.isTerminalAutoOpenOnPlay);
+  const toggleTerminalAutoOpenOnPlay = useFlowStore((state: FlowState) => state.toggleTerminalAutoOpenOnPlay);
   const setSidebarVisible = useFlowStore((state: FlowState) => state.setSidebarVisible);
   const setRightSidebarVisible = useFlowStore((state: FlowState) => state.setRightSidebarVisible);
   const toggleAutofocus = useFlowStore((state: FlowState) => state.toggleAutofocus);
@@ -111,8 +114,6 @@ export const useMenuBarState = ({
   }, []);
 
   const menuItems = useMemo(() => {
-    const monitoringLabel = isMonitoringDetached ? 'Monitoring: Detached' : 'Simulation';
-
     return [
       {
         label: 'File',
@@ -179,8 +180,8 @@ export const useMenuBarState = ({
         label: 'View',
         items: [
           {
-            label: monitoringLabel,
-            icon: isMonitoringDetached ? ExternalLink : Activity,
+            label: 'System Monitor',
+            icon: Activity,
             onClick: () => {
               void getBackendGateway().openSimulationWindow();
               setMonitoringDetached(true);
@@ -212,6 +213,11 @@ export const useMenuBarState = ({
             label: 'Autofocus',
             checked: isAutofocusEnabled,
             onClick: toggleAutofocus
+          },
+          {
+            label: 'Auto-open Terminal on Play',
+            checked: isTerminalAutoOpenOnPlay,
+            onClick: toggleTerminalAutoOpenOnPlay
           },
           {
             label: 'Logs',
@@ -247,9 +253,9 @@ export const useMenuBarState = ({
   }, [
     onSave, onSaveAs, onImportFile, onExportYaml, onOpenProjects, onOpenScenarios, onOpenAbout, onOpenSettings, onNewArchitecture,
     currentProject, nodes, edges, colorMode,
-    isMonitoringDetached, isMonitoringOpen, setMonitoringOpen,
+    isMonitoringOpen, setMonitoringOpen, setMonitoringDetached,
     isSidebarVisible, isRightSidebarVisible, isHistoryViewOpen, setHistoryViewOpen,
-    isAutofocusEnabled, setSidebarVisible, setRightSidebarVisible, toggleAutofocus,
+    isAutofocusEnabled, isTerminalAutoOpenOnPlay, toggleTerminalAutoOpenOnPlay, setSidebarVisible, setRightSidebarVisible, toggleAutofocus,
     setLogModalOpen, isTerminalOpen, setTerminalOpen, setTerminalCommandTreeModalOpen
   ]);
 

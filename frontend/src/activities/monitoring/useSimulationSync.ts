@@ -36,12 +36,24 @@ export const useSimulationSync = (options?: SimulationSyncOptions) => {
       );
       const hasInternet = state.nodes.some((n) => n.type === 'Internet');
       const canStart = hasInternet;
+      const hpaNode = state.nodes.find((n) => n.type === 'HPA');
+      const attachedWorkloadWithHpa = state.nodes.find((n) => Array.isArray(n.data?.hpas) && n.data.hpas.length > 0);
+      const hasHpa = Boolean(hpaNode || attachedWorkloadWithHpa);
+      let hpaTarget = 80;
+      if (hpaNode?.data?.targetCPU) {
+        hpaTarget = Number(hpaNode.data.targetCPU) || 80;
+      } else if (attachedWorkloadWithHpa?.data?.hpas?.[0]?.targetCPU) {
+        hpaTarget = Number(attachedWorkloadWithHpa.data.hpas[0].targetCPU) || 80;
+      }
+
       broadcastMetrics(state.simulationMetrics, workloadNodes, {
         isSimulating: state.isSimulating,
         isPaused: state.isPaused,
         speed: state.simulationSpeed,
         canStart,
         hasInternet,
+        hasHpa,
+        hpaTarget,
       });
     };
 

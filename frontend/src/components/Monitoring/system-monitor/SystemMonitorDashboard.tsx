@@ -97,6 +97,8 @@ export const SystemMonitorDashboard = () => {
     sendControl,
     clusterTotals,
     canStart,
+    hasHpa,
+    hpaTarget,
   } = useSystemMonitorDashboard();
 
   useEffect(() => {
@@ -206,6 +208,8 @@ export const SystemMonitorDashboard = () => {
               colorMode={colorMode}
               interval={timeRange}
               isSimulating={isSimulating && !isPaused}
+              hasHpa={hasHpa}
+              hpaTarget={hpaTarget}
             />
 
             <SystemMonitorTimeSeriesPanel

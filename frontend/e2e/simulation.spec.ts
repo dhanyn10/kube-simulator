@@ -54,7 +54,7 @@ test.describe('Traffic Simulation', () => {
     // 5. Check Dashboard in Detached System Monitor window
     const popupPromise = page.waitForEvent('popup');
     await page.getByText('View', { exact: true }).click();
-    await page.getByText('Simulation', { exact: true }).click();
+    await page.getByText('System Monitor', { exact: true }).click();
     const monitorPage = await popupPromise;
     await expect(monitorPage.getByTestId('system-monitor-header')).toBeVisible();
     await expect(monitorPage.getByText('System Monitor', { exact: true })).toBeVisible();

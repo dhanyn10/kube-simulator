@@ -199,15 +199,17 @@ describe('simulationTraffic', () => {
         },
       };
 
+      const addActivityLog = vi.fn();
       const ctx: SimulationContext = {
         updatedNodes: [dep],
         nodeIndexMap: new Map([['dep-hpa', 0]]),
-        get: () => ({}) as any,
+        get: () => ({ addActivityLog }) as any,
       } as any;
 
       // targetCPU defaults to 50. At cpuPercent = 90, scale up occurs
       const scaled = handleHpaScaling(dep, 90, ctx);
       expect(scaled).toBe(true);
+      expect(addActivityLog).toHaveBeenCalledWith(expect.stringContaining('[HPA Autoscaler] Scaled up'));
     });
 
     it('handles connected HPA node with missing minReplicas, maxReplicas, and targetCPU fallbacks', () => {

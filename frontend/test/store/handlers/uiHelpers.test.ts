@@ -9,6 +9,10 @@ import {
   removeUserFromRole,
   purgeUserFromNodes,
   renameUserInNodeRoles,
+  parseLogLine,
+  formatLogLineWithCount,
+  deduplicateOrAppendLogLine,
+  deduplicateOrAppendLogLines,
 } from '@/store/handlers/uiHelpers';
 import { Node } from '@xyflow/react';
 import * as utils from '@/lib/utils';
@@ -26,6 +30,7 @@ describe('uiHelpers', () => {
         isRightSidebarVisible: true,
         isAutofocusEnabled: true,
         isMonitoringOpen: false,
+        isTerminalAutoOpenOnPlay: true,
         canvasBgVariant: 'lines',
         canvasBgColor: '#000000',
         canvasBgOpacity: 0.5,
@@ -38,6 +43,7 @@ describe('uiHelpers', () => {
         isRightSidebarVisible: true,
         isAutofocusEnabled: true,
         isMonitoringOpen: false,
+        isTerminalAutoOpenOnPlay: true,
         canvasBgVariant: 'lines',
         canvasBgColor: '#000000',
         canvasBgOpacity: 0.5,
@@ -276,6 +282,96 @@ describe('uiHelpers', () => {
       simulateAllResourceLogs(nodes, metrics, set);
 
       expect(set).not.toHaveBeenCalled();
+    });
+
+    it('throttles access logs when tick is not a multiple of 10', () => {
+      vi.spyOn(utils, 'safeRandom').mockReturnValue(0.8);
+      const set = vi.fn();
+      const nodes: Node[] = [{ id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'p1' } }];
+      const metrics = { p1: [{}] };
+
+      // Tick 3 is not a multiple of 10 -> allowAccessLogs is false -> no dummy HTTP log
+      simulateAllResourceLogs(nodes, metrics, set, { ticks: 3 });
+
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    it('suppresses access logs when hasActiveInternetTraffic is false', () => {
+      vi.spyOn(utils, 'safeRandom').mockReturnValue(0.8);
+      const set = vi.fn();
+      const nodes: Node[] = [{ id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'p1' } }];
+      const metrics = { p1: [{}] };
+
+      // Even on tick 10, if hasActiveInternetTraffic is false, access logs are suppressed
+      simulateAllResourceLogs(nodes, metrics, set, { ticks: 10, hasActiveInternetTraffic: false });
+
+      expect(set).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('log deduplication helpers', () => {
+    it('parseLogLine separates timestamp and core message, and detects repeat count', () => {
+      const line1 = '[2026-11-18T13:20:00.000Z] [kube-proxy] svc/web-service Direct routing';
+      const parsed1 = parseLogLine(line1);
+      expect(parsed1.timestamp).toBe('2026-11-18T13:20:00.000Z');
+      expect(parsed1.coreMessage).toBe('[kube-proxy] svc/web-service Direct routing');
+      expect(parsed1.count).toBe(1);
+
+      const line2 = '[2026-11-18T13:20:10.000Z] [kube-proxy] svc/web-service Direct routing (x5)';
+      const parsed2 = parseLogLine(line2);
+      expect(parsed2.timestamp).toBe('2026-11-18T13:20:10.000Z');
+      expect(parsed2.coreMessage).toBe('[kube-proxy] svc/web-service Direct routing');
+      expect(parsed2.count).toBe(5);
+
+      const line3 = 'pod/web status changed from Pending to Running';
+      const parsed3 = parseLogLine(line3);
+      expect(parsed3.timestamp).toBeNull();
+      expect(parsed3.coreMessage).toBe('pod/web status changed from Pending to Running');
+      expect(parsed3.count).toBe(1);
+    });
+
+    it('formatLogLineWithCount properly formats lines with or without count and timestamp', () => {
+      expect(formatLogLineWithCount('My message', '13:00', 1)).toBe('[13:00] My message');
+      expect(formatLogLineWithCount('My message', '13:05', 3)).toBe('[13:05] My message (x3)');
+      expect(formatLogLineWithCount('My message', null, 2)).toBe('My message (x2)');
+    });
+
+    it('deduplicateOrAppendLogLine appends first line and overwrites identical line with newest timestamp and count', () => {
+      const line1 = '[2026-11-18T13:20:00.000Z] [kube-proxy] svc/web-service Ingress on worker-1';
+      const line2 = '[2026-11-18T13:20:05.000Z] [kube-proxy] svc/web-service Ingress on worker-1';
+      const line3 = '[2026-11-18T13:20:10.000Z] [kube-proxy] svc/web-service Ingress on worker-1';
+      const diffLine = '[2026-11-18T13:20:15.000Z] [kube-proxy] svc/api-service Extra hop';
+
+      let logs: string[] = [];
+      logs = deduplicateOrAppendLogLine(logs, line1);
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toBe(line1);
+
+      logs = deduplicateOrAppendLogLine(logs, line2);
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toBe('[2026-11-18T13:20:05.000Z] [kube-proxy] svc/web-service Ingress on worker-1 (x2)');
+
+      logs = deduplicateOrAppendLogLine(logs, line3);
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toBe('[2026-11-18T13:20:10.000Z] [kube-proxy] svc/web-service Ingress on worker-1 (x3)');
+
+      logs = deduplicateOrAppendLogLine(logs, diffLine);
+      expect(logs).toHaveLength(2);
+      expect(logs[0]).toContain('(x3)');
+      expect(logs[1]).toBe(diffLine);
+    });
+
+    it('deduplicateOrAppendLogLines processes multiple lines sequentially', () => {
+      const input = [
+        '[12:00] Hello',
+        '[12:01] Hello',
+        '[12:02] World',
+        '[12:03] World',
+      ];
+      const result = deduplicateOrAppendLogLines([], input);
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBe('[12:01] Hello (x2)');
+      expect(result[1]).toBe('[12:03] World (x2)');
     });
   });
 

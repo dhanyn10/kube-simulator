@@ -32,6 +32,8 @@ interface SystemMonitorTimeSeriesPanelProps {
   colorMode?: 'dark' | 'light';
   interval?: TimeRangeFilter;
   isSimulating?: boolean;
+  hasHpa?: boolean;
+  hpaTarget?: number;
 }
 
 const getThresholdBorderColor = (color: ThresholdReferenceLine['color']): string => {
@@ -100,6 +102,8 @@ export const SystemMonitorTimeSeriesPanel = ({
   colorMode = 'dark',
   interval = '1h',
   isSimulating = true,
+  hasHpa = false,
+  hpaTarget = 80,
 }: SystemMonitorTimeSeriesPanelProps) => {
   const isDark = colorMode === 'dark';
 
@@ -124,8 +128,8 @@ export const SystemMonitorTimeSeriesPanel = ({
 
   const thresholdLines = useMemo(() => {
     if (!showThresholds) return [];
-    return getThresholdReferenceLines(metricKey, dynamicMax, deployments, metrics, maxVal);
-  }, [showThresholds, metricKey, dynamicMax, deployments, metrics, maxVal]);
+    return getThresholdReferenceLines(metricKey, dynamicMax, deployments, metrics, maxVal, hasHpa, hpaTarget);
+  }, [showThresholds, metricKey, dynamicMax, deployments, metrics, maxVal, hasHpa, hpaTarget]);
 
   const seriesData = useMemo(() => {
     return deployments.map((dep, idx) => {

@@ -207,30 +207,32 @@ describe('MenuBar', () => {
     });
   });
 
-  it('handles View > Simulation menu item by directly opening detached simulation window', async () => {
+  it('handles View > System Monitor menu item by directly opening detached simulation window and retains name when detached', async () => {
     const setMonitoringOpen = vi.spyOn(useFlowStore.getState(), 'setMonitoringOpen');
     const setMonitoringDetached = vi.spyOn(useFlowStore.getState(), 'setMonitoringDetached');
 
-    // Case 1: Initial state -> clicking Simulation directly enters detached mode (View 2)
+    // Case 1: Initial state -> clicking System Monitor directly enters detached mode (View 2)
     await act(async () => {
       useFlowStore.setState({ isMonitoringOpen: false, isMonitoringDetached: false });
     });
     const { rerender } = render(<MenuBar {...defaultProps} />);
 
     fireEvent.click(screen.getByText('View'));
-    fireEvent.click(screen.getByText('Simulation'));
+    fireEvent.click(screen.getByText('System Monitor'));
     expect(setMonitoringDetached).toHaveBeenCalledWith(true);
     expect(setMonitoringOpen).toHaveBeenCalledWith(true);
 
-    // Case 2: Already in detached mode -> menu shows detached label and clicking refocuses window
+    // Case 2: Already in detached mode -> menu STILL shows 'System Monitor' and clicking refocuses window
     await act(async () => {
       useFlowStore.setState({ isMonitoringOpen: true, isMonitoringDetached: true });
     });
     rerender(<MenuBar {...defaultProps} />);
 
     fireEvent.click(screen.getByText('View'));
-    expect(screen.getByText('Monitoring: Detached')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Monitoring: Detached'));
+    expect(screen.getByText('System Monitor')).toBeInTheDocument();
+    expect(screen.queryByText('Monitoring: Detached')).not.toBeInTheDocument();
+    expect(screen.queryByText('Simulation')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('System Monitor'));
     expect(setMonitoringDetached).toHaveBeenCalledTimes(2);
   });
 

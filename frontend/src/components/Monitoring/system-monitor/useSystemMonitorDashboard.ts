@@ -1,7 +1,22 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getBackendGateway } from '@/gateway';
+import { useFlowStore } from '@/store';
 import { SimulationMetricPoint } from '@/store/types';
 import { TimeRangeFilter, DeploymentSummary, SystemMonitorClusterTotals, SimulationSpeed, SystemMonitorColorMode } from './types';
+
+const resolveStoreHpaInfo = (nodes: any[]): { hasHpa: boolean; targetCPU: number } => {
+  if (!nodes || nodes.length === 0) return { hasHpa: false, targetCPU: 80 };
+  const hpaNode = nodes.find((n) => n.type === 'HPA');
+  const attached = nodes.find((n) => Array.isArray(n.data?.hpas) && n.data.hpas.length > 0);
+  const exists = Boolean(hpaNode || attached);
+  let target = 80;
+  if (hpaNode?.data?.targetCPU) {
+    target = Number(hpaNode.data.targetCPU) || 80;
+  } else if (attached?.data?.hpas?.[0]?.targetCPU) {
+    target = Number(attached.data.hpas[0].targetCPU) || 80;
+  }
+  return { hasHpa: exists, targetCPU: target };
+};
 
 export const useSystemMonitorDashboard = () => {
   const [metrics, setMetrics] = useState<Record<string, SimulationMetricPoint[]>>({});
@@ -13,6 +28,11 @@ export const useSystemMonitorDashboard = () => {
   const [timeRange, setTimeRange] = useState<TimeRangeFilter>('1h');
   const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
   const [canStart, setCanStart] = useState<boolean>(false);
+  const [hasHpa, setHasHpa] = useState<boolean>(false);
+  const [hpaTarget, setHpaTarget] = useState<number>(80);
+
+  const storeNodes = useFlowStore((state) => state.nodes);
+  const storeHpaInfo = useMemo(() => resolveStoreHpaInfo(storeNodes), [storeNodes]);
 
   const simulatedTime = useMemo(() => {
     const firstDeploymentMetrics = Object.values(metrics)[0];
@@ -37,6 +57,15 @@ export const useSystemMonitorDashboard = () => {
     if (typeof data.isSimulating === 'boolean') setIsSimulating(data.isSimulating);
     if (typeof data.isPaused === 'boolean') setIsPaused(data.isPaused);
     if (data.speed) setSimulationSpeed(data.speed);
+    if (typeof data.hasHpa === 'boolean') {
+      setHasHpa(data.hasHpa);
+    } else if (Array.isArray(data.deployments)) {
+      const depHasHpa = data.deployments.some((d: any) => d.hasHpa || (Array.isArray(d.hpas) && d.hpas.length > 0));
+      setHasHpa(depHasHpa);
+    }
+    if (typeof data.hpaTarget === 'number' && !Number.isNaN(data.hpaTarget)) {
+      setHpaTarget(data.hpaTarget);
+    }
     setLastUpdated(Date.now());
   }, []);
 
@@ -160,6 +189,20 @@ export const useSystemMonitorDashboard = () => {
     };
   }, [deployments, metrics]);
 
+  const effectiveHasHpa = useMemo(() => {
+    if (storeNodes && storeNodes.length > 0) {
+      return storeHpaInfo.hasHpa;
+    }
+    return hasHpa;
+  }, [storeNodes, storeHpaInfo.hasHpa, hasHpa]);
+
+  const effectiveHpaTarget = useMemo(() => {
+    if (storeNodes && storeNodes.length > 0 && storeHpaInfo.hasHpa) {
+      return storeHpaInfo.targetCPU;
+    }
+    return hpaTarget;
+  }, [storeNodes, storeHpaInfo, hpaTarget]);
+
   return {
     metrics,
     deployments,
@@ -174,5 +217,7 @@ export const useSystemMonitorDashboard = () => {
     sendControl,
     clusterTotals,
     canStart,
+    hasHpa: effectiveHasHpa,
+    hpaTarget: effectiveHpaTarget,
   };
 };

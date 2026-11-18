@@ -188,10 +188,31 @@ describe('SystemMonitor UI Components', () => {
     );
     expect(screen.getByText('web-server')).toBeDefined();
     expect(screen.getAllByText('60%')[0]).toBeDefined();
-    expect(screen.getByText('80% HPA')).toBeDefined();
-    expect(screen.getByText('80% HPA Target')).toBeDefined();
+    // When hasHpa is false (no HPA on canvas), HPA helper line is NOT shown
+    expect(screen.queryByText('80% HPA')).toBeNull();
+    expect(screen.queryByText('80% HPA Target')).toBeNull();
     expect(screen.getByText('90% Throttle')).toBeDefined();
     expect(screen.getByText('90% Throttle Risk')).toBeDefined();
+
+    // Rerender with hasHpa=true -> HPA helper line is shown
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        description="CPU per deployment"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 2 }]}
+        metrics={{
+          'dep-1': [
+            { cpuPercent: 30, memoryPercent: 40, isThrottled: false, isOOM: false },
+            { cpuPercent: 60, memoryPercent: 50, isThrottled: false, isOOM: false }
+          ]
+        }}
+        metricKey="cpuPercent"
+        showThresholds={true}
+        hasHpa={true}
+      />
+    );
+    expect(screen.getByText('80% HPA')).toBeDefined();
+    expect(screen.getByText('80% HPA Target')).toBeDefined();
 
     // Rerender with Memory Allocation panel
     rerender(

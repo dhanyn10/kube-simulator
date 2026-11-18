@@ -7,6 +7,8 @@ export interface DeploymentSummary {
   label: string;
   replicas: number;
   type?: string;
+  hasHpa?: boolean;
+  hpas?: Array<{ targetCPU?: number }>;
 }
 
 export interface SystemMonitorClusterTotals {

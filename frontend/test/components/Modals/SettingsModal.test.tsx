@@ -83,6 +83,10 @@ describe('SettingsModal', () => {
     const autofocusCheckbox = screen.getByLabelText('Toggle Autofocus');
     fireEvent.click(autofocusCheckbox);
     expect(useFlowStore.getState().isAutofocusEnabled).toBe(true);
+
+    const autoOpenCheckbox = screen.getByLabelText('Toggle Auto-open Terminal on Play');
+    fireEvent.click(autoOpenCheckbox);
+    expect(useFlowStore.getState().isTerminalAutoOpenOnPlay).toBe(true);
   });
 
   it('updates canvas background variants on Canvas tab', () => {

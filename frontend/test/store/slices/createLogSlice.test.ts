@@ -100,6 +100,26 @@ describe('createLogSlice', () => {
     expect(mockWriteLog).toHaveBeenCalledWith('UI', 'error', 'Error occurred');
   });
 
+  it('deduplicates consecutive identical log entries in place and increments repeat count', () => {
+    const mockWriteLog = vi.fn().mockResolvedValue(true);
+    (globalThis as any).go = { main: { App: { WriteLog: mockWriteLog } } };
+
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    storeState = { ...storeState, ...slice };
+
+    storeState.addLog('info', '[12:00:00] Repeated network pulse', 'Simulation');
+    expect(storeState.logs).toHaveLength(1);
+    expect(storeState.logs[0].message).toBe('[12:00:00] Repeated network pulse');
+
+    storeState.addLog('info', '[12:00:05] Repeated network pulse', 'Simulation');
+    expect(storeState.logs).toHaveLength(1);
+    expect(storeState.logs[0].message).toBe('[12:00:05] Repeated network pulse (x2)');
+
+    storeState.addLog('info', '[12:00:10] Repeated network pulse', 'Simulation');
+    expect(storeState.logs).toHaveLength(1);
+    expect(storeState.logs[0].message).toBe('[12:00:10] Repeated network pulse (x3)');
+  });
+
   it('addLog defaults scope to System and app for Wails backend when scope is omitted', () => {
     const mockWriteLog = vi.fn().mockRejectedValue(new Error('Write fail'));
     (globalThis as any).go = {

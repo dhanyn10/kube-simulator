@@ -116,12 +116,14 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
   const isMonitoringOpen = useFlowStore((state) => state.isMonitoringOpen);
   const isAutofocusEnabled = useFlowStore((state) => state.isAutofocusEnabled);
   const isAutosaveEnabled = useFlowStore((state) => state.isAutosaveEnabled);
+  const isTerminalAutoOpenOnPlay = useFlowStore((state) => state.isTerminalAutoOpenOnPlay);
 
   const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
   const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
   const setMonitoringOpen = useFlowStore((state) => state.setMonitoringOpen);
   const toggleAutofocus = useFlowStore((state) => state.toggleAutofocus);
   const toggleAutosave = useFlowStore((state) => state.toggleAutosave);
+  const toggleTerminalAutoOpenOnPlay = useFlowStore((state) => state.toggleTerminalAutoOpenOnPlay);
 
   const canvasBgVariant = useFlowStore((state) => state.canvasBgVariant);
   const canvasBgColor = useFlowStore((state) => state.canvasBgColor);
@@ -201,11 +203,13 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
     isMonitoringOpen,
     isAutofocusEnabled,
     isAutosaveEnabled,
+    isTerminalAutoOpenOnPlay,
     setSidebarVisible,
     setRightSidebarVisible,
     setMonitoringOpen,
     toggleAutofocus,
     toggleAutosave,
+    toggleTerminalAutoOpenOnPlay,
     canvasBgVariant,
     canvasBgColor,
     canvasBgOpacity,

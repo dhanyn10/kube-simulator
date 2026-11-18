@@ -1,6 +1,7 @@
 import { StateCreator } from 'zustand';
 import type { FlowState, LogEntry, LogLevel, LogScope } from '@/store/types';
 import { getBackendGateway } from '@/gateway';
+import { parseLogLine, formatLogLineWithCount } from '@/store/handlers/uiHelpers';
 
 export interface LogSlice {
   logs: LogEntry[];
@@ -59,26 +60,62 @@ const saveLogsToStorage = (logs: LogEntry[]) => {
   }
 };
 
+const isSameLogEntry = (
+  lastLog: LogEntry | null,
+  level: LogLevel,
+  scope: string,
+  lastParsed: { coreMessage: string } | null,
+  newParsed: { coreMessage: string }
+): boolean => {
+  if (!lastLog || !lastParsed) return false;
+  const lastScope = lastLog.scope || 'System';
+  return lastLog.level === level && lastScope === scope && lastParsed.coreMessage === newParsed.coreMessage;
+};
+
 export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, get) => {
   const initialLogs = loadLogsFromStorage();
 
   return {
     logs: initialLogs,
-    isLogToastVisible: initialLogs.some(l => l.level === 'error' || l.level === 'fatal' || l.level === 'warn'),
+    isLogToastVisible: initialLogs.some(l => (l.level === 'error' || l.level === 'fatal' || l.level === 'warn') && l.scope !== 'Simulation'),
     isLogModalOpen: false,
     addLog: (level, message, scope) => {
+      const effectiveScope = scope || 'System';
+      const currentLogs = get().logs;
+      const lastLog = currentLogs.at(-1) ?? null;
+
+      const lastParsed = lastLog ? parseLogLine(lastLog.message) : null;
+      const newParsed = parseLogLine(message);
+
+      if (isSameLogEntry(lastLog, level, effectiveScope, lastParsed, newParsed) && lastParsed) {
+        const nextTimestamp = newParsed.timestamp;
+        const updatedMessage = formatLogLineWithCount(
+          lastParsed.coreMessage,
+          nextTimestamp,
+          lastParsed.count + 1
+        );
+        const updatedLastLog: LogEntry = {
+          ...lastLog!,
+          timestamp: Date.now(),
+          message: updatedMessage,
+        };
+        const updatedLogs = [...currentLogs.slice(0, -1), updatedLastLog];
+        set({ logs: updatedLogs });
+        saveLogsToStorage(updatedLogs);
+        return;
+      }
+
       const newLog: LogEntry = {
         id: crypto.randomUUID(),
         level,
-        scope: scope || 'System',
+        scope: effectiveScope,
         message,
         timestamp: Date.now(),
       };
 
-      const currentLogs = get().logs;
       const updatedLogs = [...currentLogs, newLog].slice(-MAX_LOGS);
 
-      const isImportant = level === 'error' || level === 'fatal' || level === 'warn';
+      const isImportant = (level === 'error' || level === 'fatal' || level === 'warn') && scope !== 'Simulation';
       const newState: Partial<LogSlice> = {
         logs: updatedLogs,
       };

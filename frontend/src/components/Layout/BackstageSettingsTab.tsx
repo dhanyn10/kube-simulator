@@ -15,6 +15,7 @@ export interface BackstageSettingsTabProps {
   readonly isRightSidebarVisible: boolean;
   readonly isMonitoringOpen: boolean;
   readonly isAutofocusEnabled: boolean;
+  readonly isTerminalAutoOpenOnPlay?: boolean;
   readonly canvasBgVariant: 'dots' | 'lines' | 'cross';
   readonly canvasBgColor: string;
   readonly canvasBgOpacity: number;
@@ -22,6 +23,7 @@ export interface BackstageSettingsTabProps {
   readonly setRightSidebarVisible: (val: boolean) => void;
   readonly setMonitoringOpen: (val: boolean) => void;
   readonly toggleAutofocus: () => void;
+  readonly toggleTerminalAutoOpenOnPlay?: () => void;
   readonly setCanvasBgVariant: (val: 'dots' | 'lines' | 'cross') => void;
   readonly setCanvasBgColor: (val: string) => void;
   readonly setCanvasBgOpacity: (val: number) => void;
@@ -37,6 +39,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
   isRightSidebarVisible,
   isMonitoringOpen,
   isAutofocusEnabled,
+  isTerminalAutoOpenOnPlay,
   canvasBgVariant,
   canvasBgColor,
   canvasBgOpacity,
@@ -44,6 +47,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
   setRightSidebarVisible,
   setMonitoringOpen,
   toggleAutofocus,
+  toggleTerminalAutoOpenOnPlay,
   setCanvasBgVariant,
   setCanvasBgColor,
   setCanvasBgOpacity,
@@ -136,6 +140,25 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
               aria-label="Autofocus"
               checked={isAutofocusEnabled}
               onChange={() => toggleAutofocus()}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+            />
+          </label>
+
+          <label
+            htmlFor="setting-terminal-auto-open"
+            aria-label="Auto-open Terminal Toggle"
+            className={getSettingLabelClass(isDark)}
+          >
+            <div className="flex flex-col">
+              <span className="text-sm font-bold">Auto-open Terminal on Play</span>
+              <span className="text-xs opacity-60">Automatically open Kube Console when starting simulation</span>
+            </div>
+            <input
+              id="setting-terminal-auto-open"
+              type="checkbox"
+              aria-label="Auto-open Terminal on Play"
+              checked={Boolean(isTerminalAutoOpenOnPlay)}
+              onChange={() => toggleTerminalAutoOpenOnPlay?.()}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
             />
           </label>

@@ -30,6 +30,7 @@ import {
   simulateAllResourceLogs,
   purgeUserFromNodes,
   renameUserInNodeRoles,
+  deduplicateOrAppendLogLine,
 } from '../handlers/uiHelpers';
 import { dispatchLiveCommand } from '@/activities/terminal/liveUpdateCommands';
 
@@ -95,6 +96,9 @@ export interface UiSlice {
   draggingSidebarItem: K8sResourceType | null;
   isAutosaveEnabled: boolean;
   isAutofocusEnabled: boolean;
+  isTerminalAutoOpenOnPlay: boolean;
+  setTerminalAutoOpenOnPlay: (open: boolean) => void;
+  toggleTerminalAutoOpenOnPlay: () => void;
   isSidebarVisible: boolean;
   isRightSidebarVisible: boolean;
   isSimulating: boolean;
@@ -410,7 +414,10 @@ const runSimulationTick = (params: {
     get,
     set,
     onLog: (level, message, category) => {
-      get()?.addLog?.(level, message, category);
+      if (category === 'Simulation' && (level === 'warning' || level === 'error')) {
+        get()?.addActivityLog?.(`[${category}] ${message}`);
+      }
+      get()?.addLog?.(level as any, message, 'Simulation');
     },
     syncDeployment,
     nodeMap,
@@ -442,7 +449,21 @@ const runSimulationTick = (params: {
   });
 
   // Simulate logs for ALL resources continuously in the background
-  simulateAllResourceLogs(updatedNodes, newMetrics, set);
+  const hasActiveInternet = internetNodes.some(n => Number(n.data?.traffic ?? n.data?.trafficSpeed ?? 1) > 0);
+  const activeReachableNodeIds = new Set<string>();
+  if (ctx.internetReachableMap) {
+    for (const reachableSet of ctx.internetReachableMap.values()) {
+      for (const id of reachableSet) {
+        activeReachableNodeIds.add(id);
+      }
+    }
+  }
+
+  simulateAllResourceLogs(updatedNodes, newMetrics, set, {
+    ticks,
+    hasActiveInternetTraffic: hasActiveInternet,
+    reachableNodeIds: activeReachableNodeIds,
+  });
 
   // Append pod creation activity logs on ticks 1, 2, and 3
   handleTicksActivityLogs(ticks, workloads, set);
@@ -451,13 +472,17 @@ const runSimulationTick = (params: {
 
   const stopParams = { ticks, workloads, nodes: updatedNodes, metrics: newMetrics, set, simulationInterval: simulationIntervalObj };
   if (!checkEmergencyStop(stopParams)) {
+    const hasHpa = updatedNodes.some(
+      n => n.type === 'HPA' || (Array.isArray(n.data?.hpas) && n.data.hpas.length > 0)
+    );
     broadcastMetrics(
       newMetrics,
       updatedNodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)),
       {
         isSimulating: state.isSimulating,
         isPaused: state.isPaused,
-        speed: state.simulationSpeed
+        speed: state.simulationSpeed,
+        hasHpa,
       }
     );
   }
@@ -553,7 +578,7 @@ const startSimulationInternal = (
     set: FlowStateSetter,
     get: () => FlowState
   ) => {
-      const { nodes, edges, colorMode, simulationMetrics, isPaused } = get();
+      const { nodes, edges, colorMode, simulationMetrics, isPaused, simulationSpeed, isTerminalAutoOpenOnPlay } = get();
 
       if (!validateHpaTargets(nodes, edges)) {
           logger.error('[Simulation] ERROR: HPA requires resource limits on target workloads.');
@@ -565,7 +590,17 @@ const startSimulationInternal = (
       }
 
       const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId));
-      broadcastMetrics(simulationMetrics, workloads);
+      const hasHpa = nodes.some(
+        n => n.type === 'HPA' || (Array.isArray(n.data?.hpas) && n.data.hpas.length > 0)
+      );
+      broadcastMetrics(simulationMetrics, workloads, {
+        isSimulating: true,
+        isPaused: false,
+        speed: simulationSpeed,
+        canStart: true,
+        hasInternet: true,
+        hasHpa,
+      });
 
       const metricsChannel = getMetricsChannel();
       if (metricsChannel) {
@@ -605,7 +640,7 @@ const startSimulationInternal = (
         ...internetConfigState,
         ...(isPaused ? {} : {
           simulationMetrics: {},
-          isTerminalOpen: true,
+          ...(isTerminalAutoOpenOnPlay ? { isTerminalOpen: true } : {}),
           terminalActiveTab: 'activity',
           activityLogs: buildInitialActivity(nodes),
           terminalLogs: initialTerminalLogs,
@@ -830,6 +865,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   draggingSidebarItem: null,
   isAutosaveEnabled: true,
   isAutofocusEnabled: false,
+  isTerminalAutoOpenOnPlay: false,
   isSidebarVisible: true,
   isRightSidebarVisible: true,
   isSimulating: false,
@@ -895,14 +931,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     return {
       terminalLogs: {
         ...state.terminalLogs,
-        [resourceId]: [...logs, line].slice(-200)
+        [resourceId]: deduplicateOrAppendLogLine(logs, line).slice(-200)
       }
     };
   }),
   addActivityLog: (line) => {
     getBackendGateway().writeLog('history', 'info', line).catch(() => {});
     set((state) => ({
-      activityLogs: [...state.activityLogs, line].slice(-200)
+      activityLogs: deduplicateOrAppendLogLine(state.activityLogs, line).slice(-200)
     }));
   },
   clearTerminalLogs: () => set({ terminalLogs: {}, activityLogs: [] }),
@@ -936,6 +972,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       isRightSidebarVisible: state.isRightSidebarVisible,
       isAutofocusEnabled: state.isAutofocusEnabled,
       isMonitoringOpen: state.isMonitoringOpen,
+      isTerminalAutoOpenOnPlay: state.isTerminalAutoOpenOnPlay,
       canvasBgVariant: state.canvasBgVariant,
       canvasBgColor: state.canvasBgColor,
       canvasBgOpacity: state.canvasBgOpacity,
@@ -1050,6 +1087,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   }),
   toggleAutofocus: () => {
     set((state: FlowState) => ({ isAutofocusEnabled: !state.isAutofocusEnabled }));
+    get().saveSettingsJson();
+  },
+  setTerminalAutoOpenOnPlay: (open) => {
+    set({ isTerminalAutoOpenOnPlay: open });
+    get().saveSettingsJson();
+  },
+  toggleTerminalAutoOpenOnPlay: () => {
+    set((state: FlowState) => ({ isTerminalAutoOpenOnPlay: !state.isTerminalAutoOpenOnPlay }));
     get().saveSettingsJson();
   },
   setSidebarVisible: (visible) => {
