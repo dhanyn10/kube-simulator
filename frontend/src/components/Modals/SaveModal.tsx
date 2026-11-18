@@ -48,6 +48,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
   );
 
   const position = useContextMenuPosition(contextMenu?.x ?? 0, contextMenu?.y ?? 0, contextMenuRef);
+  const isDark = colorMode === 'dark';
 
   if (!isOpen) return null;
 
@@ -84,15 +85,15 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
               <Folder size={18} />
             </div>
             <div>
-              <div className="text-xs font-bold tracking-tight text-slate-200 font-mono">
+              <div className={cn("text-xs font-bold tracking-tight font-mono", isDark ? "text-slate-200" : "text-slate-800")}>
                 {getHeaderProfileName(currentProject, newProjectName)}
               </div>
               <p
                 title={activeLocation}
-                className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 mt-0.5 cursor-help"
+                className={cn("text-[11px] font-mono flex items-center gap-1.5 mt-0.5 cursor-help", isDark ? "text-slate-400" : "text-slate-600")}
               >
                 <span>Location:</span>
-                <span className="text-blue-400 font-bold truncate max-w-[360px]">{activeLocation}</span>
+                <span className="text-blue-500 font-bold truncate max-w-[360px]">{activeLocation}</span>
               </p>
               <ResourceBadgeList
                 resources={currentCanvasResources}
@@ -104,14 +105,14 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
             </div>
           </div>
           <div className="text-right">
-            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">Date Modified</span>
-            <span className="text-[11px] font-mono font-medium text-slate-300">{formatDateModified(Date.now())}</span>
+            <span className={cn("text-[10px] uppercase font-bold tracking-wider block", isDark ? "text-slate-500" : "text-slate-500")}>Date Modified</span>
+            <span className={cn("text-[11px] font-mono font-medium", isDark ? "text-slate-300" : "text-slate-600")}>{formatDateModified(Date.now())}</span>
           </div>
         </div>
 
         {/* Quick Save / Name Input */}
         <div className="space-y-2">
-          <label htmlFor="save-modal-project-name" className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block">
+          <label htmlFor="save-modal-project-name" className={cn("text-[11px] uppercase font-bold tracking-wider block", isDark ? "text-slate-400" : "text-slate-600")}>
             Save Current Architecture
           </label>
           <div className="flex gap-2">

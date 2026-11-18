@@ -110,6 +110,8 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     handleManualAutoSave
   } = useInternetProfileModal(isOpen, selectedNode, performUpdate, onClose);
 
+  const isDark = colorMode === 'dark';
+
   let autoSaveButtonContent: React.ReactNode;
   if (autoSaveStatus === 'saving') {
     autoSaveButtonContent = (
@@ -156,7 +158,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
             <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
               <div className="flex items-center gap-2">
                 <LayoutGrid size={16} className="text-blue-500" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                <h3 className={cn("text-xs font-bold uppercase tracking-wider", isDark ? "text-slate-300" : "text-slate-700")}>
                   Select Connection Simulation Profile
                 </h3>
               </div>
@@ -220,7 +222,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                       </div>
 
                       {/* Template Title */}
-                      <h4 className="text-xs font-bold text-slate-200 dark:text-slate-100 line-clamp-1 mb-1">
+                      <h4 className={cn("text-xs font-bold line-clamp-1 mb-1", isDark ? "text-slate-100" : "text-slate-800")}>
                         {p.name}
                       </h4>
 
@@ -235,13 +237,13 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                     </div>
 
                     {/* Metrics Summary */}
-                    <div className="pt-2 my-1 border-t border-slate-800/60 flex items-center justify-between text-[10px] font-mono font-semibold text-slate-400">
-                      <span>Min: <strong className="text-slate-200">{minVal >= 1000 ? `${(minVal / 1000).toFixed(1)}k` : minVal}</strong></span>
-                      <span className="text-blue-400">Max: <strong className="text-blue-400">{maxVal >= 1000 ? `${(maxVal / 1000).toFixed(1)}k` : maxVal}</strong></span>
+                    <div className={cn("pt-2 my-1 border-t flex items-center justify-between text-[10px] font-mono font-semibold", isDark ? "border-slate-800/60 text-slate-400" : "border-slate-200 text-slate-600")}>
+                      <span>Min: <strong className={isDark ? "text-slate-200" : "text-slate-800"}>{minVal >= 1000 ? `${(minVal / 1000).toFixed(1)}k` : minVal}</strong></span>
+                      <span className="text-blue-500">Max: <strong className="text-blue-500">{maxVal >= 1000 ? `${(maxVal / 1000).toFixed(1)}k` : maxVal}</strong></span>
                     </div>
 
                     {/* Action Buttons: Apply & Details (Both typical outline buttons) */}
-                    <div className="pt-2 flex items-center gap-2 border-t border-slate-800/40">
+                    <div className={cn("pt-2 flex items-center gap-2 border-t", isDark ? "border-slate-800/40" : "border-slate-200")}>
                       <button
                         type="button"
                         onClick={() => handleApplyProfile(p.name)}
@@ -256,7 +258,10 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
 
                       <div className="relative group flex-1">
                         {isSimulating && (
-                          <div className="absolute inset-0 z-20 rounded-lg bg-slate-950/90 backdrop-blur-xs flex items-center justify-center gap-1.5 p-1 border border-amber-500/40 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                          <div className={cn(
+                            "absolute inset-0 z-20 rounded-lg backdrop-blur-xs flex items-center justify-center gap-1.5 p-1 border opacity-0 group-hover:opacity-100 transition-all duration-200",
+                            isDark ? "bg-slate-950/90 border-amber-500/40" : "bg-white/95 border-amber-400/60 shadow-md"
+                          )}>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -306,8 +311,11 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               {/* Add Custom Profile Template Card */}
               <div className="relative group min-h-[160px] w-full">
                 {isSimulating && (
-                  <div className="absolute inset-0 z-20 rounded-xl bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-3 text-center gap-2.5 opacity-0 group-hover:opacity-100 transition-all duration-200 border border-amber-500/30">
-                    <span className="text-[11px] font-bold text-amber-400">
+                  <div className={cn(
+                    "absolute inset-0 z-20 rounded-xl backdrop-blur-xs flex flex-col items-center justify-center p-3 text-center gap-2.5 opacity-0 group-hover:opacity-100 transition-all duration-200 border",
+                    isDark ? "bg-slate-950/85 border-amber-500/30" : "bg-white/95 border-amber-400/60 shadow-lg"
+                  )}>
+                    <span className={cn("text-[11px] font-bold", isDark ? "text-amber-400" : "text-amber-600")}>
                       Pause or Stop simulation to add custom profile
                     </span>
                     <div className="flex items-center gap-2">

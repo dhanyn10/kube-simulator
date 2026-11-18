@@ -196,13 +196,18 @@ const SpeedSelector = ({
 const TimeRangeSelector = ({
   timeRange,
   setTimeRange,
+  isDark,
 }: {
   timeRange: TimeRangeFilter;
   setTimeRange: (t: TimeRangeFilter) => void;
+  isDark: boolean;
 }) => (
-  <div className="flex items-center gap-1 px-2 py-1 rounded border border-slate-700/60 bg-slate-900/40 text-[10px] font-mono text-slate-300">
-    <Clock size={12} className="text-slate-400" />
-    <span className="text-slate-400 font-sans text-[10px] mr-0.5">Interval:</span>
+  <div className={cn(
+    "flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-mono",
+    isDark ? "border-slate-700/60 bg-slate-900/40 text-slate-300" : "border-slate-200 bg-slate-100 text-slate-700"
+  )}>
+    <Clock size={12} className={isDark ? "text-slate-400" : "text-slate-500"} />
+    <span className={cn("font-sans text-[10px] mr-0.5", isDark ? "text-slate-400" : "text-slate-500")}>Interval:</span>
     {TIME_RANGE_OPTIONS.map((range) => (
       <button
         key={`range-${range}`}
@@ -210,7 +215,9 @@ const TimeRangeSelector = ({
         onClick={() => setTimeRange(range)}
         className={cn(
           'px-1.5 py-0.5 rounded transition-colors',
-          timeRange === range ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+          timeRange === range
+            ? 'bg-blue-600 text-white font-bold'
+            : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
         )}
       >
         {range}
@@ -260,8 +267,8 @@ export const SystemMonitorHeader = ({
           <ClusterLogo />
           <span className="font-bold text-[11px] tracking-wide">Kube Simulator</span>
           <span className="text-slate-500 text-[11px]">/</span>
-          <span className="font-semibold text-[11px] text-blue-400 font-mono">System Monitor</span>
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono border border-slate-700">Cluster</span>
+          <span className={cn("font-semibold text-[11px] font-mono", isDark ? "text-blue-400" : "text-blue-600")}>System Monitor</span>
+          <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-mono border", isDark ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-slate-200 text-slate-600 border-slate-300")}>Cluster</span>
         </div>
 
         {/* Center Draggable Spacer */}
@@ -286,9 +293,12 @@ export const SystemMonitorHeader = ({
           <SystemMonitorLiveStatus isSimulating={isSimulating} isPaused={isPaused} />
 
           {/* Simulated 24-Hour Timeline Clock */}
-          <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded border border-slate-700/60 bg-slate-900/60 text-[10px] font-mono text-slate-300">
-            <Clock size={11} className="text-blue-400" />
-            <span>Time: <strong className="text-white font-bold">{simulatedTime}</strong> <span className="text-slate-500 text-[9px]">/ 24h</span></span>
+          <div className={cn(
+            "hidden sm:flex items-center gap-1.5 px-2 py-1 rounded border text-[10px] font-mono",
+            isDark ? "border-slate-700/60 bg-slate-900/60 text-slate-300" : "border-slate-200 bg-slate-100 text-slate-700"
+          )}>
+            <Clock size={11} className={isDark ? "text-blue-400" : "text-blue-600"} />
+            <span>Time: <strong className={cn("font-bold", isDark ? "text-white" : "text-slate-900")}>{simulatedTime}</strong> <span className={cn("text-[9px]", isDark ? "text-slate-500" : "text-slate-400")}>/ 24h</span></span>
           </div>
 
           <SimulationPlaybackControls
@@ -314,10 +324,13 @@ export const SystemMonitorHeader = ({
 
         {/* Right: Time Range & Refresh Clock */}
         <div className="flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
-          <TimeRangeSelector timeRange={timeRange} setTimeRange={setTimeRange} />
+          <TimeRangeSelector timeRange={timeRange} setTimeRange={setTimeRange} isDark={isDark} />
 
           {/* Sync Rate Indicator */}
-          <div className="flex items-center gap-1 text-[10px] font-mono text-slate-400 px-2 py-1 rounded bg-slate-900/40 border border-slate-800">
+          <div className={cn(
+            "flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded border",
+            isDark ? "bg-slate-900/40 border-slate-800 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-600"
+          )}>
             <RefreshCw size={11} className={cn('text-blue-400', isSimulating && !isPaused && 'animate-spin')} />
             <span>{tickInterval}</span>
           </div>

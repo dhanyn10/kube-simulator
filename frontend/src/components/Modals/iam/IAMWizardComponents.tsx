@@ -66,8 +66,10 @@ export const IAMStepper: React.FC<IAMStepperProps> = ({ currentStep, colorMode, 
         type="button"
         onClick={onReset}
         className={cn(
-          'flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors pt-4 border-t cursor-pointer',
-          isDark ? 'border-slate-800' : 'border-slate-200'
+          'flex items-center gap-1.5 text-xs transition-colors pt-4 border-t cursor-pointer',
+          isDark
+            ? 'border-slate-800 text-slate-400 hover:text-slate-200'
+            : 'border-slate-200 text-slate-500 hover:text-slate-800'
         )}
       >
         <ArrowLeft size={12} />
@@ -280,14 +282,14 @@ export const IAMStep3Review: React.FC<IAMStep3ReviewProps> = ({
       </div>
 
       <div className={cn('p-4 rounded-lg border space-y-3', isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-slate-50 border-slate-200')}>
-        <div className="flex justify-between items-center pb-2 border-b border-slate-700/40">
+        <div className={cn("flex justify-between items-center pb-2 border-b", isDark ? "border-slate-700/40" : "border-slate-200")}>
           <span className={cn('text-xs font-medium', isDark ? 'text-slate-400' : 'text-slate-500')}>User Name</span>
           <span className={cn('text-xs font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>{username}</span>
         </div>
 
-        <div className="flex justify-between items-center pb-2 border-b border-slate-700/40">
+        <div className={cn("flex justify-between items-center pb-2 border-b", isDark ? "border-slate-700/40" : "border-slate-200")}>
           <span className={cn('text-xs font-medium', isDark ? 'text-slate-400' : 'text-slate-500')}>Access Type</span>
-          <span className="text-xs font-semibold text-emerald-400">{computedAccessType}</span>
+          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{computedAccessType}</span>
         </div>
 
         <div>
@@ -333,7 +335,7 @@ export const IAMWizardFooter: React.FC<IAMWizardFooterProps> = ({
   const isDark = colorMode === 'dark';
 
   return (
-    <div className="flex items-center justify-between pt-4 border-t border-slate-700/50 mt-4">
+    <div className={cn("flex items-center justify-between pt-4 border-t mt-4", isDark ? "border-slate-700/50" : "border-slate-200")}>
       {currentStep > 1 ? (
         <button
           type="button"

@@ -18,7 +18,7 @@ export interface AttachedResourceOverviewModalProps {
   readonly onClose: () => void;
 }
 
-const ConfigMapDetails: React.FC<{ readonly item: any }> = ({ item }) => {
+const ConfigMapDetails: React.FC<{ readonly item: any; readonly isDark: boolean }> = ({ item, isDark }) => {
   const dataList = Array.isArray(item.configData) ? item.configData : [];
   if (dataList.length === 0) {
     return <span className="text-[10px] text-slate-500 italic">No variables defined</span>;
@@ -28,10 +28,15 @@ const ConfigMapDetails: React.FC<{ readonly item: any }> = ({ item }) => {
       {dataList.slice(0, 5).map((entry, idx) => (
         <span
           key={`cm-var-${entry.key}-${idx}`}
-          className="inline-flex items-center text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 border border-teal-500/20 max-w-[200px] truncate"
+          className={cn(
+            "inline-flex items-center text-[10px] font-mono px-1.5 py-0.5 rounded border max-w-[200px] truncate",
+            isDark
+              ? "bg-teal-500/10 text-teal-300 border-teal-500/20"
+              : "bg-teal-50 text-teal-700 border-teal-200"
+          )}
         >
-          <span className="font-semibold text-teal-400 mr-1">{entry.key}:</span>
-          <span className="text-slate-300 truncate">{String(entry.value)}</span>
+          <span className={cn("font-semibold mr-1", isDark ? "text-teal-400" : "text-teal-600")}>{entry.key}:</span>
+          <span className={cn("truncate", isDark ? "text-slate-300" : "text-slate-700")}>{String(entry.value)}</span>
         </span>
       ))}
       {dataList.length > 5 && (
@@ -43,17 +48,27 @@ const ConfigMapDetails: React.FC<{ readonly item: any }> = ({ item }) => {
   );
 };
 
-const SecretDetails: React.FC<{ readonly item: any }> = ({ item }) => {
+const SecretDetails: React.FC<{ readonly item: any; readonly isDark: boolean }> = ({ item, isDark }) => {
   const dataList = Array.isArray(item.secretData) ? item.secretData : [];
   return (
     <div className="flex flex-wrap items-center gap-1.5 mt-1">
-      <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+      <span className={cn(
+        "text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border",
+        isDark
+          ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+          : "bg-amber-50 text-amber-700 border-amber-200"
+      )}>
         {item.type || 'Opaque'}
       </span>
       {dataList.map((entry, idx) => (
         <span
           key={`sec-key-${entry.key}-${idx}`}
-          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700"
+          className={cn(
+            "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+            isDark
+              ? "bg-slate-800 text-slate-300 border-slate-700"
+              : "bg-slate-100 text-slate-700 border-slate-200"
+          )}
         >
           {entry.key}
         </span>
@@ -65,12 +80,12 @@ const SecretDetails: React.FC<{ readonly item: any }> = ({ item }) => {
   );
 };
 
-const RoleDetails: React.FC<{ readonly item: any }> = ({ item }) => {
+const RoleDetails: React.FC<{ readonly item: any; readonly isDark: boolean }> = ({ item, isDark }) => {
   const rules = Array.isArray(item.rules) ? item.rules : [];
   const assignedUsers = Array.isArray(item.assignedUsers) ? item.assignedUsers : [];
   return (
     <div className="space-y-0.5 mt-1 text-[11px] font-mono">
-      <div className="text-slate-400">
+      <div className={isDark ? "text-slate-400" : "text-slate-600"}>
         {rules.length > 0 ? (
           <span>
             {rules.length} rule{rules.length > 1 ? 's' : ''} (
@@ -81,7 +96,7 @@ const RoleDetails: React.FC<{ readonly item: any }> = ({ item }) => {
         )}
       </div>
       {assignedUsers.length > 0 && (
-        <div className="text-[10px] text-emerald-400 font-sans">
+        <div className={cn("text-[10px] font-sans", isDark ? "text-emerald-400" : "text-emerald-600")}>
           Bound Users: {assignedUsers.join(', ')}
         </div>
       )}
@@ -89,21 +104,21 @@ const RoleDetails: React.FC<{ readonly item: any }> = ({ item }) => {
   );
 };
 
-const HpaDetails: React.FC<{ readonly item: any }> = ({ item }) => (
-  <div className="flex items-center gap-2 mt-1 text-[11px] font-mono text-purple-300">
-    <span className="px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20">
+const HpaDetails: React.FC<{ readonly item: any; readonly isDark: boolean }> = ({ item, isDark }) => (
+  <div className={cn("flex items-center gap-2 mt-1 text-[11px] font-mono", isDark ? "text-purple-300" : "text-purple-700")}>
+    <span className={cn("px-1.5 py-0.5 rounded border", isDark ? "bg-purple-500/10 border-purple-500/20" : "bg-purple-50 border-purple-200")}>
       Min: {item.minReplicas ?? 1}
     </span>
-    <span className="px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20">
+    <span className={cn("px-1.5 py-0.5 rounded border", isDark ? "bg-purple-500/10 border-purple-500/20" : "bg-purple-50 border-purple-200")}>
       Max: {item.maxReplicas ?? 10}
     </span>
-    <span className="px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/20">
+    <span className={cn("px-1.5 py-0.5 rounded border", isDark ? "bg-purple-500/10 border-purple-500/20" : "bg-purple-50 border-purple-200")}>
       Target CPU: {item.targetCPU ?? 80}%
     </span>
   </div>
 );
 
-const ResourceLimitDetails: React.FC<{ readonly item: any }> = ({ item }) => {
+const ResourceLimitDetails: React.FC<{ readonly item: any; readonly isDark: boolean }> = ({ item, isDark }) => {
   const reqCpu = item.cpuRequest || item.requestCpu || 'none';
   const limCpu = item.cpuLimit || item.limitCpu || 'none';
   const reqMem = item.memoryRequest || item.requestMemory || 'none';
@@ -116,26 +131,26 @@ const ResourceLimitDetails: React.FC<{ readonly item: any }> = ({ item }) => {
   });
 
   return (
-    <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] font-mono text-blue-300">
-      <span className="px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">
+    <div className={cn("flex flex-wrap items-center gap-2 mt-1 text-[11px] font-mono", isDark ? "text-blue-300" : "text-blue-700")}>
+      <span className={cn("px-1.5 py-0.5 rounded border", isDark ? "bg-blue-500/10 border-blue-500/20" : "bg-blue-50 border-blue-200")}>
         CPU: {reqCpu} req / {limCpu} limit
       </span>
-      <span className="px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">
+      <span className={cn("px-1.5 py-0.5 rounded border", isDark ? "bg-blue-500/10 border-blue-500/20" : "bg-blue-50 border-blue-200")}>
         Mem: {reqMem} req / {limMem} limit
       </span>
-      <span className="text-[9px] px-1.5 py-0.5 rounded border uppercase border-purple-500/30 text-purple-300 font-sans font-semibold">
+      <span className={cn("text-[9px] px-1.5 py-0.5 rounded border uppercase font-sans font-semibold", isDark ? "border-purple-500/30 text-purple-300 bg-purple-500/10" : "border-purple-200 text-purple-700 bg-purple-50")}>
         {qos}
       </span>
     </div>
   );
 };
 
-const ItemDetailSection: React.FC<{ readonly type: K8sResourceType; readonly item: any }> = ({ type, item }) => {
-  if (type === 'ConfigMap') return <ConfigMapDetails item={item} />;
-  if (type === 'Secret') return <SecretDetails item={item} />;
-  if (type === 'Role') return <RoleDetails item={item} />;
-  if (type === 'HPA') return <HpaDetails item={item} />;
-  return <ResourceLimitDetails item={item} />;
+const ItemDetailSection: React.FC<{ readonly type: K8sResourceType; readonly item: any; readonly isDark: boolean }> = ({ type, item, isDark }) => {
+  if (type === 'ConfigMap') return <ConfigMapDetails item={item} isDark={isDark} />;
+  if (type === 'Secret') return <SecretDetails item={item} isDark={isDark} />;
+  if (type === 'Role') return <RoleDetails item={item} isDark={isDark} />;
+  if (type === 'HPA') return <HpaDetails item={item} isDark={isDark} />;
+  return <ResourceLimitDetails item={item} isDark={isDark} />;
 };
 
 export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewModalProps> = ({
@@ -145,6 +160,7 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
   const [search, setSearch] = useState('');
   const nodes = useFlowStore((state) => state.nodes);
   const colorMode = useFlowStore((state) => state.colorMode);
+  const isDark = colorMode === 'dark';
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
   const addLog = useFlowStore((state) => state.addLog);
   const savedConfigMaps = useFlowStore((state) => state.savedConfigMaps);
@@ -356,7 +372,7 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-xs text-slate-200 truncate">
+                    <span className={cn("font-semibold text-xs truncate", isDark ? "text-slate-200" : "text-slate-800")}>
                       {item.name}
                     </span>
                     <span
@@ -368,7 +384,7 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
                       Attached to: {item.ownerNode.label} ({item.ownerNode.type})
                     </span>
                   </div>
-                  <ItemDetailSection type={type} item={item.rawItem} />
+                  <ItemDetailSection type={type} item={item.rawItem} isDark={isDark} />
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button

@@ -178,6 +178,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   onUpdateName
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
+  const isDark = colorMode === 'dark';
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
   const [intervalMinutes, setIntervalMinutes] = useState<number>(() => detectProfileInterval(profile.hourly));
@@ -362,17 +363,24 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         </div>
 
         <div className="flex items-center gap-4 text-xs font-mono font-semibold">
-          <span className="text-slate-400">Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></span>
-          <span className="text-slate-400">Peak: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong> users</span>
+          <span className={cn(isDark ? "text-slate-400" : "text-slate-500")}>
+            Min: <strong className={isDark ? "text-slate-200" : "text-slate-800"}>{Math.min(...values).toLocaleString()}</strong>
+          </span>
+          <span className={cn(isDark ? "text-slate-400" : "text-slate-500")}>
+            Peak: <strong className="text-blue-500">{Math.max(...values).toLocaleString()}</strong> users
+          </span>
         </div>
       </div>
 
       {/* Interactive Controls Bar: Interval Resolution Dropdown & Horizontal Zoom Slider */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-3 px-1 py-1.5 rounded-lg border bg-slate-900/40 border-slate-800 text-xs">
+      <div className={cn(
+        "flex flex-wrap items-center justify-between gap-4 mb-3 px-2 py-1.5 rounded-lg border text-xs",
+        isDark ? "bg-slate-900/40 border-slate-800" : "bg-slate-50 border-slate-200"
+      )}>
         {/* Interval Dropdown */}
         <div className="flex items-center gap-2">
-          <Clock size={14} className="text-blue-400" />
-          <span className="font-semibold text-slate-300">Interval:</span>
+          <Clock size={14} className="text-blue-500" />
+          <span className={cn("font-semibold", isDark ? "text-slate-300" : "text-slate-700")}>Interval:</span>
           <select
             value={intervalMinutes}
             onChange={(e) => {
@@ -432,8 +440,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
 
         {/* Horizontal Zoom Slider */}
         <div className="flex items-center gap-2 flex-1 max-w-xs justify-end">
-          <ZoomIn size={14} className="text-blue-400 shrink-0" />
-          <span className="font-semibold text-slate-300 text-[11px] shrink-0">Horizontal Zoom:</span>
+          <ZoomIn size={14} className="text-blue-500 shrink-0" />
+          <span className={cn("font-semibold text-[11px] shrink-0", isDark ? "text-slate-300" : "text-slate-700")}>Horizontal Zoom:</span>
           <input
             type="range"
             min={100}
@@ -441,13 +449,13 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
             step={10}
             value={zoomScale}
             onChange={(e) => setZoomScale(Number(e.target.value))}
-            className="w-28 accent-blue-500 cursor-pointer h-1.5 rounded-lg bg-slate-700"
+            className={cn("w-28 accent-blue-500 cursor-pointer h-1.5 rounded-lg", isDark ? "bg-slate-700" : "bg-slate-200")}
           />
-          <span className="font-mono text-[10px] text-slate-400 w-10 text-right shrink-0">{zoomScale}%</span>
+          <span className={cn("font-mono text-[10px] w-10 text-right shrink-0", isDark ? "text-slate-400" : "text-slate-500")}>{zoomScale}%</span>
         </div>
       </div>
 
-      <p className="text-[11px] font-medium text-slate-400 mb-2 px-1">
+      <p className={cn("text-[11px] font-medium mb-2 px-1", isDark ? "text-slate-400" : "text-slate-600")}>
         💡 Drag data points vertically up/down on the Y-axis to dynamically modify traffic values.
       </p>
 

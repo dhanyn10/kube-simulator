@@ -1,6 +1,7 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
 import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 import { K8sNodeData } from '@/types';
 
@@ -12,6 +13,7 @@ export const ForbiddenOverlay = ({ nodeType, data }: { readonly nodeType?: strin
   const activeIdentity = useFlowStore((state) => state.activeIdentity);
   const iamUsers = useFlowStore((state) => state.iamUsers);
   const nodes = useFlowStore((state) => state.nodes);
+  const colorMode = useFlowStore((state) => state.colorMode);
 
   const isForbidden = isNodeAccessForbidden(activeIdentity, iamUsers, nodeType, data, nodes);
 
@@ -24,8 +26,11 @@ export const ForbiddenOverlay = ({ nodeType, data }: { readonly nodeType?: strin
       className="absolute inset-0 z-50 flex items-start justify-end p-1.5 rounded-lg bg-slate-950/20 backdrop-grayscale backdrop-contrast-50 border border-slate-500/30 cursor-not-allowed transition-all duration-200 select-none pointer-events-none outline-none"
       title={`Restricted Access for user "${activeIdentity}"`}
     >
-      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800/90 text-slate-300 border border-slate-700/80 font-semibold text-[8px] tracking-tight uppercase shadow-sm">
-        <Lock size={10} className="text-amber-400 shrink-0" />
+      <div className={cn(
+        "flex items-center gap-1 px-1.5 py-0.5 rounded font-semibold text-[8px] tracking-tight uppercase shadow-sm border",
+        colorMode === 'dark' ? "bg-slate-800/90 text-slate-300 border-slate-700/80" : "bg-white/95 text-slate-700 border-slate-300"
+      )}>
+        <Lock size={10} className="text-amber-500 shrink-0" />
         <span>Restricted</span>
       </div>
     </section>

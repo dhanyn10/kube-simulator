@@ -865,11 +865,11 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           </div>
 
           {/* Postman-style Key-Value Table */}
-          <div className="space-y-3 pt-2 border-t border-slate-800/40">
+          <div className={cn("space-y-3 pt-2 border-t", isDark ? "border-slate-800/40" : "border-slate-200")}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-300">Data (Key-Value)</p>
-                <p className="text-[11px] text-slate-400">Type text or choose suggestions from dropdown for simulation parameters.</p>
+                <p className={cn("text-xs font-semibold", isDark ? "text-slate-300" : "text-slate-700")}>Data (Key-Value)</p>
+                <p className={cn("text-[11px]", isDark ? "text-slate-400" : "text-slate-500")}>Type text or choose suggestions from dropdown for simulation parameters.</p>
               </div>
               <div className="flex items-center gap-2">
                 <ConfigMapImportDataDropdown

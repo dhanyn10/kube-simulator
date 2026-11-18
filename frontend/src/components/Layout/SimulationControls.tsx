@@ -141,7 +141,7 @@ const SimulationSpeedControls = ({
             'px-2 py-1 rounded transition-colors flex items-center gap-0.5',
             simulationSpeed === opt.speed
               ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200'
+              : (isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900')
           )}
         >
           <span>{opt.label}</span>

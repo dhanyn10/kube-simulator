@@ -66,7 +66,10 @@ const TreeNodeItem = ({
                 e.stopPropagation();
                 toggleExpand(node.id);
               }}
-              className="p-0.5 rounded text-slate-400 hover:text-slate-200 inline-flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className={cn(
+                "p-0.5 rounded inline-flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-blue-500",
+                colorMode === 'dark' ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-800"
+              )}
               aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
             >
               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -83,7 +86,9 @@ const TreeNodeItem = ({
           >
             <span className={cn(
               "font-mono font-semibold text-xs",
-              hasChildren ? "text-amber-300 dark:text-amber-400 font-bold" : "text-emerald-400"
+              hasChildren
+                ? (colorMode === 'dark' ? "text-amber-400 font-bold" : "text-amber-700 font-bold")
+                : (colorMode === 'dark' ? "text-emerald-400" : "text-emerald-700 font-medium")
             )}>
               {node.name}
             </span>
@@ -121,7 +126,7 @@ const TreeNodeItem = ({
       </div>
 
       {hasChildren && isExpanded && node.children && (
-        <div className="border-l border-slate-700/40 dark:border-slate-800 ml-4">
+        <div className={cn("border-l ml-4", colorMode === 'dark' ? "border-slate-800" : "border-slate-200")}>
           {node.children.map((child) => (
             <TreeNodeItem
               key={child.id}

@@ -121,7 +121,10 @@ export const SystemMonitorNetworkPanel = ({
         </div>
       </div>
 
-      <div className="h-28 w-full bg-[#111217] rounded border border-[#22252b] relative overflow-hidden flex items-center justify-center">
+      <div className={cn(
+        "h-28 w-full rounded border relative overflow-hidden flex items-center justify-center transition-colors",
+        isDark ? "bg-[#111217] border-[#22252b]" : "bg-slate-50 border-slate-200"
+      )}>
         {/* Horizontal Background Grid Lines */}
         <div className="absolute inset-0 flex flex-col justify-between p-2 pointer-events-none opacity-20">
           <div className="border-t border-slate-500 w-full" />

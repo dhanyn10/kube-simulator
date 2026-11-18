@@ -147,7 +147,7 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-mono">
                     <Box size={14} className={isTarget ? "text-blue-400 shrink-0" : "text-blue-500 shrink-0"} />
-                    <span className="text-xs font-bold text-slate-200 dark:text-slate-200">
+                    <span className={cn("text-xs font-bold", colorMode === 'dark' ? "text-slate-200" : "text-slate-800")}>
                       {item.name}
                     </span>
                     {isTarget && (
@@ -173,13 +173,13 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
                   </button>
                 </div>
 
-                <p className="text-[11px] text-slate-400 dark:text-slate-400">
+                <p className={cn("text-[11px]", colorMode === 'dark' ? "text-slate-400" : "text-slate-600")}>
                   {item.desc}
                 </p>
 
                 {/* Simulator Variables Numerical Grid */}
-                <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-800/40 font-mono text-[10px]">
-                  <div className="flex items-center gap-1.5 bg-slate-800/30 dark:bg-slate-950/50 p-1.5 rounded-lg">
+                <div className={cn("grid grid-cols-4 gap-2 pt-1 border-t font-mono text-[10px]", colorMode === 'dark' ? "border-slate-800/40" : "border-slate-200")}>
+                  <div className={cn("flex items-center gap-1.5 p-1.5 rounded-lg border", colorMode === 'dark' ? "bg-slate-950/50 border-slate-800/60 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700")}>
                     <Gauge size={12} className="text-emerald-400 shrink-0" />
                     <span className="text-slate-500">TRF:</span>
                     <span className="font-semibold text-emerald-400 truncate">
@@ -187,7 +187,7 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 bg-slate-800/30 dark:bg-slate-950/50 p-1.5 rounded-lg">
+                  <div className={cn("flex items-center gap-1.5 p-1.5 rounded-lg border", colorMode === 'dark' ? "bg-slate-950/50 border-slate-800/60 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700")}>
                     <HardDrive size={12} className="text-blue-400 shrink-0" />
                     <span className="text-slate-500">RAM:</span>
                     <span className="font-semibold truncate">
@@ -195,7 +195,7 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 bg-slate-800/30 dark:bg-slate-950/50 p-1.5 rounded-lg">
+                  <div className={cn("flex items-center gap-1.5 p-1.5 rounded-lg border", colorMode === 'dark' ? "bg-slate-950/50 border-slate-800/60 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700")}>
                     <Zap size={12} className="text-amber-400 shrink-0" />
                     <span className="text-slate-500">START:</span>
                     <span className="font-semibold truncate">
@@ -203,7 +203,7 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 bg-slate-800/30 dark:bg-slate-950/50 p-1.5 rounded-lg">
+                  <div className={cn("flex items-center gap-1.5 p-1.5 rounded-lg border", colorMode === 'dark' ? "bg-slate-950/50 border-slate-800/60 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700")}>
                     <Cpu size={12} className="text-purple-400 shrink-0" />
                     <span className="text-slate-500">CPU:</span>
                     <span className="font-semibold truncate">

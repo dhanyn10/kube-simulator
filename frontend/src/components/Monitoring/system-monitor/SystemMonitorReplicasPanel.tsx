@@ -103,7 +103,10 @@ export const SystemMonitorReplicasPanel = ({
         <span className="text-[9px] font-mono text-slate-400">Scale Ceiling: {dynamicMaxReplicas} Pods</span>
       </div>
 
-      <div className="h-28 w-full bg-[#111217] rounded border border-[#22252b] relative overflow-hidden flex items-center justify-center">
+      <div className={cn(
+        "h-28 w-full rounded border relative overflow-hidden flex items-center justify-center transition-colors",
+        isDark ? "bg-[#111217] border-[#22252b]" : "bg-slate-50 border-slate-200"
+      )}>
         {/* Horizontal Background Grid Lines */}
         <div className="absolute inset-0 flex flex-col justify-between p-2 pointer-events-none opacity-20">
           <div className="border-t border-slate-500 w-full" />
@@ -144,8 +147,11 @@ export const SystemMonitorReplicasPanel = ({
         {replicaSeries.map((s) => (
           <div key={`rep-badge-${s.id}`} className="flex items-center gap-1.5 text-[10px] font-mono">
             <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: s.color }} />
-            <span className="text-slate-300 font-medium">{s.label}:</span>
-            <span className="font-bold text-white bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
+            <span className={cn("font-medium", isDark ? "text-slate-300" : "text-slate-600")}>{s.label}:</span>
+            <span className={cn(
+              "font-bold px-1.5 py-0.5 rounded border",
+              isDark ? "text-white bg-slate-800 border-slate-700" : "text-slate-800 bg-slate-100 border-slate-300"
+            )}>
               {s.current} Replicas
             </span>
           </div>

@@ -62,12 +62,12 @@ export const SystemMonitorStatCard = ({
         <span className={cn('text-2xl font-bold font-mono tracking-tight', thresholdColor)}>
           {value}
         </span>
-        {unit && <span className="text-xs font-mono text-slate-400">{unit}</span>}
+        {unit && <span className={cn("text-xs font-mono", isDark ? "text-slate-400" : "text-slate-500")}>{unit}</span>}
       </div>
 
       {/* Subtitle & Sparkline Footer */}
-      <div className="flex items-end justify-between pt-1 border-t border-slate-800/40">
-        <span className="text-[10px] text-slate-400 truncate max-w-[120px] font-mono">{subtitle}</span>
+      <div className={cn("flex items-end justify-between pt-1 border-t", isDark ? "border-slate-800/40" : "border-slate-200")}>
+        <span className={cn("text-[10px] truncate max-w-[120px] font-mono", isDark ? "text-slate-400" : "text-slate-500")}>{subtitle}</span>
         {sparklinePoints && (
           <svg aria-hidden="true" className="w-[80px] h-[24px] overflow-visible" viewBox="0 0 120 30">
             <polyline

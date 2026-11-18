@@ -150,7 +150,7 @@ const PrecedenceItemRow: React.FC<PrecedenceItemRowProps> = ({
             {kv.value}
           </span>
         ) : (
-          <span data-testid={`${prefix}-val-${kv.key}-active`} className="text-slate-200">
+          <span data-testid={`${prefix}-val-${kv.key}-active`} className={isDark ? "text-slate-200" : "text-slate-800"}>
             {kv.value}
           </span>
         )}

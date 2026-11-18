@@ -127,7 +127,7 @@ const WorkloadPodRow: React.FC<WorkloadPodRowProps> = ({
     >
       {/* Left: Pod Name */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
-        <span className="font-mono text-xs font-bold truncate text-slate-200">
+        <span className={cn("font-mono text-xs font-bold truncate", isDark ? "text-slate-200" : "text-slate-800")}>
           {pod.podName}
         </span>
         <button
@@ -251,7 +251,10 @@ const WorkloadPodsListTab: React.FC<WorkloadPodsListTabProps> = ({
             type="button"
             onClick={() => onSearchChange('')}
             aria-label="Clear pod search query"
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
+            className={cn(
+              "absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5",
+              isDark ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-800"
+            )}
           >
             <X size={13} />
           </button>
@@ -516,9 +519,9 @@ const WorkloadSidebarMenu: React.FC<WorkloadSidebarMenuProps> = ({
         <div className="font-bold text-[9px] uppercase tracking-wider text-slate-500">
           Workload Info
         </div>
-        <div className="truncate">Name: <strong className="text-slate-200">{controllerLabel}</strong></div>
-        <div>Replicas: <strong className="text-slate-200">{totalPods}</strong></div>
-        <div>Type: <strong className="text-slate-200">{controllerType}</strong></div>
+        <div className="truncate">Name: <strong className={isDark ? "text-slate-200" : "text-slate-800"}>{controllerLabel}</strong></div>
+        <div>Replicas: <strong className={isDark ? "text-slate-200" : "text-slate-800"}>{totalPods}</strong></div>
+        <div>Type: <strong className={isDark ? "text-slate-200" : "text-slate-800"}>{controllerType}</strong></div>
       </div>
     </div>
   );
