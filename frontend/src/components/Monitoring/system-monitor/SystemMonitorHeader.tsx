@@ -33,36 +33,44 @@ const ClusterLogo = () => (
   </svg>
 );
 
-const getSimulationStatusInfo = (isSimulating: boolean, isPaused: boolean) => {
+const getSimulationStatusInfo = (isSimulating: boolean, isPaused: boolean, isDark: boolean = true) => {
   if (!isSimulating) {
     return {
       label: 'Idle',
-      badgeClass: 'bg-slate-800/60 text-slate-400 border-slate-700/50',
-      dotClass: 'bg-slate-500',
+      badgeClass: isDark
+        ? 'bg-slate-800/60 text-slate-400 border-slate-700/50'
+        : 'bg-slate-100 text-slate-600 border-slate-200',
+      dotClass: isDark ? 'bg-slate-500' : 'bg-slate-400',
     };
   }
   if (isPaused) {
     return {
       label: 'Paused',
-      badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-      dotClass: 'bg-amber-400',
+      badgeClass: isDark
+        ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+        : 'bg-amber-50 text-amber-800 border-amber-300',
+      dotClass: isDark ? 'bg-amber-400' : 'bg-amber-500',
     };
   }
   return {
     label: 'Live',
-    badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-    dotClass: 'bg-emerald-400 animate-ping',
+    badgeClass: isDark
+      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+      : 'bg-emerald-50 text-emerald-800 border-emerald-300',
+    dotClass: isDark ? 'bg-emerald-400 animate-ping' : 'bg-emerald-500 animate-ping',
   };
 };
 
 const SystemMonitorLiveStatus = ({
   isSimulating,
   isPaused,
+  isDark = true,
 }: {
   isSimulating: boolean;
   isPaused: boolean;
+  isDark?: boolean;
 }) => {
-  const statusInfo = getSimulationStatusInfo(isSimulating, isPaused);
+  const statusInfo = getSimulationStatusInfo(isSimulating, isPaused, isDark);
 
   return (
     <div
@@ -83,6 +91,7 @@ interface SimulationPlaybackControlsProps {
   simulationSpeed: SimulationSpeed;
   sendControl: (action: string, options?: any) => void;
   canStart?: boolean;
+  isDark?: boolean;
 }
 
 const SimulationPlaybackControls = ({
@@ -91,6 +100,7 @@ const SimulationPlaybackControls = ({
   simulationSpeed,
   sendControl,
   canStart = true,
+  isDark = true,
 }: SimulationPlaybackControlsProps) => {
   const renderPrimaryButton = () => {
     if (!isSimulating) {
@@ -105,8 +115,8 @@ const SimulationPlaybackControls = ({
           className={cn(
             "px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition-colors",
             canStart
-              ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
-              : "text-slate-500 opacity-40 cursor-not-allowed"
+              ? (isDark ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer" : "text-emerald-700 hover:bg-emerald-100 cursor-pointer")
+              : (isDark ? "text-slate-500 opacity-40 cursor-not-allowed" : "text-slate-400 opacity-40 cursor-not-allowed")
           )}
           title={canStart ? "Start Simulation" : "Add an Internet card to start simulation"}
         >
@@ -127,8 +137,8 @@ const SimulationPlaybackControls = ({
           className={cn(
             "px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition-colors",
             canStart
-              ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
-              : "text-slate-500 opacity-40 cursor-not-allowed"
+              ? (isDark ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer" : "text-emerald-700 hover:bg-emerald-100 cursor-pointer")
+              : (isDark ? "text-slate-500 opacity-40 cursor-not-allowed" : "text-slate-400 opacity-40 cursor-not-allowed")
           )}
           title={canStart ? "Resume Simulation" : "Add an Internet card to resume simulation"}
         >
@@ -141,7 +151,10 @@ const SimulationPlaybackControls = ({
       <button
         type="button"
         onClick={() => sendControl('pause')}
-        className="px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium text-amber-400 hover:bg-amber-500/20 rounded transition-colors"
+        className={cn(
+          "px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition-colors",
+          isDark ? "text-amber-400 hover:bg-amber-500/20" : "text-amber-800 hover:bg-amber-100"
+        )}
         title="Pause Simulation"
       >
         <Pause size={12} fill="currentColor" />
@@ -151,13 +164,19 @@ const SimulationPlaybackControls = ({
   };
 
   return (
-    <div className="flex items-center rounded border border-slate-700/60 bg-slate-900/60 p-0.5">
+    <div className={cn(
+      "flex items-center rounded border p-0.5",
+      isDark ? "border-slate-700/60 bg-slate-900/60" : "border-slate-200 bg-slate-100"
+    )}>
       {renderPrimaryButton()}
       {isSimulating && (
         <button
           type="button"
           onClick={() => sendControl('stop')}
-          className="px-2 py-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/20 rounded transition-colors"
+          className={cn(
+            "px-2 py-1 rounded transition-colors",
+            isDark ? "text-slate-400 hover:text-rose-400 hover:bg-rose-500/20" : "text-slate-500 hover:text-rose-700 hover:bg-rose-100"
+          )}
           title="Stop Simulation"
         >
           <Square size={12} fill="currentColor" />
@@ -170,11 +189,16 @@ const SimulationPlaybackControls = ({
 const SpeedSelector = ({
   simulationSpeed,
   sendControl,
+  isDark = true,
 }: {
   simulationSpeed: SimulationSpeed;
   sendControl: (action: string, options?: any) => void;
+  isDark?: boolean;
 }) => (
-  <div className="flex items-center rounded border border-slate-700/60 bg-slate-900/60 p-0.5 text-[10px] font-mono font-bold">
+  <div className={cn(
+    "flex items-center rounded border p-0.5 text-[10px] font-mono font-bold",
+    isDark ? "border-slate-700/60 bg-slate-900/60" : "border-slate-200 bg-slate-100"
+  )}>
     {SPEED_OPTIONS.map((s) => (
       <button
         key={`speed-${s}`}
@@ -184,7 +208,9 @@ const SpeedSelector = ({
           'px-2 py-0.5 rounded transition-all',
           simulationSpeed === s
             ? 'bg-blue-600 text-white shadow-sm'
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            : isDark
+              ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
         )}
       >
         {s}x
@@ -290,7 +316,7 @@ export const SystemMonitorHeader = ({
       >
         {/* Left: Live Status & Simulation Controls */}
         <div className="flex items-center gap-3" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
-          <SystemMonitorLiveStatus isSimulating={isSimulating} isPaused={isPaused} />
+          <SystemMonitorLiveStatus isSimulating={isSimulating} isPaused={isPaused} isDark={isDark} />
 
           {/* Simulated 24-Hour Timeline Clock */}
           <div className={cn(
@@ -307,17 +333,23 @@ export const SystemMonitorHeader = ({
             simulationSpeed={simulationSpeed}
             sendControl={sendControl}
             canStart={canStart}
+            isDark={isDark}
           />
-          <SpeedSelector simulationSpeed={simulationSpeed} sendControl={sendControl} />
+          <SpeedSelector simulationSpeed={simulationSpeed} sendControl={sendControl} isDark={isDark} />
 
           {/* Chaos Spike Button */}
           <button
             type="button"
             onClick={() => sendControl('traffic_spike', { multiplier: 2.0 })}
-            className="px-2.5 py-1 flex items-center gap-1 text-[11px] font-medium text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded transition-all active:scale-95"
+            className={cn(
+              "px-2.5 py-1 flex items-center gap-1 text-[11px] font-medium border rounded transition-all active:scale-95 cursor-pointer",
+              isDark
+                ? "text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
+                : "text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-300 shadow-xs"
+            )}
             title="Inject 2x Traffic Spike (Chaos Test)"
           >
-            <Zap size={12} className="text-amber-400" />
+            <Zap size={12} className={isDark ? "text-amber-400" : "text-amber-600"} />
             <span>+ Spike 2x</span>
           </button>
         </div>

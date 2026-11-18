@@ -108,16 +108,16 @@ export const SystemMonitorNetworkPanel = ({
         isDark ? 'bg-[#181b1f] border-[#22252b] text-slate-200' : 'bg-white border-slate-200 text-slate-800'
       )}
     >
-      <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
+      <div className={cn("flex items-center justify-between pb-2 border-b", isDark ? "border-slate-800/60" : "border-slate-200")}>
         <div className="flex items-center gap-2">
-          <Globe size={14} className="text-emerald-400" />
+          <Globe size={14} className={isDark ? "text-emerald-400" : "text-emerald-600"} />
           <h2 className="text-xs font-bold font-mono uppercase tracking-wider">Network Ingress & Response Latency</h2>
         </div>
         <div className="flex items-center gap-3 text-[10px] font-mono">
-          <span className="text-emerald-400 flex items-center gap-1 font-bold">
+          <span className={cn("flex items-center gap-1 font-bold", isDark ? "text-emerald-400" : "text-emerald-700")}>
             <Activity size={11} /> {currentRps.toLocaleString('en-US')} req/s
           </span>
-          <span className="text-blue-400 font-bold">{currentLatency} ms</span>
+          <span className={cn("font-bold", isDark ? "text-blue-400" : "text-blue-600")}>{currentLatency} ms</span>
         </div>
       </div>
 
@@ -126,17 +126,17 @@ export const SystemMonitorNetworkPanel = ({
         isDark ? "bg-[#111217] border-[#22252b]" : "bg-slate-50 border-slate-200"
       )}>
         {/* Horizontal Background Grid Lines */}
-        <div className="absolute inset-0 flex flex-col justify-between p-2 pointer-events-none opacity-20">
-          <div className="border-t border-slate-500 w-full" />
-          <div className="border-t border-slate-500 w-full" />
-          <div className="border-t border-slate-500 w-full" />
+        <div className={cn("absolute inset-0 flex flex-col justify-between p-2 pointer-events-none", isDark ? "opacity-20" : "opacity-30")}>
+          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
+          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
+          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
         </div>
 
         {/* Dynamic Vertical Grid Lines */}
-        <SystemMonitorVerticalGrid xTicks={xTicks} />
+        <SystemMonitorVerticalGrid xTicks={xTicks} isDark={isDark} />
 
         {/* Dynamic Y-Axis Scale Indicator (Windows Task Manager style) */}
-        <SystemMonitorYScaleOverlay ticks={yScale.ticks} />
+        <SystemMonitorYScaleOverlay ticks={yScale.ticks} isDark={isDark} />
 
         {deployments.length === 0 ? (
           <span className="text-xs font-mono text-slate-500">No active traffic simulation</span>
@@ -164,9 +164,9 @@ export const SystemMonitorNetworkPanel = ({
       </div>
 
       {/* Dynamic 24-Hour Timeline Bottom Axis */}
-      <SystemMonitorAxisBottom xTicks={xTicks} />
+      <SystemMonitorAxisBottom xTicks={xTicks} isDark={isDark} />
 
-      <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1">
+      <div className={cn("flex items-center justify-between text-[10px] font-mono pt-1", isDark ? "text-slate-400" : "text-slate-600")}>
         <span>Protocol: HTTP/2 (Cluster Ingress)</span>
         <span>Peak Scale: {dynamicMaxRps.toLocaleString('en-US')} req/s</span>
       </div>

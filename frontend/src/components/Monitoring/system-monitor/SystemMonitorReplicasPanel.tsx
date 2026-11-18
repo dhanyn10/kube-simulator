@@ -95,12 +95,12 @@ export const SystemMonitorReplicasPanel = ({
         isDark ? 'bg-[#181b1f] border-[#22252b] text-slate-200' : 'bg-white border-slate-200 text-slate-800'
       )}
     >
-      <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
+      <div className={cn("flex items-center justify-between pb-2 border-b", isDark ? "border-slate-800/60" : "border-slate-200")}>
         <div className="flex items-center gap-2">
-          <Layers size={14} className="text-cyan-400" />
+          <Layers size={14} className={isDark ? "text-cyan-400" : "text-cyan-700"} />
           <h2 className="text-xs font-bold font-mono uppercase tracking-wider">HPA & Pod Autoscaling Replicas</h2>
         </div>
-        <span className="text-[9px] font-mono text-slate-400">Scale Ceiling: {dynamicMaxReplicas} Pods</span>
+        <span className={cn("text-[9px] font-mono", isDark ? "text-slate-400" : "text-slate-600")}>Scale Ceiling: {dynamicMaxReplicas} Pods</span>
       </div>
 
       <div className={cn(
@@ -108,17 +108,17 @@ export const SystemMonitorReplicasPanel = ({
         isDark ? "bg-[#111217] border-[#22252b]" : "bg-slate-50 border-slate-200"
       )}>
         {/* Horizontal Background Grid Lines */}
-        <div className="absolute inset-0 flex flex-col justify-between p-2 pointer-events-none opacity-20">
-          <div className="border-t border-slate-500 w-full" />
-          <div className="border-t border-slate-500 w-full" />
-          <div className="border-t border-slate-500 w-full" />
+        <div className={cn("absolute inset-0 flex flex-col justify-between p-2 pointer-events-none", isDark ? "opacity-20" : "opacity-30")}>
+          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
+          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
+          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
         </div>
 
         {/* Dynamic Vertical Grid Lines */}
-        <SystemMonitorVerticalGrid xTicks={xTicks} />
+        <SystemMonitorVerticalGrid xTicks={xTicks} isDark={isDark} />
 
         {/* Dynamic Y-Axis Scale Indicator (Windows Task Manager style) */}
-        <SystemMonitorYScaleOverlay ticks={yScale.ticks} />
+        <SystemMonitorYScaleOverlay ticks={yScale.ticks} isDark={isDark} />
 
         {deployments.length === 0 ? (
           <span className="text-xs font-mono text-slate-500">No workload deployments active</span>
@@ -141,7 +141,7 @@ export const SystemMonitorReplicasPanel = ({
       </div>
 
       {/* Dynamic 24-Hour Timeline Bottom Axis */}
-      <SystemMonitorAxisBottom xTicks={xTicks} />
+      <SystemMonitorAxisBottom xTicks={xTicks} isDark={isDark} />
 
       <div className="flex flex-wrap items-center gap-3 pt-1">
         {replicaSeries.map((s) => (

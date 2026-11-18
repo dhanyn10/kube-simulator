@@ -43,9 +43,12 @@ const extractSparkline = (
   return points.map((p) => p[key] || 0);
 };
 
-const EmptySimulationState = () => (
-  <div className="h-64 flex flex-col items-center justify-center text-slate-500 gap-3 border border-dashed border-slate-800 rounded-lg">
-    <Activity size={36} strokeWidth={1.5} className="text-blue-500/60" />
+const EmptySimulationState = ({ isDark }: { isDark: boolean }) => (
+  <div className={cn(
+    "h-64 flex flex-col items-center justify-center gap-3 border border-dashed rounded-lg",
+    isDark ? "border-slate-800 text-slate-500" : "border-slate-300 text-slate-600"
+  )}>
+    <Activity size={36} strokeWidth={1.5} className={isDark ? "text-blue-500/60" : "text-blue-600/70"} />
     <p className="text-sm font-medium uppercase tracking-widest font-mono">Waiting for simulation data...</p>
   </div>
 );
@@ -70,7 +73,7 @@ const SystemMonitorFooter = ({
     )}
   >
     <div className="flex items-center gap-6">
-      <span className="flex items-center gap-1.5 text-blue-400 font-bold">
+      <span className={cn("flex items-center gap-1.5 font-bold", isDark ? "text-blue-400" : "text-blue-600")}>
         <Radio size={12} className={isSimulating && !isPaused ? 'animate-pulse' : ''} />
         System Monitor Engine (Go Broker Synced)
       </span>
@@ -102,7 +105,11 @@ export const SystemMonitorDashboard = () => {
   } = useSystemMonitorDashboard();
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', colorMode === 'dark');
+    const isDarkMode = colorMode === 'dark';
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    document.documentElement.classList.toggle('light', !isDarkMode);
+    document.body.classList.toggle('dark', isDarkMode);
+    document.body.classList.toggle('light', !isDarkMode);
   }, [colorMode]);
 
   const isDark = colorMode === 'dark';
@@ -193,7 +200,7 @@ export const SystemMonitorDashboard = () => {
 
         {/* Time-Series Charts Grid */}
         {deployments.length === 0 ? (
-          <EmptySimulationState />
+          <EmptySimulationState isDark={isDark} />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <SystemMonitorTimeSeriesPanel

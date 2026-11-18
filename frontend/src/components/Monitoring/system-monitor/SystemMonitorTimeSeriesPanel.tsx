@@ -36,22 +36,32 @@ interface SystemMonitorTimeSeriesPanelProps {
   hpaTarget?: number;
 }
 
-const getThresholdBorderColor = (color: ThresholdReferenceLine['color']): string => {
-  if (color === 'amber') return 'border-amber-500/60';
-  if (color === 'rose') return 'border-rose-500/60';
-  return 'border-red-500/70';
+const getThresholdBorderColor = (color: ThresholdReferenceLine['color'], isDark: boolean = true): string => {
+  if (color === 'amber') return isDark ? 'border-amber-500/60' : 'border-amber-500';
+  if (color === 'rose') return isDark ? 'border-rose-500/60' : 'border-rose-500';
+  return isDark ? 'border-red-500/70' : 'border-red-500';
 };
 
-const getThresholdBadgeColor = (color: ThresholdReferenceLine['color']): string => {
-  if (color === 'amber') return 'bg-amber-950/85 text-amber-300 border-amber-600/50';
-  if (color === 'rose') return 'bg-rose-950/85 text-rose-300 border-rose-600/50';
-  return 'bg-red-950/85 text-red-300 border-red-600/50';
+const getThresholdBadgeColor = (color: ThresholdReferenceLine['color'], isDark: boolean = true): string => {
+  if (color === 'amber') {
+    return isDark
+      ? 'bg-amber-950/85 text-amber-300 border-amber-600/50'
+      : 'bg-amber-50/95 text-amber-800 border-amber-300';
+  }
+  if (color === 'rose') {
+    return isDark
+      ? 'bg-rose-950/85 text-rose-300 border-rose-600/50'
+      : 'bg-rose-50/95 text-rose-800 border-rose-300';
+  }
+  return isDark
+    ? 'bg-red-950/85 text-red-300 border-red-600/50'
+    : 'bg-red-50/95 text-red-800 border-red-300';
 };
 
-const getThresholdLegendTextColor = (color: ThresholdReferenceLine['color']): string => {
-  if (color === 'amber') return 'text-amber-400';
-  if (color === 'rose') return 'text-rose-400';
-  return 'text-red-400';
+const getThresholdLegendTextColor = (color: ThresholdReferenceLine['color'], isDark: boolean = true): string => {
+  if (color === 'amber') return isDark ? 'text-amber-400' : 'text-amber-700';
+  if (color === 'rose') return isDark ? 'text-rose-400' : 'text-rose-700';
+  return isDark ? 'text-red-400' : 'text-red-700';
 };
 
 const getThresholdLegendDotColor = (color: ThresholdReferenceLine['color']): string => {
@@ -62,9 +72,10 @@ const getThresholdLegendDotColor = (color: ThresholdReferenceLine['color']): str
 
 interface DynamicThresholdLinesProps {
   lines: ThresholdReferenceLine[];
+  isDark?: boolean;
 }
 
-export const DynamicThresholdLines = ({ lines }: DynamicThresholdLinesProps) => {
+export const DynamicThresholdLines = ({ lines, isDark = true }: DynamicThresholdLinesProps) => {
   if (lines.length === 0) return null;
 
   return (
@@ -75,11 +86,11 @@ export const DynamicThresholdLines = ({ lines }: DynamicThresholdLinesProps) => 
           className="absolute inset-x-0"
           style={{ top: `${line.percentFromTop}%` }}
         >
-          <div className={cn('w-full border-t border-dashed', getThresholdBorderColor(line.color))} />
+          <div className={cn('w-full border-t border-dashed', getThresholdBorderColor(line.color, isDark))} />
           <span
             className={cn(
               'absolute right-1.5 -translate-y-1/2 px-1.5 py-0.5 rounded text-[8px] font-mono font-medium shadow-sm border backdrop-blur-sm whitespace-nowrap',
-              getThresholdBadgeColor(line.color)
+              getThresholdBadgeColor(line.color, isDark)
             )}
           >
             {line.badge}
@@ -156,18 +167,18 @@ export const SystemMonitorTimeSeriesPanel = ({
       )}
     >
       {/* Panel Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
+      <div className={cn("flex items-center justify-between pb-2 border-b", isDark ? "border-slate-800/60" : "border-slate-200")}>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded bg-blue-500" />
           <h2 className="text-xs font-bold font-mono uppercase tracking-wider">{title}</h2>
-          {description && <span className="text-[10px] text-slate-400 font-sans">({description})</span>}
+          {description && <span className={cn("text-[10px] font-sans", isDark ? "text-slate-400" : "text-slate-500")}>({description})</span>}
         </div>
         {showThresholds && thresholdLines.length > 0 && (
           <div className="flex items-center gap-2 text-[9px] font-mono flex-wrap">
             {thresholdLines.map((line) => (
               <span
                 key={`legend-threshold-${line.label}-${line.color}`}
-                className={cn('flex items-center gap-1 font-medium', getThresholdLegendTextColor(line.color))}
+                className={cn('flex items-center gap-1 font-medium', getThresholdLegendTextColor(line.color, isDark))}
               >
                 <span className={cn('w-2 h-0.5 inline-block', getThresholdLegendDotColor(line.color))} />
                 {line.label}
@@ -183,20 +194,20 @@ export const SystemMonitorTimeSeriesPanel = ({
         isDark ? "bg-[#111217] border-[#22252b]" : "bg-slate-50 border-slate-200"
       )}>
         {/* Horizontal Background Grid Lines */}
-        <div className="absolute inset-0 flex flex-col justify-between p-2 pointer-events-none opacity-20">
-          <div className="border-t border-slate-500 w-full" />
-          <div className="border-t border-slate-500 w-full" />
-          <div className="border-t border-slate-500 w-full" />
+        <div className={cn("absolute inset-0 flex flex-col justify-between p-2 pointer-events-none", isDark ? "opacity-20" : "opacity-30")}>
+          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
+          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
+          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
         </div>
 
         {/* Dynamic Vertical Grid Lines */}
-        <SystemMonitorVerticalGrid xTicks={xTicks} />
+        <SystemMonitorVerticalGrid xTicks={xTicks} isDark={isDark} />
 
         {/* Dynamic Y-Axis Scale Indicator (Windows Task Manager style) */}
-        <SystemMonitorYScaleOverlay ticks={yScale.ticks} />
+        <SystemMonitorYScaleOverlay ticks={yScale.ticks} isDark={isDark} />
 
         {/* Kubernetes-native Dynamic Threshold Lines & Badges */}
-        {showThresholds && <DynamicThresholdLines lines={thresholdLines} />}
+        {showThresholds && <DynamicThresholdLines lines={thresholdLines} isDark={isDark} />}
 
         {deployments.length === 0 ? (
           <span className="text-xs font-mono text-slate-500">No active workload metrics</span>
@@ -228,13 +239,13 @@ export const SystemMonitorTimeSeriesPanel = ({
       </div>
 
       {/* Dynamic 24-Hour Timeline Bottom Axis */}
-      <SystemMonitorAxisBottom xTicks={xTicks} />
+      <SystemMonitorAxisBottom xTicks={xTicks} isDark={isDark} />
 
       {/* Metrics Legend Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-[10px] font-mono text-left">
           <thead>
-            <tr className="border-b border-slate-800 text-slate-400">
+            <tr className={cn("border-b", isDark ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-600")}>
               <th className="py-1 font-medium">Workload</th>
               <th className="py-1 font-medium text-right">Current</th>
               <th className="py-1 font-medium text-right">Min</th>
@@ -243,9 +254,9 @@ export const SystemMonitorTimeSeriesPanel = ({
               <th className="py-1 font-medium text-right">Alerts</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/40">
+          <tbody className={cn("divide-y", isDark ? "divide-slate-800/40" : "divide-slate-100")}>
             {seriesData.map((s) => (
-              <tr key={`legend-${s.id}`} className="hover:bg-slate-800/20">
+              <tr key={`legend-${s.id}`} className={cn("transition-colors", isDark ? "hover:bg-slate-800/20" : "hover:bg-slate-50")}>
                 <td className="py-1 flex items-center gap-1.5 font-bold">
                   <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: s.color }} />
                   <span className="truncate max-w-[150px]">{s.label}</span>
@@ -254,31 +265,31 @@ export const SystemMonitorTimeSeriesPanel = ({
                   {s.current}
                   {unit}
                 </td>
-                <td className="py-1 text-right text-slate-400">
+                <td className={cn("py-1 text-right", isDark ? "text-slate-400" : "text-slate-600")}>
                   {s.min}
                   {unit}
                 </td>
-                <td className="py-1 text-right text-slate-400">
+                <td className={cn("py-1 text-right", isDark ? "text-slate-400" : "text-slate-600")}>
                   {s.max}
                   {unit}
                 </td>
-                <td className="py-1 text-right text-slate-400">
+                <td className={cn("py-1 text-right", isDark ? "text-slate-400" : "text-slate-600")}>
                   {s.avg}
                   {unit}
                 </td>
                 <td className="py-1 text-right">
                   {s.isThrottled && (
-                    <span className="inline-flex items-center gap-1 text-[9px] text-amber-400 font-bold mr-1.5">
+                    <span className={cn("inline-flex items-center gap-1 text-[9px] font-bold mr-1.5", isDark ? "text-amber-400" : "text-amber-700")}>
                       <ZapOff size={10} /> Throttled
                     </span>
                   )}
                   {s.isOOM && (
-                    <span className="inline-flex items-center gap-1 text-[9px] text-rose-400 font-bold">
+                    <span className={cn("inline-flex items-center gap-1 text-[9px] font-bold", isDark ? "text-rose-400" : "text-rose-700")}>
                       <AlertTriangle size={10} /> OOM Risk
                     </span>
                   )}
                   {!s.isThrottled && !s.isOOM && (
-                    <span className="text-[9px] text-emerald-400">OK</span>
+                    <span className={cn("text-[9px]", isDark ? "text-emerald-400" : "text-emerald-700 font-medium")}>OK</span>
                   )}
                 </td>
               </tr>
