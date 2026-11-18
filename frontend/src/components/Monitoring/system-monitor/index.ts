@@ -6,5 +6,6 @@ export * from './SystemMonitorStatCard';
 export * from './SystemMonitorTimeSeriesPanel';
 export * from './SystemMonitorReplicasPanel';
 export * from './SystemMonitorNetworkPanel';
+export * from './SystemMonitorChartAxes';
 export * from './SystemMonitorContextMenu';
 export * from './SystemMonitorDashboard';

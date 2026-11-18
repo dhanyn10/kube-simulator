@@ -341,6 +341,149 @@ export const aggregateMetricSeries = (
   };
 };
 
+export interface NetworkMetricsResult {
+  rpsData: number[];
+  currentRps: number;
+  currentLatency: number;
+}
+
+const aggregateUnindexedNetworkMetrics = (
+  deployments: DeploymentSummary[],
+  metrics: Record<string, SimulationMetricPoint[]>
+) => {
+  const rpsArr: number[] = [];
+  const latArr: number[] = [];
+  deployments.forEach((dep) => {
+    const points = metrics[dep.id] || [];
+    const replicas = dep.replicas || 1;
+    points.forEach((p, idx) => {
+      const rps = Math.round((p.cpuPercent || 0) * 15 * replicas);
+      const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
+      rpsArr[idx] = (rpsArr[idx] || 0) + rps;
+      latArr[idx] = Math.max(latArr[idx] || 0, lat);
+    });
+  });
+  return { rpsArr, latArr };
+};
+
+const aggregateBucketNetworkMetrics = (
+  deployments: DeploymentSummary[],
+  metrics: Record<string, SimulationMetricPoint[]>,
+  intervalMinutes: number
+) => {
+  const bucketRpsMap = new Map<number, number>();
+  const bucketLatMap = new Map<number, number>();
+
+  deployments.forEach((dep) => {
+    const points = metrics[dep.id] || [];
+    const replicas = dep.replicas || 1;
+    points.forEach((p) => {
+      const minIdx = ((p.minuteIndex ?? 0) % 1440 + 1440) % 1440;
+      const bIdx = Math.floor(minIdx / intervalMinutes);
+      const rps = Math.round((p.cpuPercent || 0) * 15 * replicas);
+      const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
+
+      bucketRpsMap.set(bIdx, (bucketRpsMap.get(bIdx) || 0) + rps);
+      bucketLatMap.set(bIdx, Math.max(bucketLatMap.get(bIdx) || 0, lat));
+    });
+  });
+
+  const sortedIndices = Array.from(bucketRpsMap.keys()).sort((a, b) => a - b);
+  const rpsArr: number[] = [];
+  const latArr: number[] = [];
+  if (sortedIndices.length > 0) {
+    const maxB = sortedIndices.at(-1)!;
+    for (let b = 0; b <= maxB; b++) {
+      rpsArr.push(bucketRpsMap.get(b) || 0);
+      latArr.push(bucketLatMap.get(b) || 0);
+    }
+  }
+  return { rpsArr, latArr };
+};
+
+export const calculateNetworkMetrics = (
+  deployments: DeploymentSummary[],
+  metrics: Record<string, SimulationMetricPoint[]>,
+  interval?: TimeRangeFilter
+): NetworkMetricsResult => {
+  const intervalMinutes = parseIntervalMinutes(interval);
+  const allPoints = Object.values(metrics).flat();
+  const hasMinuteIndex = allPoints.some((p) => typeof p.minuteIndex === 'number');
+
+  const { rpsArr, latArr } = hasMinuteIndex
+    ? aggregateBucketNetworkMetrics(deployments, metrics, intervalMinutes)
+    : aggregateUnindexedNetworkMetrics(deployments, metrics);
+
+  return {
+    rpsData: rpsArr,
+    currentRps: rpsArr.at(-1) || 0,
+    currentLatency: latArr.at(-1) || 0,
+  };
+};
+
+export interface ReplicaSeriesItem {
+  id: string;
+  label: string;
+  color: string;
+  current: number;
+  data: number[];
+  svgPoints: string;
+}
+
+export const extractReplicaCounts = (
+  deployments: DeploymentSummary[],
+  metrics: Record<string, SimulationMetricPoint[]>
+): number[] => {
+  const counts: number[] = [];
+  deployments.forEach((dep) => {
+    counts.push(dep.replicas || 1);
+    const points = metrics[dep.id] || [];
+    points.forEach((p) => {
+      if (typeof p.replicas === 'number') counts.push(p.replicas);
+    });
+  });
+  return counts;
+};
+
+export const calculateReplicaSeries = (
+  deployments: DeploymentSummary[],
+  metrics: Record<string, SimulationMetricPoint[]>,
+  interval: TimeRangeFilter | undefined,
+  dynamicMaxReplicas: number
+): ReplicaSeriesItem[] => {
+  return deployments.map((dep, idx) => {
+    const color = CHART_PALETTE[idx % CHART_PALETTE.length];
+    const points = metrics[dep.id] || [];
+    const hasMinuteIndex = points.some((p) => typeof p.minuteIndex === 'number');
+
+    if (!hasMinuteIndex) {
+      const data = points.map(() => dep.replicas || 1);
+      const current = dep.replicas || 1;
+      const capacity = Math.round(1440 / parseIntervalMinutes(interval));
+      const svgPoints = buildSvgPoints(data, dynamicMaxReplicas, 500, 100, capacity);
+      return {
+        id: dep.id,
+        label: dep.label,
+        color,
+        current,
+        data,
+        svgPoints,
+      };
+    }
+
+    const aggregated = aggregateMetricSeries(points, 'replicas', interval, dynamicMaxReplicas, 500, 100);
+    const current = Math.round(aggregated.currentVal) || dep.replicas || 1;
+    return {
+      id: dep.id,
+      label: dep.label,
+      color,
+      current,
+      data: aggregated.data,
+      svgPoints: aggregated.svgPoints,
+    };
+  });
+};
+
 export interface ThresholdReferenceLine {
   value: number;
   label: string;

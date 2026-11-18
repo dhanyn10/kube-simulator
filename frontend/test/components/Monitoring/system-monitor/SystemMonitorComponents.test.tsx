@@ -6,6 +6,11 @@ import { SystemMonitorTimeSeriesPanel } from '@/components/Monitoring/system-mon
 import { SystemMonitorReplicasPanel } from '@/components/Monitoring/system-monitor/SystemMonitorReplicasPanel';
 import { SystemMonitorNetworkPanel } from '@/components/Monitoring/system-monitor/SystemMonitorNetworkPanel';
 import { SystemMonitorContextMenu } from '@/components/Monitoring/system-monitor/SystemMonitorContextMenu';
+import {
+  SystemMonitorChartCanvas,
+  SystemMonitorPanelCard,
+  SystemMonitorHorizontalGrid,
+} from '@/components/Monitoring/system-monitor/SystemMonitorChartAxes';
 import { Activity } from 'lucide-react';
 
 describe('SystemMonitor UI Components', () => {
@@ -387,5 +392,42 @@ describe('SystemMonitor UI Components', () => {
     // Press Escape key
     fireEvent.keyDown(globalThis, { key: 'Escape' });
     expect(onCloseMenu).toHaveBeenCalledTimes(3);
+  });
+
+  it('renders SystemMonitorPanelCard and SystemMonitorChartCanvas with empty state', () => {
+    render(
+      <SystemMonitorPanelCard
+        isDark={false}
+        headerLeft={<span>Test Header</span>}
+        headerRight={<span>Test Action</span>}
+        footer={<span>Test Footer</span>}
+      >
+        <SystemMonitorChartCanvas
+          isDark={false}
+          xTicks={[{ label: '0h', minute: 0, percent: 100 }]}
+          yScaleTicks={[{ value: 100, label: '100%', percentFromTop: 0 }]}
+          isEmpty={true}
+          emptyText="No items found"
+        />
+      </SystemMonitorPanelCard>
+    );
+
+    expect(screen.getByText('Test Header')).toBeDefined();
+    expect(screen.getByText('Test Action')).toBeDefined();
+    expect(screen.getByText('Test Footer')).toBeDefined();
+    expect(screen.getByText('No items found')).toBeDefined();
+    expect(screen.getByText('100%')).toBeDefined();
+  });
+
+  it('renders empty states for Network and Replicas panels when deployments is empty', () => {
+    render(
+      <div>
+        <SystemMonitorNetworkPanel deployments={[]} metrics={{}} />
+        <SystemMonitorReplicasPanel deployments={[]} metrics={{}} />
+      </div>
+    );
+
+    expect(screen.getByText('No active traffic simulation')).toBeDefined();
+    expect(screen.getByText('No workload deployments active')).toBeDefined();
   });
 });

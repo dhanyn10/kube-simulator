@@ -1,37 +1,29 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { SimulationMetricPoint } from '@/store/types';
-import { DeploymentSummary, TimeRangeFilter } from './types';
+import { BaseSystemMonitorPanelProps } from './types';
 import {
   CHART_PALETTE,
   calculateSeriesStats,
   aggregateMetricSeries,
   calculateDynamicYMax,
-  generateYAxisScale,
-  generateXAxisTicks,
   getThresholdReferenceLines,
   resolveMemoryLimit,
   ThresholdReferenceLine,
 } from './chartHelpers';
 import {
-  SystemMonitorAxisBottom,
-  SystemMonitorYScaleOverlay,
-  SystemMonitorVerticalGrid,
+  SystemMonitorPanelCard,
+  SystemMonitorChartCanvas,
+  useChartScales,
 } from './SystemMonitorChartAxes';
 import { ZapOff, AlertTriangle } from 'lucide-react';
 
-interface SystemMonitorTimeSeriesPanelProps {
+export interface SystemMonitorTimeSeriesPanelProps extends BaseSystemMonitorPanelProps {
   title: string;
   description?: string;
-  deployments: DeploymentSummary[];
-  metrics: Record<string, SimulationMetricPoint[]>;
   metricKey: 'cpuPercent' | 'memoryPercent' | 'cpuValue' | 'memoryValue';
   unit?: string;
   maxVal?: number;
   showThresholds?: boolean;
-  colorMode?: 'dark' | 'light';
-  interval?: TimeRangeFilter;
-  isSimulating?: boolean;
   hasHpa?: boolean;
   hpaTarget?: number;
 }
@@ -112,7 +104,6 @@ export const SystemMonitorTimeSeriesPanel = ({
   showThresholds = true,
   colorMode = 'dark',
   interval = '1h',
-  isSimulating = true,
   hasHpa = false,
   hpaTarget = 80,
 }: SystemMonitorTimeSeriesPanelProps) => {
@@ -134,8 +125,7 @@ export const SystemMonitorTimeSeriesPanel = ({
     return calculateDynamicYMax(allValues, floor);
   }, [deployments, metrics, metricKey, maxVal]);
 
-  const yScale = useMemo(() => generateYAxisScale(dynamicMax, unit, 3), [dynamicMax, unit]);
-  const xTicks = useMemo(() => generateXAxisTicks(interval), [interval]);
+  const { yScale, xTicks } = useChartScales(dynamicMax, unit, interval);
 
   const thresholdLines = useMemo(() => {
     if (!showThresholds) return [];
@@ -160,20 +150,17 @@ export const SystemMonitorTimeSeriesPanel = ({
   }, [deployments, metrics, metricKey, dynamicMax, interval]);
 
   return (
-    <div
-      className={cn(
-        'p-4 rounded-lg border flex flex-col gap-3 transition-colors',
-        isDark ? 'bg-[#181b1f] border-[#22252b] text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-      )}
-    >
-      {/* Panel Header */}
-      <div className={cn("flex items-center justify-between pb-2 border-b", isDark ? "border-slate-800/60" : "border-slate-200")}>
+    <SystemMonitorPanelCard
+      isDark={isDark}
+      headerLeft={
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded bg-blue-500" />
           <h2 className="text-xs font-bold font-mono uppercase tracking-wider">{title}</h2>
           {description && <span className={cn("text-[10px] font-sans", isDark ? "text-slate-400" : "text-slate-500")}>({description})</span>}
         </div>
-        {showThresholds && thresholdLines.length > 0 && (
+      }
+      headerRight={
+        showThresholds && thresholdLines.length > 0 ? (
           <div className="flex items-center gap-2 text-[9px] font-mono flex-wrap">
             {thresholdLines.map((line) => (
               <span
@@ -185,118 +172,97 @@ export const SystemMonitorTimeSeriesPanel = ({
               </span>
             ))}
           </div>
-        )}
-      </div>
-
-      {/* Main Chart Canvas Area */}
-      <div className={cn(
-        "h-40 w-full rounded border relative overflow-hidden flex items-center justify-center transition-colors",
-        isDark ? "bg-[#111217] border-[#22252b]" : "bg-slate-50 border-slate-200"
-      )}>
-        {/* Horizontal Background Grid Lines */}
-        <div className={cn("absolute inset-0 flex flex-col justify-between p-2 pointer-events-none", isDark ? "opacity-20" : "opacity-30")}>
-          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
-          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
-          <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
-        </div>
-
-        {/* Dynamic Vertical Grid Lines */}
-        <SystemMonitorVerticalGrid xTicks={xTicks} isDark={isDark} />
-
-        {/* Dynamic Y-Axis Scale Indicator (Windows Task Manager style) */}
-        <SystemMonitorYScaleOverlay ticks={yScale.ticks} isDark={isDark} />
-
-        {/* Kubernetes-native Dynamic Threshold Lines & Badges */}
-        {showThresholds && <DynamicThresholdLines lines={thresholdLines} isDark={isDark} />}
-
-        {deployments.length === 0 ? (
-          <span className="text-xs font-mono text-slate-500">No active workload metrics</span>
-        ) : (
-          <svg aria-hidden="true" viewBox="0 0 500 140" className="w-full h-full" preserveAspectRatio="none">
-            {seriesData.map((s) => (
-              <g key={`series-${s.id}`}>
-                {/* Area under line */}
-                <path
-                  d={s.areaPath}
-                  fill={s.color}
-                  fillOpacity="0.12"
-                  className="transition-all duration-150"
-                />
-                {/* Crisp angular polyline matching Windows 11 Task Manager */}
-                <polyline
-                  points={s.svgPoints}
-                  fill="none"
-                  stroke={s.color}
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="transition-all duration-150"
-                />
-              </g>
-            ))}
-          </svg>
-        )}
-      </div>
-
-      {/* Dynamic 24-Hour Timeline Bottom Axis */}
-      <SystemMonitorAxisBottom xTicks={xTicks} isDark={isDark} />
-
-      {/* Metrics Legend Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-[10px] font-mono text-left">
-          <thead>
-            <tr className={cn("border-b", isDark ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-600")}>
-              <th className="py-1 font-medium">Workload</th>
-              <th className="py-1 font-medium text-right">Current</th>
-              <th className="py-1 font-medium text-right">Min</th>
-              <th className="py-1 font-medium text-right">Max</th>
-              <th className="py-1 font-medium text-right">Avg</th>
-              <th className="py-1 font-medium text-right">Alerts</th>
-            </tr>
-          </thead>
-          <tbody className={cn("divide-y", isDark ? "divide-slate-800/40" : "divide-slate-100")}>
-            {seriesData.map((s) => (
-              <tr key={`legend-${s.id}`} className={cn("transition-colors", isDark ? "hover:bg-slate-800/20" : "hover:bg-slate-50")}>
-                <td className="py-1 flex items-center gap-1.5 font-bold">
-                  <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: s.color }} />
-                  <span className="truncate max-w-[150px]">{s.label}</span>
-                </td>
-                <td className="py-1 text-right font-bold" style={{ color: s.color }}>
-                  {s.current}
-                  {unit}
-                </td>
-                <td className={cn("py-1 text-right", isDark ? "text-slate-400" : "text-slate-600")}>
-                  {s.min}
-                  {unit}
-                </td>
-                <td className={cn("py-1 text-right", isDark ? "text-slate-400" : "text-slate-600")}>
-                  {s.max}
-                  {unit}
-                </td>
-                <td className={cn("py-1 text-right", isDark ? "text-slate-400" : "text-slate-600")}>
-                  {s.avg}
-                  {unit}
-                </td>
-                <td className="py-1 text-right">
-                  {s.isThrottled && (
-                    <span className={cn("inline-flex items-center gap-1 text-[9px] font-bold mr-1.5", isDark ? "text-amber-400" : "text-amber-700")}>
-                      <ZapOff size={10} /> Throttled
-                    </span>
-                  )}
-                  {s.isOOM && (
-                    <span className={cn("inline-flex items-center gap-1 text-[9px] font-bold", isDark ? "text-rose-400" : "text-rose-700")}>
-                      <AlertTriangle size={10} /> OOM Risk
-                    </span>
-                  )}
-                  {!s.isThrottled && !s.isOOM && (
-                    <span className={cn("text-[9px]", isDark ? "text-emerald-400" : "text-emerald-700 font-medium")}>OK</span>
-                  )}
-                </td>
+        ) : undefined
+      }
+      footer={
+        <div className="overflow-x-auto">
+          <table className="w-full text-[10px] font-mono text-left">
+            <thead>
+              <tr className={cn("border-b", isDark ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-600")}>
+                <th className="py-1 font-medium">Workload</th>
+                <th className="py-1 font-medium text-right">Current</th>
+                <th className="py-1 font-medium text-right">Min</th>
+                <th className="py-1 font-medium text-right">Max</th>
+                <th className="py-1 font-medium text-right">Avg</th>
+                <th className="py-1 font-medium text-right">Alerts</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            </thead>
+            <tbody className={cn("divide-y", isDark ? "divide-slate-800/40" : "divide-slate-100")}>
+              {seriesData.map((s) => (
+                <tr key={`legend-${s.id}`} className={cn("transition-colors", isDark ? "hover:bg-slate-800/20" : "hover:bg-slate-50")}>
+                  <td className="py-1 flex items-center gap-1.5 font-bold">
+                    <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: s.color }} />
+                    <span className="truncate max-w-[150px]">{s.label}</span>
+                  </td>
+                  <td className="py-1 text-right font-bold" style={{ color: s.color }}>
+                    {s.current}
+                    {unit}
+                  </td>
+                  <td className={cn("py-1 text-right", isDark ? "text-slate-400" : "text-slate-600")}>
+                    {s.min}
+                    {unit}
+                  </td>
+                  <td className={cn("py-1 text-right", isDark ? "text-slate-400" : "text-slate-600")}>
+                    {s.max}
+                    {unit}
+                  </td>
+                  <td className={cn("py-1 text-right", isDark ? "text-slate-400" : "text-slate-600")}>
+                    {s.avg}
+                    {unit}
+                  </td>
+                  <td className="py-1 text-right">
+                    {s.isThrottled && (
+                      <span className={cn("inline-flex items-center gap-1 text-[9px] font-bold mr-1.5", isDark ? "text-amber-400" : "text-amber-700")}>
+                        <ZapOff size={10} /> Throttled
+                      </span>
+                    )}
+                    {s.isOOM && (
+                      <span className={cn("inline-flex items-center gap-1 text-[9px] font-bold", isDark ? "text-rose-400" : "text-rose-700")}>
+                        <AlertTriangle size={10} /> OOM Risk
+                      </span>
+                    )}
+                    {!s.isThrottled && !s.isOOM && (
+                      <span className={cn("text-[9px]", isDark ? "text-emerald-400" : "text-emerald-700 font-medium")}>OK</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      }
+    >
+      <SystemMonitorChartCanvas
+        heightClass="h-40"
+        isDark={isDark}
+        xTicks={xTicks}
+        yScaleTicks={yScale.ticks}
+        overlay={showThresholds ? <DynamicThresholdLines lines={thresholdLines} isDark={isDark} /> : undefined}
+        isEmpty={deployments.length === 0}
+        emptyText="No active workload metrics"
+      >
+        <svg aria-hidden="true" viewBox="0 0 500 140" className="w-full h-full" preserveAspectRatio="none">
+          {seriesData.map((s) => (
+            <g key={`series-${s.id}`}>
+              <path
+                d={s.areaPath}
+                fill={s.color}
+                fillOpacity="0.12"
+                className="transition-all duration-150"
+              />
+              <polyline
+                points={s.svgPoints}
+                fill="none"
+                stroke={s.color}
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="transition-all duration-150"
+              />
+            </g>
+          ))}
+        </svg>
+      </SystemMonitorChartCanvas>
+    </SystemMonitorPanelCard>
   );
 };
