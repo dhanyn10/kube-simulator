@@ -39,6 +39,9 @@ export const SystemMonitorContextMenu: React.FC<SystemMonitorContextMenuProps> =
   return (
     <div
       ref={menuRef}
+      role="menu"
+      tabIndex={-1}
+      aria-label="System monitor context menu"
       data-testid="system-monitor-context-menu"
       style={{ top: position.top, left: position.left }}
       className={cn(
@@ -47,10 +50,10 @@ export const SystemMonitorContextMenu: React.FC<SystemMonitorContextMenuProps> =
           ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
           : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"
       )}
-      onClick={(e) => e.stopPropagation()}
     >
       <button
         type="button"
+        role="menuitem"
         data-testid="system-monitor-menu-change-theme"
         onClick={() => {
           onToggleTheme();
@@ -69,6 +72,7 @@ export const SystemMonitorContextMenu: React.FC<SystemMonitorContextMenuProps> =
 
       <button
         type="button"
+        role="menuitem"
         data-testid="system-monitor-menu-close"
         onClick={() => {
           onCloseMenu();

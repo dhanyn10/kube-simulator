@@ -7,15 +7,15 @@ import { WindowControls } from '@/components/Layout';
 import { TimeRangeFilter, SimulationSpeed, SystemMonitorColorMode } from './types';
 
 interface SystemMonitorHeaderProps {
-  isSimulating: boolean;
-  isPaused: boolean;
-  simulationSpeed: SimulationSpeed;
-  timeRange: TimeRangeFilter;
-  setTimeRange: (t: TimeRangeFilter) => void;
-  sendControl: (action: string, options?: any) => void;
-  colorMode: SystemMonitorColorMode;
-  simulatedTime?: string;
-  canStart?: boolean;
+  readonly isSimulating: boolean;
+  readonly isPaused: boolean;
+  readonly simulationSpeed: SimulationSpeed;
+  readonly timeRange: TimeRangeFilter;
+  readonly setTimeRange: (t: TimeRangeFilter) => void;
+  readonly sendControl: (action: string, options?: any) => void;
+  readonly colorMode: SystemMonitorColorMode;
+  readonly simulatedTime?: string;
+  readonly canStart?: boolean;
 }
 
 const TICK_INTERVAL_MAP: Record<SimulationSpeed, string> = {
@@ -66,9 +66,9 @@ const SystemMonitorLiveStatus = ({
   isPaused,
   isDark = true,
 }: {
-  isSimulating: boolean;
-  isPaused: boolean;
-  isDark?: boolean;
+  readonly isSimulating: boolean;
+  readonly isPaused: boolean;
+  readonly isDark?: boolean;
 }) => {
   const statusInfo = getSimulationStatusInfo(isSimulating, isPaused, isDark);
 
@@ -85,13 +85,52 @@ const SystemMonitorLiveStatus = ({
   );
 };
 
+const getPrimaryButtonClass = (canStart: boolean, isDark: boolean): string => {
+  if (canStart) {
+    return isDark
+      ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer"
+      : "text-emerald-700 hover:bg-emerald-100 cursor-pointer";
+  }
+  return isDark
+    ? "text-slate-500 opacity-40 cursor-not-allowed"
+    : "text-slate-400 opacity-40 cursor-not-allowed";
+};
+
+const PlaybackStartResumeButton = ({
+  action,
+  label,
+  canStart,
+  isDark,
+  onClick,
+}: {
+  readonly action: 'start' | 'resume';
+  readonly label: string;
+  readonly canStart: boolean;
+  readonly isDark: boolean;
+  readonly onClick: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={!canStart}
+    className={cn(
+      "px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition-colors",
+      getPrimaryButtonClass(canStart, isDark)
+    )}
+    title={canStart ? `${label} Simulation` : `Add an Internet card to ${action} simulation`}
+  >
+    <Play size={12} fill="currentColor" />
+    <span>{label}</span>
+  </button>
+);
+
 interface SimulationPlaybackControlsProps {
-  isSimulating: boolean;
-  isPaused: boolean;
-  simulationSpeed: SimulationSpeed;
-  sendControl: (action: string, options?: any) => void;
-  canStart?: boolean;
-  isDark?: boolean;
+  readonly isSimulating: boolean;
+  readonly isPaused: boolean;
+  readonly simulationSpeed: SimulationSpeed;
+  readonly sendControl: (action: string, options?: any) => void;
+  readonly canStart?: boolean;
+  readonly isDark?: boolean;
 }
 
 const SimulationPlaybackControls = ({
@@ -105,46 +144,30 @@ const SimulationPlaybackControls = ({
   const renderPrimaryButton = () => {
     if (!isSimulating) {
       return (
-        <button
-          type="button"
+        <PlaybackStartResumeButton
+          action="start"
+          label="Start"
+          canStart={canStart}
+          isDark={isDark}
           onClick={() => {
             if (!canStart) return;
             sendControl('start', { speed: simulationSpeed });
           }}
-          disabled={!canStart}
-          className={cn(
-            "px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition-colors",
-            canStart
-              ? (isDark ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer" : "text-emerald-700 hover:bg-emerald-100 cursor-pointer")
-              : (isDark ? "text-slate-500 opacity-40 cursor-not-allowed" : "text-slate-400 opacity-40 cursor-not-allowed")
-          )}
-          title={canStart ? "Start Simulation" : "Add an Internet card to start simulation"}
-        >
-          <Play size={12} fill="currentColor" />
-          <span>Start</span>
-        </button>
+        />
       );
     }
     if (isPaused) {
       return (
-        <button
-          type="button"
+        <PlaybackStartResumeButton
+          action="resume"
+          label="Resume"
+          canStart={canStart}
+          isDark={isDark}
           onClick={() => {
             if (!canStart) return;
             sendControl('resume');
           }}
-          disabled={!canStart}
-          className={cn(
-            "px-2.5 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition-colors",
-            canStart
-              ? (isDark ? "text-emerald-400 hover:bg-emerald-500/20 cursor-pointer" : "text-emerald-700 hover:bg-emerald-100 cursor-pointer")
-              : (isDark ? "text-slate-500 opacity-40 cursor-not-allowed" : "text-slate-400 opacity-40 cursor-not-allowed")
-          )}
-          title={canStart ? "Resume Simulation" : "Add an Internet card to resume simulation"}
-        >
-          <Play size={12} fill="currentColor" />
-          <span>Resume</span>
-        </button>
+        />
       );
     }
     return (
@@ -186,14 +209,21 @@ const SimulationPlaybackControls = ({
   );
 };
 
+const getSpeedButtonClass = (isActive: boolean, isDark: boolean): string => {
+  if (isActive) return 'bg-blue-600 text-white shadow-sm';
+  return isDark
+    ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200';
+};
+
 const SpeedSelector = ({
   simulationSpeed,
   sendControl,
   isDark = true,
 }: {
-  simulationSpeed: SimulationSpeed;
-  sendControl: (action: string, options?: any) => void;
-  isDark?: boolean;
+  readonly simulationSpeed: SimulationSpeed;
+  readonly sendControl: (action: string, options?: any) => void;
+  readonly isDark?: boolean;
 }) => (
   <div className={cn(
     "flex items-center rounded border p-0.5 text-[10px] font-mono font-bold",
@@ -206,11 +236,7 @@ const SpeedSelector = ({
         onClick={() => sendControl('speed', { speed: s })}
         className={cn(
           'px-2 py-0.5 rounded transition-all',
-          simulationSpeed === s
-            ? 'bg-blue-600 text-white shadow-sm'
-            : isDark
-              ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+          getSpeedButtonClass(simulationSpeed === s, isDark)
         )}
       >
         {s}x
@@ -219,14 +245,21 @@ const SpeedSelector = ({
   </div>
 );
 
+const getTimeRangeButtonClass = (isActive: boolean, isDark: boolean): string => {
+  if (isActive) return 'bg-blue-600 text-white font-bold';
+  return isDark
+    ? 'text-slate-400 hover:text-slate-200'
+    : 'text-slate-600 hover:text-slate-900';
+};
+
 const TimeRangeSelector = ({
   timeRange,
   setTimeRange,
   isDark,
 }: {
-  timeRange: TimeRangeFilter;
-  setTimeRange: (t: TimeRangeFilter) => void;
-  isDark: boolean;
+  readonly timeRange: TimeRangeFilter;
+  readonly setTimeRange: (t: TimeRangeFilter) => void;
+  readonly isDark: boolean;
 }) => (
   <div className={cn(
     "flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-mono",
@@ -241,9 +274,7 @@ const TimeRangeSelector = ({
         onClick={() => setTimeRange(range)}
         className={cn(
           'px-1.5 py-0.5 rounded transition-colors',
-          timeRange === range
-            ? 'bg-blue-600 text-white font-bold'
-            : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
+          getTimeRangeButtonClass(timeRange === range, isDark)
         )}
       >
         {range}
