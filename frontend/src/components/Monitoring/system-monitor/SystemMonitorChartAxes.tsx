@@ -102,7 +102,7 @@ export const SystemMonitorAxisBottom = memo(({
           {unit}
         </span>
 
-        <span className={cn('tracking-wide', isDark ? 'text-slate-500' : 'text-slate-500')}>
+        <span className={cn('tracking-wide', isDark ? 'text-slate-400' : 'text-slate-600')}>
           Window: <strong className={isDark ? 'text-slate-300' : 'text-slate-700'}>{windowText}</strong>
         </span>
       </div>
