@@ -20,3 +20,4 @@ export * from './useSettingsModal';
 export * from './attachedResourceOverviewHelpers';
 export * from './configMapStorageHelpers';
 export * from './secretStorageHelpers';
+export * from './useResourceColumnVisibility';

@@ -4,29 +4,16 @@ import { cn } from '@/lib/utils';
 import { OverviewItem } from '@/activities/modals/attachedResourceOverviewHelpers';
 import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
 import { useOutsideMouseDown } from '@/hooks/useOutsideMouseDown';
+import {
+  ResourceColumnVisibility,
+  getInitialResourceColumnVisibility,
+  useResourceColumnVisibility,
+} from '@/activities/modals/useResourceColumnVisibility';
 
-export interface ResourceColumnVisibility {
-  profile: boolean;
-  component: boolean;
-}
-
-export const getInitialResourceColumnVisibility = (
-  storageKey: string
-): ResourceColumnVisibility => {
-  if (globalThis.localStorage !== undefined) {
-    const saved = globalThis.localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed?.profile === 'boolean' && typeof parsed?.component === 'boolean') {
-          return parsed;
-        }
-      } catch {
-        // Fallback to default
-      }
-    }
-  }
-  return { profile: true, component: true };
+export {
+  type ResourceColumnVisibility,
+  getInitialResourceColumnVisibility,
+  useResourceColumnVisibility,
 };
 
 interface ResourceColumnDropdownProps {
@@ -374,24 +361,12 @@ export const ResourceListView: React.FC<ResourceListViewProps> = ({
   onSelectProfile,
   accentColor = 'teal',
 }) => {
-  const [columns, setColumns] = useState<ResourceColumnVisibility>(() =>
-    getInitialResourceColumnVisibility(storageKey)
-  );
+  const { columns, toggleColumn } = useResourceColumnVisibility(storageKey);
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const prefix = resourceType === 'Secret' ? 'secret-' : '';
   const rowPrefix = resourceType === 'Secret' ? 'sec' : 'cm';
-
-  const toggleColumn = (key: keyof ResourceColumnVisibility) => {
-    setColumns((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      if (globalThis.localStorage !== undefined) {
-        globalThis.localStorage.setItem(storageKey, JSON.stringify(next));
-      }
-      return next;
-    });
-  };
 
   useOutsideMouseDown(dropdownRef, isColumnDropdownOpen, () => {
     setIsColumnDropdownOpen(false);
