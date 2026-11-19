@@ -46,10 +46,12 @@ const computeVisibleSeriesPoints = (
   if (count === 0) return [];
 
   const visibleData = count > effectiveCapacity ? data.slice(-effectiveCapacity) : data;
+  const visibleCount = visibleData.length;
+  const stepX = width / Math.max(1, effectiveCapacity - 1);
   const points: CanvasPoint[] = [];
 
-  for (let i = 0; i < visibleData.length; i++) {
-    const x = Math.min(width, Math.max(0, Math.round(((i + 1) / effectiveCapacity) * width)));
+  for (let i = 0; i < visibleCount; i++) {
+    const x = Math.max(0, Math.round(width - (visibleCount - 1 - i) * stepX));
     const safeVal = Math.min(safeMax, Math.max(0, visibleData[i]));
     const prevRaw = i === 0 ? visibleData[0] : visibleData[i - 1];
     const safePrev = Math.min(safeMax, Math.max(0, prevRaw));
@@ -67,17 +69,17 @@ const fillSeriesArea = (
   ctx: CanvasRenderingContext2D,
   color: string,
   points: CanvasPoint[],
+  width: number,
   height: number
 ) => {
   ctx.beginPath();
-  ctx.moveTo(0, height);
-  ctx.lineTo(0, points[0].y);
+  ctx.moveTo(points[0].x, height);
 
   for (const pt of points) {
     ctx.lineTo(pt.x, pt.y);
   }
 
-  ctx.lineTo(points.at(-1)!.x, height);
+  ctx.lineTo(width, height);
   ctx.closePath();
 
   const grad = ctx.createLinearGradient(0, 0, 0, height);
@@ -93,9 +95,10 @@ const strokeSeriesLine = (
   points: CanvasPoint[]
 ) => {
   ctx.beginPath();
-  ctx.moveTo(0, points[0].y);
+  ctx.moveTo(points[0].x, points[0].y);
 
-  for (const pt of points) {
+  for (let i = 1; i < points.length; i++) {
+    const pt = points[i];
     if (s.isStepped) {
       ctx.lineTo(pt.x, pt.prevY);
     }
@@ -128,7 +131,7 @@ export const renderCanvasSeries = (
     if (points.length === 0) continue;
 
     if (s.isArea) {
-      fillSeriesArea(ctx, s.color, points, height);
+      fillSeriesArea(ctx, s.color, points, width, height);
     }
     strokeSeriesLine(ctx, s, points);
   }

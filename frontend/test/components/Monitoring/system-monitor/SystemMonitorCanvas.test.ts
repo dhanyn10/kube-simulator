@@ -1,9 +1,12 @@
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
+import { render } from '@testing-library/react';
 import {
   CircularRingBuffer,
   hexToRgba,
   renderCanvasSeries,
   CanvasSeriesItem,
+  SystemMonitorCanvasRenderer,
 } from '@/components/Monitoring/system-monitor';
 
 describe('SystemMonitor Task Manager Architecture', () => {
@@ -156,6 +159,49 @@ describe('SystemMonitor Task Manager Architecture', () => {
       renderCanvasSeries(ctx, 500, 100, [{ id: 'empty', color: '#fff', data: [] }], 100);
       expect(ctx.clearRect).toHaveBeenCalledWith(0, 0, 500, 100);
       expect(ctx.beginPath).not.toHaveBeenCalled();
+    });
+
+    it('renders SystemMonitorCanvasRenderer component and draws onto canvas 2d context', () => {
+      const mockCtx = {
+        clearRect: vi.fn(),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        closePath: vi.fn(),
+        stroke: vi.fn(),
+        fill: vi.fn(),
+        createLinearGradient: vi.fn().mockReturnValue({ addColorStop: vi.fn() }),
+        save: vi.fn(),
+        scale: vi.fn(),
+        restore: vi.fn(),
+        strokeStyle: '',
+        fillStyle: '',
+        lineWidth: 1,
+        lineCap: 'butt',
+        lineJoin: 'miter',
+      };
+      const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(mockCtx as any);
+
+      const series: CanvasSeriesItem[] = [
+        {
+          id: 's-1',
+          color: '#3b82f6',
+          data: [10, 20, 30],
+          isArea: true,
+          lineWidth: 2,
+        },
+      ];
+
+      const { unmount } = render(
+        React.createElement(SystemMonitorCanvasRenderer, { series, maxVal: 100, capacity: 10 })
+      );
+
+      expect(mockCtx.clearRect).toHaveBeenCalled();
+      expect(mockCtx.save).toHaveBeenCalled();
+      expect(mockCtx.restore).toHaveBeenCalled();
+
+      unmount();
+      getContextSpy.mockRestore();
     });
   });
 });

@@ -13,8 +13,6 @@ import { SystemMonitorTimeSeriesPanel } from './SystemMonitorTimeSeriesPanel';
 import { SystemMonitorReplicasPanel } from './SystemMonitorReplicasPanel';
 import { SystemMonitorNetworkPanel } from './SystemMonitorNetworkPanel';
 import { SystemMonitorContextMenu } from './SystemMonitorContextMenu';
-import { SystemMonitorEventTimeline } from './SystemMonitorEventTimeline';
-import { exportMetricsAsCsv, exportMetricsAsJson } from './exportHelpers';
 
 const getUtilizationThreshold = (percent: number): 'normal' | 'warning' | 'critical' => {
   if (percent > 85) {
@@ -75,19 +73,19 @@ const SystemMonitorFooter = ({
 }: SystemMonitorFooterProps) => (
   <footer
     className={cn(
-      'h-9 px-5 flex items-center justify-between border-t text-[10px] font-mono select-none',
+      'h-9 px-3 sm:px-5 flex items-center justify-between gap-3 border-t text-[10px] font-mono select-none',
       isDark ? 'bg-[#181b1f] border-[#22252b] text-slate-400' : 'bg-white border-slate-200 text-slate-500'
     )}
   >
-    <div className="flex items-center gap-6">
-      <span className={cn("flex items-center gap-1.5 font-bold", isDark ? "text-blue-400" : "text-blue-600")}>
-        <Radio size={12} className={isSimulating && !isPaused ? 'animate-pulse' : ''} />
+    <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+      <span className={cn("flex items-center gap-1.5 font-bold truncate", isDark ? "text-blue-400" : "text-blue-600")}>
+        <Radio size={12} className={isSimulating && !isPaused ? 'animate-pulse shrink-0' : 'shrink-0'} />
         System Monitor Engine (Go Broker Synced)
       </span>
       <span className="hidden sm:inline">Speed: {simulationSpeed}x</span>
       <span className="hidden sm:inline">IPC: Wails v3 + BroadcastChannel</span>
     </div>
-    <div>
+    <div className="hidden md:block shrink-0">
       <span>Multi-Window System Monitor</span>
     </div>
   </footer>
@@ -149,14 +147,6 @@ export const SystemMonitorDashboard = () => {
   const podThreshold = getPodThreshold(clusterTotals.readyPods, clusterTotals.totalPods);
   const errorThreshold = clusterTotals.errorRate > 0 ? 'critical' : 'normal';
 
-  const handleExportCsv = () => {
-    exportMetricsAsCsv(metrics, deployments);
-  };
-
-  const handleExportJson = () => {
-    exportMetricsAsJson(metrics, deployments, clusterTotals);
-  };
-
   return (
     <div
       onContextMenu={handleContextMenu}
@@ -176,14 +166,18 @@ export const SystemMonitorDashboard = () => {
         colorMode={colorMode}
         simulatedTime={simulatedTime}
         canStart={canStart}
-        onExportCsv={handleExportCsv}
-        onExportJson={handleExportJson}
       />
 
-      {/* Main Dashboard Body */}
-      <main className="flex-1 p-5 space-y-5 max-w-[1600px] w-full mx-auto overflow-y-auto">
+      {/* Main Dashboard Body: scrollbar lives inside the window with a right gutter so the
+          frameless window's right edge stays free for native resize */}
+      <div className="flex-1 min-h-0 flex pr-1.5">
+        <div
+          data-testid="system-monitor-scroll-area"
+          className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden custom-scrollbar"
+        >
+      <main className="p-3 sm:p-5 space-y-3 sm:space-y-5 max-w-[1600px] w-full mx-auto">
         {/* KPI SingleStat Row */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        <div className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2.5 sm:gap-3.5">
           <SystemMonitorStatCard
             title="Cluster CPU"
             value={clusterTotals.cpuPercent}
@@ -241,64 +235,57 @@ export const SystemMonitorDashboard = () => {
         {deployments.length === 0 ? (
           <EmptySimulationState isDark={isDark} />
         ) : (
-          <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <SystemMonitorTimeSeriesPanel
-                title="CPU Utilization (%)"
-                description="Processor load per deployment"
-                deployments={deployments}
-                metrics={metrics}
-                metricKey="cpuPercent"
-                unit="%"
-                maxVal={100}
-                showThresholds={true}
-                colorMode={colorMode}
-                interval={timeRange}
-                isSimulating={isSimulating && !isPaused}
-                hasHpa={hasHpa}
-                hpaTarget={hpaTarget}
-              />
-
-              <SystemMonitorTimeSeriesPanel
-                title="Memory Allocation (MiB)"
-                description="Working set per deployment"
-                deployments={deployments}
-                metrics={metrics}
-                metricKey="memoryValue"
-                unit=" MiB"
-                maxVal={256}
-                showThresholds={true}
-                colorMode={colorMode}
-                interval={timeRange}
-                isSimulating={isSimulating && !isPaused}
-              />
-
-              <SystemMonitorNetworkPanel
-                deployments={deployments}
-                metrics={metrics}
-                colorMode={colorMode}
-                interval={timeRange}
-                isSimulating={isSimulating && !isPaused}
-              />
-
-              <SystemMonitorReplicasPanel
-                deployments={deployments}
-                metrics={metrics}
-                colorMode={colorMode}
-                interval={timeRange}
-                isSimulating={isSimulating && !isPaused}
-              />
-            </div>
-
-            {/* Cluster Incident & Event Timeline */}
-            <SystemMonitorEventTimeline
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-5">
+            <SystemMonitorTimeSeriesPanel
+              title="CPU Utilization (%)"
+              description="Processor load per deployment"
               deployments={deployments}
               metrics={metrics}
-              isDark={isDark}
+              metricKey="cpuPercent"
+              unit="%"
+              maxVal={100}
+              showThresholds={true}
+              colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
+              hasHpa={hasHpa}
+              hpaTarget={hpaTarget}
             />
-          </>
+
+            <SystemMonitorTimeSeriesPanel
+              title="Memory Allocation (MiB)"
+              description="Working set per deployment"
+              deployments={deployments}
+              metrics={metrics}
+              metricKey="memoryValue"
+              unit=" MiB"
+              maxVal={256}
+              showThresholds={true}
+              colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
+            />
+
+            <SystemMonitorNetworkPanel
+              deployments={deployments}
+              metrics={metrics}
+              colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
+            />
+
+            <SystemMonitorReplicasPanel
+              deployments={deployments}
+              metrics={metrics}
+              colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
+            />
+          </div>
         )}
       </main>
+        </div>
+      </div>
 
       {/* System Monitor Status Footer */}
       <SystemMonitorFooter

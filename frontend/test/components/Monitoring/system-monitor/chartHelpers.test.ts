@@ -8,7 +8,9 @@ import {
   getIntervalStepMinutes,
   getIntervalCapacity,
   getXAxisUnit,
+  getXAxisScaleMeta,
   getScrubberTimeLabel,
+  resolveScrubberPointValue,
   generateXAxisTicks,
   getNiceCeiling,
   calculateDynamicYMax,
@@ -77,9 +79,21 @@ describe('chartHelpers', () => {
     expect(ticks1h[1]).toEqual({ label: '1', minute: 1, percent: 4.2 });
     expect(ticks1h.at(-1)).toEqual({ label: '24', minute: 24, percent: 100 });
 
-    // Hover scrubber time label
+    // Hover scrubber time label & scale metadata
     expect(getScrubberTimeLabel(25, '5m')).toBe('15 min');
     expect(getScrubberTimeLabel(50, '1h')).toBe('12h');
+    expect(getXAxisScaleMeta('5m')).toEqual({
+      unit: 'Minutes',
+      stepLabel: '5m / div',
+      windowLabel: '60 Minutes',
+    });
+    expect(getXAxisScaleMeta('1h')).toEqual({
+      unit: 'Hours',
+      stepLabel: '1h / div',
+      windowLabel: '24 Hours',
+    });
+    expect(resolveScrubberPointValue([10, 20, 30], 99, 50, 12)).toBe(30);
+    expect(resolveScrubberPointValue([], 99, 50, 12)).toBe(99);
   });
 
   it('calculates nice ceiling values for autoscaling', () => {
@@ -405,5 +419,25 @@ describe('chartHelpers', () => {
 
     expect(prevLen15m).toBe(12);
     expect(prevLen1h).toBe(24);
+  });
+
+  it('handles midnight rollover in calculateNetworkMetrics and empty metric buckets', () => {
+    const deps = [{ id: 'dep-1', label: 'web', replicas: 2 }];
+    const rolloverMetrics = {
+      'dep-1': [
+        { minuteIndex: 1439, cpuPercent: 50 },
+        { minuteIndex: 5, cpuPercent: 60 },
+      ],
+    };
+    const resRollover = calculateNetworkMetrics(deps, rolloverMetrics, '1h');
+    expect(resRollover.rpsData.length).toBeGreaterThan(0);
+
+    const emptyDepsMetrics = {
+      'dep-1': [],
+    };
+    const resEmpty = calculateNetworkMetrics(deps, emptyDepsMetrics, '1h');
+    expect(resEmpty.rpsData).toEqual([]);
+    expect(resEmpty.currentRps).toBe(0);
+    expect(resEmpty.currentLatency).toBe(0);
   });
 });

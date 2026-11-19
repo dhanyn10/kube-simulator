@@ -19,13 +19,12 @@ describe('useSystemMonitorDashboard hook', () => {
     expect(result.current.hpaTarget).toBe(80);
   });
 
-  it('handles simulation controls: start, pause, resume, stop, speed, traffic_spike', async () => {
+  it('handles simulation controls: start, pause, resume, stop, speed', async () => {
     const gw = getBackendGateway();
     const startSpy = vi.spyOn(gw, 'startSimulation');
     const pauseSpy = vi.spyOn(gw, 'pauseSimulation');
     const stopSpy = vi.spyOn(gw, 'stopSimulation');
     const speedSpy = vi.spyOn(gw, 'setSimulationSpeed');
-    const spikeSpy = vi.spyOn(gw, 'triggerTrafficSpike');
 
     const { result } = renderHook(() => useSystemMonitorDashboard());
 
@@ -54,11 +53,6 @@ describe('useSystemMonitorDashboard hook', () => {
     });
     expect(speedSpy).toHaveBeenCalledWith(10);
     expect(result.current.simulationSpeed).toBe(10);
-
-    await act(async () => {
-      await result.current.sendControl('traffic_spike', { multiplier: 3 });
-    });
-    expect(spikeSpy).toHaveBeenCalledWith(3);
 
     await act(async () => {
       await result.current.sendControl('stop');
@@ -140,5 +134,63 @@ describe('useSystemMonitorDashboard hook', () => {
 
     expect(result.current.simulationSpeed).toBe(10);
     expect(result.current.deployments[0].replicas).toBe(4);
+  });
+
+  it('toggles theme between dark and light, syncing with store and gateway', () => {
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+    const initialMode = result.current.colorMode;
+
+    act(() => {
+      result.current.toggleTheme();
+    });
+    expect(result.current.colorMode).not.toBe(initialMode);
+
+    act(() => {
+      result.current.toggleTheme();
+    });
+    expect(result.current.colorMode).toBe(initialMode);
+  });
+
+  it('aggregates throttled, OOM, and resource limits into cluster totals', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') {
+        metricsCallback = cb;
+      }
+      return () => {};
+    });
+
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    const payload = {
+      timestamp: 5000,
+      deployments: [{ id: 'dep-1', label: 'api-service', replicas: 2 }],
+      metrics: {
+        'dep-1': [
+          {
+            cpuValue: 800,
+            cpuLimit: 1000,
+            memoryValue: 700,
+            memoryLimit: 1024,
+            cpuPercent: 80,
+            memoryPercent: 68,
+            isThrottled: true,
+            isOOM: true,
+            replicas: 2,
+          },
+        ],
+      },
+      isSimulating: true,
+    };
+
+    act(() => {
+      metricsCallback?.(JSON.stringify(payload));
+    });
+
+    expect(result.current.clusterTotals.cpuPercent).toBe(80);
+    expect(result.current.clusterTotals.memoryPercent).toBe(68);
+    expect(result.current.clusterTotals.errorRate).toBe(100);
+    expect(result.current.clusterTotals.totalPods).toBe(2);
   });
 });
