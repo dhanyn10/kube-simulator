@@ -6,6 +6,52 @@ import (
 )
 
 func TestDomainModels_Serialization(t *testing.T) {
+	t.Run("Project", func(t *testing.T) {
+		prj := Project{
+			ID:        42,
+			Name:      "Demo Architecture",
+			Content:   `{"nodes":[]}`,
+			CreatedAt: 1789000000,
+			UpdatedAt: 1789000500,
+		}
+
+		data, err := json.Marshal(prj)
+		if err != nil {
+			t.Fatalf("Failed to marshal Project: %v", err)
+		}
+
+		var restored Project
+		if err := json.Unmarshal(data, &restored); err != nil {
+			t.Fatalf("Failed to unmarshal Project: %v", err)
+		}
+
+		if restored.ID != prj.ID || restored.Name != prj.Name || restored.Content != prj.Content {
+			t.Errorf("Mismatch in Project: expected %+v, got %+v", prj, restored)
+		}
+	})
+
+	t.Run("HistoryLog", func(t *testing.T) {
+		log := HistoryLog{
+			Index:      3,
+			ActionName: "Scale Deployment",
+			Timestamp:  1789001000,
+		}
+
+		data, err := json.Marshal(log)
+		if err != nil {
+			t.Fatalf("Failed to marshal HistoryLog: %v", err)
+		}
+
+		var restored HistoryLog
+		if err := json.Unmarshal(data, &restored); err != nil {
+			t.Fatalf("Failed to unmarshal HistoryLog: %v", err)
+		}
+
+		if restored.Index != log.Index || restored.ActionName != log.ActionName || restored.Timestamp != log.Timestamp {
+			t.Errorf("Mismatch in HistoryLog: expected %+v, got %+v", log, restored)
+		}
+	})
+
 	t.Run("AutosaveProfileItem", func(t *testing.T) {
 		item := AutosaveProfileItem{
 			Key:       "autosave-session-1",

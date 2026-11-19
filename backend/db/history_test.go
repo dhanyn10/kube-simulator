@@ -355,3 +355,58 @@ func TestOpenBadger_Invalid(t *testing.T) {
 		t.Error("Expected error opening badger with unconfigured options")
 	}
 }
+
+func TestHistoryManager_GetHistoryLogs(t *testing.T) {
+	// 1. Uninitialized
+	hmUninit := NewHistoryManager()
+	if logs := hmUninit.GetHistoryLogs(); len(logs) != 0 {
+		t.Errorf("Expected 0 logs on uninitialized manager, got %d", len(logs))
+	}
+
+	// 2. Initialized with logs
+	tmpDir, err := os.MkdirTemp("", "kube-historymgr-logs-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	oldHome := os.Getenv("HOME")
+	oldUserProfile := os.Getenv("USERPROFILE")
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Setenv("USERPROFILE", oldUserProfile)
+	}()
+
+	hm := NewHistoryManager()
+	if err := hm.Init(); err != nil {
+		t.Fatalf("Failed to init: %v", err)
+	}
+	defer hm.Close()
+
+	// Push valid JSON entries
+	hm.Push(`{"actionName":"Create Pod","timestamp":100}`)
+	hm.Push(`{"actionName":"Update Service","timestamp":200}`)
+
+	logs := hm.GetHistoryLogs()
+	if len(logs) != 2 {
+		t.Fatalf("Expected 2 logs, got %d", len(logs))
+	}
+	if logs[0].ActionName != "Create Pod" || logs[0].Timestamp != 100 {
+		t.Errorf("Unexpected log 0: %+v", logs[0])
+	}
+	if logs[1].ActionName != "Update Service" || logs[1].Timestamp != 200 {
+		t.Errorf("Unexpected log 1: %+v", logs[1])
+	}
+
+	// Corrupt entry (non-JSON)
+	hm.Push("not-valid-json")
+	logs = hm.GetHistoryLogs()
+	if len(logs) != 3 {
+		t.Fatalf("Expected 3 logs, got %d", len(logs))
+	}
+	if logs[2].ActionName != "Activity #2" {
+		t.Errorf("Expected fallback 'Activity #2', got %q", logs[2].ActionName)
+	}
+}

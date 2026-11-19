@@ -1,48 +1,14 @@
 package service
 
 import (
+	"build-wails/backend/domain"
+
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-// WindowService handles window metrics, layout sizing, and window controls.
-type WindowService struct{}
-
-// NewWindowService constructs a new WindowService.
-func NewWindowService() *WindowService {
-	return &WindowService{}
-}
-
-// CalculateAppHeight returns 90% of the given screen height.
-func (s *WindowService) CalculateAppHeight(screenHeight int) int {
-	return int(float64(screenHeight) * 0.9)
-}
-
-// GetTargetScreen selects the target screen: either the primary screen or the first fallback screen.
-func (s *WindowService) GetTargetScreen(screens []application.Screen) (application.Screen, bool) {
-	if len(screens) == 0 {
-		return application.Screen{}, false
-	}
-	for _, screen := range screens {
-		if screen.IsPrimary {
-			return screen, true
-		}
-	}
-	return screens[0], true
-}
-
-// GetTargetScreenHeight selects the target screen's height: either the primary screen or the first fallback screen.
-func (s *WindowService) GetTargetScreenHeight(screens []application.Screen) (int, bool) {
-	screen, ok := s.GetTargetScreen(screens)
-	if !ok {
-		return 0, false
-	}
-	h := screen.Size.Height
-	if h == 0 {
-		h = screen.Bounds.Height
-	}
-	return h, true
-}
+// SimulationWindowName is the unique identifier for the detached simulation monitoring window.
+const SimulationWindowName = "simulation-monitoring"
 
 // GetActiveWindow returns the current active window or the first available window.
 func GetActiveWindow() application.Window {
@@ -60,22 +26,25 @@ func GetActiveWindow() application.Window {
 	return nil
 }
 
+// WailsWindowController implements domain.WindowController using the Wails v3 runtime API.
+type WailsWindowController struct{}
+
 // Minimize minimizes the application window.
-func (s *WindowService) Minimize() {
+func (c *WailsWindowController) Minimize() {
 	if win := GetActiveWindow(); win != nil {
 		win.Minimise()
 	}
 }
 
 // Maximize toggles window maximize state.
-func (s *WindowService) Maximize() {
+func (c *WailsWindowController) Maximize() {
 	if win := GetActiveWindow(); win != nil {
 		win.ToggleMaximise()
 	}
 }
 
 // Close quits or closes the application window.
-func (s *WindowService) Close() {
+func (c *WailsWindowController) Close() {
 	if win := GetActiveWindow(); win != nil {
 		win.Close()
 		return
@@ -85,11 +54,8 @@ func (s *WindowService) Close() {
 	}
 }
 
-// SimulationWindowName is the unique identifier for the detached simulation monitoring window.
-const SimulationWindowName = "simulation-monitoring"
-
 // OpenSimulationWindow opens or focuses the standalone simulation monitoring window.
-func (s *WindowService) OpenSimulationWindow() bool {
+func (c *WailsWindowController) OpenSimulationWindow() bool {
 	app := application.Get()
 	if app == nil || app.Window == nil {
 		return false
@@ -136,7 +102,7 @@ func (s *WindowService) OpenSimulationWindow() bool {
 }
 
 // CloseSimulationWindow closes the standalone simulation monitoring window if open.
-func (s *WindowService) CloseSimulationWindow() bool {
+func (c *WailsWindowController) CloseSimulationWindow() bool {
 	app := application.Get()
 	if app == nil || app.Window == nil {
 		return false
@@ -151,4 +117,78 @@ func (s *WindowService) CloseSimulationWindow() bool {
 		return true
 	}
 	return false
+}
+
+// WindowService handles window metrics, layout sizing, and window controls via an injected controller.
+type WindowService struct {
+	controller domain.WindowController
+}
+
+// NewWindowService constructs a new WindowService with an optional WindowController.
+func NewWindowService(controller ...domain.WindowController) *WindowService {
+	if len(controller) > 0 && controller[0] != nil {
+		return &WindowService{controller: controller[0]}
+	}
+	return &WindowService{controller: &WailsWindowController{}}
+}
+
+// GetController returns the underlying WindowController.
+func (s *WindowService) GetController() domain.WindowController {
+	return s.controller
+}
+
+// CalculateAppHeight returns 90% of the given screen height.
+func (s *WindowService) CalculateAppHeight(screenHeight int) int {
+	return int(float64(screenHeight) * 0.9)
+}
+
+// GetTargetScreen selects the target screen: either the primary screen or the first fallback screen.
+func (s *WindowService) GetTargetScreen(screens []application.Screen) (application.Screen, bool) {
+	if len(screens) == 0 {
+		return application.Screen{}, false
+	}
+	for _, screen := range screens {
+		if screen.IsPrimary {
+			return screen, true
+		}
+	}
+	return screens[0], true
+}
+
+// GetTargetScreenHeight selects the target screen's height: either the primary screen or the first fallback screen.
+func (s *WindowService) GetTargetScreenHeight(screens []application.Screen) (int, bool) {
+	screen, ok := s.GetTargetScreen(screens)
+	if !ok {
+		return 0, false
+	}
+	h := screen.Size.Height
+	if h == 0 {
+		h = screen.Bounds.Height
+	}
+	return h, true
+}
+
+// Minimize delegates window minimize to the injected controller.
+func (s *WindowService) Minimize() {
+	s.controller.Minimize()
+}
+
+// Maximize delegates window maximize to the injected controller.
+func (s *WindowService) Maximize() {
+	s.controller.Maximize()
+}
+
+// Close delegates window close to the injected controller.
+func (s *WindowService) Close() {
+	s.controller.Close()
+}
+
+// OpenSimulationWindow delegates simulation window opening to the injected controller.
+func (s *WindowService) OpenSimulationWindow() bool {
+	return s.controller.OpenSimulationWindow()
+}
+
+// CloseSimulationWindow delegates simulation window closing to the injected controller.
+func (s *WindowService) CloseSimulationWindow() bool {
+	return s.controller.CloseSimulationWindow()
 }

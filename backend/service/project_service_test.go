@@ -7,8 +7,154 @@ import (
 	"path/filepath"
 	"testing"
 
+	"build-wails/backend/domain"
 	"build-wails/backend/explorer"
 )
+
+type mockProjectRepo struct {
+	initCalled  bool
+	closeCalled bool
+	projects    map[int64]domain.Project
+	settings    map[string]string
+	nextID      int64
+}
+
+func newMockProjectRepo() *mockProjectRepo {
+	return &mockProjectRepo{
+		projects: make(map[int64]domain.Project),
+		settings: make(map[string]string),
+		nextID:   1,
+	}
+}
+
+func (m *mockProjectRepo) Init() error {
+	m.initCalled = true
+	return nil
+}
+
+func (m *mockProjectRepo) Close() {
+	m.closeCalled = true
+}
+
+func (m *mockProjectRepo) SaveProject(name, content string) (int64, error) {
+	id := m.nextID
+	m.nextID++
+	m.projects[id] = domain.Project{
+		ID:      id,
+		Name:    name,
+		Content: content,
+	}
+	return id, nil
+}
+
+func (m *mockProjectRepo) UpdateProject(id int64, content string) error {
+	p, ok := m.projects[id]
+	if !ok {
+		return errors.New("project not found")
+	}
+	p.Content = content
+	m.projects[id] = p
+	return nil
+}
+
+func (m *mockProjectRepo) GetProjects() ([]domain.Project, error) {
+	result := make([]domain.Project, 0, len(m.projects))
+	for _, p := range m.projects {
+		result = append(result, p)
+	}
+	return result, nil
+}
+
+func (m *mockProjectRepo) LoadProject(id int64) (*domain.Project, error) {
+	p, ok := m.projects[id]
+	if !ok {
+		return nil, errors.New("not found")
+	}
+	return &p, nil
+}
+
+func (m *mockProjectRepo) DeleteProject(id int64) error {
+	delete(m.projects, id)
+	return nil
+}
+
+func (m *mockProjectRepo) SaveSetting(key, value string) error {
+	m.settings[key] = value
+	return nil
+}
+
+func (m *mockProjectRepo) GetSetting(key string) (string, error) {
+	val, ok := m.settings[key]
+	if !ok {
+		return "", errors.New("setting not found")
+	}
+	return val, nil
+}
+
+func TestProjectService_WithMockRepository(t *testing.T) {
+	mock := newMockProjectRepo()
+	svc := NewProjectService(mock)
+
+	if err := svc.Init(); err != nil || !mock.initCalled {
+		t.Fatalf("Init failed or not forwarded to mock: %v", err)
+	}
+
+	if svc.GetRepository() != mock {
+		t.Error("Expected GetRepository to return the injected mock repository")
+	}
+
+	// Non-GORM repo should yield nil for GetManager
+	if svc.GetManager() != nil {
+		t.Error("Expected GetManager to return nil for mock repository")
+	}
+
+	// 1. SaveProject
+	id, err := svc.SaveProject("Mock Architecture", `{"nodes":["n1"]}`)
+	if err != nil || id != 1 {
+		t.Fatalf("SaveProject failed: id=%d, err=%v", id, err)
+	}
+
+	// 2. LoadProject
+	proj, err := svc.LoadProject(id)
+	if err != nil || proj.Name != "Mock Architecture" {
+		t.Fatalf("LoadProject failed: %+v, err=%v", proj, err)
+	}
+
+	// 3. UpdateProject
+	err = svc.UpdateProject(id, `{"nodes":["n1","n2"]}`)
+	if err != nil {
+		t.Fatalf("UpdateProject failed: %v", err)
+	}
+
+	// 4. GetProjects
+	list, err := svc.GetProjects()
+	if err != nil || len(list) != 1 {
+		t.Fatalf("GetProjects failed: len=%d, err=%v", len(list), err)
+	}
+
+	// 5. Settings
+	if err := svc.SaveSetting("autosave_interval", "30"); err != nil {
+		t.Fatalf("SaveSetting failed: %v", err)
+	}
+	val, err := svc.GetSetting("autosave_interval")
+	if err != nil || val != "30" {
+		t.Fatalf("GetSetting failed: val=%s, err=%v", val, err)
+	}
+
+	// 6. DeleteProject
+	if err := svc.DeleteProject(id); err != nil {
+		t.Fatalf("DeleteProject failed: %v", err)
+	}
+	afterDelete, _ := svc.GetProjects()
+	if len(afterDelete) != 0 {
+		t.Errorf("Expected 0 projects after delete, got %d", len(afterDelete))
+	}
+
+	svc.Close()
+	if !mock.closeCalled {
+		t.Error("Expected Close to be forwarded to mock repository")
+	}
+}
 
 func TestProjectService_FileOperations(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "kube-project-test-*")

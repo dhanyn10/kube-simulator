@@ -6,66 +6,80 @@ import (
 	"path/filepath"
 
 	"build-wails/backend/db"
+	"build-wails/backend/domain"
 	"build-wails/backend/explorer"
 	"build-wails/backend/logger"
 )
 
 // ProjectService manages persistence, storage querying, file exports, and directory exploration.
 type ProjectService struct {
-	manager *db.ProjectManager
+	repo domain.ProjectRepository
 }
 
-// NewProjectService constructs a new ProjectService.
-func NewProjectService(manager *db.ProjectManager) *ProjectService {
-	if manager == nil {
-		manager = db.NewProjectManager()
+// NewProjectService constructs a new ProjectService with an injected ProjectRepository.
+func NewProjectService(repo domain.ProjectRepository) *ProjectService {
+	if repo == nil {
+		repo = db.NewProjectManager()
 	}
-	return &ProjectService{manager: manager}
+	return &ProjectService{repo: repo}
 }
 
 // Init initializes the project manager database.
 func (s *ProjectService) Init() error {
-	return s.manager.Init()
+	return s.repo.Init()
 }
 
 // Close releases the project manager database connection.
 func (s *ProjectService) Close() {
-	s.manager.Close()
+	s.repo.Close()
+}
+
+// GetRepository returns the underlying ProjectRepository.
+func (s *ProjectService) GetRepository() domain.ProjectRepository {
+	return s.repo
+}
+
+// GetManager returns the underlying repository as *db.ProjectManager when applicable.
+func (s *ProjectService) GetManager() *db.ProjectManager {
+	if mgr, ok := s.repo.(*db.ProjectManager); ok {
+		return mgr
+	}
+	return nil
 }
 
 // SaveProject persists a new project record.
 func (s *ProjectService) SaveProject(name, content string) (int64, error) {
-	return s.manager.SaveProject(name, content)
+	return s.repo.SaveProject(name, content)
 }
 
 // UpdateProject updates an existing project snapshot by ID.
 func (s *ProjectService) UpdateProject(id int64, content string) error {
-	return s.manager.UpdateProject(id, content)
+	return s.repo.UpdateProject(id, content)
 }
 
 // GetProjects returns all saved projects.
-func (s *ProjectService) GetProjects() ([]db.Project, error) {
-	return s.manager.GetProjects()
+func (s *ProjectService) GetProjects() ([]domain.Project, error) {
+	return s.repo.GetProjects()
 }
 
 // LoadProject retrieves a specific project by ID.
-func (s *ProjectService) LoadProject(id int64) (*db.Project, error) {
-	return s.manager.LoadProject(id)
+func (s *ProjectService) LoadProject(id int64) (*domain.Project, error) {
+	return s.repo.LoadProject(id)
 }
 
 // DeleteProject deletes a project record by ID.
 func (s *ProjectService) DeleteProject(id int64) error {
-	return s.manager.DeleteProject(id)
+	return s.repo.DeleteProject(id)
 }
 
 // SaveSetting stores an application configuration key-value pair.
 func (s *ProjectService) SaveSetting(key, value string) error {
-	return s.manager.SaveSetting(key, value)
+	return s.repo.SaveSetting(key, value)
 }
 
 // GetSetting reads an application configuration value by key.
 func (s *ProjectService) GetSetting(key string) (string, error) {
-	return s.manager.GetSetting(key)
+	return s.repo.GetSetting(key)
 }
 
 // FileExists checks whether a physical file exists at the given relative or home-expanded path.
