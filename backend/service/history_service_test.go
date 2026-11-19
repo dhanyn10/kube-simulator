@@ -27,8 +27,8 @@ func TestHistoryService_WithDB(t *testing.T) {
 	}
 	defer svc.Close()
 
-	if svc.GetDB() == nil {
-		t.Error("Expected GetDB to return non-nil badger instance")
+	if svc.GetManager().GetDB() == nil {
+		t.Error("Expected GetManager().GetDB() to return non-nil badger instance")
 	}
 
 	// 1. Initial history

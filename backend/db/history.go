@@ -2,6 +2,7 @@ package db
 
 import (
 	"build-wails/backend/logger"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -237,6 +238,55 @@ func (historyMgr *HistoryManager) GetMaxIndex() int {
 	historyMgr.mu.Lock()
 	defer historyMgr.mu.Unlock()
 	return historyMgr.maxIndex
+}
+
+// parseHistoryLogEntry decodes a snapshot payload or returns a fallback entry if malformed.
+func parseHistoryLogEntry(index int, val []byte) HistoryLog {
+	var data struct {
+		ActionName string `json:"actionName"`
+		Timestamp  int64  `json:"timestamp"`
+	}
+	if err := json.Unmarshal(val, &data); err == nil {
+		return HistoryLog{
+			Index:      index,
+			ActionName: data.ActionName,
+			Timestamp:  data.Timestamp,
+		}
+	}
+	return HistoryLog{
+		Index:      index,
+		ActionName: fmt.Sprintf("Activity #%d", index),
+		Timestamp:  0,
+	}
+}
+
+// GetHistoryLogs extracts structured activity logs from the recorded history snapshots in BadgerDB.
+func (historyMgr *HistoryManager) GetHistoryLogs() []HistoryLog {
+	historyMgr.mu.Lock()
+	defer historyMgr.mu.Unlock()
+
+	if historyMgr.db == nil {
+		return []HistoryLog{}
+	}
+
+	logs := make([]HistoryLog, 0)
+	maxIndex := historyMgr.maxIndex
+
+	_ = historyMgr.db.View(func(txn *badger.Txn) error {
+		for i := 0; i <= maxIndex; i++ {
+			key := []byte(fmt.Sprintf("hist:%d", i))
+			item, err := txn.Get(key)
+			if err != nil {
+				continue
+			}
+			_ = item.Value(func(val []byte) error {
+				logs = append(logs, parseHistoryLogEntry(i, val))
+				return nil
+			})
+		}
+		return nil
+	})
+	return logs
 }
 
 // GetDB returns a reference to the internal Badger database instance.

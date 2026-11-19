@@ -1,12 +1,7 @@
 package service
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"build-wails/backend/db"
-
-	"github.com/dgraph-io/badger/v4"
 )
 
 // HistoryService manages state snapshots, undo/redo navigation, and audit log generation.
@@ -32,9 +27,9 @@ func (s *HistoryService) Close() {
 	s.manager.Close()
 }
 
-// GetDB returns the underlying Badger database reference.
-func (s *HistoryService) GetDB() *badger.DB {
-	return s.manager.GetDB()
+// GetManager returns the underlying HistoryManager for database-level inspection or tests.
+func (s *HistoryService) GetManager() *db.HistoryManager {
+	return s.manager
 }
 
 // Push records a new history state.
@@ -64,43 +59,5 @@ func (s *HistoryService) GetCurrentIndex() int {
 
 // GetHistoryLogs extracts structured activity logs from the recorded history snapshots.
 func (s *HistoryService) GetHistoryLogs() []db.HistoryLog {
-	badgerDB := s.manager.GetDB()
-	if badgerDB == nil {
-		return []db.HistoryLog{}
-	}
-
-	logs := make([]db.HistoryLog, 0)
-	maxIndex := s.manager.GetMaxIndex()
-
-	_ = badgerDB.View(func(txn *badger.Txn) error {
-		for i := 0; i <= maxIndex; i++ {
-			key := []byte(fmt.Sprintf("hist:%d", i))
-			item, err := txn.Get(key)
-			if err != nil {
-				continue
-			}
-			_ = item.Value(func(val []byte) error {
-				var data struct {
-					ActionName string `json:"actionName"`
-					Timestamp  int64  `json:"timestamp"`
-				}
-				if err := json.Unmarshal(val, &data); err == nil {
-					logs = append(logs, db.HistoryLog{
-						Index:      i,
-						ActionName: data.ActionName,
-						Timestamp:  data.Timestamp,
-					})
-				} else {
-					logs = append(logs, db.HistoryLog{
-						Index:      i,
-						ActionName: fmt.Sprintf("Activity #%d", i),
-						Timestamp:  0,
-					})
-				}
-				return nil
-			})
-		}
-		return nil
-	})
-	return logs
+	return s.manager.GetHistoryLogs()
 }

@@ -790,7 +790,7 @@ func TestApp_HistoryLogs_CorruptedAndGaps(t *testing.T) {
 	app, cleanup := setupAppWithDB(t)
 	defer cleanup()
 
-	badgerDB := app.history.GetDB()
+	badgerDB := app.history.GetManager().GetDB()
 	if badgerDB == nil {
 		t.Fatal("Expected badgerDB to be non-nil")
 	}
