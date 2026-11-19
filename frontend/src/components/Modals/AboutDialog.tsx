@@ -14,7 +14,8 @@ const UpdateStatus: React.FC<{
   updateInfo: UpdateInfo | null;
   appVersion: string;
   colorMode: string;
-}> = ({ isChecking, updateInfo, appVersion, colorMode }) => {
+  onRetry?: () => void;
+}> = ({ isChecking, updateInfo, appVersion, colorMode, onRetry }) => {
   const containerClass = cn(
     "mb-8 p-3 rounded border text-[12px]",
     colorMode === 'dark' ? "bg-[#1e1f22] border-[#393b40]" : "bg-gray-50 border-gray-200"
@@ -32,7 +33,18 @@ const UpdateStatus: React.FC<{
   if (!updateInfo) {
     return (
       <div className={containerClass}>
-        <p className="text-red-400">Failed to check for updates</p>
+        <div className="flex items-center justify-between">
+          <p className="text-red-400">Failed to check for updates</p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="text-blue-400 hover:underline text-[12px] font-medium"
+            >
+              Retry
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -80,6 +92,7 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
     isCheckingUpdate,
     copied,
     handleCopy,
+    handleRetry,
   } = useAboutDialog({ isOpen });
 
   return (
@@ -180,6 +193,7 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
                       updateInfo={updateInfo}
                       appVersion={displayVersion}
                       colorMode={colorMode}
+                      onRetry={handleRetry}
                     />
 
                     {/* Actions */}

@@ -150,4 +150,29 @@ describe('AboutDialog', () => {
 
     expect(await screen.findByText('Failed to check for updates')).toBeDefined();
   });
+
+  it('retries update check when Retry button is clicked after failure', async () => {
+    const checkMock = (globalThis as any).go.main.App.CheckForUpdates;
+    checkMock.mockResolvedValueOnce(null);
+
+    await act(async () => {
+      render(<AboutDialog isOpen={true} onClose={() => {}} />);
+    });
+
+    expect(await screen.findByText('Failed to check for updates')).toBeDefined();
+    const retryBtn = screen.getByRole('button', { name: 'Retry' });
+    expect(retryBtn).toBeDefined();
+
+    checkMock.mockResolvedValueOnce({
+      updateAvailable: false,
+      currentVersion: '1.2.3',
+      latestVersion: '1.2.3',
+    });
+
+    await act(async () => {
+      fireEvent.click(retryBtn);
+    });
+
+    expect(await screen.findByText(/You are up to date/)).toBeDefined();
+  });
 });

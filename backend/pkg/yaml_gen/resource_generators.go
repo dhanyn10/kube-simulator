@@ -125,7 +125,7 @@ func buildStatefulSetVolumeClaims(targetIDs []string, ctx *GenContext) ([]k8s.PV
 }
 
 // isMatchingServiceSelector checks if Service node selector matches StatefulSet name or labels.
-func isMatchingServiceSelector(svcNode *k8s.FrontendNode, ssNode *k8s.FrontendNode, fallbackName string) bool {
+func isMatchingServiceSelector(svcNode, ssNode *k8s.FrontendNode, fallbackName string) bool {
 	sel := svcNode.Data.Selector
 	if sel == "" {
 		return false

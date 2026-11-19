@@ -48,7 +48,14 @@ func fetchReleases() ([]GitHubRelease, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	url := fmt.Sprintf("%s/repos/%s/%s/releases", apiBaseURL, RepoOwner, RepoName)
 
-	resp, err := client.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "kube-simulator")
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

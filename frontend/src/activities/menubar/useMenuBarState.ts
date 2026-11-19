@@ -74,17 +74,30 @@ export const useMenuBarState = ({
     let isMounted = true;
     const checkForUpdatesBg = async () => {
       try {
-        const app = globalThis.window?.go?.main?.App;
-        if (app?.GetSystemInfo && app?.CheckForUpdates) {
-          const sysInfo = await app.GetSystemInfo();
-          const currentVer = sysInfo?.version || '';
-          const update = await app.CheckForUpdates(currentVer);
-          if (isMounted && update?.updateAvailable && update?.latestVersion) {
-            setUpdateAvailableInfo({
-              version: update.latestVersion,
-              releaseUrl: update.releaseUrl || 'https://github.com/dhanyn10/kube-simulator/releases',
-            });
-          }
+        const rawApp = (globalThis as any).go?.main?.App || (globalThis as any).window?.go?.main?.App;
+        const gateway = getBackendGateway();
+
+        let sysInfo: any = null;
+        if (rawApp?.GetSystemInfo) {
+          sysInfo = await rawApp.GetSystemInfo();
+        } else if (gateway?.getSystemInfo) {
+          sysInfo = await gateway.getSystemInfo();
+        }
+
+        const currentVer = sysInfo?.version || '';
+
+        let update: any = null;
+        if (rawApp?.CheckForUpdates) {
+          update = await rawApp.CheckForUpdates(currentVer);
+        } else if (gateway?.checkForUpdates) {
+          update = await gateway.checkForUpdates(currentVer);
+        }
+
+        if (isMounted && update?.updateAvailable && update?.latestVersion) {
+          setUpdateAvailableInfo({
+            version: update.latestVersion,
+            releaseUrl: update.releaseUrl || 'https://github.com/dhanyn10/kube-simulator/releases',
+          });
         }
       } catch {
         // Ignore background network check errors

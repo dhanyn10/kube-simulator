@@ -4,6 +4,7 @@ import { mapProjectNodes, mapProjectEdges } from '@/components/Modals/resource-m
 import { hydrateNodes } from '@/store/nodeHelpers';
 import { logger } from '@/lib/logger';
 import { getBackendGateway, WailsBackendGateway, IBackendGateway } from '@/gateway';
+import { isWailsDesktop } from '@/lib/mocks';
 
 export type BackstageTab = 'home' | 'settings-view' | 'settings-canvas';
 
@@ -50,7 +51,8 @@ export const formatDateModified = (val?: string | number): string => {
 
 const isBackendAvailable = (gateway: IBackendGateway): boolean => {
   if (gateway instanceof WailsBackendGateway) {
-    return Boolean((globalThis as any).go?.main?.App);
+    const g = globalThis as any;
+    return Boolean(g?.go?.main?.App || g?.window?.go?.main?.App || isWailsDesktop());
   }
   return true;
 };
