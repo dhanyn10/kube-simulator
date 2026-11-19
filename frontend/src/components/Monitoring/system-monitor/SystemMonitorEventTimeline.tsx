@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { AlertCircle, ChevronDown, ChevronUp, Bell, ShieldAlert, Cpu, Layers } from 'lucide-react';
 import { DeploymentSummary } from './types';
@@ -19,7 +19,7 @@ export interface SystemMonitorEventTimelineProps {
   isDark?: boolean;
 }
 
-export const SystemMonitorEventTimeline = ({
+export const SystemMonitorEventTimeline = memo(({
   deployments,
   metrics,
   isDark = true,
@@ -218,4 +218,6 @@ export const SystemMonitorEventTimeline = ({
       )}
     </div>
   );
-};
+});
+
+SystemMonitorEventTimeline.displayName = 'SystemMonitorEventTimeline';

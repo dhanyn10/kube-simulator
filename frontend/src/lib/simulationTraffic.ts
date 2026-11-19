@@ -206,6 +206,7 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
     isOOM,
     replicas,
     minuteIndex,
+    tickIndex: ctx.ticks,
     timestamp: Date.now(),
   }].slice(-1440);
 

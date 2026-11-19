@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, memo } from 'react';
 import { cn } from '@/lib/utils';
 
 interface SystemMonitorStatCardProps {
@@ -27,7 +27,7 @@ const getThresholdStyles = (
   return { text: 'text-emerald-700', stroke: '#059669' };
 };
 
-export const SystemMonitorStatCard = ({
+export const SystemMonitorStatCard = memo(({
   title,
   value,
   unit,
@@ -92,4 +92,4 @@ export const SystemMonitorStatCard = ({
       </div>
     </div>
   );
-};
+});

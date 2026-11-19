@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useState, useMemo, type MouseEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { Cpu, Database, Server, Activity, AlertCircle, Radio } from 'lucide-react';
 import { getBackendGateway } from '@/gateway';
@@ -141,8 +141,8 @@ export const SystemMonitorDashboard = () => {
   }, [colorMode]);
 
   const isDark = colorMode === 'dark';
-  const cpuSparkline = extractSparkline(deployments, metrics, 'cpuPercent');
-  const memSparkline = extractSparkline(deployments, metrics, 'memoryPercent');
+  const cpuSparkline = useMemo(() => extractSparkline(deployments, metrics, 'cpuPercent'), [deployments, metrics]);
+  const memSparkline = useMemo(() => extractSparkline(deployments, metrics, 'memoryPercent'), [deployments, metrics]);
 
   const cpuThreshold = getUtilizationThreshold(clusterTotals.cpuPercent);
   const memThreshold = getUtilizationThreshold(clusterTotals.memoryPercent);

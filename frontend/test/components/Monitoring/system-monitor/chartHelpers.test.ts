@@ -6,6 +6,9 @@ import {
   parseIntervalMinutes,
   aggregateMetricSeries,
   getIntervalStepMinutes,
+  getIntervalCapacity,
+  getXAxisUnit,
+  getScrubberTimeLabel,
   generateXAxisTicks,
   getNiceCeiling,
   calculateDynamicYMax,
@@ -24,42 +27,59 @@ describe('chartHelpers', () => {
     expect(CHART_PALETTE.length).toBeGreaterThan(0);
   });
 
-  it('resolves interval minutes with default 1h and dynamic 5m', () => {
+  it('resolves interval minutes with default 1h, 10m, and dynamic 5m', () => {
     expect(parseIntervalMinutes('1h')).toBe(60);
     expect(parseIntervalMinutes('30m')).toBe(30);
     expect(parseIntervalMinutes('15m')).toBe(15);
+    expect(parseIntervalMinutes('10m')).toBe(10);
     expect(parseIntervalMinutes('5m')).toBe(5);
     expect(parseIntervalMinutes('1m')).toBe(1);
     expect(parseIntervalMinutes(undefined)).toBe(60);
   });
 
-  it('resolves dynamic interval step minutes and generates X-axis ticks', () => {
-    expect(getIntervalStepMinutes('1h')).toBe(240);
-    expect(getIntervalStepMinutes('30m')).toBe(180);
-    expect(getIntervalStepMinutes('15m')).toBe(120);
-    expect(getIntervalStepMinutes('5m')).toBe(60);
-    expect(getIntervalStepMinutes('1m')).toBe(60);
+  it('resolves dynamic interval step minutes and generates X-axis ticks following chosen interval', () => {
+    expect(getXAxisUnit('1h')).toBe('Hours');
+    expect(getXAxisUnit('30m')).toBe('Minutes');
+    expect(getXAxisUnit('5m')).toBe('Minutes');
 
-    // 1h interval ticks (4-hour steps: -24h to 0 (Now) => 7 ticks)
-    const ticks1h = generateXAxisTicks('1h');
-    expect(ticks1h).toHaveLength(7);
-    expect(ticks1h[0]).toEqual({ label: '-24h', minute: 1440, percent: 0 });
-    expect(ticks1h.at(-1)).toEqual({ label: '0 (Now)', minute: 0, percent: 100 });
+    expect(getIntervalCapacity('1h')).toBe(24);
+    expect(getIntervalCapacity('5m')).toBe(12);
+    expect(getIntervalCapacity('10m')).toBe(12);
 
-    // 30m interval ticks (3-hour steps => 9 ticks)
-    const ticks30m = generateXAxisTicks('30m');
-    expect(ticks30m).toHaveLength(9);
-    expect(ticks30m[1].label).toBe('-21h');
+    expect(getIntervalStepMinutes('1h')).toBe(60);
+    expect(getIntervalStepMinutes('30m')).toBe(30);
+    expect(getIntervalStepMinutes('15m')).toBe(15);
+    expect(getIntervalStepMinutes('10m')).toBe(10);
+    expect(getIntervalStepMinutes('5m')).toBe(5);
+    expect(getIntervalStepMinutes('1m')).toBe(1);
 
-    // 15m interval ticks (2-hour steps => 13 ticks)
-    const ticks15m = generateXAxisTicks('15m');
-    expect(ticks15m).toHaveLength(13);
-    expect(ticks15m[1].label).toBe('-22h');
-
-    // 5m interval ticks (1-hour steps => 25 ticks)
+    // 5m interval ticks: 12 intervals from 0 to 60 (0, 5, 10, 15, 20... 60)
     const ticks5m = generateXAxisTicks('5m');
-    expect(ticks5m).toHaveLength(25);
-    expect(ticks5m[1].label).toBe('-23h');
+    expect(ticks5m).toHaveLength(13);
+    expect(ticks5m[0]).toEqual({ label: '0', minute: 0, percent: 0 });
+    expect(ticks5m[1]).toEqual({ label: '5', minute: 5, percent: 8.3 });
+    expect(ticks5m[2]).toEqual({ label: '10', minute: 10, percent: 16.7 });
+    expect(ticks5m[3]).toEqual({ label: '15', minute: 15, percent: 25 });
+    expect(ticks5m[4]).toEqual({ label: '20', minute: 20, percent: 33.3 });
+    expect(ticks5m.at(-1)).toEqual({ label: '60', minute: 60, percent: 100 });
+
+    // 10m interval ticks: 12 intervals from 0 to 120 (0, 10, 20... 120)
+    const ticks10m = generateXAxisTicks('10m');
+    expect(ticks10m).toHaveLength(13);
+    expect(ticks10m[1].label).toBe('10');
+    expect(ticks10m[2].label).toBe('20');
+    expect(ticks10m.at(-1).label).toBe('120');
+
+    // 1h interval ticks: 24 intervals from 0 to 24 (0, 1, 2... 24)
+    const ticks1h = generateXAxisTicks('1h');
+    expect(ticks1h).toHaveLength(25);
+    expect(ticks1h[0]).toEqual({ label: '0', minute: 0, percent: 0 });
+    expect(ticks1h[1]).toEqual({ label: '1', minute: 1, percent: 4.2 });
+    expect(ticks1h.at(-1)).toEqual({ label: '24', minute: 24, percent: 100 });
+
+    // Hover scrubber time label
+    expect(getScrubberTimeLabel(25, '5m')).toBe('15 min');
+    expect(getScrubberTimeLabel(50, '1h')).toBe('12h');
   });
 
   it('calculates nice ceiling values for autoscaling', () => {
@@ -134,6 +154,22 @@ describe('chartHelpers', () => {
     // Fallback when minuteIndex is missing
     const fallbackResult = aggregateMetricSeries([{ cpuPercent: 80 } as any], 'cpuPercent', '1h');
     expect(fallbackResult.data).toEqual([80]);
+  });
+
+  it('preserves historical buckets across 24h traffic cycle loop without revising older buckets', () => {
+    // Day 1: Hour 5 has CPU = 25
+    // Day 2: Hour 5 has CPU = 90
+    const loopingPoints: SimulationMetricPoint[] = [
+      { cpuPercent: 25, memoryPercent: 30, cpuValue: 250, memoryValue: 300, cpuLimit: 1000, memoryLimit: 1024, isThrottled: false, isOOM: false, minuteIndex: 300 }, // Day 1 05:00
+      { cpuPercent: 70, memoryPercent: 40, cpuValue: 700, memoryValue: 400, cpuLimit: 1000, memoryLimit: 1024, isThrottled: false, isOOM: false, minuteIndex: 960 }, // Day 1 16:00
+      { cpuPercent: 90, memoryPercent: 80, cpuValue: 900, memoryValue: 800, cpuLimit: 1000, memoryLimit: 1024, isThrottled: true, isOOM: false, minuteIndex: 300 }, // Day 2 05:00 (wrap)
+    ];
+
+    const result = aggregateMetricSeries(loopingPoints, 'cpuPercent', '1h');
+    // Day 1 hour 5 (25) must NOT be averaged with Day 2 hour 5 (90)
+    // The data points must represent distinct sequential buckets
+    expect(result.data[0]).toBe(25);
+    expect(result.data.at(-1)).toBe(90);
   });
 
   it('calculates series stats correctly for empty and non-empty data', () => {

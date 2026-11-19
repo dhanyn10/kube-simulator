@@ -13,7 +13,6 @@ export const useSystemMonitorDashboard = () => {
   const storeColorMode = useFlowStore((state) => state.colorMode);
   const [colorMode, setColorMode] = useState<SystemMonitorColorMode>(() => (useFlowStore.getState().colorMode as SystemMonitorColorMode) || 'dark');
   const [timeRange, setTimeRange] = useState<TimeRangeFilter>('1h');
-  const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
   const [canStart, setCanStart] = useState<boolean>(false);
   const [hasHpa, setHasHpa] = useState<boolean>(false);
   const [hpaTarget, setHpaTarget] = useState<number>(80);
@@ -79,7 +78,6 @@ export const useSystemMonitorDashboard = () => {
     if (typeof data.hpaTarget === 'number' && !Number.isNaN(data.hpaTarget)) {
       setHpaTarget(data.hpaTarget);
     }
-    setLastUpdated(Date.now());
   }, []);
 
   const handleUpdate = useCallback((data: any) => {
@@ -137,8 +135,11 @@ export const useSystemMonitorDashboard = () => {
     const channel = new BroadcastChannel('monitoring-data');
     const gw = getBackendGateway();
 
+    let hasReceivedViaBroadcast = false;
+
     channel.onmessage = (event) => {
       if (event.data.type === 'METRICS_UPDATE') {
+        hasReceivedViaBroadcast = true;
         handleUpdate(event.data);
       } else if (event.data.type === 'THEME_SYNC') {
         setColorMode(event.data.colorMode);
@@ -146,11 +147,23 @@ export const useSystemMonitorDashboard = () => {
     };
 
     const unsubMetrics = gw.onEvent('metrics-update', (json: string) => {
-      try { handleUpdate(JSON.parse(json)); } catch { /* ignore parse error */ }
+      // If BroadcastChannel is actively receiving messages, skip redundant multi-megabyte JSON parsing
+      if (hasReceivedViaBroadcast) return;
+      try {
+        handleUpdate(JSON.parse(json));
+      } catch {
+        /* ignore parse error */
+      }
     });
 
     const unsubSnap = gw.onEvent('simulation-snapshot-updated', (json: string) => {
-      try { handleUpdate(JSON.parse(json)); } catch { /* ignore parse error */ }
+      // If BroadcastChannel is actively receiving messages, skip redundant multi-megabyte JSON parsing
+      if (hasReceivedViaBroadcast) return;
+      try {
+        handleUpdate(JSON.parse(json));
+      } catch {
+        /* ignore parse error */
+      }
     });
 
     const unsubTheme = gw.onEvent('theme-sync', (mode: any) => {
@@ -258,7 +271,6 @@ export const useSystemMonitorDashboard = () => {
     timeRange,
     setTimeRange,
     simulatedTime,
-    lastUpdated,
     sendControl,
     clusterTotals,
     canStart,

@@ -1,10 +1,12 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
   buildSvgPoints,
   buildAreaPath,
   parseIntervalMinutes,
+  getIntervalCapacity,
+  getScrubberTimeLabel,
   calculateDynamicYMax,
   calculateNetworkMetrics,
 } from './chartHelpers';
@@ -19,7 +21,7 @@ import { Activity, Globe } from 'lucide-react';
 
 export type SystemMonitorNetworkPanelProps = BaseSystemMonitorPanelProps;
 
-export const SystemMonitorNetworkPanel = ({
+export const SystemMonitorNetworkPanel = memo(({
   deployments,
   metrics,
   colorMode = 'dark',
@@ -35,10 +37,10 @@ export const SystemMonitorNetworkPanel = ({
     return calculateDynamicYMax(rpsData, 100, 1.2);
   }, [rpsData]);
 
-  const capacity = Math.round(1440 / parseIntervalMinutes(interval));
+  const capacity = getIntervalCapacity(interval);
   const rpsPoints = buildSvgPoints(rpsData, dynamicMaxRps, 500, 100, capacity);
   const areaPath = buildAreaPath(rpsPoints, 500, 100);
-  const { yScale, xTicks } = useChartScales(dynamicMaxRps, ' req/s', interval);
+  const { yScale, xTicks, xAxisUnit } = useChartScales(dynamicMaxRps, ' req/s', interval);
 
   const canvasSeries: CanvasSeriesItem[] = useMemo(() => [
     {
@@ -60,11 +62,9 @@ export const SystemMonitorNetworkPanel = ({
     if (rect.width <= 0) return;
     const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
     const percent = Math.round((x / rect.width) * 1000) / 10;
-    const minute = Math.round((percent / 100) * 1440);
-    const hh = String(Math.floor(minute / 60)).padStart(2, '0');
-    const mm = String(minute % 60).padStart(2, '0');
-    setHoverState({ percent, timeLabel: `${hh}:${mm}` });
-  }, []);
+    const timeLabel = getScrubberTimeLabel(percent, interval);
+    setHoverState({ percent, timeLabel });
+  }, [interval]);
 
   const handleMouseLeave = useCallback(() => {
     setHoverState(null);
@@ -73,10 +73,11 @@ export const SystemMonitorNetworkPanel = ({
   const scrubberValues: ScrubberSeriesValue[] = useMemo(() => {
     if (!hoverState) return [];
     const len = rpsData.length;
+    const effectiveCap = Math.max(1, capacity);
     let val = currentRps;
     if (len > 0) {
-      const idx = Math.min(len - 1, Math.max(0, Math.round((hoverState.percent / 100) * (len - 1))));
-      val = rpsData[idx] ?? currentRps;
+      const slotIdx = Math.max(0, Math.min(len - 1, Math.floor((hoverState.percent / 100) * effectiveCap)));
+      val = rpsData[slotIdx] ?? currentRps;
     }
     return [
       {
@@ -87,7 +88,7 @@ export const SystemMonitorNetworkPanel = ({
         unit: ' req/s',
       },
     ];
-  }, [hoverState, rpsData, currentRps]);
+  }, [hoverState, rpsData, currentRps, capacity]);
 
   return (
     <SystemMonitorPanelCard
@@ -116,6 +117,7 @@ export const SystemMonitorNetworkPanel = ({
       <SystemMonitorChartCanvas
         isDark={isDark}
         xTicks={xTicks}
+        xAxisUnit={xAxisUnit}
         yScaleTicks={yScale.ticks}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -131,4 +133,4 @@ export const SystemMonitorNetworkPanel = ({
       </SystemMonitorChartCanvas>
     </SystemMonitorPanelCard>
   );
-};
+});

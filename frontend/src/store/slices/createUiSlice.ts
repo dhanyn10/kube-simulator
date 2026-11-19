@@ -390,16 +390,17 @@ const runSimulationTick = (params: {
   const { nodes: currentNodes, edges: currentEdges, simulationMetrics: currentMetrics } = state;
   const newMetrics = { ...currentMetrics };
   const updatedNodes = [...currentNodes];
-  let hasOverallChanges = false;
+  let hasStructuralChanges = false;
+  let hasTrafficChanges = false;
 
   // 1. Transition pending pods to ready
   if (updatePendingPods(updatedNodes, get)) {
-    hasOverallChanges = true;
+    hasStructuralChanges = true;
   }
 
   // 2. Handle rolling updates for deployments
   if (updateRollingDeployments(updatedNodes, get)) {
-    hasOverallChanges = true;
+    hasStructuralChanges = true;
   }
 
   const { edgeMap, targetEdgeMap } = buildEdgeMaps(currentEdges);
@@ -433,7 +434,7 @@ const runSimulationTick = (params: {
   // 1. Update internet traffic first
   for (const node of internetNodes) {
     const { hasChanges } = updateInternetTraffic(node, ctx);
-    if (hasChanges) hasOverallChanges = true;
+    if (hasChanges) hasTrafficChanges = true;
   }
 
   // 2. Pre-calculate reachability for internet nodes
@@ -446,7 +447,7 @@ const runSimulationTick = (params: {
   // 3. Process workloads
   workloads.forEach(dep => {
     const { hasChanges } = processWorkloadSimulation(dep, ctx);
-    if (hasChanges) hasOverallChanges = true;
+    if (hasChanges) hasStructuralChanges = true;
   });
 
   // Simulate logs for ALL resources continuously in the background
@@ -469,7 +470,11 @@ const runSimulationTick = (params: {
   // Append pod creation activity logs on ticks 1, 2, and 3
   handleTicksActivityLogs(ticks, workloads, set);
 
-  set({ simulationMetrics: newMetrics, ...(hasOverallChanges ? { nodes: updatedNodes } : {}) });
+  const shouldCommitNodes =
+    hasStructuralChanges ||
+    (hasTrafficChanges && (process.env.NODE_ENV === 'test' || ticks % 7 === 0 || ticks <= 3));
+
+  set({ simulationMetrics: newMetrics, ...(shouldCommitNodes ? { nodes: updatedNodes } : {}) });
 
   const stopParams = { ticks, workloads, nodes: updatedNodes, metrics: newMetrics, set, simulationInterval: simulationIntervalObj };
   if (!checkEmergencyStop(stopParams)) {

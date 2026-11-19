@@ -216,5 +216,6 @@ export interface SimulationMetricPoint {
   isOOM: boolean;
   replicas?: number;
   minuteIndex?: number;
+  tickIndex?: number;
   timestamp?: number;
 }

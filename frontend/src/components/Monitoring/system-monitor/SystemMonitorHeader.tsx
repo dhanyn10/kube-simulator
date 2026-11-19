@@ -27,7 +27,7 @@ const TICK_INTERVAL_MAP: Record<SimulationSpeed, string> = {
 };
 
 const SPEED_OPTIONS: SimulationSpeed[] = [1, 5, 10];
-const TIME_RANGE_OPTIONS: TimeRangeFilter[] = ['1h', '30m', '15m', '5m'];
+const TIME_RANGE_OPTIONS: TimeRangeFilter[] = ['1h', '30m', '15m', '10m', '5m', '1m'];
 
 const ClusterLogo = () => (
   <svg aria-hidden="true" viewBox="0 0 512 512" className="w-4 h-4 fill-current text-blue-500 shrink-0">

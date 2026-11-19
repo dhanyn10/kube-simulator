@@ -213,6 +213,7 @@ export const deduplicateOrAppendLogLines = (
 export interface LogLineOptions {
   hasTraffic?: boolean;
   allowAccessLogs?: boolean;
+  allowWarningLogs?: boolean;
 }
 
 export interface SimulateLogsOptions {
@@ -252,11 +253,14 @@ export const createLogLineForResource = (
   const timestamp = new Date().toISOString();
   const name = node.data.label || node.id;
 
-  if (point?.isOOM) {
-    return `[${timestamp}] [FATAL] Out of Memory (OOM) error occurred in container ${name}. Process terminated.`;
-  }
-  if (point?.isThrottled) {
-    return `[${timestamp}] [WARNING] CPU limit reached for ${name}. Container execution throttled.`;
+  const allowWarningLogs = options?.allowWarningLogs ?? (options?.allowAccessLogs ?? true);
+  if (allowWarningLogs) {
+    if (point?.isOOM) {
+      return `[${timestamp}] [FATAL] Out of Memory (OOM) error occurred in container ${name}. Process terminated.`;
+    }
+    if (point?.isThrottled) {
+      return `[${timestamp}] [WARNING] CPU limit reached for ${name}. Container execution throttled.`;
+    }
   }
 
   const allowAccessLogs = options?.allowAccessLogs ?? true;
@@ -289,12 +293,17 @@ export const simulateAllResourceLogs = (
   set: (partial: Partial<FlowState> | ((state: FlowState) => Partial<FlowState>)) => void,
   options?: SimulateLogsOptions
 ) => {
+  const allowAccessLogs = options?.ticks === undefined || options.ticks % 10 === 0;
+  const allowWarningLogs = options?.ticks === undefined || options.ticks % 10 === 0;
+  if (!allowAccessLogs && !allowWarningLogs) {
+    return;
+  }
+
   const loggableNodes = nodes.filter(n => ['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet', 'Service'].includes(n.type));
   if (loggableNodes.length === 0) return;
 
   const newLogEntries: Record<string, string[]> = {};
   const newActivityLines: string[] = [];
-  const allowAccessLogs = options?.ticks === undefined || options.ticks % 10 === 0;
   const hasActiveInternet = options?.hasActiveInternetTraffic ?? true;
 
   for (const node of loggableNodes) {
@@ -305,6 +314,7 @@ export const simulateAllResourceLogs = (
     const logLine = createLogLineForResource(node, lastPoint, nodes, {
       hasTraffic: hasActiveInternet,
       allowAccessLogs,
+      allowWarningLogs,
     });
 
     if (logLine) {

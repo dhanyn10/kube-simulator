@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { ZapOff, AlertTriangle } from 'lucide-react';
 
@@ -18,7 +19,7 @@ export interface SystemMonitorScrubberProps {
   readonly isDark?: boolean;
 }
 
-export const SystemMonitorScrubber = ({
+export const SystemMonitorScrubber = memo(({
   hoverPercent,
   timeLabel,
   values,
@@ -87,4 +88,6 @@ export const SystemMonitorScrubber = ({
       </div>
     </div>
   );
-};
+});
+
+SystemMonitorScrubber.displayName = 'SystemMonitorScrubber';

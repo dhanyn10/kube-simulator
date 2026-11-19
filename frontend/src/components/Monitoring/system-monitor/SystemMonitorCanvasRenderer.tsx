@@ -33,7 +33,7 @@ const drawSingleSeriesArea = (
   s: CanvasSeriesItem,
   width: number,
   height: number,
-  stepX: number,
+  effectiveCapacity: number,
   heightScale: number,
   safeMax: number
 ) => {
@@ -41,19 +41,26 @@ const drawSingleSeriesArea = (
   const count = data.length;
   if (count === 0) return;
 
-  const firstX = Math.max(0, Math.round(width - (count - 1) * stepX));
-  ctx.beginPath();
-  ctx.moveTo(firstX, height);
+  const visibleData = count > effectiveCapacity ? data.slice(-effectiveCapacity) : data;
+  const visibleCount = visibleData.length;
 
-  for (let i = 0; i < count; i++) {
-    const x = Math.max(0, Math.round(width - (count - 1 - i) * stepX));
-    const val = data[i];
+  const y0 = Math.round(height - Math.min(safeMax, Math.max(0, visibleData[0])) * heightScale);
+
+  ctx.beginPath();
+  ctx.moveTo(0, height);
+  ctx.lineTo(0, y0);
+
+  let lastX = 0;
+  for (let i = 0; i < visibleCount; i++) {
+    const x = Math.min(width, Math.max(0, Math.round(((i + 1) / effectiveCapacity) * width)));
+    const val = visibleData[i];
     const safeVal = Math.min(safeMax, Math.max(0, val));
     const y = Math.round(height - safeVal * heightScale);
     ctx.lineTo(x, y);
+    lastX = x;
   }
 
-  ctx.lineTo(width, height);
+  ctx.lineTo(lastX, height);
   ctx.closePath();
 
   const grad = ctx.createLinearGradient(0, 0, 0, height);
@@ -68,7 +75,7 @@ const drawSingleSeriesStroke = (
   s: CanvasSeriesItem,
   width: number,
   height: number,
-  stepX: number,
+  effectiveCapacity: number,
   heightScale: number,
   safeMax: number
 ) => {
@@ -76,17 +83,22 @@ const drawSingleSeriesStroke = (
   const count = data.length;
   if (count === 0) return;
 
+  const visibleData = count > effectiveCapacity ? data.slice(-effectiveCapacity) : data;
+  const visibleCount = visibleData.length;
+
+  const y0 = Math.round(height - Math.min(safeMax, Math.max(0, visibleData[0])) * heightScale);
+
   ctx.beginPath();
-  for (let i = 0; i < count; i++) {
-    const x = Math.max(0, Math.round(width - (count - 1 - i) * stepX));
-    const val = data[i];
+  ctx.moveTo(0, y0);
+
+  for (let i = 0; i < visibleCount; i++) {
+    const x = Math.min(width, Math.max(0, Math.round(((i + 1) / effectiveCapacity) * width)));
+    const val = visibleData[i];
     const safeVal = Math.min(safeMax, Math.max(0, val));
     const y = Math.round(height - safeVal * heightScale);
 
-    if (i === 0) {
-      ctx.moveTo(x, y);
-    } else if (s.isStepped) {
-      const prevVal = Math.min(safeMax, Math.max(0, data[i - 1]));
+    if (s.isStepped) {
+      const prevVal = Math.min(safeMax, Math.max(0, i === 0 ? visibleData[0] : visibleData[i - 1]));
       const prevY = Math.round(height - prevVal * heightScale);
       ctx.lineTo(x, prevY);
       ctx.lineTo(x, y);
@@ -114,19 +126,16 @@ export const renderCanvasSeries = (
 
   const safeMax = Math.max(1, maxVal);
   const heightScale = (height - 10) / safeMax;
+  const effectiveCapacity = Math.max(1, capacity || 12);
 
   for (let i = 0; i < seriesList.length; i++) {
     const s = seriesList[i];
-    const count = s.data.length;
-    if (count === 0) continue;
-
-    const effectiveCapacity = capacity ? Math.max(count, capacity) : Math.max(30, count);
-    const stepX = width / Math.max(1, effectiveCapacity - 1);
+    if (s.data.length === 0) continue;
 
     if (s.isArea) {
-      drawSingleSeriesArea(ctx, s, width, height, stepX, heightScale, safeMax);
+      drawSingleSeriesArea(ctx, s, width, height, effectiveCapacity, heightScale, safeMax);
     }
-    drawSingleSeriesStroke(ctx, s, width, height, stepX, heightScale, safeMax);
+    drawSingleSeriesStroke(ctx, s, width, height, effectiveCapacity, heightScale, safeMax);
   }
 };
 

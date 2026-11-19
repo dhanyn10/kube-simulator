@@ -85,8 +85,12 @@ export const canStartSimulation = (nodes: Node[]): boolean => {
   return nodes.some((n) => n.type === 'Internet');
 };
 
+let lastBroadcastTimestamp = 0;
+let lastBackendSnapshotTimestamp = 0;
+
 /**
  * Broadcasts metrics to detached monitoring window and Wails backend.
+ * Dynamically throttles high-speed 10x simulation to ~10 FPS (100ms) to prevent IPC flooding and GC freezes.
  * @param metrics The current simulation metrics.
  * @param workloads List of active workload nodes.
  */
@@ -101,8 +105,24 @@ export const broadcastMetrics = (
     hasInternet?: boolean;
     hasHpa?: boolean;
     hpaTarget?: number;
+    force?: boolean;
   }
 ) => {
+  const isLive = Boolean(extraState?.isSimulating && !extraState?.isPaused);
+  const now = Date.now();
+  const speed = extraState?.speed ?? 1;
+  const throttleMs = speed >= 10 ? 100 : (speed >= 5 ? 60 : 30);
+
+  if (
+    process.env.NODE_ENV !== 'test' &&
+    isLive &&
+    !extraState?.force &&
+    now - lastBroadcastTimestamp < throttleMs
+  ) {
+    return;
+  }
+  lastBroadcastTimestamp = now;
+
   const canStart = extraState?.canStart ?? (extraState?.hasInternet ?? false);
   const hasWorkloadHpa = workloads.some(d => Array.isArray(d.data?.hpas) && d.data.hpas.length > 0);
   const hasHpa = extraState?.hasHpa ?? hasWorkloadHpa;
@@ -144,7 +164,18 @@ export const broadcastMetrics = (
   const runtime = getRuntime();
   runtime?.EventsEmit?.('metrics-update', serialized);
 
-  void getBackendGateway().broadcastSimulationSnapshot(serialized);
+  // Throttle backend Go snapshot caching to once per second during live simulation
+  // or immediately when force/state change to prevent multi-megabyte IPC loopback echoes
+  const shouldBroadcastBackendSnapshot =
+    process.env.NODE_ENV === 'test' ||
+    !isLive ||
+    Boolean(extraState?.force) ||
+    now - lastBackendSnapshotTimestamp >= 1000;
+
+  if (shouldBroadcastBackendSnapshot) {
+    lastBackendSnapshotTimestamp = now;
+    void getBackendGateway().broadcastSimulationSnapshot(serialized);
+  }
 };
 
 /**

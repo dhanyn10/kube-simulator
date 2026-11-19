@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
@@ -9,6 +9,8 @@ import {
   getThresholdReferenceLines,
   resolveMemoryLimit,
   parseIntervalMinutes,
+  getIntervalCapacity,
+  getScrubberTimeLabel,
   ThresholdReferenceLine,
 } from './chartHelpers';
 import {
@@ -96,7 +98,7 @@ export const DynamicThresholdLines = ({ lines, isDark = true }: DynamicThreshold
   );
 };
 
-export const SystemMonitorTimeSeriesPanel = ({
+export const SystemMonitorTimeSeriesPanel = memo(({
   title,
   description,
   deployments,
@@ -130,7 +132,7 @@ export const SystemMonitorTimeSeriesPanel = ({
     return calculateDynamicYMax(peak > 0 ? [peak] : [], floor);
   }, [deployments, metrics, metricKey, maxVal]);
 
-  const { yScale, xTicks } = useChartScales(dynamicMax, unit, interval);
+  const { yScale, xTicks, xAxisUnit } = useChartScales(dynamicMax, unit, interval);
 
   const thresholdLines = useMemo(() => {
     if (!showThresholds) return [];
@@ -164,11 +166,9 @@ export const SystemMonitorTimeSeriesPanel = ({
     if (rect.width <= 0) return;
     const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
     const percent = Math.round((x / rect.width) * 1000) / 10;
-    const minute = Math.round((percent / 100) * 1440);
-    const hh = String(Math.floor(minute / 60)).padStart(2, '0');
-    const mm = String(minute % 60).padStart(2, '0');
-    setHoverState({ percent, timeLabel: `${hh}:${mm}` });
-  }, []);
+    const timeLabel = getScrubberTimeLabel(percent, interval);
+    setHoverState({ percent, timeLabel });
+  }, [interval]);
 
   const handleMouseLeave = useCallback(() => {
     setHoverState(null);
@@ -176,12 +176,15 @@ export const SystemMonitorTimeSeriesPanel = ({
 
   const scrubberValues: ScrubberSeriesValue[] = useMemo(() => {
     if (!hoverState) return [];
+    const cap = getIntervalCapacity(interval);
+    const effectiveCap = Math.max(1, cap);
+
     return seriesData.map((s) => {
       const dataLen = s.data.length;
       let val: number | string = s.current;
       if (dataLen > 0) {
-        const idx = Math.min(dataLen - 1, Math.max(0, Math.round((hoverState.percent / 100) * (dataLen - 1))));
-        val = s.data[idx] ?? s.current;
+        const slotIdx = Math.max(0, Math.min(dataLen - 1, Math.floor((hoverState.percent / 100) * effectiveCap)));
+        val = s.data[slotIdx] ?? s.current;
       }
       return {
         id: s.id,
@@ -193,9 +196,9 @@ export const SystemMonitorTimeSeriesPanel = ({
         isOOM: s.isOOM,
       };
     });
-  }, [hoverState, seriesData, unit]);
+  }, [hoverState, seriesData, unit, interval]);
 
-  const capacity = Math.round(1440 / parseIntervalMinutes(interval));
+  const capacity = getIntervalCapacity(interval);
 
   const canvasSeriesList: CanvasSeriesItem[] = useMemo(() => {
     return seriesData.map((s) => ({
@@ -294,6 +297,7 @@ export const SystemMonitorTimeSeriesPanel = ({
         heightClass="h-40"
         isDark={isDark}
         xTicks={xTicks}
+        xAxisUnit={xAxisUnit}
         yScaleTicks={yScale.ticks}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -321,4 +325,4 @@ export const SystemMonitorTimeSeriesPanel = ({
       </SystemMonitorChartCanvas>
     </SystemMonitorPanelCard>
   );
-};
+});

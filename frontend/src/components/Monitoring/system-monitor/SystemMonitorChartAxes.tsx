@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { TimeRangeFilter } from './types';
 import {
@@ -6,16 +6,22 @@ import {
   YAxisScaleTick,
   generateYAxisScale,
   generateXAxisTicks,
+  getXAxisUnit,
 } from './chartHelpers';
 
 export interface SystemMonitorAxisBottomProps {
   xTicks: XAxisTick[];
   isDark?: boolean;
+  unit?: string;
 }
 
-export const SystemMonitorAxisBottom = ({ xTicks, isDark = true }: SystemMonitorAxisBottomProps) => (
+export const SystemMonitorAxisBottom = memo(({
+  xTicks,
+  isDark = true,
+  unit = 'Minutes',
+}: SystemMonitorAxisBottomProps) => (
   <div className={cn(
-    "relative h-4 px-1 text-[9px] font-mono -mt-1 pb-1 border-b",
+    "relative px-1 text-[9px] font-mono -mt-1 pb-1 border-b select-none",
     isDark ? "border-slate-800/40 text-slate-500" : "border-slate-200 text-slate-600"
   )}>
     <div className="flex justify-between items-center w-full">
@@ -34,15 +40,25 @@ export const SystemMonitorAxisBottom = ({ xTicks, isDark = true }: SystemMonitor
         );
       })}
     </div>
+    <div className="flex justify-center items-center w-full mt-0.5">
+      <span className={cn(
+        "text-[8px] font-mono tracking-widest uppercase font-semibold",
+        isDark ? "text-slate-500/80" : "text-slate-400"
+      )}>
+        {unit}
+      </span>
+    </div>
   </div>
-);
+));
+
+SystemMonitorAxisBottom.displayName = 'SystemMonitorAxisBottom';
 
 export interface SystemMonitorYScaleOverlayProps {
   ticks: YAxisScaleTick[];
   isDark?: boolean;
 }
 
-export const SystemMonitorYScaleOverlay = ({ ticks, isDark = true }: SystemMonitorYScaleOverlayProps) => (
+export const SystemMonitorYScaleOverlay = memo(({ ticks, isDark = true }: SystemMonitorYScaleOverlayProps) => (
   <div className={cn(
     "absolute left-1.5 inset-y-1.5 flex flex-col justify-between pointer-events-none z-10 text-[8px] font-mono select-none",
     isDark ? "text-slate-400" : "text-slate-600"
@@ -59,14 +75,16 @@ export const SystemMonitorYScaleOverlay = ({ ticks, isDark = true }: SystemMonit
       </span>
     ))}
   </div>
-);
+));
+
+SystemMonitorYScaleOverlay.displayName = 'SystemMonitorYScaleOverlay';
 
 export interface SystemMonitorVerticalGridProps {
   xTicks: XAxisTick[];
   isDark?: boolean;
 }
 
-export const SystemMonitorVerticalGrid = ({ xTicks, isDark = true }: SystemMonitorVerticalGridProps) => (
+export const SystemMonitorVerticalGrid = memo(({ xTicks, isDark = true }: SystemMonitorVerticalGridProps) => (
   <div className={cn(
     "absolute inset-0 pointer-events-none",
     isDark ? "opacity-15" : "opacity-25"
@@ -79,25 +97,30 @@ export const SystemMonitorVerticalGrid = ({ xTicks, isDark = true }: SystemMonit
       />
     ))}
   </div>
-);
+));
+
+SystemMonitorVerticalGrid.displayName = 'SystemMonitorVerticalGrid';
 
 export interface SystemMonitorHorizontalGridProps {
   isDark?: boolean;
 }
 
-export const SystemMonitorHorizontalGrid = ({ isDark = true }: SystemMonitorHorizontalGridProps) => (
+export const SystemMonitorHorizontalGrid = memo(({ isDark = true }: SystemMonitorHorizontalGridProps) => (
   <div className={cn("absolute inset-0 flex flex-col justify-between p-2 pointer-events-none", isDark ? "opacity-20" : "opacity-30")}>
     <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
     <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
     <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
   </div>
-);
+));
+
+SystemMonitorHorizontalGrid.displayName = 'SystemMonitorHorizontalGrid';
 
 export interface SystemMonitorChartCanvasProps {
   heightClass?: string;
   isDark?: boolean;
   xTicks: XAxisTick[];
   yScaleTicks: YAxisScaleTick[];
+  xAxisUnit?: string;
   isEmpty?: boolean;
   emptyText?: string;
   overlay?: React.ReactNode;
@@ -106,11 +129,12 @@ export interface SystemMonitorChartCanvasProps {
   onMouseLeave?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
-export const SystemMonitorChartCanvas = ({
+export const SystemMonitorChartCanvas = memo(({
   heightClass = 'h-28',
   isDark = true,
   xTicks,
   yScaleTicks,
+  xAxisUnit,
   isEmpty = false,
   emptyText = 'No data available',
   overlay,
@@ -138,9 +162,11 @@ export const SystemMonitorChartCanvas = ({
         children
       )}
     </div>
-    <SystemMonitorAxisBottom xTicks={xTicks} isDark={isDark} />
+    <SystemMonitorAxisBottom xTicks={xTicks} isDark={isDark} unit={xAxisUnit} />
   </>
-);
+));
+
+SystemMonitorChartCanvas.displayName = 'SystemMonitorChartCanvas';
 
 export interface SystemMonitorPanelCardProps {
   isDark?: boolean;
@@ -151,7 +177,7 @@ export interface SystemMonitorPanelCardProps {
   className?: string;
 }
 
-export const SystemMonitorPanelCard = ({
+export const SystemMonitorPanelCard = memo(({
   isDark = true,
   headerLeft,
   headerRight,
@@ -173,7 +199,9 @@ export const SystemMonitorPanelCard = ({
     {children}
     {footer}
   </div>
-);
+));
+
+SystemMonitorPanelCard.displayName = 'SystemMonitorPanelCard';
 
 export const useChartScales = (
   dynamicMax: number,
@@ -183,5 +211,6 @@ export const useChartScales = (
 ) => {
   const yScale = useMemo(() => generateYAxisScale(dynamicMax, unit, tickCount), [dynamicMax, unit, tickCount]);
   const xTicks = useMemo(() => generateXAxisTicks(interval), [interval]);
-  return { yScale, xTicks };
+  const xAxisUnit = useMemo(() => getXAxisUnit(interval), [interval]);
+  return { yScale, xTicks, xAxisUnit };
 };

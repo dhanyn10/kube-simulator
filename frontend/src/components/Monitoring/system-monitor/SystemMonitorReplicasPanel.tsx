@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
@@ -6,6 +6,8 @@ import {
   extractReplicaCounts,
   calculateReplicaSeries,
   parseIntervalMinutes,
+  getIntervalCapacity,
+  getScrubberTimeLabel,
 } from './chartHelpers';
 import {
   SystemMonitorPanelCard,
@@ -18,7 +20,7 @@ import { Layers } from 'lucide-react';
 
 export type SystemMonitorReplicasPanelProps = BaseSystemMonitorPanelProps;
 
-export const SystemMonitorReplicasPanel = ({
+export const SystemMonitorReplicasPanel = memo(({
   deployments,
   metrics,
   colorMode = 'dark',
@@ -34,13 +36,13 @@ export const SystemMonitorReplicasPanel = ({
     return calculateDynamicYMax(allReplicas, 5, 1.25);
   }, [allReplicas]);
 
-  const { yScale, xTicks } = useChartScales(dynamicMaxReplicas, ' pods', interval);
+  const { yScale, xTicks, xAxisUnit } = useChartScales(dynamicMaxReplicas, ' pods', interval);
 
   const replicaSeries = useMemo(() => {
     return calculateReplicaSeries(deployments, metrics, interval, dynamicMaxReplicas);
   }, [deployments, metrics, interval, dynamicMaxReplicas]);
 
-  const capacity = Math.round(1440 / parseIntervalMinutes(interval));
+  const capacity = getIntervalCapacity(interval);
 
   const canvasSeries: CanvasSeriesItem[] = useMemo(() => {
     return replicaSeries.map((s) => ({
@@ -63,11 +65,9 @@ export const SystemMonitorReplicasPanel = ({
     if (rect.width <= 0) return;
     const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
     const percent = Math.round((x / rect.width) * 1000) / 10;
-    const minute = Math.round((percent / 100) * 1440);
-    const hh = String(Math.floor(minute / 60)).padStart(2, '0');
-    const mm = String(minute % 60).padStart(2, '0');
-    setHoverState({ percent, timeLabel: `${hh}:${mm}` });
-  }, []);
+    const timeLabel = getScrubberTimeLabel(percent, interval);
+    setHoverState({ percent, timeLabel });
+  }, [interval]);
 
   const handleMouseLeave = useCallback(() => {
     setHoverState(null);
@@ -75,12 +75,14 @@ export const SystemMonitorReplicasPanel = ({
 
   const scrubberValues: ScrubberSeriesValue[] = useMemo(() => {
     if (!hoverState) return [];
+    const effectiveCap = Math.max(1, capacity);
+
     return replicaSeries.map((s) => {
       const len = s.data.length;
       let val = s.current;
       if (len > 0) {
-        const idx = Math.min(len - 1, Math.max(0, Math.round((hoverState.percent / 100) * (len - 1))));
-        val = s.data[idx] ?? s.current;
+        const slotIdx = Math.max(0, Math.min(len - 1, Math.floor((hoverState.percent / 100) * effectiveCap)));
+        val = s.data[slotIdx] ?? s.current;
       }
       return {
         id: s.id,
@@ -90,7 +92,7 @@ export const SystemMonitorReplicasPanel = ({
         unit: ' Pods',
       };
     });
-  }, [hoverState, replicaSeries]);
+  }, [hoverState, replicaSeries, capacity]);
 
   return (
     <SystemMonitorPanelCard
@@ -126,6 +128,7 @@ export const SystemMonitorReplicasPanel = ({
       <SystemMonitorChartCanvas
         isDark={isDark}
         xTicks={xTicks}
+        xAxisUnit={xAxisUnit}
         yScaleTicks={yScale.ticks}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -141,4 +144,6 @@ export const SystemMonitorReplicasPanel = ({
       </SystemMonitorChartCanvas>
     </SystemMonitorPanelCard>
   );
-};
+});
+
+SystemMonitorReplicasPanel.displayName = 'SystemMonitorReplicasPanel';
