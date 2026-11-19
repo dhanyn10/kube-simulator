@@ -1,9 +1,113 @@
 package service
 
 import (
+	"build-wails/backend/domain"
 	"os"
 	"testing"
 )
+
+type mockHistoryRepo struct {
+	initCalled   bool
+	closeCalled  bool
+	pushedStates []string
+	currentIndex int
+	logs         []domain.HistoryLog
+}
+
+func (m *mockHistoryRepo) Init() error {
+	m.initCalled = true
+	return nil
+}
+
+func (m *mockHistoryRepo) Close() {
+	m.closeCalled = true
+}
+
+func (m *mockHistoryRepo) Push(state string) {
+	m.pushedStates = append(m.pushedStates, state)
+	m.currentIndex++
+}
+
+func (m *mockHistoryRepo) Undo() string {
+	if m.currentIndex > 0 {
+		m.currentIndex--
+		return m.pushedStates[m.currentIndex]
+	}
+	return ""
+}
+
+func (m *mockHistoryRepo) Redo() string {
+	if m.currentIndex < len(m.pushedStates)-1 {
+		m.currentIndex++
+		return m.pushedStates[m.currentIndex]
+	}
+	return ""
+}
+
+func (m *mockHistoryRepo) JumpTo(index int) string {
+	if index >= 0 && index < len(m.pushedStates) {
+		m.currentIndex = index
+		return m.pushedStates[index]
+	}
+	return ""
+}
+
+func (m *mockHistoryRepo) GetCurrentIndex() int {
+	return m.currentIndex
+}
+
+func (m *mockHistoryRepo) GetHistoryLogs() []domain.HistoryLog {
+	return m.logs
+}
+
+func TestHistoryService_WithMockRepository(t *testing.T) {
+	mock := &mockHistoryRepo{
+		currentIndex: -1,
+		logs: []domain.HistoryLog{
+			{Index: 0, ActionName: "Mock Action", Timestamp: 12345},
+		},
+	}
+
+	svc := NewHistoryService(mock)
+	if err := svc.Init(); err != nil || !mock.initCalled {
+		t.Fatalf("Init failed or not forwarded to mock: %v", err)
+	}
+
+	if svc.GetRepository() != mock {
+		t.Error("Expected GetRepository to return the injected mock repository")
+	}
+
+	// Since mock is not *db.HistoryManager, GetManager should return nil
+	if svc.GetManager() != nil {
+		t.Error("Expected GetManager to return nil for non-badger repository")
+	}
+
+	svc.Push("state-1")
+	svc.Push("state-2")
+	if svc.GetCurrentIndex() != 1 {
+		t.Errorf("Expected current index 1, got %d", svc.GetCurrentIndex())
+	}
+
+	if undo := svc.Undo(); undo != "state-1" {
+		t.Errorf("Expected state-1 on undo, got %q", undo)
+	}
+	if redo := svc.Redo(); redo != "state-2" {
+		t.Errorf("Expected state-2 on redo, got %q", redo)
+	}
+	if jump := svc.JumpTo(0); jump != "state-1" {
+		t.Errorf("Expected state-1 on jump, got %q", jump)
+	}
+
+	logs := svc.GetHistoryLogs()
+	if len(logs) != 1 || logs[0].ActionName != "Mock Action" {
+		t.Errorf("Unexpected logs: %+v", logs)
+	}
+
+	svc.Close()
+	if !mock.closeCalled {
+		t.Error("Expected Close to be forwarded to mock repository")
+	}
+}
 
 func TestHistoryService_WithDB(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "kube-history-test-*")

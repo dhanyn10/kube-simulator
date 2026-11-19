@@ -2,62 +2,71 @@ package service
 
 import (
 	"build-wails/backend/db"
+	"build-wails/backend/domain"
 )
 
 // HistoryService manages state snapshots, undo/redo navigation, and audit log generation.
 type HistoryService struct {
-	manager *db.HistoryManager
+	repo domain.HistoryRepository
 }
 
-// NewHistoryService constructs a new HistoryService.
-func NewHistoryService(manager *db.HistoryManager) *HistoryService {
-	if manager == nil {
-		manager = db.NewHistoryManager()
+// NewHistoryService constructs a new HistoryService with an injected HistoryRepository.
+func NewHistoryService(repo domain.HistoryRepository) *HistoryService {
+	if repo == nil {
+		repo = db.NewHistoryManager()
 	}
-	return &HistoryService{manager: manager}
+	return &HistoryService{repo: repo}
 }
 
-// Init initializes the underlying history database.
+// Init initializes the underlying history repository.
 func (s *HistoryService) Init() error {
-	return s.manager.Init()
+	return s.repo.Init()
 }
 
-// Close closes the underlying history database.
+// Close closes the underlying history repository.
 func (s *HistoryService) Close() {
-	s.manager.Close()
+	s.repo.Close()
 }
 
-// GetManager returns the underlying HistoryManager for database-level inspection or tests.
+// GetRepository returns the underlying HistoryRepository.
+func (s *HistoryService) GetRepository() domain.HistoryRepository {
+	return s.repo
+}
+
+// GetManager returns the underlying repository as *db.HistoryManager when applicable (e.g. for low-level db fixtures).
 func (s *HistoryService) GetManager() *db.HistoryManager {
-	return s.manager
+	if mgr, ok := s.repo.(*db.HistoryManager); ok {
+		return mgr
+	}
+	return nil
 }
 
 // Push records a new history state.
 func (s *HistoryService) Push(state string) {
-	s.manager.Push(state)
+	s.repo.Push(state)
 }
 
 // Undo steps backward in history.
 func (s *HistoryService) Undo() string {
-	return s.manager.Undo()
+	return s.repo.Undo()
 }
 
 // Redo steps forward in history.
 func (s *HistoryService) Redo() string {
-	return s.manager.Redo()
+	return s.repo.Redo()
 }
 
 // JumpTo jumps to a specific history index.
 func (s *HistoryService) JumpTo(index int) string {
-	return s.manager.JumpTo(index)
+	return s.repo.JumpTo(index)
 }
 
 // GetCurrentIndex returns the current active history index.
 func (s *HistoryService) GetCurrentIndex() int {
-	return s.manager.GetCurrentIndex()
+	return s.repo.GetCurrentIndex()
 }
 
 // GetHistoryLogs extracts structured activity logs from the recorded history snapshots.
-func (s *HistoryService) GetHistoryLogs() []db.HistoryLog {
-	return s.manager.GetHistoryLogs()
+func (s *HistoryService) GetHistoryLogs() []domain.HistoryLog {
+	return s.repo.GetHistoryLogs()
 }

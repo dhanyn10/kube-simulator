@@ -1,5 +1,21 @@
 package domain
 
+// Project represents a saved infrastructure project entry.
+type Project struct {
+	ID        int64  `gorm:"primaryKey" json:"id"`
+	Name      string `gorm:"not null" json:"name"`
+	Content   string `gorm:"type:text;not null" json:"content"`
+	CreatedAt int64  `gorm:"autoCreateTime" json:"createdAt"`
+	UpdatedAt int64  `gorm:"autoUpdateTime" json:"updatedAt"`
+}
+
+// HistoryLog represents a single recorded history action entry for display in history panels.
+type HistoryLog struct {
+	Index      int    `json:"index"`
+	ActionName string `json:"actionName"`
+	Timestamp  int64  `json:"timestamp"`
+}
+
 // AutosaveProfileItem represents an autosaved session profile.
 type AutosaveProfileItem struct {
 	Key       string `json:"key"`

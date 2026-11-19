@@ -1,6 +1,7 @@
 package db
 
 import (
+	"build-wails/backend/domain"
 	"build-wails/backend/logger"
 	"encoding/json"
 	"fmt"
@@ -11,12 +12,8 @@ import (
 	"github.com/dgraph-io/badger/v4"
 )
 
-// HistoryLog represents a single recorded history action entry for display in history panels.
-type HistoryLog struct {
-	Index      int    `json:"index"`
-	ActionName string `json:"actionName"`
-	Timestamp  int64  `json:"timestamp"`
-}
+// HistoryLog is a type alias to domain.HistoryLog for backward compatibility.
+type HistoryLog = domain.HistoryLog
 
 // HistoryManager manages the persistent undo/redo history stack using an embedded Badger DB instance.
 type HistoryManager struct {

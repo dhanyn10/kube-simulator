@@ -1,6 +1,7 @@
 package db
 
 import (
+	"build-wails/backend/domain"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,14 +14,8 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// Project represents a saved infrastructure project entry in the SQLite database.
-type Project struct {
-	ID        int64  `gorm:"primaryKey" json:"id"`
-	Name      string `gorm:"not null" json:"name"`
-	Content   string `gorm:"type:text;not null" json:"content"`
-	CreatedAt int64  `gorm:"autoCreateTime" json:"createdAt"`
-	UpdatedAt int64  `gorm:"autoUpdateTime" json:"updatedAt"`
-}
+// Project is a type alias to domain.Project for backward compatibility.
+type Project = domain.Project
 
 const appDirName = ".kube-simulator"
 
