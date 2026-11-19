@@ -5,8 +5,7 @@ import { OverviewItem } from '@/activities/modals/attachedResourceOverviewHelper
 import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
 import { useOutsideMouseDown } from '@/hooks/useOutsideMouseDown';
 import {
-  ResourceColumnVisibility,
-  getInitialResourceColumnVisibility,
+  type ResourceColumnVisibility,
   useResourceColumnVisibility,
 } from '@/activities/modals/useResourceColumnVisibility';
 
@@ -14,7 +13,7 @@ export {
   type ResourceColumnVisibility,
   getInitialResourceColumnVisibility,
   useResourceColumnVisibility,
-};
+} from '@/activities/modals/useResourceColumnVisibility';
 
 interface ResourceColumnDropdownProps {
   readonly isOpen: boolean;
