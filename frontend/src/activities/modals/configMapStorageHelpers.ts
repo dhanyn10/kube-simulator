@@ -1,80 +1,41 @@
 import { K8sConfigMapItem } from '@/types';
-import { logger } from '@/lib/logger';
-import { getBackendGateway } from '@/gateway';
+import {
+  saveResourcesToStorage,
+  loadResourcesFromStorage,
+  persistResourceItem,
+  removeResourceFromStorage,
+  ResourceStorageConfig,
+} from './resourceStorageHelpers';
 
 export const CONFIG_MAPS_STORAGE_KEY = 'kube_simulator_configmaps';
 export const CONFIG_MAPS_SETTING_KEY = 'kube_configmaps_data';
 
+const configMapStorageConfig: ResourceStorageConfig = {
+  localStorageKey: CONFIG_MAPS_STORAGE_KEY,
+  settingKey: CONFIG_MAPS_SETTING_KEY,
+  logTag: 'ConfigMapStorage',
+};
+
 /**
  * Persists an array of ConfigMaps into local storage (localStorage and App.SaveSetting).
- *
- * @param configMaps - Array of ConfigMap items to persist.
- * @returns Boolean indicating whether save succeeded.
  */
-export const saveConfigMapsToLocal = async (configMaps: K8sConfigMapItem[]): Promise<boolean> => {
-  try {
-    const json = JSON.stringify(configMaps);
-    if (globalThis.localStorage !== undefined) {
-      globalThis.localStorage.setItem(CONFIG_MAPS_STORAGE_KEY, json);
-    }
-    await getBackendGateway().saveSetting(CONFIG_MAPS_SETTING_KEY, json);
-    return true;
-  } catch (err) {
-    logger.error('[ConfigMapStorage] Failed to save ConfigMaps locally:', err);
-    return false;
-  }
-};
+export const saveConfigMapsToLocal = (configMaps: K8sConfigMapItem[]): Promise<boolean> =>
+  saveResourcesToStorage(configMapStorageConfig, configMaps);
 
 /**
  * Loads saved ConfigMaps from local storage (App.GetSetting or localStorage fallback).
- *
- * @returns Array of saved ConfigMap items.
  */
-export const loadConfigMapsFromLocal = async (): Promise<K8sConfigMapItem[]> => {
-  try {
-    let dataStr = await getBackendGateway().getSetting(CONFIG_MAPS_SETTING_KEY);
-    if (!dataStr && globalThis.localStorage !== undefined) {
-      dataStr = globalThis.localStorage.getItem(CONFIG_MAPS_STORAGE_KEY) || '';
-    }
-    if (!dataStr) return [];
-
-    const parsed = JSON.parse(dataStr);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (err) {
-    logger.error('[ConfigMapStorage] Failed to load ConfigMaps locally:', err);
-    return [];
-  }
-};
+export const loadConfigMapsFromLocal = (): Promise<K8sConfigMapItem[]> =>
+  loadResourcesFromStorage<K8sConfigMapItem>(configMapStorageConfig);
 
 /**
  * Merges a ConfigMap item into the locally persisted list and returns the updated list.
- *
- * @param cmItem - ConfigMap item to add or update.
- * @returns Updated array of ConfigMap items.
  */
-export const persistConfigMapItem = async (cmItem: K8sConfigMapItem): Promise<K8sConfigMapItem[]> => {
-  const current = await loadConfigMapsFromLocal();
-  const idx = current.findIndex((c) => c.id === cmItem.id || c.name === cmItem.name);
-  let updated: K8sConfigMapItem[];
-  if (idx >= 0) {
-    updated = [...current];
-    updated[idx] = cmItem;
-  } else {
-    updated = [...current, cmItem];
-  }
-  await saveConfigMapsToLocal(updated);
-  return updated;
-};
+export const persistConfigMapItem = (cmItem: K8sConfigMapItem): Promise<K8sConfigMapItem[]> =>
+  persistResourceItem(configMapStorageConfig, cmItem);
 
 /**
  * Removes a ConfigMap item by ID or name from local storage.
- *
- * @param idOrName - Identifier or name of the ConfigMap to remove.
- * @returns Updated array of ConfigMap items.
  */
-export const removeConfigMapFromLocal = async (idOrName: string): Promise<K8sConfigMapItem[]> => {
-  const current = await loadConfigMapsFromLocal();
-  const updated = current.filter((c) => c.id !== idOrName && c.name !== idOrName);
-  await saveConfigMapsToLocal(updated);
-  return updated;
-};
+export const removeConfigMapFromLocal = (idOrName: string): Promise<K8sConfigMapItem[]> =>
+  removeResourceFromStorage<K8sConfigMapItem>(configMapStorageConfig, idOrName);

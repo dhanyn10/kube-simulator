@@ -1,8 +1,15 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getBackendGateway } from '@/gateway';
+import { isWailsDesktop } from '@/lib/mocks';
 import { useFlowStore } from '@/store';
 import { SimulationMetricPoint } from '@/store/types';
-import { TimeRangeFilter, DeploymentSummary, SystemMonitorClusterTotals, SimulationSpeed, SystemMonitorColorMode } from './types';
+import {
+  TimeRangeFilter,
+  DeploymentSummary,
+  SystemMonitorClusterTotals,
+  SimulationSpeed,
+  SystemMonitorColorMode,
+} from './systemMonitorTypes';
 
 export const useSystemMonitorDashboard = () => {
   const [metrics, setMetrics] = useState<Record<string, SimulationMetricPoint[]>>({});
@@ -145,7 +152,6 @@ export const useSystemMonitorDashboard = () => {
     };
 
     const unsubMetrics = gw.onEvent('metrics-update', (json: string) => {
-      // If BroadcastChannel is actively receiving messages, skip redundant multi-megabyte JSON parsing
       if (hasReceivedViaBroadcast) return;
       try {
         handleUpdate(JSON.parse(json));
@@ -155,7 +161,6 @@ export const useSystemMonitorDashboard = () => {
     });
 
     const unsubSnap = gw.onEvent('simulation-snapshot-updated', (json: string) => {
-      // If BroadcastChannel is actively receiving messages, skip redundant multi-megabyte JSON parsing
       if (hasReceivedViaBroadcast) return;
       try {
         handleUpdate(JSON.parse(json));
@@ -258,6 +263,23 @@ export const useSystemMonitorDashboard = () => {
     runtime?.EventsEmit?.('theme-sync', newMode);
   }, [colorMode]);
 
+  const handleCloseWindow = useCallback(() => {
+    void getBackendGateway().closeSimulationWindow();
+    useFlowStore.getState().setMonitoringOpen(false);
+    useFlowStore.getState().setMonitoringDetached(false);
+    if (!isWailsDesktop() && process.env.NODE_ENV !== 'test') {
+      try {
+        globalThis.close?.();
+      } catch {
+        // Fallback for browser popup
+      }
+    }
+  }, []);
+
+  const handleMaximizeWindow = useCallback(() => {
+    void getBackendGateway().maximizeWindow();
+  }, []);
+
   return {
     metrics,
     deployments,
@@ -274,5 +296,7 @@ export const useSystemMonitorDashboard = () => {
     canStart,
     hasHpa: effectiveHasHpa,
     hpaTarget: effectiveHpaTarget,
+    handleCloseWindow,
+    handleMaximizeWindow,
   };
 };

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useSystemMonitorDashboard } from '@/components/Monitoring/system-monitor/useSystemMonitorDashboard';
+import { useSystemMonitorDashboard } from '@/activities/monitoring/useSystemMonitorDashboard';
 import { getBackendGateway } from '@/gateway';
 
 describe('useSystemMonitorDashboard hook', () => {
@@ -192,5 +192,27 @@ describe('useSystemMonitorDashboard hook', () => {
     expect(result.current.clusterTotals.memoryPercent).toBe(68);
     expect(result.current.clusterTotals.errorRate).toBe(100);
     expect(result.current.clusterTotals.totalPods).toBe(2);
+  });
+
+  it('handles window controls: close and maximize via gateway and store', async () => {
+    const gw = getBackendGateway();
+    const closeSpy = vi.spyOn(gw, 'closeSimulationWindow').mockResolvedValue(true);
+    const maxSpy = vi.spyOn(gw, 'maximizeWindow').mockResolvedValue();
+    const { useFlowStore } = await import('@/store');
+    useFlowStore.setState({ isMonitoringOpen: true, isMonitoringDetached: true });
+
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      result.current.handleCloseWindow();
+    });
+    expect(closeSpy).toHaveBeenCalled();
+    expect(useFlowStore.getState().isMonitoringOpen).toBe(false);
+    expect(useFlowStore.getState().isMonitoringDetached).toBe(false);
+
+    act(() => {
+      result.current.handleMaximizeWindow();
+    });
+    expect(maxSpy).toHaveBeenCalled();
   });
 });
