@@ -375,6 +375,18 @@ const updateRollingDeployments = (updatedNodes: Node[], get: () => FlowState): b
 };
 
 /**
+ * Syncs modified node references in place when throttling full store node array commits,
+ * preserving traffic minute counters across ticks without triggering ReactFlow re-renders.
+ */
+const syncInPlaceTrafficNodes = (currentNodes: Node[], updatedNodes: Node[]) => {
+  for (let i = 0; i < currentNodes.length; i++) {
+    if (currentNodes[i] !== updatedNodes[i]) {
+      currentNodes[i] = updatedNodes[i];
+    }
+  }
+};
+
+/**
  * Executes a single tick of the simulation.
  * It updates metrics, processes workloads, and broadcasts changes to the UI and backend.
  *
@@ -473,6 +485,10 @@ const runSimulationTick = (params: {
   const shouldCommitNodes =
     hasStructuralChanges ||
     (hasTrafficChanges && (process.env.NODE_ENV === 'test' || ticks % 7 === 0 || ticks <= 3));
+
+  if (!shouldCommitNodes && hasTrafficChanges) {
+    syncInPlaceTrafficNodes(currentNodes, updatedNodes);
+  }
 
   set({ simulationMetrics: newMetrics, ...(shouldCommitNodes ? { nodes: updatedNodes } : {}) });
 

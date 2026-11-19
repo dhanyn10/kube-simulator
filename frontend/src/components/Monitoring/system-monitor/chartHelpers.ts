@@ -385,20 +385,21 @@ export const aggregateMetricSeries = (
     return defaultEmpty;
   }
 
-  const windowIndices = allBucketIndices.slice(-capacity);
-  const minB = windowIndices[0];
-  const maxB = windowIndices.at(-1)!;
-  const aggregatedData: number[] = [];
+  const firstB = allBucketIndices[0];
+  const maxB = allBucketIndices.at(-1)!;
+  const fullData: number[] = [];
 
   let lastAvg = 0;
-  for (let b = minB; b <= maxB; b++) {
+  for (let b = firstB; b <= maxB; b++) {
     const sum = bucketSums.get(b);
     const count = bucketCounts.get(b);
     if (count && count > 0 && sum !== undefined) {
       lastAvg = sum / count;
     }
-    aggregatedData.push(Math.round(lastAvg * 10) / 10);
+    fullData.push(Math.round(lastAvg * 10) / 10);
   }
+
+  const aggregatedData = fullData.slice(-capacity);
 
   // Windows Task Manager oscilloscope: stream linear polyline from right to left
   const svgPoints = buildSvgPoints(aggregatedData, maxVal, viewWidth, viewHeight, capacity);
@@ -487,16 +488,15 @@ const aggregateBucketNetworkMetrics = (
     return { rpsArr: [], latArr: [] };
   }
 
-  const windowIndices = allIndices.slice(-capacity);
-  const minB = windowIndices[0];
-  const maxB = windowIndices.at(-1)!;
+  const firstB = allIndices[0];
+  const maxB = allIndices.at(-1)!;
 
-  const rpsArr: number[] = [];
-  const latArr: number[] = [];
+  const fullRps: number[] = [];
+  const fullLat: number[] = [];
   let lastRps = 0;
   let lastLat = 0;
 
-  for (let b = minB; b <= maxB; b++) {
+  for (let b = firstB; b <= maxB; b++) {
     const sum = bucketRpsSum.get(b);
     const cnt = bucketRpsCount.get(b);
     if (cnt && cnt > 0 && sum !== undefined) {
@@ -506,11 +506,14 @@ const aggregateBucketNetworkMetrics = (
     if (lat !== undefined) {
       lastLat = lat;
     }
-    rpsArr.push(lastRps);
-    latArr.push(lastLat);
+    fullRps.push(lastRps);
+    fullLat.push(lastLat);
   }
 
-  return { rpsArr, latArr };
+  return {
+    rpsArr: fullRps.slice(-capacity),
+    latArr: fullLat.slice(-capacity),
+  };
 };
 
 export const calculateNetworkMetrics = (

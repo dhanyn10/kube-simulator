@@ -368,4 +368,42 @@ describe('chartHelpers', () => {
     expect(seriesBucketed).toHaveLength(1);
     expect(seriesBucketed[0].current).toBe(4);
   });
+
+  it('maintains strictly monotonic bucket count without right-edge oscillation when switching between 15m and 1h', () => {
+    const stream: SimulationMetricPoint[] = [];
+    let prevLen15m = 0;
+    let prevLen1h = 0;
+
+    for (let tick = 1; tick <= 3200; tick++) {
+      stream.push({
+        cpuPercent: 30 + (tick % 40),
+        memoryPercent: 50,
+        cpuValue: 300,
+        memoryValue: 512,
+        cpuLimit: 1000,
+        memoryLimit: 1024,
+        isThrottled: false,
+        isOOM: false,
+        minuteIndex: tick % 1440,
+        tickIndex: tick,
+      });
+
+      const windowPoints = stream.slice(-2880);
+      if (tick % 25 === 0) {
+        const res15m = aggregateMetricSeries(windowPoints, 'cpuPercent', '15m');
+        const res1h = aggregateMetricSeries(windowPoints, 'cpuPercent', '1h');
+
+        expect(res15m.data.length).toBeGreaterThanOrEqual(prevLen15m);
+        expect(res15m.data.length).toBeLessThanOrEqual(12);
+        expect(res1h.data.length).toBeGreaterThanOrEqual(prevLen1h);
+        expect(res1h.data.length).toBeLessThanOrEqual(24);
+
+        prevLen15m = res15m.data.length;
+        prevLen1h = res1h.data.length;
+      }
+    }
+
+    expect(prevLen15m).toBe(12);
+    expect(prevLen1h).toBe(24);
+  });
 });

@@ -195,7 +195,7 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
       : ((ctx.ticks || 0) % 1440);
 
   const existing = ctx.newMetrics[dep.id] || [];
-  ctx.newMetrics[dep.id] = [...existing, {
+  const nextPoint = {
     cpuPercent,
     memoryPercent,
     cpuValue,
@@ -208,7 +208,18 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
     minuteIndex,
     tickIndex: ctx.ticks,
     timestamp: Date.now(),
-  }].slice(-1440);
+  };
+
+  const lastExisting = existing.at(-1);
+  if (
+    lastExisting &&
+    typeof lastExisting.minuteIndex === 'number' &&
+    lastExisting.minuteIndex === minuteIndex
+  ) {
+    ctx.newMetrics[dep.id] = [...existing.slice(0, -1), nextPoint];
+  } else {
+    ctx.newMetrics[dep.id] = [...existing, nextPoint].slice(-2880);
+  }
 
   return { cpuPercent, isOOM };
 };
