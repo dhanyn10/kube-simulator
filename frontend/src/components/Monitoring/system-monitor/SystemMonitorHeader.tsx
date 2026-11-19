@@ -1,5 +1,5 @@
 import { memo, type CSSProperties } from 'react';
-import { Play, Pause, Square, Zap, Clock, RefreshCw, Download } from 'lucide-react';
+import { Play, Pause, Square, Clock, RefreshCw, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isWailsDesktop } from '@/lib/mocks';
 import { getBackendGateway } from '@/gateway';
@@ -264,18 +264,18 @@ const TimeRangeSelector = ({
   readonly isDark: boolean;
 }) => (
   <div className={cn(
-    "flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-mono",
+    "flex flex-wrap items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded border text-[10px] font-mono",
     isDark ? "border-slate-700/60 bg-slate-900/40 text-slate-300" : "border-slate-200 bg-slate-100 text-slate-700"
   )}>
-    <Clock size={12} className={isDark ? "text-slate-400" : "text-slate-500"} />
-    <span className={cn("font-sans text-[10px] mr-0.5", isDark ? "text-slate-400" : "text-slate-500")}>Interval:</span>
+    <Clock size={12} className={cn("shrink-0", isDark ? "text-slate-400" : "text-slate-500")} />
+    <span className={cn("hidden lg:inline font-sans text-[10px] mr-0.5", isDark ? "text-slate-400" : "text-slate-500")}>Interval:</span>
     {TIME_RANGE_OPTIONS.map((range) => (
       <button
         key={`range-${range}`}
         type="button"
         onClick={() => setTimeRange(range)}
         className={cn(
-          'px-1.5 py-0.5 rounded transition-colors',
+          'px-1.5 py-0.5 rounded transition-colors cursor-pointer',
           getTimeRangeButtonClass(timeRange === range, isDark)
         )}
       >
@@ -297,14 +297,14 @@ const ExportActionButtons = ({
   if (!onExportCsv && !onExportJson) return null;
 
   const btnClass = cn(
-    "px-2 py-1 flex items-center gap-1 text-[10px] font-mono rounded border transition-colors cursor-pointer",
+    "px-2 py-1 flex items-center gap-1 text-[10px] font-mono rounded border transition-colors cursor-pointer whitespace-nowrap",
     isDark
       ? "bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700"
       : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
   );
 
   return (
-    <div className={cn("flex items-center gap-1 border-l pl-2", isDark ? "border-slate-800" : "border-slate-200")}>
+    <div className={cn("flex items-center gap-1 sm:border-l sm:pl-2", isDark ? "border-slate-800" : "border-slate-200")}>
       {onExportCsv && (
         <button type="button" onClick={onExportCsv} className={btnClass} title="Export Metrics to CSV">
           <Download size={10} />
@@ -356,47 +356,53 @@ export const SystemMonitorHeader = memo(({
         style={{ '--wails-draggable': 'drag' } as CSSProperties}
         onDoubleClick={() => void getBackendGateway().maximizeWindow()}
         className={cn(
-          'h-10 border-b flex items-center justify-between pl-3 pr-0 z-50 text-xs transition-colors',
+          'h-10 border-b flex items-center justify-between pl-3 pr-0 z-50 text-xs transition-colors gap-2',
           isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
         )}
       >
-        <div className="flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
+        <div className="flex items-center gap-2 min-w-0 truncate" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
           <ClusterLogo />
-          <span className="font-bold text-[11px] tracking-wide">Kube Simulator</span>
-          <span className="text-slate-500 text-[11px]">/</span>
-          <span className={cn("font-semibold text-[11px] font-mono", isDark ? "text-blue-400" : "text-blue-600")}>System Monitor</span>
-          <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-mono border", isDark ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-slate-200 text-slate-600 border-slate-300")}>Cluster</span>
+          <span className="hidden sm:inline font-bold text-[11px] tracking-wide whitespace-nowrap">Kube Simulator</span>
+          <span className="hidden sm:inline text-slate-500 text-[11px]">/</span>
+          <span className={cn("font-semibold text-[11px] font-mono truncate", isDark ? "text-blue-400" : "text-blue-600")}>System Monitor</span>
+          <span className={cn("hidden md:inline-block text-[9px] px-1.5 py-0.5 rounded font-mono border shrink-0", isDark ? "bg-slate-800 text-slate-400 border-slate-700" : "bg-slate-200 text-slate-600 border-slate-300")}>Cluster</span>
         </div>
 
         {/* Center Draggable Spacer */}
-        <div className="flex-1 h-full" />
+        <div className="flex-1 h-full min-w-[16px]" />
 
         {/* Right: Window Controls */}
-        <WindowControls
-          colorMode={colorMode}
-          onClose={handleWindowClose}
-        />
+        <div className="shrink-0">
+          <WindowControls
+            colorMode={colorMode}
+            onClose={handleWindowClose}
+          />
+        </div>
       </div>
 
       {/* 2. Simulation & System Monitor Action Ribbon */}
       <div
         style={{ '--wails-draggable': 'drag' } as CSSProperties}
         className={cn(
-          'h-11 px-4 border-b flex items-center justify-between z-40 transition-colors',
+          'min-h-11 py-1.5 px-3 sm:px-4 border-b flex flex-wrap items-center justify-between gap-2 z-40 transition-colors',
           isDark ? 'bg-[#181b1f] border-[#22252b] text-slate-200' : 'bg-white border-slate-200 text-slate-800'
         )}
       >
         {/* Left: Live Status & Simulation Controls */}
-        <div className="flex items-center gap-3" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
           <SystemMonitorLiveStatus isSimulating={isSimulating} isPaused={isPaused} isDark={isDark} />
 
           {/* Simulated 24-Hour Timeline Clock */}
           <div className={cn(
-            "hidden sm:flex items-center gap-1.5 px-2 py-1 rounded border text-[10px] font-mono",
+            "hidden sm:flex items-center gap-1.5 px-2 py-1 rounded border text-[10px] font-mono whitespace-nowrap",
             isDark ? "border-slate-700/60 bg-slate-900/60 text-slate-300" : "border-slate-200 bg-slate-100 text-slate-700"
           )}>
-            <Clock size={11} className={isDark ? "text-blue-400" : "text-blue-600"} />
-            <span>Time: <strong className={cn("font-bold", isDark ? "text-white" : "text-slate-900")}>{simulatedTime}</strong> <span className={cn("text-[9px]", isDark ? "text-slate-500" : "text-slate-400")}>/ 24h</span></span>
+            <Clock size={11} className={cn("shrink-0", isDark ? "text-blue-400" : "text-blue-600")} />
+            <span>
+              <span className="hidden lg:inline">Time: </span>
+              <strong className={cn("font-bold", isDark ? "text-white" : "text-slate-900")}>{simulatedTime}</strong>
+              <span className={cn("hidden md:inline text-[9px]", isDark ? "text-slate-500" : "text-slate-400")}> / 24h</span>
+            </span>
           </div>
 
           <SimulationPlaybackControls
@@ -408,35 +414,19 @@ export const SystemMonitorHeader = memo(({
             isDark={isDark}
           />
           <SpeedSelector simulationSpeed={simulationSpeed} sendControl={sendControl} isDark={isDark} />
-
-          {/* Chaos Spike Button */}
-          <button
-            type="button"
-            onClick={() => sendControl('traffic_spike', { multiplier: 2.0 })}
-            className={cn(
-              "px-2.5 py-1 flex items-center gap-1 text-[11px] font-medium border rounded transition-all active:scale-95 cursor-pointer",
-              isDark
-                ? "text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
-                : "text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-300 shadow-xs"
-            )}
-            title="Inject 2x Traffic Spike (Chaos Test)"
-          >
-            <Zap size={12} className={isDark ? "text-amber-400" : "text-amber-600"} />
-            <span>+ Spike 2x</span>
-          </button>
         </div>
 
         {/* Center Draggable Spacer for Action Ribbon */}
-        <div className="flex-1 h-full" />
+        <div className="hidden xl:block flex-1 h-full" />
 
         {/* Right: Time Range, Export & Refresh Clock */}
-        <div className="flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 ml-auto" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
           <TimeRangeSelector timeRange={timeRange} setTimeRange={setTimeRange} isDark={isDark} />
           <ExportActionButtons onExportCsv={onExportCsv} onExportJson={onExportJson} isDark={isDark} />
 
           {/* Sync Rate Indicator */}
           <div className={cn(
-            "flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded border",
+            "flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded border whitespace-nowrap shrink-0",
             isDark ? "bg-slate-900/40 border-slate-800 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-600"
           )}>
             <RefreshCw size={11} className={cn('text-blue-400', isSimulating && !isPaused && 'animate-spin')} />

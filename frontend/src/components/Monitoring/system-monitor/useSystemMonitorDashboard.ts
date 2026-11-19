@@ -126,8 +126,6 @@ export const useSystemMonitorDashboard = () => {
     } else if (action === 'speed' && options?.speed) {
       await gw.setSimulationSpeed(options.speed);
       setSimulationSpeed(options.speed as SimulationSpeed);
-    } else if (action === 'traffic_spike') {
-      await gw.triggerTrafficSpike(options?.multiplier || 2.0);
     }
   }, [simulationSpeed]);
 

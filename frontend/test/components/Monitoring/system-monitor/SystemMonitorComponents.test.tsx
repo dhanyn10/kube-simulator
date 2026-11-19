@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { useFlowStore } from '@/store';
+import { getBackendGateway } from '@/gateway';
 import { SystemMonitorHeader } from '@/components/Monitoring/system-monitor/SystemMonitorHeader';
 import { SystemMonitorStatCard } from '@/components/Monitoring/system-monitor/SystemMonitorStatCard';
 import { SystemMonitorTimeSeriesPanel } from '@/components/Monitoring/system-monitor/SystemMonitorTimeSeriesPanel';
@@ -8,10 +10,12 @@ import { SystemMonitorNetworkPanel } from '@/components/Monitoring/system-monito
 import { SystemMonitorContextMenu } from '@/components/Monitoring/system-monitor/SystemMonitorContextMenu';
 import { SystemMonitorScrubber } from '@/components/Monitoring/system-monitor/SystemMonitorScrubber';
 import { SystemMonitorEventTimeline } from '@/components/Monitoring/system-monitor/SystemMonitorEventTimeline';
+import { SystemMonitorDashboard } from '@/components/Monitoring/system-monitor/SystemMonitorDashboard';
 import {
   generateMetricsCsv,
   exportMetricsAsCsv,
   exportMetricsAsJson,
+  triggerFileDownload,
 } from '@/components/Monitoring/system-monitor/exportHelpers';
 import {
   SystemMonitorChartCanvas,
@@ -66,9 +70,8 @@ describe('SystemMonitor UI Components', () => {
     fireEvent.click(screen.getByText('5x'));
     expect(sendControl).toHaveBeenCalledWith('speed', { speed: 5 });
 
-    // Click Spike
-    fireEvent.click(screen.getByTitle('Inject 2x Traffic Spike (Chaos Test)'));
-    expect(sendControl).toHaveBeenCalledWith('traffic_spike', { multiplier: 2 });
+    // Spike button no longer exists in System Monitor
+    expect(screen.queryByTitle('Inject 2x Traffic Spike (Chaos Test)')).toBeNull();
 
     // Click Interval 1h
     fireEvent.click(screen.getByText('1h'));
@@ -646,5 +649,177 @@ describe('SystemMonitor UI Components', () => {
       fireEvent.mouseLeave(canvasArea);
       expect(screen.queryByText('Snapshot')).toBeNull();
     }
+  });
+
+  it('handles mouse move and leave on SystemMonitorReplicasPanel for scrubber tooltip', () => {
+    const deployments = [{ id: 'dep-rep', label: 'rep-service', replicas: 2 }];
+    const metrics = {
+      'dep-rep': [
+        { minuteIndex: 10, replicas: 2 },
+        { minuteIndex: 11, replicas: 4 },
+      ],
+    };
+
+    const { container } = render(
+      <SystemMonitorReplicasPanel
+        deployments={deployments}
+        metrics={metrics}
+        colorMode="dark"
+      />
+    );
+
+    const canvasArea = container.querySelector('.cursor-crosshair');
+    expect(canvasArea).not.toBeNull();
+    if (canvasArea) {
+      vi.spyOn(canvasArea, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        right: 1000,
+        bottom: 200,
+        width: 1000,
+        height: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      });
+
+      fireEvent.mouseMove(canvasArea, { clientX: 400 });
+      expect(screen.getByText('Snapshot')).toBeDefined();
+
+      fireEvent.mouseLeave(canvasArea);
+      expect(screen.queryByText('Snapshot')).toBeNull();
+    }
+  });
+
+  it('handles mouse move and leave on SystemMonitorNetworkPanel for scrubber tooltip', () => {
+    const deployments = [{ id: 'dep-net', label: 'net-service', replicas: 1 }];
+    const metrics = {
+      'dep-net': [
+        { minuteIndex: 10, cpuPercent: 50 },
+        { minuteIndex: 11, cpuPercent: 80 },
+      ],
+    };
+
+    const { container } = render(
+      <SystemMonitorNetworkPanel
+        deployments={deployments}
+        metrics={metrics}
+        colorMode="dark"
+      />
+    );
+
+    const canvasArea = container.querySelector('.cursor-crosshair');
+    expect(canvasArea).not.toBeNull();
+    if (canvasArea) {
+      vi.spyOn(canvasArea, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        right: 1000,
+        bottom: 200,
+        width: 1000,
+        height: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      });
+
+      fireEvent.mouseMove(canvasArea, { clientX: 600 });
+      expect(screen.getByText('Snapshot')).toBeDefined();
+
+      fireEvent.mouseLeave(canvasArea);
+      expect(screen.queryByText('Snapshot')).toBeNull();
+    }
+  });
+
+  it('renders SystemMonitorDashboard container, opens and closes context menu, and triggers exports', async () => {
+    const gw = getBackendGateway();
+    let metricsCb: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') {
+        metricsCb = cb;
+      }
+      return () => {};
+    });
+
+    // 1. Initial empty state
+    useFlowStore.setState({ nodes: [] });
+    const { container } = render(<SystemMonitorDashboard />);
+
+    expect(screen.getByText('System Monitor')).toBeDefined();
+    expect(screen.getByText('Cluster CPU')).toBeDefined();
+    expect(screen.getByText('Workload Pods')).toBeDefined();
+    expect(screen.getByText(/Waiting for simulation data/i)).toBeDefined();
+
+    const mainContainer = container.firstChild as HTMLElement;
+    expect(mainContainer).not.toBeNull();
+
+    // Trigger right-click context menu
+    fireEvent.contextMenu(mainContainer, { clientX: 150, clientY: 200 });
+    expect(screen.getByText('Change Theme')).toBeDefined();
+
+    // Close context menu by clicking Change Theme
+    fireEvent.click(screen.getByText('Change Theme'));
+    expect(screen.queryByText('Change Theme')).toBeNull();
+
+    // 2. Hydrate data with deployment and 35 points (critical CPU and warning Memory)
+    const points = Array.from({ length: 35 }, (_, i) => ({
+      minuteIndex: i,
+      cpuPercent: 90,
+      memoryPercent: 75,
+      isThrottled: false,
+      isOOM: false,
+    }));
+
+    await act(async () => {
+      metricsCb?.(
+        JSON.stringify({
+          timestamp: 9999,
+          deployments: [
+            { id: 'dep-dashboard', label: 'dash-service', replicas: 3 },
+          ],
+          metrics: {
+            'dep-dashboard': points,
+          },
+        })
+      );
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(screen.getByText('HPA & Pod Autoscaling Replicas')).toBeDefined();
+    expect(screen.getByText('Network Ingress & Response Latency')).toBeDefined();
+
+    // Trigger right click and click Close
+    fireEvent.contextMenu(mainContainer, { clientX: 200, clientY: 250 });
+    const closeMenuItem = screen.getByTestId('system-monitor-menu-close');
+    expect(closeMenuItem).toBeDefined();
+    fireEvent.click(closeMenuItem);
+    expect(screen.queryByTestId('system-monitor-menu-close')).toBeNull();
+
+    // Click Export CSV and Export JSON buttons in header
+    fireEvent.click(screen.getByTitle('Export Metrics to CSV'));
+    fireEvent.click(screen.getByTitle('Export Metrics to JSON'));
+
+    // Click Close Window button in header
+    fireEvent.click(screen.getByLabelText('close'));
+  });
+
+  it('handles fallback paths in exportHelpers', () => {
+    // 1. Point with undefined minuteIndex and deployment with undefined replicas
+    const mockDeps = [{ id: 'dep-raw', label: 'Raw Service' }];
+    const mockMetrics = {
+      'dep-raw': [{ cpuPercent: 20, memoryValue: 64 }],
+    };
+    const csv = generateMetricsCsv(mockMetrics, mockDeps);
+    expect(csv).toContain('00:00,"dep-raw","Raw Service",20,64,1,false,false');
+
+    // 2. triggerFileDownload
+    const createObjectURLMock = vi.fn().mockReturnValue('blob:mock-url');
+    const revokeObjectURLMock = vi.fn();
+    globalThis.URL.createObjectURL = createObjectURLMock;
+    globalThis.URL.revokeObjectURL = revokeObjectURLMock;
+
+    triggerFileDownload('sample content', 'test.txt', 'text/plain');
+    expect(createObjectURLMock).toHaveBeenCalled();
+    expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:mock-url');
   });
 });

@@ -73,11 +73,6 @@ export const SystemMonitorReplicasPanel = memo(({
           <h2 className="text-xs font-bold font-mono uppercase tracking-wider">HPA & Pod Autoscaling Replicas</h2>
         </div>
       }
-      headerRight={
-        <span className={cn("text-[9px] font-mono", isDark ? "text-slate-400" : "text-slate-600")}>
-          Scale Ceiling: {dynamicMaxReplicas} Pods
-        </span>
-      }
       footer={
         <div className="flex flex-wrap items-center gap-3 pt-1">
           {replicaSeries.map((s) => (

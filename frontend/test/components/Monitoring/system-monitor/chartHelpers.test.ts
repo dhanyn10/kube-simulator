@@ -420,4 +420,24 @@ describe('chartHelpers', () => {
     expect(prevLen15m).toBe(12);
     expect(prevLen1h).toBe(24);
   });
+
+  it('handles midnight rollover in calculateNetworkMetrics and empty metric buckets', () => {
+    const deps = [{ id: 'dep-1', label: 'web', replicas: 2 }];
+    const rolloverMetrics = {
+      'dep-1': [
+        { minuteIndex: 1439, cpuPercent: 50 },
+        { minuteIndex: 5, cpuPercent: 60 },
+      ],
+    };
+    const resRollover = calculateNetworkMetrics(deps, rolloverMetrics, '1h');
+    expect(resRollover.rpsData.length).toBeGreaterThan(0);
+
+    const emptyDepsMetrics = {
+      'dep-1': [],
+    };
+    const resEmpty = calculateNetworkMetrics(deps, emptyDepsMetrics, '1h');
+    expect(resEmpty.rpsData).toEqual([]);
+    expect(resEmpty.currentRps).toBe(0);
+    expect(resEmpty.currentLatency).toBe(0);
+  });
 });
