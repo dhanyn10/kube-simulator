@@ -19,41 +19,96 @@ export interface SystemMonitorAxisBottomProps {
   unit?: string;
 }
 
+const getTickAlignmentClass = (idx: number, total: number): string => {
+  if (idx === 0) return 'translate-x-0 items-start';
+  if (idx === total - 1) return '-translate-x-full items-end';
+  return '-translate-x-1/2 items-center';
+};
+
+const resolveAxisScaleLabels = (xTicks: XAxisTick[], unit: string) => {
+  if (xTicks.length < 2) {
+    return { stepText: '1m / div', windowText: `0 ${unit}` };
+  }
+  const stepVal = Math.abs(xTicks[1].minute - xTicks[0].minute) || 1;
+  const totalVal = Math.abs(xTicks.at(-1)?.minute ?? 0);
+  const suffix = unit.toLowerCase() === 'hours' ? 'h' : 'm';
+  return {
+    stepText: `${stepVal}${suffix} / div`,
+    windowText: `${totalVal} ${unit}`,
+  };
+};
+
 export const SystemMonitorAxisBottom = memo(({
   xTicks,
   isDark = true,
   unit = 'Minutes',
-}: SystemMonitorAxisBottomProps) => (
-  <div className={cn(
-    "relative px-1 text-[9px] font-mono -mt-1 pb-1 border-b select-none",
-    isDark ? "border-slate-800/40 text-slate-500" : "border-slate-200 text-slate-600"
-  )}>
-    <div className="flex justify-between items-center w-full">
-      {xTicks.map((t, idx) => {
-        const isDense = xTicks.length > 13;
-        const isAlternate = idx % 2 !== 0 && idx !== xTicks.length - 1;
-        const hideClass = isDense && isAlternate ? 'hidden sm:inline opacity-60' : '';
+}: SystemMonitorAxisBottomProps) => {
+  const isDense = xTicks.length > 13;
+  const { stepText, windowText } = resolveAxisScaleLabels(xTicks, unit);
 
-        return (
+  return (
+    <div className={cn(
+      "relative text-[9px] font-mono -mt-1 pb-1.5 border-b select-none",
+      isDark ? "border-slate-800/40 text-slate-500" : "border-slate-200 text-slate-600"
+    )}>
+      {/* 1:1 Precision-Aligned Tick Ruler Row */}
+      <div className="relative h-4 w-full">
+        {xTicks.map((t, idx) => {
+          const isAlternate = idx % 2 !== 0 && idx !== xTicks.length - 1;
+          const hideClass = isDense && isAlternate ? 'hidden 2xl:inline-block opacity-55 text-[8px]' : '';
+          const alignClass = getTickAlignmentClass(idx, xTicks.length);
+
+          return (
+            <div
+              key={`x-axis-${t.minute}-${idx}`}
+              style={{ left: `${t.percent}%` }}
+              className={cn('absolute top-0 flex flex-col leading-none', alignClass)}
+            >
+              <span
+                className={cn(
+                  'w-px h-1 mb-0.5',
+                  isDark ? 'bg-slate-700/80' : 'bg-slate-300',
+                  isDense && isAlternate && 'h-0.5 opacity-50'
+                )}
+              />
+              <span className={cn('transition-opacity whitespace-nowrap', hideClass)}>
+                {t.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Google Maps Style Scale Bar & Unit Legend Row */}
+      <div className="flex items-center justify-between w-full mt-1 px-0.5 text-[8px] font-mono">
+        <div className="flex items-center gap-1.5">
+          {/* Visual Google Maps Scale Bracket |---| */}
           <span
-            key={`x-axis-${t.minute}-${idx}`}
-            className={cn('transition-opacity', hideClass)}
-          >
-            {t.label}
+            aria-hidden="true"
+            className={cn(
+              'inline-block w-4 h-1.5 border-x border-b',
+              isDark ? 'border-blue-400/70' : 'border-blue-600/70'
+            )}
+          />
+          <span className={cn('tracking-wide', isDark ? 'text-slate-400' : 'text-slate-600')}>
+            Scale: <strong className={isDark ? 'text-blue-400' : 'text-blue-600'}>{stepText}</strong>
           </span>
-        );
-      })}
+        </div>
+
+        <span className={cn(
+          "tracking-widest uppercase font-semibold",
+          isDark ? "text-slate-400" : "text-slate-500"
+        )}>
+          {unit}
+        </span>
+
+        <span className={cn('tracking-wide', isDark ? 'text-slate-500' : 'text-slate-500')}>
+          Window: <strong className={isDark ? 'text-slate-300' : 'text-slate-700'}>{windowText}</strong>
+        </span>
+      </div>
     </div>
-    <div className="flex justify-center items-center w-full mt-0.5">
-      <span className={cn(
-        "text-[8px] font-mono tracking-widest uppercase font-semibold",
-        isDark ? "text-slate-500/80" : "text-slate-400"
-      )}>
-        {unit}
-      </span>
-    </div>
-  </div>
-));
+  );
+});
 
 SystemMonitorAxisBottom.displayName = 'SystemMonitorAxisBottom';
 
@@ -88,20 +143,30 @@ export interface SystemMonitorVerticalGridProps {
   isDark?: boolean;
 }
 
-export const SystemMonitorVerticalGrid = memo(({ xTicks, isDark = true }: SystemMonitorVerticalGridProps) => (
-  <div className={cn(
-    "absolute inset-0 pointer-events-none",
-    isDark ? "opacity-15" : "opacity-25"
-  )}>
-    {xTicks.map((t, idx) => (
-      <div
-        key={`vgrid-${t.minute}-${idx}`}
-        className={cn("absolute inset-y-0 border-l", isDark ? "border-slate-500" : "border-slate-300")}
-        style={{ left: `${t.percent}%` }}
-      />
-    ))}
-  </div>
-));
+export const SystemMonitorVerticalGrid = memo(({ xTicks, isDark = true }: SystemMonitorVerticalGridProps) => {
+  const isDense = xTicks.length > 13;
+  return (
+    <div className={cn(
+      "absolute inset-0 pointer-events-none",
+      isDark ? "opacity-15" : "opacity-25"
+    )}>
+      {xTicks.map((t, idx) => {
+        const isMinor = isDense && idx % 2 !== 0 && idx !== xTicks.length - 1;
+        return (
+          <div
+            key={`vgrid-${t.minute}-${idx}`}
+            className={cn(
+              "absolute inset-y-0 border-l",
+              isDark ? "border-slate-500" : "border-slate-300",
+              isMinor && "border-dashed opacity-50"
+            )}
+            style={{ left: `${t.percent}%` }}
+          />
+        );
+      })}
+    </div>
+  );
+});
 
 SystemMonitorVerticalGrid.displayName = 'SystemMonitorVerticalGrid';
 

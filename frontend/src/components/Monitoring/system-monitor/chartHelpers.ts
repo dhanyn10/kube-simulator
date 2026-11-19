@@ -89,6 +89,33 @@ export const getIntervalCapacity = (interval?: TimeRangeFilter): number => {
   return 12;
 };
 
+export interface XAxisScaleMeta {
+  unit: string;
+  stepLabel: string;
+  windowLabel: string;
+}
+
+/**
+ * Returns Google Maps / Oscilloscope style scale metadata for the active X-axis interval.
+ */
+export const getXAxisScaleMeta = (interval?: TimeRangeFilter): XAxisScaleMeta => {
+  const unit = getXAxisUnit(interval);
+  const capacity = getIntervalCapacity(interval);
+  if (interval === '1h') {
+    return {
+      unit,
+      stepLabel: '1h / div',
+      windowLabel: `${capacity} Hours`,
+    };
+  }
+  const mins = parseIntervalMinutes(interval);
+  return {
+    unit,
+    stepLabel: `${mins}m / div`,
+    windowLabel: `${capacity * mins} Minutes`,
+  };
+};
+
 /**
  * Determines dynamic step in minutes based on active interval.
  */
