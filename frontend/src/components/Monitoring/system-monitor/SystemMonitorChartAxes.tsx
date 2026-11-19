@@ -1,4 +1,4 @@
-import React, { useMemo, memo } from 'react';
+import React, { useMemo, useState, useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { TimeRangeFilter } from './types';
 import {
@@ -7,7 +7,11 @@ import {
   generateYAxisScale,
   generateXAxisTicks,
   getXAxisUnit,
+  getIntervalCapacity,
+  getScrubberTimeLabel,
 } from './chartHelpers';
+import { SystemMonitorScrubber, type ScrubberSeriesValue } from './SystemMonitorScrubber';
+import { SystemMonitorCanvasRenderer, type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
 
 export interface SystemMonitorAxisBottomProps {
   xTicks: XAxisTick[];
@@ -214,3 +218,118 @@ export const useChartScales = (
   const xAxisUnit = useMemo(() => getXAxisUnit(interval), [interval]);
   return { yScale, xTicks, xAxisUnit };
 };
+
+export interface ChartHoverState {
+  percent: number;
+  timeLabel: string;
+}
+
+export const useInteractiveChartModel = (
+  dynamicMax: number,
+  unit: string = '',
+  interval?: TimeRangeFilter,
+  tickCount: number = 3
+) => {
+  const { yScale, xTicks, xAxisUnit } = useChartScales(dynamicMax, unit, interval, tickCount);
+  const capacity = getIntervalCapacity(interval);
+  const [hoverState, setHoverState] = useState<ChartHoverState | null>(null);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const percent = Math.round((x / rect.width) * 1000) / 10;
+    const timeLabel = getScrubberTimeLabel(percent, interval);
+    setHoverState({ percent, timeLabel });
+  }, [interval]);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoverState(null);
+  }, []);
+
+  return {
+    yScale,
+    xTicks,
+    xAxisUnit,
+    capacity,
+    hoverState,
+    handleMouseMove,
+    handleMouseLeave,
+  };
+};
+
+export interface SystemMonitorInteractiveChartProps {
+  heightClass?: string;
+  isDark?: boolean;
+  interval?: TimeRangeFilter;
+  maxVal: number;
+  yUnit?: string;
+  series: CanvasSeriesItem[];
+  buildScrubberValues: (hoverPercent: number, capacity: number) => ScrubberSeriesValue[];
+  isEmpty?: boolean;
+  emptyText?: string;
+  extraOverlay?: React.ReactNode;
+}
+
+export const SystemMonitorInteractiveChart = memo(({
+  heightClass,
+  isDark = true,
+  interval,
+  maxVal,
+  yUnit = '',
+  series,
+  buildScrubberValues,
+  isEmpty = false,
+  emptyText,
+  extraOverlay,
+}: SystemMonitorInteractiveChartProps) => {
+  const {
+    yScale,
+    xTicks,
+    xAxisUnit,
+    capacity,
+    hoverState,
+    handleMouseMove,
+    handleMouseLeave,
+  } = useInteractiveChartModel(maxVal, yUnit, interval);
+
+  const scrubberValues = useMemo(() => {
+    if (!hoverState) return [];
+    return buildScrubberValues(hoverState.percent, capacity);
+  }, [hoverState, buildScrubberValues, capacity]);
+
+  return (
+    <SystemMonitorChartCanvas
+      heightClass={heightClass}
+      isDark={isDark}
+      xTicks={xTicks}
+      xAxisUnit={xAxisUnit}
+      yScaleTicks={yScale.ticks}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      overlay={
+        <>
+          {extraOverlay}
+          {hoverState && (
+            <SystemMonitorScrubber
+              hoverPercent={hoverState.percent}
+              timeLabel={hoverState.timeLabel}
+              values={scrubberValues}
+              isDark={isDark}
+            />
+          )}
+        </>
+      }
+      isEmpty={isEmpty}
+      emptyText={emptyText}
+    >
+      <SystemMonitorCanvasRenderer
+        series={series}
+        maxVal={maxVal}
+        capacity={capacity}
+      />
+    </SystemMonitorChartCanvas>
+  );
+});
+
+SystemMonitorInteractiveChart.displayName = 'SystemMonitorInteractiveChart';

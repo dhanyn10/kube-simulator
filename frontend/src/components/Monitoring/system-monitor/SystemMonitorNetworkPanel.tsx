@@ -1,22 +1,16 @@
-import { useMemo, useState, useCallback, memo } from 'react';
+import { useMemo, useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
-  buildSvgPoints,
-  buildAreaPath,
-  parseIntervalMinutes,
-  getIntervalCapacity,
-  getScrubberTimeLabel,
+  resolveScrubberPointValue,
   calculateDynamicYMax,
   calculateNetworkMetrics,
 } from './chartHelpers';
 import {
   SystemMonitorPanelCard,
-  SystemMonitorChartCanvas,
-  useChartScales,
+  SystemMonitorInteractiveChart,
 } from './SystemMonitorChartAxes';
-import { SystemMonitorScrubber, type ScrubberSeriesValue } from './SystemMonitorScrubber';
-import { SystemMonitorCanvasRenderer, type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
+import { type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
 import { Activity, Globe } from 'lucide-react';
 
 export type SystemMonitorNetworkPanelProps = BaseSystemMonitorPanelProps;
@@ -29,18 +23,15 @@ export const SystemMonitorNetworkPanel = memo(({
 }: SystemMonitorNetworkPanelProps) => {
   const isDark = colorMode === 'dark';
 
-  const { rpsData, currentRps, currentLatency } = useMemo(() => {
-    return calculateNetworkMetrics(deployments, metrics, interval);
-  }, [deployments, metrics, interval]);
+  const { rpsData, currentRps, currentLatency } = useMemo(
+    () => calculateNetworkMetrics(deployments, metrics, interval),
+    [deployments, metrics, interval]
+  );
 
-  const dynamicMaxRps = useMemo(() => {
-    return calculateDynamicYMax(rpsData, 100, 1.2);
-  }, [rpsData]);
-
-  const capacity = getIntervalCapacity(interval);
-  const rpsPoints = buildSvgPoints(rpsData, dynamicMaxRps, 500, 100, capacity);
-  const areaPath = buildAreaPath(rpsPoints, 500, 100);
-  const { yScale, xTicks, xAxisUnit } = useChartScales(dynamicMaxRps, ' req/s', interval);
+  const dynamicMaxRps = useMemo(
+    () => calculateDynamicYMax(rpsData, 100, 1.2),
+    [rpsData]
+  );
 
   const canvasSeries: CanvasSeriesItem[] = useMemo(() => [
     {
@@ -52,43 +43,21 @@ export const SystemMonitorNetworkPanel = memo(({
     },
   ], [rpsData]);
 
-  const [hoverState, setHoverState] = useState<{
-    percent: number;
-    timeLabel: string;
-  } | null>(null);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    if (rect.width <= 0) return;
-    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    const percent = Math.round((x / rect.width) * 1000) / 10;
-    const timeLabel = getScrubberTimeLabel(percent, interval);
-    setHoverState({ percent, timeLabel });
-  }, [interval]);
-
-  const handleMouseLeave = useCallback(() => {
-    setHoverState(null);
-  }, []);
-
-  const scrubberValues: ScrubberSeriesValue[] = useMemo(() => {
-    if (!hoverState) return [];
-    const len = rpsData.length;
-    const effectiveCap = Math.max(1, capacity);
-    let val = currentRps;
-    if (len > 0) {
-      const slotIdx = Math.max(0, Math.min(len - 1, Math.floor((hoverState.percent / 100) * effectiveCap)));
-      val = rpsData[slotIdx] ?? currentRps;
-    }
-    return [
-      {
-        id: 'ingress-rps',
-        label: 'Ingress Traffic',
-        color: '#10b981',
-        value: val.toLocaleString('en-US'),
-        unit: ' req/s',
-      },
-    ];
-  }, [hoverState, rpsData, currentRps, capacity]);
+  const buildNetworkScrubber = useCallback(
+    (hoverPercent: number, capacity: number) => {
+      const val = resolveScrubberPointValue(rpsData, currentRps, hoverPercent, capacity);
+      return [
+        {
+          id: 'ingress-rps',
+          label: 'Ingress Traffic',
+          color: '#10b981',
+          value: val.toLocaleString('en-US'),
+          unit: ' req/s',
+        },
+      ];
+    },
+    [rpsData, currentRps]
+  );
 
   return (
     <SystemMonitorPanelCard
@@ -114,23 +83,16 @@ export const SystemMonitorNetworkPanel = memo(({
         </div>
       }
     >
-      <SystemMonitorChartCanvas
+      <SystemMonitorInteractiveChart
         isDark={isDark}
-        xTicks={xTicks}
-        xAxisUnit={xAxisUnit}
-        yScaleTicks={yScale.ticks}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        overlay={hoverState ? <SystemMonitorScrubber hoverPercent={hoverState.percent} timeLabel={hoverState.timeLabel} values={scrubberValues} isDark={isDark} /> : undefined}
+        interval={interval}
+        maxVal={dynamicMaxRps}
+        yUnit=" req/s"
+        series={canvasSeries}
+        buildScrubberValues={buildNetworkScrubber}
         isEmpty={deployments.length === 0}
         emptyText="No active traffic simulation"
-      >
-        <SystemMonitorCanvasRenderer
-          series={canvasSeries}
-          maxVal={dynamicMaxRps}
-          capacity={capacity}
-        />
-      </SystemMonitorChartCanvas>
+      />
     </SystemMonitorPanelCard>
   );
 });

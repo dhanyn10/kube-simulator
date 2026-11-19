@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, memo } from 'react';
+import { useMemo, useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
@@ -8,18 +8,14 @@ import {
   calculateDynamicYMax,
   getThresholdReferenceLines,
   resolveMemoryLimit,
-  parseIntervalMinutes,
-  getIntervalCapacity,
-  getScrubberTimeLabel,
+  resolveScrubberPointValue,
   ThresholdReferenceLine,
 } from './chartHelpers';
 import {
   SystemMonitorPanelCard,
-  SystemMonitorChartCanvas,
-  useChartScales,
+  SystemMonitorInteractiveChart,
 } from './SystemMonitorChartAxes';
-import { SystemMonitorScrubber, type ScrubberSeriesValue } from './SystemMonitorScrubber';
-import { SystemMonitorCanvasRenderer, type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
+import { type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
 import { ZapOff, AlertTriangle } from 'lucide-react';
 
 export interface SystemMonitorTimeSeriesPanelProps extends BaseSystemMonitorPanelProps {
@@ -132,8 +128,6 @@ export const SystemMonitorTimeSeriesPanel = memo(({
     return calculateDynamicYMax(peak > 0 ? [peak] : [], floor);
   }, [deployments, metrics, metricKey, maxVal]);
 
-  const { yScale, xTicks, xAxisUnit } = useChartScales(dynamicMax, unit, interval);
-
   const thresholdLines = useMemo(() => {
     if (!showThresholds) return [];
     return getThresholdReferenceLines(metricKey, dynamicMax, deployments, metrics, maxVal, hasHpa, hpaTarget);
@@ -156,49 +150,19 @@ export const SystemMonitorTimeSeriesPanel = memo(({
     });
   }, [deployments, metrics, metricKey, dynamicMax, interval]);
 
-  const [hoverState, setHoverState] = useState<{
-    percent: number;
-    timeLabel: string;
-  } | null>(null);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    if (rect.width <= 0) return;
-    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    const percent = Math.round((x / rect.width) * 1000) / 10;
-    const timeLabel = getScrubberTimeLabel(percent, interval);
-    setHoverState({ percent, timeLabel });
-  }, [interval]);
-
-  const handleMouseLeave = useCallback(() => {
-    setHoverState(null);
-  }, []);
-
-  const scrubberValues: ScrubberSeriesValue[] = useMemo(() => {
-    if (!hoverState) return [];
-    const cap = getIntervalCapacity(interval);
-    const effectiveCap = Math.max(1, cap);
-
-    return seriesData.map((s) => {
-      const dataLen = s.data.length;
-      let val: number | string = s.current;
-      if (dataLen > 0) {
-        const slotIdx = Math.max(0, Math.min(dataLen - 1, Math.floor((hoverState.percent / 100) * effectiveCap)));
-        val = s.data[slotIdx] ?? s.current;
-      }
-      return {
+  const buildTimeSeriesScrubber = useCallback(
+    (hoverPercent: number, capacity: number) =>
+      seriesData.map((s) => ({
         id: s.id,
         label: s.label,
         color: s.color,
-        value: val,
+        value: resolveScrubberPointValue(s.data, s.current, hoverPercent, capacity),
         unit,
         isThrottled: s.isThrottled,
         isOOM: s.isOOM,
-      };
-    });
-  }, [hoverState, seriesData, unit, interval]);
-
-  const capacity = getIntervalCapacity(interval);
+      })),
+    [seriesData, unit]
+  );
 
   const canvasSeriesList: CanvasSeriesItem[] = useMemo(() => {
     return seriesData.map((s) => ({
@@ -293,36 +257,18 @@ export const SystemMonitorTimeSeriesPanel = memo(({
         </div>
       }
     >
-      <SystemMonitorChartCanvas
+      <SystemMonitorInteractiveChart
         heightClass="h-40"
         isDark={isDark}
-        xTicks={xTicks}
-        xAxisUnit={xAxisUnit}
-        yScaleTicks={yScale.ticks}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        overlay={
-          <>
-            {showThresholds && <DynamicThresholdLines lines={thresholdLines} isDark={isDark} />}
-            {hoverState && (
-              <SystemMonitorScrubber
-                hoverPercent={hoverState.percent}
-                timeLabel={hoverState.timeLabel}
-                values={scrubberValues}
-                isDark={isDark}
-              />
-            )}
-          </>
-        }
+        interval={interval}
+        maxVal={dynamicMax}
+        yUnit={unit}
+        series={canvasSeriesList}
+        buildScrubberValues={buildTimeSeriesScrubber}
+        extraOverlay={showThresholds ? <DynamicThresholdLines lines={thresholdLines} isDark={isDark} /> : null}
         isEmpty={deployments.length === 0}
         emptyText="No active workload metrics"
-      >
-        <SystemMonitorCanvasRenderer
-          series={canvasSeriesList}
-          maxVal={dynamicMax}
-          capacity={capacity}
-        />
-      </SystemMonitorChartCanvas>
+      />
     </SystemMonitorPanelCard>
   );
 });

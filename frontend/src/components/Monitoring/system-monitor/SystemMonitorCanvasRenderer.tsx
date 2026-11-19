@@ -28,83 +28,78 @@ export const hexToRgba = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const drawSingleSeriesArea = (
-  ctx: CanvasRenderingContext2D,
-  s: CanvasSeriesItem,
+interface CanvasPoint {
+  x: number;
+  y: number;
+  prevY: number;
+}
+
+const computeVisibleSeriesPoints = (
+  data: number[] | Float32Array,
   width: number,
   height: number,
   effectiveCapacity: number,
   heightScale: number,
   safeMax: number
-) => {
-  const data = s.data;
+): CanvasPoint[] => {
   const count = data.length;
-  if (count === 0) return;
+  if (count === 0) return [];
 
   const visibleData = count > effectiveCapacity ? data.slice(-effectiveCapacity) : data;
-  const visibleCount = visibleData.length;
+  const points: CanvasPoint[] = [];
 
-  const y0 = Math.round(height - Math.min(safeMax, Math.max(0, visibleData[0])) * heightScale);
-
-  ctx.beginPath();
-  ctx.moveTo(0, height);
-  ctx.lineTo(0, y0);
-
-  let lastX = 0;
-  for (let i = 0; i < visibleCount; i++) {
+  for (let i = 0; i < visibleData.length; i++) {
     const x = Math.min(width, Math.max(0, Math.round(((i + 1) / effectiveCapacity) * width)));
-    const val = visibleData[i];
-    const safeVal = Math.min(safeMax, Math.max(0, val));
-    const y = Math.round(height - safeVal * heightScale);
-    ctx.lineTo(x, y);
-    lastX = x;
+    const safeVal = Math.min(safeMax, Math.max(0, visibleData[i]));
+    const prevRaw = i === 0 ? visibleData[0] : visibleData[i - 1];
+    const safePrev = Math.min(safeMax, Math.max(0, prevRaw));
+    points.push({
+      x,
+      y: Math.round(height - safeVal * heightScale),
+      prevY: Math.round(height - safePrev * heightScale),
+    });
   }
 
-  ctx.lineTo(lastX, height);
+  return points;
+};
+
+const fillSeriesArea = (
+  ctx: CanvasRenderingContext2D,
+  color: string,
+  points: CanvasPoint[],
+  height: number
+) => {
+  ctx.beginPath();
+  ctx.moveTo(0, height);
+  ctx.lineTo(0, points[0].y);
+
+  for (const pt of points) {
+    ctx.lineTo(pt.x, pt.y);
+  }
+
+  ctx.lineTo(points.at(-1)!.x, height);
   ctx.closePath();
 
   const grad = ctx.createLinearGradient(0, 0, 0, height);
-  grad.addColorStop(0, hexToRgba(s.color, 0.22));
-  grad.addColorStop(1, hexToRgba(s.color, 0.02));
+  grad.addColorStop(0, hexToRgba(color, 0.22));
+  grad.addColorStop(1, hexToRgba(color, 0.02));
   ctx.fillStyle = grad;
   ctx.fill();
 };
 
-const drawSingleSeriesStroke = (
+const strokeSeriesLine = (
   ctx: CanvasRenderingContext2D,
   s: CanvasSeriesItem,
-  width: number,
-  height: number,
-  effectiveCapacity: number,
-  heightScale: number,
-  safeMax: number
+  points: CanvasPoint[]
 ) => {
-  const data = s.data;
-  const count = data.length;
-  if (count === 0) return;
-
-  const visibleData = count > effectiveCapacity ? data.slice(-effectiveCapacity) : data;
-  const visibleCount = visibleData.length;
-
-  const y0 = Math.round(height - Math.min(safeMax, Math.max(0, visibleData[0])) * heightScale);
-
   ctx.beginPath();
-  ctx.moveTo(0, y0);
+  ctx.moveTo(0, points[0].y);
 
-  for (let i = 0; i < visibleCount; i++) {
-    const x = Math.min(width, Math.max(0, Math.round(((i + 1) / effectiveCapacity) * width)));
-    const val = visibleData[i];
-    const safeVal = Math.min(safeMax, Math.max(0, val));
-    const y = Math.round(height - safeVal * heightScale);
-
+  for (const pt of points) {
     if (s.isStepped) {
-      const prevVal = Math.min(safeMax, Math.max(0, i === 0 ? visibleData[0] : visibleData[i - 1]));
-      const prevY = Math.round(height - prevVal * heightScale);
-      ctx.lineTo(x, prevY);
-      ctx.lineTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
+      ctx.lineTo(pt.x, pt.prevY);
     }
+    ctx.lineTo(pt.x, pt.y);
   }
 
   ctx.strokeStyle = s.color;
@@ -128,14 +123,14 @@ export const renderCanvasSeries = (
   const heightScale = (height - 10) / safeMax;
   const effectiveCapacity = Math.max(1, capacity || 12);
 
-  for (let i = 0; i < seriesList.length; i++) {
-    const s = seriesList[i];
-    if (s.data.length === 0) continue;
+  for (const s of seriesList) {
+    const points = computeVisibleSeriesPoints(s.data, width, height, effectiveCapacity, heightScale, safeMax);
+    if (points.length === 0) continue;
 
     if (s.isArea) {
-      drawSingleSeriesArea(ctx, s, width, height, effectiveCapacity, heightScale, safeMax);
+      fillSeriesArea(ctx, s.color, points, height);
     }
-    drawSingleSeriesStroke(ctx, s, width, height, effectiveCapacity, heightScale, safeMax);
+    strokeSeriesLine(ctx, s, points);
   }
 };
 

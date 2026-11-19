@@ -1,21 +1,17 @@
-import { useMemo, useState, useCallback, memo } from 'react';
+import { useMemo, useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
   calculateDynamicYMax,
   extractReplicaCounts,
   calculateReplicaSeries,
-  parseIntervalMinutes,
-  getIntervalCapacity,
-  getScrubberTimeLabel,
+  resolveScrubberPointValue,
 } from './chartHelpers';
 import {
   SystemMonitorPanelCard,
-  SystemMonitorChartCanvas,
-  useChartScales,
+  SystemMonitorInteractiveChart,
 } from './SystemMonitorChartAxes';
-import { SystemMonitorScrubber, type ScrubberSeriesValue } from './SystemMonitorScrubber';
-import { SystemMonitorCanvasRenderer, type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
+import { type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
 import { Layers } from 'lucide-react';
 
 export type SystemMonitorReplicasPanelProps = BaseSystemMonitorPanelProps;
@@ -28,71 +24,45 @@ export const SystemMonitorReplicasPanel = memo(({
 }: SystemMonitorReplicasPanelProps) => {
   const isDark = colorMode === 'dark';
 
-  const allReplicas = useMemo(() => {
-    return extractReplicaCounts(deployments, metrics);
-  }, [deployments, metrics]);
+  const allReplicas = useMemo(
+    () => extractReplicaCounts(deployments, metrics),
+    [deployments, metrics]
+  );
 
-  const dynamicMaxReplicas = useMemo(() => {
-    return calculateDynamicYMax(allReplicas, 5, 1.25);
-  }, [allReplicas]);
+  const dynamicMaxReplicas = useMemo(
+    () => calculateDynamicYMax(allReplicas, 5, 1.25),
+    [allReplicas]
+  );
 
-  const { yScale, xTicks, xAxisUnit } = useChartScales(dynamicMaxReplicas, ' pods', interval);
+  const replicaSeries = useMemo(
+    () => calculateReplicaSeries(deployments, metrics, interval, dynamicMaxReplicas),
+    [deployments, metrics, interval, dynamicMaxReplicas]
+  );
 
-  const replicaSeries = useMemo(() => {
-    return calculateReplicaSeries(deployments, metrics, interval, dynamicMaxReplicas);
-  }, [deployments, metrics, interval, dynamicMaxReplicas]);
+  const canvasSeries: CanvasSeriesItem[] = useMemo(
+    () =>
+      replicaSeries.map((s) => ({
+        id: s.id,
+        color: s.color,
+        data: s.data,
+        isArea: false,
+        isStepped: true,
+        lineWidth: 2,
+      })),
+    [replicaSeries]
+  );
 
-  const capacity = getIntervalCapacity(interval);
-
-  const canvasSeries: CanvasSeriesItem[] = useMemo(() => {
-    return replicaSeries.map((s) => ({
-      id: s.id,
-      color: s.color,
-      data: s.data,
-      isArea: false,
-      isStepped: true,
-      lineWidth: 2,
-    }));
-  }, [replicaSeries]);
-
-  const [hoverState, setHoverState] = useState<{
-    percent: number;
-    timeLabel: string;
-  } | null>(null);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    if (rect.width <= 0) return;
-    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    const percent = Math.round((x / rect.width) * 1000) / 10;
-    const timeLabel = getScrubberTimeLabel(percent, interval);
-    setHoverState({ percent, timeLabel });
-  }, [interval]);
-
-  const handleMouseLeave = useCallback(() => {
-    setHoverState(null);
-  }, []);
-
-  const scrubberValues: ScrubberSeriesValue[] = useMemo(() => {
-    if (!hoverState) return [];
-    const effectiveCap = Math.max(1, capacity);
-
-    return replicaSeries.map((s) => {
-      const len = s.data.length;
-      let val = s.current;
-      if (len > 0) {
-        const slotIdx = Math.max(0, Math.min(len - 1, Math.floor((hoverState.percent / 100) * effectiveCap)));
-        val = s.data[slotIdx] ?? s.current;
-      }
-      return {
+  const buildReplicaScrubber = useCallback(
+    (hoverPercent: number, capacity: number) =>
+      replicaSeries.map((s) => ({
         id: s.id,
         label: s.label,
         color: s.color,
-        value: val,
+        value: resolveScrubberPointValue(s.data, s.current, hoverPercent, capacity),
         unit: ' Pods',
-      };
-    });
-  }, [hoverState, replicaSeries, capacity]);
+      })),
+    [replicaSeries]
+  );
 
   return (
     <SystemMonitorPanelCard
@@ -125,23 +95,16 @@ export const SystemMonitorReplicasPanel = memo(({
         </div>
       }
     >
-      <SystemMonitorChartCanvas
+      <SystemMonitorInteractiveChart
         isDark={isDark}
-        xTicks={xTicks}
-        xAxisUnit={xAxisUnit}
-        yScaleTicks={yScale.ticks}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        overlay={hoverState ? <SystemMonitorScrubber hoverPercent={hoverState.percent} timeLabel={hoverState.timeLabel} values={scrubberValues} isDark={isDark} /> : undefined}
+        interval={interval}
+        maxVal={dynamicMaxReplicas}
+        yUnit=" pods"
+        series={canvasSeries}
+        buildScrubberValues={buildReplicaScrubber}
         isEmpty={deployments.length === 0}
         emptyText="No workload deployments active"
-      >
-        <SystemMonitorCanvasRenderer
-          series={canvasSeries}
-          maxVal={dynamicMaxReplicas}
-          capacity={capacity}
-        />
-      </SystemMonitorChartCanvas>
+      />
     </SystemMonitorPanelCard>
   );
 });

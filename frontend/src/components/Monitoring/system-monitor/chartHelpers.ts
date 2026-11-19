@@ -133,6 +133,22 @@ export const getScrubberTimeLabel = (percent: number, interval?: TimeRangeFilter
 };
 
 /**
+ * Resolves the series data value corresponding to the hovered scrubber percentage.
+ */
+export const resolveScrubberPointValue = <T>(
+  data: T[],
+  fallback: T,
+  hoverPercent: number,
+  capacity: number
+): T => {
+  const len = data.length;
+  if (len === 0) return fallback;
+  const effectiveCap = Math.max(1, capacity);
+  const slotIdx = Math.max(0, Math.min(len - 1, Math.floor((hoverPercent / 100) * effectiveCap)));
+  return data[slotIdx] ?? fallback;
+};
+
+/**
  * Calculates a clean, human-friendly ceiling number for graph scaling.
  */
 export const getNiceCeiling = (target: number): number => {
