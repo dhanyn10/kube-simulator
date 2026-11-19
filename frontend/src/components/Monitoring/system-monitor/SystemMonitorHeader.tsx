@@ -1,5 +1,5 @@
 import { memo, type CSSProperties } from 'react';
-import { Play, Pause, Square, Clock, RefreshCw, Download } from 'lucide-react';
+import { Play, Pause, Square, Clock, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isWailsDesktop } from '@/lib/mocks';
 import { getBackendGateway } from '@/gateway';
@@ -16,8 +16,6 @@ interface SystemMonitorHeaderProps {
   readonly colorMode: SystemMonitorColorMode;
   readonly simulatedTime?: string;
   readonly canStart?: boolean;
-  readonly onExportCsv?: () => void;
-  readonly onExportJson?: () => void;
 }
 
 const TICK_INTERVAL_MAP: Record<SimulationSpeed, string> = {
@@ -285,42 +283,6 @@ const TimeRangeSelector = ({
   </div>
 );
 
-const ExportActionButtons = ({
-  onExportCsv,
-  onExportJson,
-  isDark,
-}: {
-  readonly onExportCsv?: () => void;
-  readonly onExportJson?: () => void;
-  readonly isDark: boolean;
-}) => {
-  if (!onExportCsv && !onExportJson) return null;
-
-  const btnClass = cn(
-    "px-2 py-1 flex items-center gap-1 text-[10px] font-mono rounded border transition-colors cursor-pointer whitespace-nowrap",
-    isDark
-      ? "bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700"
-      : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
-  );
-
-  return (
-    <div className={cn("flex items-center gap-1 sm:border-l sm:pl-2", isDark ? "border-slate-800" : "border-slate-200")}>
-      {onExportCsv && (
-        <button type="button" onClick={onExportCsv} className={btnClass} title="Export Metrics to CSV">
-          <Download size={10} />
-          <span>CSV</span>
-        </button>
-      )}
-      {onExportJson && (
-        <button type="button" onClick={onExportJson} className={btnClass} title="Export Metrics to JSON">
-          <Download size={10} />
-          <span>JSON</span>
-        </button>
-      )}
-    </div>
-  );
-};
-
 export const SystemMonitorHeader = memo(({
   isSimulating,
   isPaused,
@@ -331,8 +293,6 @@ export const SystemMonitorHeader = memo(({
   colorMode,
   simulatedTime = '00:00',
   canStart = true,
-  onExportCsv,
-  onExportJson,
 }: SystemMonitorHeaderProps) => {
   const isDark = colorMode === 'dark';
   const tickInterval = TICK_INTERVAL_MAP[simulationSpeed] || '150ms';
@@ -419,10 +379,9 @@ export const SystemMonitorHeader = memo(({
         {/* Center Draggable Spacer for Action Ribbon */}
         <div className="hidden xl:block flex-1 h-full" />
 
-        {/* Right: Time Range, Export & Refresh Clock */}
+        {/* Right: Time Range & Refresh Clock */}
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 ml-auto" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
           <TimeRangeSelector timeRange={timeRange} setTimeRange={setTimeRange} isDark={isDark} />
-          <ExportActionButtons onExportCsv={onExportCsv} onExportJson={onExportJson} isDark={isDark} />
 
           {/* Sync Rate Indicator */}
           <div className={cn(

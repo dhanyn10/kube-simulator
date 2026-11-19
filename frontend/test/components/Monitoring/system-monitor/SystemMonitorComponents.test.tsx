@@ -9,14 +9,7 @@ import { SystemMonitorReplicasPanel } from '@/components/Monitoring/system-monit
 import { SystemMonitorNetworkPanel } from '@/components/Monitoring/system-monitor/SystemMonitorNetworkPanel';
 import { SystemMonitorContextMenu } from '@/components/Monitoring/system-monitor/SystemMonitorContextMenu';
 import { SystemMonitorScrubber } from '@/components/Monitoring/system-monitor/SystemMonitorScrubber';
-import { SystemMonitorEventTimeline } from '@/components/Monitoring/system-monitor/SystemMonitorEventTimeline';
 import { SystemMonitorDashboard } from '@/components/Monitoring/system-monitor/SystemMonitorDashboard';
-import {
-  generateMetricsCsv,
-  exportMetricsAsCsv,
-  exportMetricsAsJson,
-  triggerFileDownload,
-} from '@/components/Monitoring/system-monitor/exportHelpers';
 import {
   SystemMonitorChartCanvas,
   SystemMonitorPanelCard,
@@ -460,72 +453,6 @@ describe('SystemMonitor UI Components', () => {
     expect((gridLines[2] as HTMLElement).style.left).toBe('100%');
   });
 
-  it('renders SystemMonitorHeader export buttons and fires onExportCsv and onExportJson', () => {
-    const onExportCsv = vi.fn();
-    const onExportJson = vi.fn();
-    render(
-      <SystemMonitorHeader
-        isSimulating={true}
-        isPaused={false}
-        simulationSpeed={1}
-        timeRange="15m"
-        setTimeRange={vi.fn()}
-        sendControl={vi.fn()}
-        colorMode="dark"
-        onExportCsv={onExportCsv}
-        onExportJson={onExportJson}
-      />
-    );
-
-    const csvBtn = screen.getByTitle('Export Metrics to CSV');
-    fireEvent.click(csvBtn);
-    expect(onExportCsv).toHaveBeenCalledTimes(1);
-
-    const jsonBtn = screen.getByTitle('Export Metrics to JSON');
-    fireEvent.click(jsonBtn);
-    expect(onExportJson).toHaveBeenCalledTimes(1);
-  });
-
-  it('generates CSV content and exports metrics and json correctly', () => {
-    const deployments = [
-      { id: 'dep-1', label: 'frontend-service', replicas: 3 },
-    ];
-    const metrics = {
-      'dep-1': [
-        { minuteIndex: 120, cpuPercent: 45.2, memoryValue: 128.8, isThrottled: false, isOOM: false },
-        { minuteIndex: 121, cpuPercent: 95.0, memoryValue: 256.0, isThrottled: true, isOOM: true },
-      ],
-    };
-
-    const csv = generateMetricsCsv(metrics, deployments);
-    expect(csv).toContain('MinuteIndex,Time,DeploymentId,WorkloadLabel,CPUPercent,MemoryMiB,Replicas,Throttled,OOMRisk');
-    expect(csv).toContain('120,02:00,"dep-1","frontend-service",45,129,3,false,false');
-    expect(csv).toContain('121,02:01,"dep-1","frontend-service",95,256,3,true,true');
-
-    const createObjectURLMock = vi.fn().mockReturnValue('blob:test-url');
-    const revokeObjectURLMock = vi.fn();
-    globalThis.URL.createObjectURL = createObjectURLMock;
-    globalThis.URL.revokeObjectURL = revokeObjectURLMock;
-
-    exportMetricsAsCsv(metrics, deployments);
-    expect(createObjectURLMock).toHaveBeenCalled();
-    expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:test-url');
-
-    exportMetricsAsJson(metrics, deployments, {
-      cpuPercent: 50,
-      cpuUsed: 500,
-      cpuLimit: 1000,
-      memoryPercent: 60,
-      memoryMb: 600,
-      memoryLimitMb: 1000,
-      readyPods: 3,
-      totalPods: 3,
-      totalRps: 120,
-      errorRate: 0,
-    });
-    expect(createObjectURLMock).toHaveBeenCalledTimes(2);
-  });
-
   it('renders SystemMonitorScrubber guideline, time badge, and series tooltip', () => {
     const { rerender } = render(
       <SystemMonitorScrubber
@@ -554,58 +481,6 @@ describe('SystemMonitor UI Components', () => {
       />
     );
     expect(screen.getByText('23:45')).toBeDefined();
-  });
-
-  it('renders SystemMonitorEventTimeline and handles filtering and collapsing', () => {
-    const deployments = [
-      { id: 'dep-1', label: 'order-service', replicas: 2 },
-    ];
-    const metrics = {
-      'dep-1': [
-        { minuteIndex: 300, isThrottled: true, isOOM: false, cpuValue: 1000 },
-        { minuteIndex: 305, isThrottled: false, isOOM: true, memoryValue: 260, memoryLimit: 256 },
-      ],
-    };
-
-    const { rerender } = render(
-      <SystemMonitorEventTimeline
-        deployments={deployments}
-        metrics={metrics}
-        isDark={true}
-      />
-    );
-
-    expect(screen.getByText(/Cluster Incidents & Autoscaling Event Timeline/i)).toBeDefined();
-    expect(screen.getByText(/CPU Throttling on order-service/i)).toBeDefined();
-    expect(screen.getByText(/OOM Risk Detected on order-service/i)).toBeDefined();
-
-    // Filter by Warnings only
-    fireEvent.click(screen.getByText('Warnings'));
-    expect(screen.getByText(/CPU Throttling on order-service/i)).toBeDefined();
-    expect(screen.queryByText(/OOM Risk Detected on order-service/i)).toBeNull();
-
-    // Filter by Critical only
-    fireEvent.click(screen.getByText('Critical'));
-    expect(screen.getByText(/OOM Risk Detected on order-service/i)).toBeDefined();
-    expect(screen.queryByText(/CPU Throttling on order-service/i)).toBeNull();
-
-    // Collapse event timeline
-    const toggleBtn = screen.getByLabelText('Collapse event stream');
-    fireEvent.click(toggleBtn);
-    expect(screen.queryByText(/OOM Risk Detected on order-service/i)).toBeNull();
-
-    // Re-expand event timeline
-    fireEvent.click(screen.getByLabelText('Expand event stream'));
-
-    // Empty state
-    rerender(
-      <SystemMonitorEventTimeline
-        deployments={[]}
-        metrics={{}}
-        isDark={false}
-      />
-    );
-    expect(screen.getByText(/No active warnings or incidents recorded/i)).toBeDefined();
   });
 
   it('handles mouse move and leave on SystemMonitorTimeSeriesPanel for scrubber tooltip', () => {
@@ -753,6 +628,12 @@ describe('SystemMonitor UI Components', () => {
     const mainContainer = container.firstChild as HTMLElement;
     expect(mainContainer).not.toBeNull();
 
+    // Scroll area uses the shared app scrollbar style and sits inside a right gutter
+    const scrollArea = screen.getByTestId('system-monitor-scroll-area');
+    expect(scrollArea.className).toContain('custom-scrollbar');
+    expect(scrollArea.className).toContain('overflow-y-auto');
+    expect(scrollArea.parentElement?.className).toContain('pr-1.5');
+
     // Trigger right-click context menu
     fireEvent.contextMenu(mainContainer, { clientX: 150, clientY: 200 });
     expect(screen.getByText('Change Theme')).toBeDefined();
@@ -795,31 +676,7 @@ describe('SystemMonitor UI Components', () => {
     fireEvent.click(closeMenuItem);
     expect(screen.queryByTestId('system-monitor-menu-close')).toBeNull();
 
-    // Click Export CSV and Export JSON buttons in header
-    fireEvent.click(screen.getByTitle('Export Metrics to CSV'));
-    fireEvent.click(screen.getByTitle('Export Metrics to JSON'));
-
     // Click Close Window button in header
     fireEvent.click(screen.getByLabelText('close'));
-  });
-
-  it('handles fallback paths in exportHelpers', () => {
-    // 1. Point with undefined minuteIndex and deployment with undefined replicas
-    const mockDeps = [{ id: 'dep-raw', label: 'Raw Service' }];
-    const mockMetrics = {
-      'dep-raw': [{ cpuPercent: 20, memoryValue: 64 }],
-    };
-    const csv = generateMetricsCsv(mockMetrics, mockDeps);
-    expect(csv).toContain('00:00,"dep-raw","Raw Service",20,64,1,false,false');
-
-    // 2. triggerFileDownload
-    const createObjectURLMock = vi.fn().mockReturnValue('blob:mock-url');
-    const revokeObjectURLMock = vi.fn();
-    globalThis.URL.createObjectURL = createObjectURLMock;
-    globalThis.URL.revokeObjectURL = revokeObjectURLMock;
-
-    triggerFileDownload('sample content', 'test.txt', 'text/plain');
-    expect(createObjectURLMock).toHaveBeenCalled();
-    expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:mock-url');
   });
 });

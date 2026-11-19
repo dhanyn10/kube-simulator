@@ -56,29 +56,29 @@ export const SystemMonitorStatCard = memo(({
   return (
     <div
       className={cn(
-        'p-3.5 rounded-lg border flex flex-col justify-between relative overflow-hidden transition-all',
+        'p-3 sm:p-3.5 min-w-0 rounded-lg border flex flex-col justify-between relative overflow-hidden transition-all',
         isDark ? 'bg-[#181b1f] border-[#22252b]' : 'bg-white border-slate-200'
       )}
     >
       {/* Top Header */}
-      <div className={cn("flex items-center justify-between", isDark ? "text-slate-400" : "text-slate-600")}>
-        <span className="text-[11px] font-bold uppercase tracking-wider font-mono">{title}</span>
-        <div className="opacity-70">{icon}</div>
+      <div className={cn("flex items-center justify-between gap-2 min-w-0", isDark ? "text-slate-400" : "text-slate-600")}>
+        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider font-mono truncate">{title}</span>
+        <div className="opacity-70 shrink-0">{icon}</div>
       </div>
 
       {/* Main Metric Value */}
-      <div className="my-2 flex items-baseline gap-1.5">
-        <span className={cn('text-2xl font-bold font-mono tracking-tight', thresholdColor)}>
+      <div className="my-2 flex items-baseline gap-1.5 min-w-0">
+        <span className={cn('text-xl sm:text-2xl font-bold font-mono tracking-tight truncate', thresholdColor)}>
           {value}
         </span>
-        {unit && <span className={cn("text-xs font-mono", isDark ? "text-slate-400" : "text-slate-600")}>{unit}</span>}
+        {unit && <span className={cn("text-xs font-mono shrink-0", isDark ? "text-slate-400" : "text-slate-600")}>{unit}</span>}
       </div>
 
       {/* Subtitle & Sparkline Footer */}
-      <div className={cn("flex items-end justify-between pt-1 border-t", isDark ? "border-slate-800/40" : "border-slate-200")}>
-        <span className={cn("text-[10px] truncate max-w-[120px] font-mono", isDark ? "text-slate-400" : "text-slate-600")}>{subtitle}</span>
+      <div className={cn("flex items-end justify-between gap-2 pt-1 border-t min-w-0", isDark ? "border-slate-800/40" : "border-slate-200")}>
+        <span className={cn("text-[10px] truncate min-w-0 font-mono", isDark ? "text-slate-400" : "text-slate-600")}>{subtitle}</span>
         {sparklinePoints && (
-          <svg aria-hidden="true" className="w-[80px] h-[24px] overflow-visible" viewBox="0 0 120 30">
+          <svg aria-hidden="true" className="w-[56px] sm:w-[80px] h-[24px] shrink-0 overflow-visible" viewBox="0 0 120 30">
             <polyline
               fill="none"
               stroke={strokeColor}

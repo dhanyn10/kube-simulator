@@ -9,8 +9,6 @@ export * from './SystemMonitorNetworkPanel';
 export * from './SystemMonitorChartAxes';
 export * from './SystemMonitorContextMenu';
 export * from './SystemMonitorScrubber';
-export * from './SystemMonitorEventTimeline';
-export * from './exportHelpers';
 export * from './SystemMonitorRingBuffer';
 export * from './SystemMonitorCanvasRenderer';
 export * from './SystemMonitorDashboard';

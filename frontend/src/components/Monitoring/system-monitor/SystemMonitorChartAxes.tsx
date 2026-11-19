@@ -80,7 +80,7 @@ export const SystemMonitorAxisBottom = memo(({
       </div>
 
       {/* Google Maps Style Scale Bar & Unit Legend Row */}
-      <div className="flex items-center justify-between w-full mt-1 px-0.5 text-[8px] font-mono">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 w-full mt-1 px-0.5 text-[8px] font-mono">
         <div className="flex items-center gap-1.5">
           {/* Visual Google Maps Scale Bracket |---| */}
           <span
@@ -256,12 +256,12 @@ export const SystemMonitorPanelCard = memo(({
 }: SystemMonitorPanelCardProps) => (
   <div
     className={cn(
-      'p-4 rounded-lg border flex flex-col gap-3 transition-colors',
+      'p-3 sm:p-4 min-w-0 rounded-lg border flex flex-col gap-3 transition-colors',
       isDark ? 'bg-[#181b1f] border-[#22252b] text-slate-200' : 'bg-white border-slate-200 text-slate-800',
       className
     )}
   >
-    <div className={cn("flex items-center justify-between pb-2 border-b", isDark ? "border-slate-800/60" : "border-slate-200")}>
+    <div className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pb-2 border-b", isDark ? "border-slate-800/60" : "border-slate-200")}>
       {headerLeft}
       {headerRight}
     </div>
