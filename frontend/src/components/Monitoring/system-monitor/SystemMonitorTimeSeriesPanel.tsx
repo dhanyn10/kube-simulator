@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
@@ -8,13 +8,14 @@ import {
   calculateDynamicYMax,
   getThresholdReferenceLines,
   resolveMemoryLimit,
+  resolveScrubberPointValue,
   ThresholdReferenceLine,
 } from './chartHelpers';
 import {
   SystemMonitorPanelCard,
-  SystemMonitorChartCanvas,
-  useChartScales,
+  SystemMonitorInteractiveChart,
 } from './SystemMonitorChartAxes';
+import { type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
 import { ZapOff, AlertTriangle } from 'lucide-react';
 
 export interface SystemMonitorTimeSeriesPanelProps extends BaseSystemMonitorPanelProps {
@@ -93,7 +94,21 @@ export const DynamicThresholdLines = ({ lines, isDark = true }: DynamicThreshold
   );
 };
 
-export const SystemMonitorTimeSeriesPanel = ({
+const findDeploymentPeakValue = (
+  points: readonly Record<string, any>[] | undefined,
+  metricKey: string,
+  currentPeak: number
+): number => {
+  if (!points) return currentPeak;
+  let peak = currentPeak;
+  for (const pt of points) {
+    const val = Number(pt[metricKey]);
+    if (val > peak) peak = val;
+  }
+  return peak;
+};
+
+export const SystemMonitorTimeSeriesPanel = memo(({
   title,
   description,
   deployments,
@@ -110,22 +125,16 @@ export const SystemMonitorTimeSeriesPanel = ({
   const isDark = colorMode === 'dark';
 
   const dynamicMax = useMemo(() => {
-    const allValues: number[] = [];
-    deployments.forEach((dep) => {
-      const points = metrics[dep.id] || [];
-      points.forEach((p) => {
-        const val = Number(p[metricKey]);
-        if (!Number.isNaN(val)) allValues.push(val);
-      });
-    });
+    let peak = 0;
+    for (const dep of deployments) {
+      peak = findDeploymentPeakValue(metrics[dep.id], metricKey, peak);
+    }
     const floor =
       metricKey === 'memoryValue'
         ? resolveMemoryLimit(deployments, metrics, maxVal)
         : maxVal;
-    return calculateDynamicYMax(allValues, floor);
+    return calculateDynamicYMax(peak > 0 ? [peak] : [], floor);
   }, [deployments, metrics, metricKey, maxVal]);
-
-  const { yScale, xTicks } = useChartScales(dynamicMax, unit, interval);
 
   const thresholdLines = useMemo(() => {
     if (!showThresholds) return [];
@@ -148,6 +157,30 @@ export const SystemMonitorTimeSeriesPanel = ({
       };
     });
   }, [deployments, metrics, metricKey, dynamicMax, interval]);
+
+  const buildTimeSeriesScrubber = useCallback(
+    (hoverPercent: number, capacity: number) =>
+      seriesData.map((s) => ({
+        id: s.id,
+        label: s.label,
+        color: s.color,
+        value: resolveScrubberPointValue(s.data, s.current, hoverPercent, capacity),
+        unit,
+        isThrottled: s.isThrottled,
+        isOOM: s.isOOM,
+      })),
+    [seriesData, unit]
+  );
+
+  const canvasSeriesList: CanvasSeriesItem[] = useMemo(() => {
+    return seriesData.map((s) => ({
+      id: s.id,
+      color: s.color,
+      data: s.data,
+      isArea: true,
+      lineWidth: 1.75,
+    }));
+  }, [seriesData]);
 
   return (
     <SystemMonitorPanelCard
@@ -232,37 +265,18 @@ export const SystemMonitorTimeSeriesPanel = ({
         </div>
       }
     >
-      <SystemMonitorChartCanvas
+      <SystemMonitorInteractiveChart
         heightClass="h-40"
         isDark={isDark}
-        xTicks={xTicks}
-        yScaleTicks={yScale.ticks}
-        overlay={showThresholds ? <DynamicThresholdLines lines={thresholdLines} isDark={isDark} /> : undefined}
+        interval={interval}
+        maxVal={dynamicMax}
+        yUnit={unit}
+        series={canvasSeriesList}
+        buildScrubberValues={buildTimeSeriesScrubber}
+        extraOverlay={showThresholds ? <DynamicThresholdLines lines={thresholdLines} isDark={isDark} /> : null}
         isEmpty={deployments.length === 0}
         emptyText="No active workload metrics"
-      >
-        <svg aria-hidden="true" viewBox="0 0 500 140" className="w-full h-full" preserveAspectRatio="none">
-          {seriesData.map((s) => (
-            <g key={`series-${s.id}`}>
-              <path
-                d={s.areaPath}
-                fill={s.color}
-                fillOpacity="0.12"
-                className="transition-all duration-150"
-              />
-              <polyline
-                points={s.svgPoints}
-                fill="none"
-                stroke={s.color}
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="transition-all duration-150"
-              />
-            </g>
-          ))}
-        </svg>
-      </SystemMonitorChartCanvas>
+      />
     </SystemMonitorPanelCard>
   );
-};
+});

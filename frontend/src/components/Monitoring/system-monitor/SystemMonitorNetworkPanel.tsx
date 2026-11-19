@@ -1,23 +1,21 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
-  buildSvgPoints,
-  buildAreaPath,
-  parseIntervalMinutes,
+  resolveScrubberPointValue,
   calculateDynamicYMax,
   calculateNetworkMetrics,
 } from './chartHelpers';
 import {
   SystemMonitorPanelCard,
-  SystemMonitorChartCanvas,
-  useChartScales,
+  SystemMonitorInteractiveChart,
 } from './SystemMonitorChartAxes';
+import { type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
 import { Activity, Globe } from 'lucide-react';
 
 export type SystemMonitorNetworkPanelProps = BaseSystemMonitorPanelProps;
 
-export const SystemMonitorNetworkPanel = ({
+export const SystemMonitorNetworkPanel = memo(({
   deployments,
   metrics,
   colorMode = 'dark',
@@ -25,18 +23,41 @@ export const SystemMonitorNetworkPanel = ({
 }: SystemMonitorNetworkPanelProps) => {
   const isDark = colorMode === 'dark';
 
-  const { rpsData, currentRps, currentLatency } = useMemo(() => {
-    return calculateNetworkMetrics(deployments, metrics, interval);
-  }, [deployments, metrics, interval]);
+  const { rpsData, currentRps, currentLatency } = useMemo(
+    () => calculateNetworkMetrics(deployments, metrics, interval),
+    [deployments, metrics, interval]
+  );
 
-  const dynamicMaxRps = useMemo(() => {
-    return calculateDynamicYMax(rpsData, 100, 1.2);
-  }, [rpsData]);
+  const dynamicMaxRps = useMemo(
+    () => calculateDynamicYMax(rpsData, 100, 1.2),
+    [rpsData]
+  );
 
-  const capacity = Math.round(1440 / parseIntervalMinutes(interval));
-  const rpsPoints = buildSvgPoints(rpsData, dynamicMaxRps, 500, 100, capacity);
-  const areaPath = buildAreaPath(rpsPoints, 500, 100);
-  const { yScale, xTicks } = useChartScales(dynamicMaxRps, ' req/s', interval);
+  const canvasSeries: CanvasSeriesItem[] = useMemo(() => [
+    {
+      id: 'network-rps',
+      color: '#10b981',
+      data: rpsData,
+      isArea: true,
+      lineWidth: 1.75,
+    },
+  ], [rpsData]);
+
+  const buildNetworkScrubber = useCallback(
+    (hoverPercent: number, capacity: number) => {
+      const val = resolveScrubberPointValue(rpsData, currentRps, hoverPercent, capacity);
+      return [
+        {
+          id: 'ingress-rps',
+          label: 'Ingress Traffic',
+          color: '#10b981',
+          value: val.toLocaleString('en-US'),
+          unit: ' req/s',
+        },
+      ];
+    },
+    [rpsData, currentRps]
+  );
 
   return (
     <SystemMonitorPanelCard
@@ -62,31 +83,16 @@ export const SystemMonitorNetworkPanel = ({
         </div>
       }
     >
-      <SystemMonitorChartCanvas
+      <SystemMonitorInteractiveChart
         isDark={isDark}
-        xTicks={xTicks}
-        yScaleTicks={yScale.ticks}
+        interval={interval}
+        maxVal={dynamicMaxRps}
+        yUnit=" req/s"
+        series={canvasSeries}
+        buildScrubberValues={buildNetworkScrubber}
         isEmpty={deployments.length === 0}
         emptyText="No active traffic simulation"
-      >
-        <svg aria-hidden="true" viewBox="0 0 500 100" className="w-full h-full" preserveAspectRatio="none">
-          <path
-            d={areaPath}
-            fill="#10b981"
-            fillOpacity="0.15"
-            className="transition-all duration-150"
-          />
-          <polyline
-            fill="none"
-            stroke="#10b981"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            points={rpsPoints}
-            className="transition-all duration-150"
-          />
-        </svg>
-      </SystemMonitorChartCanvas>
+      />
     </SystemMonitorPanelCard>
   );
-};
+});

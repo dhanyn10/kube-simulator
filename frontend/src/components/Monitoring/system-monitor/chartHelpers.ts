@@ -57,14 +57,16 @@ export interface YAxisScale {
  */
 export const parseIntervalMinutes = (interval?: TimeRangeFilter): number => {
   switch (interval) {
+    case '1m':
+      return 1;
     case '5m':
       return 5;
+    case '10m':
+      return 10;
     case '15m':
       return 15;
     case '30m':
       return 30;
-    case '1m':
-      return 1;
     case '1h':
     default:
       return 60;
@@ -72,38 +74,78 @@ export const parseIntervalMinutes = (interval?: TimeRangeFilter): number => {
 };
 
 /**
- * Determines dynamic tick step in minutes based on active interval.
+ * Returns the unit name for the active X-axis interval ('Minutes' or 'Hours').
  */
-export const getIntervalStepMinutes = (interval?: TimeRangeFilter): number => {
-  const mins = parseIntervalMinutes(interval);
-  if (mins <= 5) return 60;
-  if (mins <= 15) return 120;
-  if (mins <= 30) return 180;
-  return 240;
+export const getXAxisUnit = (interval?: TimeRangeFilter): string => {
+  return interval === '1h' ? 'Hours' : 'Minutes';
 };
 
 /**
- * Generates dynamic X-axis time marks and percentage positions across the 24-hour cycle.
- * Formatted from left (-24h) to right (0 / Now), matching Windows Task Manager oscilloscope.
+ * Returns the number of visible interval divisions (capacity) across the chart viewport.
+ * 24 divisions for 1h (24 hours full cycle), 12 divisions for sub-hour views (e.g. 12 * 5m = 60m).
+ */
+export const getIntervalCapacity = (interval?: TimeRangeFilter): number => {
+  if (interval === '1h') return 24;
+  return 12;
+};
+
+/**
+ * Determines dynamic step in minutes based on active interval.
+ */
+export const getIntervalStepMinutes = (interval?: TimeRangeFilter): number => {
+  return parseIntervalMinutes(interval);
+};
+
+/**
+ * Generates dynamic X-axis time marks and percentage positions following the chosen timing interval.
+ * Like Google Maps zoom: e.g. for 5m interval, ticks progress 0, 5, 10, 15, 20... with 'Minutes' label.
  */
 export const generateXAxisTicks = (interval?: TimeRangeFilter): XAxisTick[] => {
-  const stepMins = getIntervalStepMinutes(interval);
+  const capacity = getIntervalCapacity(interval);
+  const step = interval === '1h' ? 1 : parseIntervalMinutes(interval);
   const ticks: XAxisTick[] = [];
 
-  for (let m = 1440; m >= 0; m -= stepMins) {
-    const percent = Math.round(((1440 - m) / 1440) * 1000) / 10;
-    let label = `-${Math.round(m / 60)}h`;
-    if (m === 0) {
-      label = '0 (Now)';
-    } else if (m % 60 !== 0) {
-      const hh = Math.floor(m / 60);
-      const mm = m % 60;
-      label = `-${hh}h${mm}m`;
-    }
-    ticks.push({ label, minute: m, percent });
+  for (let i = 0; i <= capacity; i++) {
+    const val = i * step;
+    const percent = Math.round((i / capacity) * 1000) / 10;
+    ticks.push({
+      label: String(val),
+      minute: val,
+      percent,
+    });
   }
 
   return ticks;
+};
+
+/**
+ * Formats hover scrubber time label based on active interval scale and hover percentage.
+ */
+export const getScrubberTimeLabel = (percent: number, interval?: TimeRangeFilter): string => {
+  const capacity = getIntervalCapacity(interval);
+  const step = interval === '1h' ? 1 : parseIntervalMinutes(interval);
+  const total = capacity * step;
+  const currentVal = Math.round((Math.max(0, Math.min(100, percent)) / 100) * total);
+  if (interval === '1h') {
+    return `${currentVal}h`;
+  }
+  return `${currentVal} min`;
+};
+
+/**
+ * Resolves the series data value corresponding to the hovered scrubber percentage.
+ */
+export const resolveScrubberPointValue = <T>(
+  data: T[],
+  fallback: T,
+  hoverPercent: number,
+  capacity: number
+): T => {
+  const len = data.length;
+  if (len === 0) return fallback;
+  const effectiveCap = Math.max(1, capacity);
+  const slotIdx = Math.max(0, Math.min(len - 1, Math.floor((hoverPercent / 100) * effectiveCap)));
+  return data[slotIdx] ?? fallback;
 };
 
 /**
@@ -131,10 +173,14 @@ export const calculateDynamicYMax = (
   minFloor: number = 100,
   headroom: number = 1.15
 ): number => {
-  if (!values || values.length === 0) {
+  const len = values?.length ?? 0;
+  if (len === 0) {
     return minFloor;
   }
-  const peak = Math.max(0, ...values);
+  let peak = 0;
+  for (const v of values) {
+    if (v > peak) peak = v;
+  }
   if (peak <= 0) {
     return minFloor;
   }
@@ -168,7 +214,7 @@ export const generateYAxisScale = (
 };
 
 /**
- * Computes min, max, avg, and current values for a numeric series.
+ * Computes min, max, avg, and current values for a numeric series in a single O(N) pass.
  */
 export const calculateSeriesStats = (
   id: string,
@@ -177,22 +223,28 @@ export const calculateSeriesStats = (
   data: number[],
   lastPoint?: { isThrottled?: boolean; isOOM?: boolean }
 ): SeriesStats => {
-  if (data.length === 0) {
+  const len = data.length;
+  if (len === 0) {
     return { id, label, color, current: 0, min: 0, max: 0, avg: 0 };
   }
-  const current = Math.round(data.at(-1) || 0);
-  const min = Math.round(Math.min(...data));
-  const max = Math.round(Math.max(...data));
-  const sum = data.reduce((acc, v) => acc + v, 0);
-  const avg = Math.round(sum / data.length);
+  let min = data[0];
+  let max = data[0];
+  let sum = 0;
+  for (const v of data) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+    sum += v;
+  }
+  const current = Math.round(data[len - 1] || 0);
+  const avg = Math.round(sum / len);
 
   return {
     id,
     label,
     color,
     current,
-    min,
-    max,
+    min: Math.round(min),
+    max: Math.round(max),
     avg,
     isThrottled: lastPoint?.isThrottled,
     isOOM: lastPoint?.isOOM,
@@ -230,6 +282,7 @@ export const dataToCoords = (
 
 /**
  * Constructs an SVG path for area fill under the line, bounded between first point and viewWidth.
+ * High performance zero-split implementation.
  */
 export const buildAreaPath = (
   svgPoints: string,
@@ -237,14 +290,14 @@ export const buildAreaPath = (
   viewHeight: number = 140
 ): string => {
   if (!svgPoints) return `M0,${viewHeight} L${viewWidth},${viewHeight} Z`;
-  const firstCoord = svgPoints.split(' ')[0] || `0,${viewHeight}`;
-  const firstX = firstCoord.split(',')[0] || '0';
+  const commaIdx = svgPoints.indexOf(',');
+  const firstX = commaIdx > 0 ? svgPoints.slice(0, commaIdx) : '0';
   return `M${firstX},${viewHeight} L${svgPoints} L${viewWidth},${viewHeight} Z`;
 };
 
 /**
  * Generates an SVG polyline points string from data points streaming from right to left
- * (Windows Task Manager oscilloscope behavior).
+ * (Windows Task Manager oscilloscope behavior) directly in a single pass without intermediate objects.
  */
 export const buildSvgPoints = (
   data: number[],
@@ -253,14 +306,88 @@ export const buildSvgPoints = (
   viewHeight: number = 140,
   capacity?: number
 ): string => {
-  if (data.length === 0) return `0,${viewHeight} ${viewWidth},${viewHeight}`;
-  const coords = dataToCoords(data, maxVal, viewWidth, viewHeight, capacity);
-  return coords.map((p) => `${p.x},${p.y}`).join(' ');
+  const count = data.length;
+  if (count === 0) return `0,${viewHeight} ${viewWidth},${viewHeight}`;
+
+  const effectiveCapacity = capacity ? Math.max(count, capacity) : Math.max(30, count);
+  const stepX = viewWidth / Math.max(1, effectiveCapacity - 1);
+  const heightFactor = (viewHeight - 10) / Math.max(1, maxVal);
+
+  if (count === 1) {
+    const safeVal = Math.min(maxVal, Math.max(0, data[0]));
+    const y = Math.round(viewHeight - safeVal * heightFactor);
+    const x0 = Math.max(0, viewWidth - Math.round(stepX));
+    return `${x0},${y} ${viewWidth},${y}`;
+  }
+
+  let result = '';
+  for (let i = 0; i < count; i++) {
+    const x = Math.max(0, Math.round(viewWidth - (count - 1 - i) * stepX));
+    const val = data[i];
+    const safeVal = Math.min(maxVal, Math.max(0, val));
+    const y = Math.round(viewHeight - safeVal * heightFactor);
+    if (i > 0) result += ' ';
+    result += x + ',' + y;
+  }
+  return result;
+};
+
+const collectMetricBuckets = (
+  points: SimulationMetricPoint[],
+  metricKey: keyof SimulationMetricPoint,
+  intervalMinutes: number,
+  dayBuckets: number
+) => {
+  let cycle = 0;
+  let lastRawMinute = -1;
+  const bucketSums = new Map<number, number>();
+  const bucketCounts = new Map<number, number>();
+
+  for (const p of points) {
+    const rawMin = p.minuteIndex ?? 0;
+    if (lastRawMinute >= 0 && rawMin < lastRawMinute) {
+      cycle++;
+    }
+    lastRawMinute = rawMin;
+
+    const minIdx = ((rawMin % 1440) + 1440) % 1440;
+    const bIdx = cycle * dayBuckets + Math.floor(minIdx / intervalMinutes);
+    const val = Number(p[metricKey]) || 0;
+
+    bucketSums.set(bIdx, (bucketSums.get(bIdx) || 0) + val);
+    bucketCounts.set(bIdx, (bucketCounts.get(bIdx) || 0) + 1);
+  }
+
+  return { bucketSums, bucketCounts };
+};
+
+const buildContiguousBucketAverages = (
+  bucketSums: Map<number, number>,
+  bucketCounts: Map<number, number>,
+  allBucketIndices: number[],
+  capacity: number
+): number[] => {
+  const firstB = allBucketIndices[0];
+  const maxB = allBucketIndices.at(-1)!;
+  const fullData: number[] = [];
+
+  let lastAvg = 0;
+  for (let b = firstB; b <= maxB; b++) {
+    const sum = bucketSums.get(b);
+    const count = bucketCounts.get(b);
+    if (count && count > 0 && sum !== undefined) {
+      lastAvg = sum / count;
+    }
+    fullData.push(Math.round(lastAvg * 10) / 10);
+  }
+
+  return fullData.slice(-capacity);
 };
 
 /**
- * Aggregates 24-hour simulation metric points based on the specified interval,
- * streaming from right to left like Windows Task Manager oscilloscope.
+ * Aggregates simulation metric points based on specified interval,
+ * committing fixed points and streaming like Windows Task Manager oscilloscope.
+ * Fully cycle-aware: Day 2 never overwrites or re-averages Day 1.
  */
 export const aggregateMetricSeries = (
   points: SimulationMetricPoint[],
@@ -282,12 +409,13 @@ export const aggregateMetricSeries = (
   }
 
   const intervalMinutes = parseIntervalMinutes(interval);
-  const totalBuckets = Math.round(1440 / intervalMinutes);
+  const dayBuckets = Math.max(1, Math.round(1440 / intervalMinutes));
+  const capacity = getIntervalCapacity(interval);
   const hasMinuteIndex = points.some((p) => typeof p.minuteIndex === 'number');
 
   if (!hasMinuteIndex) {
     const rawData = points.map((p) => Number(p[metricKey]) || 0);
-    const svgPoints = buildSvgPoints(rawData, maxVal, viewWidth, viewHeight, totalBuckets);
+    const svgPoints = buildSvgPoints(rawData, maxVal, viewWidth, viewHeight, capacity);
     const areaPath = buildAreaPath(svgPoints, viewWidth, viewHeight);
     return {
       data: rawData,
@@ -297,37 +425,16 @@ export const aggregateMetricSeries = (
     };
   }
 
-  const bucketMap = new Map<number, number[]>();
-  points.forEach((p) => {
-    const minIdx = ((p.minuteIndex ?? 0) % 1440 + 1440) % 1440;
-    const bIdx = Math.floor(minIdx / intervalMinutes);
-    const val = Number(p[metricKey]) || 0;
-    const existing = bucketMap.get(bIdx) || [];
-    existing.push(val);
-    bucketMap.set(bIdx, existing);
-  });
-
-  const sortedBucketIndices = Array.from(bucketMap.keys()).sort((a, b) => a - b);
-  if (sortedBucketIndices.length === 0) {
+  const { bucketSums, bucketCounts } = collectMetricBuckets(points, metricKey, intervalMinutes, dayBuckets);
+  const allBucketIndices = Array.from(bucketSums.keys()).sort((a, b) => a - b);
+  if (allBucketIndices.length === 0) {
     return defaultEmpty;
   }
 
-  const maxBucket = sortedBucketIndices.at(-1)!;
-  const aggregatedData: number[] = [];
-
-  let lastAvg = 0;
-  for (let b = 0; b <= maxBucket; b++) {
-    const vals = bucketMap.get(b);
-    let avg = lastAvg;
-    if (vals && vals.length > 0) {
-      avg = vals.reduce((acc, curr) => acc + curr, 0) / vals.length;
-      lastAvg = avg;
-    }
-    aggregatedData.push(Math.round(avg * 10) / 10);
-  }
+  const aggregatedData = buildContiguousBucketAverages(bucketSums, bucketCounts, allBucketIndices, capacity);
 
   // Windows Task Manager oscilloscope: stream linear polyline from right to left
-  const svgPoints = buildSvgPoints(aggregatedData, maxVal, viewWidth, viewHeight, totalBuckets);
+  const svgPoints = buildSvgPoints(aggregatedData, maxVal, viewWidth, viewHeight, capacity);
   const areaPath = buildAreaPath(svgPoints, viewWidth, viewHeight);
 
   const latestRaw = points.at(-1);
@@ -366,39 +473,89 @@ const aggregateUnindexedNetworkMetrics = (
   return { rpsArr, latArr };
 };
 
+const accumulateDeploymentNetworkBuckets = (
+  dep: DeploymentSummary,
+  points: SimulationMetricPoint[],
+  intervalMinutes: number,
+  dayBuckets: number,
+  bucketRpsSum: Map<number, number>,
+  bucketRpsCount: Map<number, number>,
+  bucketLat: Map<number, number>
+) => {
+  const replicas = dep.replicas || 1;
+  let cycle = 0;
+  let lastRawMin = -1;
+
+  for (const p of points) {
+    const rawMin = p.minuteIndex ?? 0;
+    if (lastRawMin >= 0 && rawMin < lastRawMin) {
+      cycle++;
+    }
+    lastRawMin = rawMin;
+
+    const minIdx = ((rawMin % 1440) + 1440) % 1440;
+    const bIdx = cycle * dayBuckets + Math.floor(minIdx / intervalMinutes);
+    const rps = Math.round((p.cpuPercent || 0) * 15 * replicas);
+    const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
+
+    bucketRpsSum.set(bIdx, (bucketRpsSum.get(bIdx) || 0) + rps);
+    bucketRpsCount.set(bIdx, (bucketRpsCount.get(bIdx) || 0) + 1);
+
+    const existingLat = bucketLat.get(bIdx) || 0;
+    if (lat > existingLat) {
+      bucketLat.set(bIdx, lat);
+    }
+  }
+};
+
 const aggregateBucketNetworkMetrics = (
   deployments: DeploymentSummary[],
   metrics: Record<string, SimulationMetricPoint[]>,
-  intervalMinutes: number
+  intervalMinutes: number,
+  interval?: TimeRangeFilter
 ) => {
-  const bucketRpsMap = new Map<number, number>();
-  const bucketLatMap = new Map<number, number>();
+  const dayBuckets = Math.max(1, Math.round(1440 / intervalMinutes));
+  const capacity = getIntervalCapacity(interval);
+  const bucketRpsSum = new Map<number, number>();
+  const bucketRpsCount = new Map<number, number>();
+  const bucketLat = new Map<number, number>();
 
-  deployments.forEach((dep) => {
+  for (const dep of deployments) {
     const points = metrics[dep.id] || [];
-    const replicas = dep.replicas || 1;
-    points.forEach((p) => {
-      const minIdx = ((p.minuteIndex ?? 0) % 1440 + 1440) % 1440;
-      const bIdx = Math.floor(minIdx / intervalMinutes);
-      const rps = Math.round((p.cpuPercent || 0) * 15 * replicas);
-      const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
-
-      bucketRpsMap.set(bIdx, (bucketRpsMap.get(bIdx) || 0) + rps);
-      bucketLatMap.set(bIdx, Math.max(bucketLatMap.get(bIdx) || 0, lat));
-    });
-  });
-
-  const sortedIndices = Array.from(bucketRpsMap.keys()).sort((a, b) => a - b);
-  const rpsArr: number[] = [];
-  const latArr: number[] = [];
-  if (sortedIndices.length > 0) {
-    const maxB = sortedIndices.at(-1)!;
-    for (let b = 0; b <= maxB; b++) {
-      rpsArr.push(bucketRpsMap.get(b) || 0);
-      latArr.push(bucketLatMap.get(b) || 0);
-    }
+    accumulateDeploymentNetworkBuckets(dep, points, intervalMinutes, dayBuckets, bucketRpsSum, bucketRpsCount, bucketLat);
   }
-  return { rpsArr, latArr };
+
+  const allIndices = Array.from(bucketRpsSum.keys()).sort((a, b) => a - b);
+  if (allIndices.length === 0) {
+    return { rpsArr: [], latArr: [] };
+  }
+
+  const firstB = allIndices[0];
+  const maxB = allIndices.at(-1)!;
+
+  const fullRps: number[] = [];
+  const fullLat: number[] = [];
+  let lastRps = 0;
+  let lastLat = 0;
+
+  for (let b = firstB; b <= maxB; b++) {
+    const sum = bucketRpsSum.get(b);
+    const cnt = bucketRpsCount.get(b);
+    if (cnt && cnt > 0 && sum !== undefined) {
+      lastRps = Math.round(sum / cnt);
+    }
+    const lat = bucketLat.get(b);
+    if (lat !== undefined) {
+      lastLat = lat;
+    }
+    fullRps.push(lastRps);
+    fullLat.push(lastLat);
+  }
+
+  return {
+    rpsArr: fullRps.slice(-capacity),
+    latArr: fullLat.slice(-capacity),
+  };
 };
 
 export const calculateNetworkMetrics = (
@@ -411,7 +568,7 @@ export const calculateNetworkMetrics = (
   const hasMinuteIndex = allPoints.some((p) => typeof p.minuteIndex === 'number');
 
   const { rpsArr, latArr } = hasMinuteIndex
-    ? aggregateBucketNetworkMetrics(deployments, metrics, intervalMinutes)
+    ? aggregateBucketNetworkMetrics(deployments, metrics, intervalMinutes, interval)
     : aggregateUnindexedNetworkMetrics(deployments, metrics);
 
   return {
@@ -459,7 +616,7 @@ export const calculateReplicaSeries = (
     if (!hasMinuteIndex) {
       const data = points.map(() => dep.replicas || 1);
       const current = dep.replicas || 1;
-      const capacity = Math.round(1440 / parseIntervalMinutes(interval));
+      const capacity = getIntervalCapacity(interval);
       const svgPoints = buildSvgPoints(data, dynamicMaxReplicas, 500, 100, capacity);
       return {
         id: dep.id,

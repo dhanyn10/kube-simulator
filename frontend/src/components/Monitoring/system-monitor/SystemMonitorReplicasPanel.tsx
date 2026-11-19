@@ -1,21 +1,22 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
   calculateDynamicYMax,
   extractReplicaCounts,
   calculateReplicaSeries,
+  resolveScrubberPointValue,
 } from './chartHelpers';
 import {
   SystemMonitorPanelCard,
-  SystemMonitorChartCanvas,
-  useChartScales,
+  SystemMonitorInteractiveChart,
 } from './SystemMonitorChartAxes';
+import { type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
 import { Layers } from 'lucide-react';
 
 export type SystemMonitorReplicasPanelProps = BaseSystemMonitorPanelProps;
 
-export const SystemMonitorReplicasPanel = ({
+export const SystemMonitorReplicasPanel = memo(({
   deployments,
   metrics,
   colorMode = 'dark',
@@ -23,19 +24,45 @@ export const SystemMonitorReplicasPanel = ({
 }: SystemMonitorReplicasPanelProps) => {
   const isDark = colorMode === 'dark';
 
-  const allReplicas = useMemo(() => {
-    return extractReplicaCounts(deployments, metrics);
-  }, [deployments, metrics]);
+  const allReplicas = useMemo(
+    () => extractReplicaCounts(deployments, metrics),
+    [deployments, metrics]
+  );
 
-  const dynamicMaxReplicas = useMemo(() => {
-    return calculateDynamicYMax(allReplicas, 5, 1.25);
-  }, [allReplicas]);
+  const dynamicMaxReplicas = useMemo(
+    () => calculateDynamicYMax(allReplicas, 5, 1.25),
+    [allReplicas]
+  );
 
-  const { yScale, xTicks } = useChartScales(dynamicMaxReplicas, ' pods', interval);
+  const replicaSeries = useMemo(
+    () => calculateReplicaSeries(deployments, metrics, interval, dynamicMaxReplicas),
+    [deployments, metrics, interval, dynamicMaxReplicas]
+  );
 
-  const replicaSeries = useMemo(() => {
-    return calculateReplicaSeries(deployments, metrics, interval, dynamicMaxReplicas);
-  }, [deployments, metrics, interval, dynamicMaxReplicas]);
+  const canvasSeries: CanvasSeriesItem[] = useMemo(
+    () =>
+      replicaSeries.map((s) => ({
+        id: s.id,
+        color: s.color,
+        data: s.data,
+        isArea: false,
+        isStepped: true,
+        lineWidth: 2,
+      })),
+    [replicaSeries]
+  );
+
+  const buildReplicaScrubber = useCallback(
+    (hoverPercent: number, capacity: number) =>
+      replicaSeries.map((s) => ({
+        id: s.id,
+        label: s.label,
+        color: s.color,
+        value: resolveScrubberPointValue(s.data, s.current, hoverPercent, capacity),
+        unit: ' Pods',
+      })),
+    [replicaSeries]
+  );
 
   return (
     <SystemMonitorPanelCard
@@ -68,28 +95,18 @@ export const SystemMonitorReplicasPanel = ({
         </div>
       }
     >
-      <SystemMonitorChartCanvas
+      <SystemMonitorInteractiveChart
         isDark={isDark}
-        xTicks={xTicks}
-        yScaleTicks={yScale.ticks}
+        interval={interval}
+        maxVal={dynamicMaxReplicas}
+        yUnit=" pods"
+        series={canvasSeries}
+        buildScrubberValues={buildReplicaScrubber}
         isEmpty={deployments.length === 0}
         emptyText="No workload deployments active"
-      >
-        <svg aria-hidden="true" viewBox="0 0 500 100" className="w-full h-full" preserveAspectRatio="none">
-          {replicaSeries.map((s) => (
-            <polyline
-              key={`replica-${s.id}`}
-              fill="none"
-              stroke={s.color}
-              strokeWidth="2"
-              strokeLinecap="square"
-              strokeLinejoin="miter"
-              points={s.svgPoints}
-              className="transition-all duration-150"
-            />
-          ))}
-        </svg>
-      </SystemMonitorChartCanvas>
+      />
     </SystemMonitorPanelCard>
   );
-};
+});
+
+SystemMonitorReplicasPanel.displayName = 'SystemMonitorReplicasPanel';

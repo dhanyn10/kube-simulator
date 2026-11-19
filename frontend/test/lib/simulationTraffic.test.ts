@@ -185,6 +185,15 @@ describe('simulationTraffic', () => {
       const metrics = calculateResourceMetrics(dep, 1000, ctx);
       expect(metrics.cpuPercent).toBeGreaterThan(0);
       expect(ctx.newMetrics['dep-1']).toHaveLength(1);
+
+      // Same minuteIndex (ticks = 5) replaces in place rather than duplicating
+      calculateResourceMetrics(dep, 1200, ctx);
+      expect(ctx.newMetrics['dep-1']).toHaveLength(1);
+
+      // Next minuteIndex (ticks = 6) appends a new point
+      ctx.ticks = 6;
+      calculateResourceMetrics(dep, 1200, ctx);
+      expect(ctx.newMetrics['dep-1']).toHaveLength(2);
     });
   });
 

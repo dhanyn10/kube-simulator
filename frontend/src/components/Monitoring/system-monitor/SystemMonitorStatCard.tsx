@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, memo } from 'react';
 import { cn } from '@/lib/utils';
 
 interface SystemMonitorStatCardProps {
@@ -27,7 +27,7 @@ const getThresholdStyles = (
   return { text: 'text-emerald-700', stroke: '#059669' };
 };
 
-export const SystemMonitorStatCard = ({
+export const SystemMonitorStatCard = memo(({
   title,
   value,
   unit,
@@ -41,12 +41,13 @@ export const SystemMonitorStatCard = ({
 
   const { text: thresholdColor, stroke: strokeColor } = getThresholdStyles(threshold, isDark);
 
-  const sparklinePoints = sparklineData.length > 1
-    ? sparklineData
+  const sparklineSlice = sparklineData.length > 30 ? sparklineData.slice(-30) : sparklineData;
+  const sparklineMax = sparklineSlice.length > 0 ? Math.max(100, ...sparklineSlice) : 100;
+  const sparklinePoints = sparklineSlice.length > 1
+    ? sparklineSlice
         .map((val, idx) => {
-          const max = Math.max(100, ...sparklineData);
-          const x = (idx / (sparklineData.length - 1)) * 120;
-          const y = 30 - Math.min(26, (val / max) * 26);
+          const x = (idx / (sparklineSlice.length - 1)) * 120;
+          const y = 30 - Math.min(26, (val / sparklineMax) * 26);
           return `${x},${y}`;
         })
         .join(' ')
@@ -91,4 +92,4 @@ export const SystemMonitorStatCard = ({
       </div>
     </div>
   );
-};
+});

@@ -1,22 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getBackendGateway } from '@/gateway';
 import { useFlowStore } from '@/store';
 import { SimulationMetricPoint } from '@/store/types';
 import { TimeRangeFilter, DeploymentSummary, SystemMonitorClusterTotals, SimulationSpeed, SystemMonitorColorMode } from './types';
-
-const resolveStoreHpaInfo = (nodes: any[]): { hasHpa: boolean; targetCPU: number } => {
-  if (!nodes || nodes.length === 0) return { hasHpa: false, targetCPU: 80 };
-  const hpaNode = nodes.find((n) => n.type === 'HPA');
-  const attached = nodes.find((n) => Array.isArray(n.data?.hpas) && n.data.hpas.length > 0);
-  const exists = Boolean(hpaNode || attached);
-  let target = 80;
-  if (hpaNode?.data?.targetCPU) {
-    target = Number(hpaNode.data.targetCPU) || 80;
-  } else if (attached?.data?.hpas?.[0]?.targetCPU) {
-    target = Number(attached.data.hpas[0].targetCPU) || 80;
-  }
-  return { hasHpa: exists, targetCPU: target };
-};
 
 export const useSystemMonitorDashboard = () => {
   const [metrics, setMetrics] = useState<Record<string, SimulationMetricPoint[]>>({});
@@ -27,7 +13,6 @@ export const useSystemMonitorDashboard = () => {
   const storeColorMode = useFlowStore((state) => state.colorMode);
   const [colorMode, setColorMode] = useState<SystemMonitorColorMode>(() => (useFlowStore.getState().colorMode as SystemMonitorColorMode) || 'dark');
   const [timeRange, setTimeRange] = useState<TimeRangeFilter>('1h');
-  const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
   const [canStart, setCanStart] = useState<boolean>(false);
   const [hasHpa, setHasHpa] = useState<boolean>(false);
   const [hpaTarget, setHpaTarget] = useState<number>(80);
@@ -38,8 +23,24 @@ export const useSystemMonitorDashboard = () => {
     }
   }, [storeColorMode]);
 
-  const storeNodes = useFlowStore((state) => state.nodes);
-  const storeHpaInfo = useMemo(() => resolveStoreHpaInfo(storeNodes), [storeNodes]);
+  // Select a primitive string token ("hasHpa:targetCPU") from store so Zustand's === equality prevents
+  // re-rendering the entire dashboard during high-speed simulation ticks when node positions or ticks change.
+  const storeHpaToken = useFlowStore((state) => {
+    const hpaNode = state.nodes.find((n) => n.type === 'HPA');
+    const attached = state.nodes.find((n) => Array.isArray(n.data?.hpas) && n.data.hpas.length > 0);
+    const exists = Boolean(hpaNode || attached);
+    let target = 80;
+    if (hpaNode?.data?.targetCPU) {
+      target = Number(hpaNode.data.targetCPU) || 80;
+    } else if (attached?.data?.hpas?.[0]?.targetCPU) {
+      target = Number(attached.data.hpas[0].targetCPU) || 80;
+    }
+    return `${exists}:${target}`;
+  });
+
+  const [hasHpaStr, targetStr] = storeHpaToken.split(':');
+  const storeHasHpa = hasHpaStr === 'true';
+  const storeHpaTarget = Number(targetStr) || 80;
 
   const simulatedTime = useMemo(() => {
     const firstDeploymentMetrics = Object.values(metrics)[0];
@@ -53,7 +54,11 @@ export const useSystemMonitorDashboard = () => {
     return `${hh}:${mm}`;
   }, [metrics]);
 
-  const handleUpdate = useCallback((data: any) => {
+  const lastProcessedTimestampRef = useRef<number>(0);
+  const pendingDataRef = useRef<any>(null);
+  const rafIdRef = useRef<number | null>(null);
+
+  const applyData = useCallback((data: any) => {
     if (data.metrics) setMetrics(data.metrics);
     if (data.deployments) setDeployments(data.deployments);
     if (typeof data.canStart === 'boolean') {
@@ -73,8 +78,33 @@ export const useSystemMonitorDashboard = () => {
     if (typeof data.hpaTarget === 'number' && !Number.isNaN(data.hpaTarget)) {
       setHpaTarget(data.hpaTarget);
     }
-    setLastUpdated(Date.now());
   }, []);
+
+  const handleUpdate = useCallback((data: any) => {
+    if (!data) return;
+    if (typeof data.timestamp === 'number') {
+      if (data.timestamp <= lastProcessedTimestampRef.current) {
+        return;
+      }
+      lastProcessedTimestampRef.current = data.timestamp;
+    }
+
+    if (process.env.NODE_ENV === 'test') {
+      applyData(data);
+      return;
+    }
+
+    pendingDataRef.current = data;
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        if (pendingDataRef.current) {
+          applyData(pendingDataRef.current);
+          pendingDataRef.current = null;
+        }
+      });
+    }
+  }, [applyData]);
 
   const sendControl = useCallback(async (action: string, options?: { speed?: number; multiplier?: number }) => {
     const channel = new BroadcastChannel('monitoring-data');
@@ -105,8 +135,11 @@ export const useSystemMonitorDashboard = () => {
     const channel = new BroadcastChannel('monitoring-data');
     const gw = getBackendGateway();
 
+    let hasReceivedViaBroadcast = false;
+
     channel.onmessage = (event) => {
       if (event.data.type === 'METRICS_UPDATE') {
+        hasReceivedViaBroadcast = true;
         handleUpdate(event.data);
       } else if (event.data.type === 'THEME_SYNC') {
         setColorMode(event.data.colorMode);
@@ -114,11 +147,23 @@ export const useSystemMonitorDashboard = () => {
     };
 
     const unsubMetrics = gw.onEvent('metrics-update', (json: string) => {
-      try { handleUpdate(JSON.parse(json)); } catch { /* ignore parse error */ }
+      // If BroadcastChannel is actively receiving messages, skip redundant multi-megabyte JSON parsing
+      if (hasReceivedViaBroadcast) return;
+      try {
+        handleUpdate(JSON.parse(json));
+      } catch {
+        /* ignore parse error */
+      }
     });
 
     const unsubSnap = gw.onEvent('simulation-snapshot-updated', (json: string) => {
-      try { handleUpdate(JSON.parse(json)); } catch { /* ignore parse error */ }
+      // If BroadcastChannel is actively receiving messages, skip redundant multi-megabyte JSON parsing
+      if (hasReceivedViaBroadcast) return;
+      try {
+        handleUpdate(JSON.parse(json));
+      } catch {
+        /* ignore parse error */
+      }
     });
 
     const unsubTheme = gw.onEvent('theme-sync', (mode: any) => {
@@ -138,6 +183,10 @@ export const useSystemMonitorDashboard = () => {
     });
 
     return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
       channel.postMessage({ type: 'DETACHED_CLOSED' });
       gw.emitEvent('detached-closed');
       (globalThis as any).runtime?.EventsEmit?.('detached-closed');
@@ -196,19 +245,8 @@ export const useSystemMonitorDashboard = () => {
     };
   }, [deployments, metrics]);
 
-  const effectiveHasHpa = useMemo(() => {
-    if (storeNodes && storeNodes.length > 0) {
-      return storeHpaInfo.hasHpa;
-    }
-    return hasHpa;
-  }, [storeNodes, storeHpaInfo.hasHpa, hasHpa]);
-
-  const effectiveHpaTarget = useMemo(() => {
-    if (storeNodes && storeNodes.length > 0 && storeHpaInfo.hasHpa) {
-      return storeHpaInfo.targetCPU;
-    }
-    return hpaTarget;
-  }, [storeNodes, storeHpaInfo, hpaTarget]);
+  const effectiveHasHpa = hasHpa || storeHasHpa;
+  const effectiveHpaTarget = storeHasHpa ? storeHpaTarget : hpaTarget;
 
   const toggleTheme = useCallback(() => {
     const newMode: SystemMonitorColorMode = colorMode === 'dark' ? 'light' : 'dark';
@@ -233,7 +271,6 @@ export const useSystemMonitorDashboard = () => {
     timeRange,
     setTimeRange,
     simulatedTime,
-    lastUpdated,
     sendControl,
     clusterTotals,
     canStart,

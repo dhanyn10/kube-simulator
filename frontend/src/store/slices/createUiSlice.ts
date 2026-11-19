@@ -375,6 +375,57 @@ const updateRollingDeployments = (updatedNodes: Node[], get: () => FlowState): b
 };
 
 /**
+ * Syncs modified node references in place when throttling full store node array commits,
+ * preserving traffic minute counters across ticks without triggering ReactFlow re-renders.
+ */
+const syncInPlaceTrafficNodes = (currentNodes: Node[], updatedNodes: Node[]) => {
+  for (let i = 0; i < currentNodes.length; i++) {
+    if (currentNodes[i] !== updatedNodes[i]) {
+      currentNodes[i] = updatedNodes[i];
+    }
+  }
+};
+
+const collectActiveReachableNodeIds = (internetReachableMap?: Map<string, Set<string>>): Set<string> => {
+  const activeReachableNodeIds = new Set<string>();
+  if (!internetReachableMap) return activeReachableNodeIds;
+  for (const reachableSet of internetReachableMap.values()) {
+    for (const id of reachableSet) {
+      activeReachableNodeIds.add(id);
+    }
+  }
+  return activeReachableNodeIds;
+};
+
+const emitSimulationContextLog = (
+  get: () => FlowState,
+  level: string,
+  message: string,
+  category: string
+) => {
+  if (category === 'Simulation' && (level === 'warning' || level === 'error')) {
+    get()?.addActivityLog?.(`[${category}] ${message}`);
+  }
+  get()?.addLog?.(level as any, message, 'Simulation');
+};
+
+const isBroadcastWorkloadNode = (n: Node): boolean =>
+  n.type === 'Deployment' ||
+  n.type === 'StatefulSet' ||
+  n.type === 'ReplicaSet' ||
+  (n.type === 'Pod' && !n.parentId);
+
+const shouldCommitNodeArray = (
+  hasStructuralChanges: boolean,
+  hasTrafficChanges: boolean,
+  ticks: number
+): boolean => {
+  if (hasStructuralChanges) return true;
+  if (!hasTrafficChanges) return false;
+  return process.env.NODE_ENV === 'test' || ticks % 7 === 0 || ticks <= 3;
+};
+
+/**
  * Executes a single tick of the simulation.
  * It updates metrics, processes workloads, and broadcasts changes to the UI and backend.
  *
@@ -390,16 +441,9 @@ const runSimulationTick = (params: {
   const { nodes: currentNodes, edges: currentEdges, simulationMetrics: currentMetrics } = state;
   const newMetrics = { ...currentMetrics };
   const updatedNodes = [...currentNodes];
-  let hasOverallChanges = false;
-
-  // 1. Transition pending pods to ready
-  if (updatePendingPods(updatedNodes, get)) {
-    hasOverallChanges = true;
-  }
-
-  // 2. Handle rolling updates for deployments
+  let hasStructuralChanges = updatePendingPods(updatedNodes, get);
   if (updateRollingDeployments(updatedNodes, get)) {
-    hasOverallChanges = true;
+    hasStructuralChanges = true;
   }
 
   const { edgeMap, targetEdgeMap } = buildEdgeMaps(currentEdges);
@@ -414,12 +458,7 @@ const runSimulationTick = (params: {
     ticks,
     get,
     set,
-    onLog: (level, message, category) => {
-      if (category === 'Simulation' && (level === 'warning' || level === 'error')) {
-        get()?.addActivityLog?.(`[${category}] ${message}`);
-      }
-      get()?.addLog?.(level as any, message, 'Simulation');
-    },
+    onLog: (level, message, category) => emitSimulationContextLog(get, level, message, category),
     syncDeployment,
     nodeMap,
     edgeMap,
@@ -430,62 +469,49 @@ const runSimulationTick = (params: {
     internetReachableMap: new Map()
   };
 
-  // 1. Update internet traffic first
-  for (const node of internetNodes) {
-    const { hasChanges } = updateInternetTraffic(node, ctx);
-    if (hasChanges) hasOverallChanges = true;
-  }
-
-  // 2. Pre-calculate reachability for internet nodes
+  let hasTrafficChanges = false;
   const activeEdgesSet = new Set(ctx.activeSimulationEdges);
   for (const node of internetNodes) {
+    if (updateInternetTraffic(node, ctx).hasChanges) {
+      hasTrafficChanges = true;
+    }
     const reachable = calculateReachability([node], edgeMap, activeEdgesSet, ctx.nodes);
     ctx.internetReachableMap?.set(node.id, reachable);
   }
 
-  // 3. Process workloads
-  workloads.forEach(dep => {
-    const { hasChanges } = processWorkloadSimulation(dep, ctx);
-    if (hasChanges) hasOverallChanges = true;
-  });
-
-  // Simulate logs for ALL resources continuously in the background
-  const hasActiveInternet = internetNodes.some(n => Number(n.data?.traffic ?? n.data?.trafficSpeed ?? 1) > 0);
-  const activeReachableNodeIds = new Set<string>();
-  if (ctx.internetReachableMap) {
-    for (const reachableSet of ctx.internetReachableMap.values()) {
-      for (const id of reachableSet) {
-        activeReachableNodeIds.add(id);
-      }
+  for (const dep of workloads) {
+    if (processWorkloadSimulation(dep, ctx).hasChanges) {
+      hasStructuralChanges = true;
     }
   }
 
+  const hasActiveInternet = internetNodes.some(n => Number(n.data?.traffic ?? n.data?.trafficSpeed ?? 1) > 0);
   simulateAllResourceLogs(updatedNodes, newMetrics, set, {
     ticks,
     hasActiveInternetTraffic: hasActiveInternet,
-    reachableNodeIds: activeReachableNodeIds,
+    reachableNodeIds: collectActiveReachableNodeIds(ctx.internetReachableMap),
   });
 
-  // Append pod creation activity logs on ticks 1, 2, and 3
   handleTicksActivityLogs(ticks, workloads, set);
 
-  set({ simulationMetrics: newMetrics, ...(hasOverallChanges ? { nodes: updatedNodes } : {}) });
+  const shouldCommitNodes = shouldCommitNodeArray(hasStructuralChanges, hasTrafficChanges, ticks);
+  if (!shouldCommitNodes && hasTrafficChanges) {
+    syncInPlaceTrafficNodes(currentNodes, updatedNodes);
+  }
+
+  set({ simulationMetrics: newMetrics, ...(shouldCommitNodes ? { nodes: updatedNodes } : {}) });
 
   const stopParams = { ticks, workloads, nodes: updatedNodes, metrics: newMetrics, set, simulationInterval: simulationIntervalObj };
   if (!checkEmergencyStop(stopParams)) {
     const hasHpa = updatedNodes.some(
       n => n.type === 'HPA' || (Array.isArray(n.data?.hpas) && n.data.hpas.length > 0)
     );
-    broadcastMetrics(
-      newMetrics,
-      updatedNodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)),
-      {
-        isSimulating: state.isSimulating,
-        isPaused: state.isPaused,
-        speed: state.simulationSpeed,
-        hasHpa,
-      }
-    );
+    broadcastMetrics(newMetrics, updatedNodes.filter(isBroadcastWorkloadNode), {
+      isSimulating: state.isSimulating,
+      isPaused: state.isPaused,
+      speed: state.simulationSpeed,
+      hasHpa,
+    });
   }
 };
 

@@ -51,10 +51,18 @@ export const updateNodeData = (ctx: SimulationContext, id: string, newData: any)
   }
 
   if (nodeIndex !== undefined && nodeIndex !== -1) {
-    ctx.updatedNodes[nodeIndex] = {
+    const updatedNode = {
       ...ctx.updatedNodes[nodeIndex],
       data: { ...ctx.updatedNodes[nodeIndex].data, ...newData }
     };
+    ctx.updatedNodes[nodeIndex] = updatedNode;
+    ctx.nodeMap?.set(id, updatedNode);
+    if (ctx.internetNodes) {
+      const netIdx = ctx.internetNodes.findIndex(n => n.id === id);
+      if (netIdx !== -1) {
+        ctx.internetNodes[netIdx] = updatedNode;
+      }
+    }
     if (ctx.clusterGraph) {
       ctx.clusterGraph.updateNodeData(id, newData);
     }
