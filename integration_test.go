@@ -81,7 +81,7 @@ func verifyUpdatedProject(t *testing.T, app *App, tmpDir string, projID int64, u
 	}
 }
 
-func verifyExportImportBundle(t *testing.T, app *App, tmpDir string, updatedCanvas string) {
+func verifyExportImportBundle(t *testing.T, app *App, tmpDir, updatedCanvas string) {
 	exportPath := filepath.Join(tmpDir, "exported-arch.infra")
 	exportCtx := context.WithValue(context.WithValue(context.Background(), isTestKey, true), testFilePathKey, exportPath)
 	appCtx = exportCtx
