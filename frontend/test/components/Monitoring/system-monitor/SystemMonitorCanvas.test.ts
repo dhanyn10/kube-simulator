@@ -10,7 +10,7 @@ describe('SystemMonitor Task Manager Architecture', () => {
   describe('CircularRingBuffer (Zero-Allocation Memory)', () => {
     it('initializes with capacity and reports initial state', () => {
       const ring = new CircularRingBuffer(10);
-      expect(ring.length).toBe(0);
+      expect(ring).toHaveLength(0);
       expect(ring.maxCapacity).toBe(10);
       expect(ring.latest).toBe(0);
       expect(ring.toArray()).toEqual(new Float32Array([]));
@@ -22,7 +22,7 @@ describe('SystemMonitor Task Manager Architecture', () => {
       ring.push(20);
       ring.push(30);
 
-      expect(ring.length).toBe(3);
+      expect(ring).toHaveLength(3);
       expect(ring.latest).toBe(30);
       expect(ring.toArray()).toEqual(new Float32Array([10, 20, 30]));
     });
@@ -39,7 +39,7 @@ describe('SystemMonitor Task Manager Architecture', () => {
       ring.push(5);
       ring.push(6);
 
-      expect(ring.length).toBe(4);
+      expect(ring).toHaveLength(4);
       expect(ring.latest).toBe(6);
       expect(ring.toArray()).toEqual(new Float32Array([3, 4, 5, 6]));
     });
@@ -48,10 +48,10 @@ describe('SystemMonitor Task Manager Architecture', () => {
       const ring = new CircularRingBuffer(5);
       ring.push(100);
       ring.push(200);
-      expect(ring.length).toBe(2);
+      expect(ring).toHaveLength(2);
 
       ring.clear();
-      expect(ring.length).toBe(0);
+      expect(ring).toHaveLength(0);
       expect(ring.latest).toBe(0);
       expect(ring.toArray()).toEqual(new Float32Array([]));
     });

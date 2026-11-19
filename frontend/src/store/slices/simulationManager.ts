@@ -88,6 +88,12 @@ export const canStartSimulation = (nodes: Node[]): boolean => {
 let lastBroadcastTimestamp = 0;
 let lastBackendSnapshotTimestamp = 0;
 
+const getBroadcastThrottleMs = (speed: number): number => {
+  if (speed >= 10) return 100;
+  if (speed >= 5) return 60;
+  return 30;
+};
+
 /**
  * Broadcasts metrics to detached monitoring window and Wails backend.
  * Dynamically throttles high-speed 10x simulation to ~10 FPS (100ms) to prevent IPC flooding and GC freezes.
@@ -111,7 +117,7 @@ export const broadcastMetrics = (
   const isLive = Boolean(extraState?.isSimulating && !extraState?.isPaused);
   const now = Date.now();
   const speed = extraState?.speed ?? 1;
-  const throttleMs = speed >= 10 ? 100 : (speed >= 5 ? 60 : 30);
+  const throttleMs = getBroadcastThrottleMs(speed);
 
   if (
     process.env.NODE_ENV !== 'test' &&

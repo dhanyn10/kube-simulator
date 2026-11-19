@@ -20,7 +20,7 @@ export const hexToRgba = (hex: string, alpha: number): string => {
   if (c.length === 3) {
     c = `${c[0]}${c[0]}${c[1]}${c[1]}${c[2]}${c[2]}`;
   }
-  const num = parseInt(c, 16);
+  const num = Number.parseInt(c, 16);
   if (Number.isNaN(num)) return `rgba(59, 130, 246, ${alpha})`;
   const r = (num >> 16) & 255;
   const g = (num >> 8) & 255;

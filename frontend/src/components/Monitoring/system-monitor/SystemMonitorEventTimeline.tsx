@@ -19,6 +19,116 @@ export interface SystemMonitorEventTimelineProps {
   isDark?: boolean;
 }
 
+const buildIncidentFromPoint = (
+  dep: DeploymentSummary,
+  p: SimulationMetricPoint,
+  idx: number
+): ClusterIncidentEvent => {
+  const minIdx = typeof p.minuteIndex === 'number' ? ((p.minuteIndex % 1440) + 1440) % 1440 : idx;
+  const hh = String(Math.floor(minIdx / 60)).padStart(2, '0');
+  const mm = String(minIdx % 60).padStart(2, '0');
+  const timeStr = `${hh}:${mm}`;
+
+  if (p.isOOM) {
+    return {
+      id: `oom-${dep.id}-${minIdx}-${idx}`,
+      timestamp: timeStr,
+      type: 'oom',
+      level: 'critical',
+      title: `OOM Risk Detected on ${dep.label}`,
+      description: `Memory working set reached ${p.memoryValue || 0} MiB (Limit: ${p.memoryLimit || 256} MiB). Pod eviction imminent.`,
+    };
+  }
+
+  return {
+    id: `throttle-${dep.id}-${minIdx}-${idx}`,
+    timestamp: timeStr,
+    type: 'throttle',
+    level: 'warn',
+    title: `CPU Throttling on ${dep.label}`,
+    description: `CPU utilization hit 100% quota limit (${p.cpuValue || 0}m). CFS bandwidth throttle active.`,
+  };
+};
+
+const scanDeploymentIncidents = (
+  dep: DeploymentSummary,
+  points: SimulationMetricPoint[],
+  seen: Set<string>,
+  deduplicated: ClusterIncidentEvent[]
+) => {
+  const len = points.length;
+  const minBound = Math.max(0, len - 60);
+
+  for (let idx = len - 1; idx >= minBound; idx--) {
+    const p = points[idx];
+    if (!p.isOOM && !p.isThrottled) continue;
+
+    const type = p.isOOM ? 'oom' : 'throttle';
+    const key = `${type}-${dep.id}`;
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    deduplicated.push(buildIncidentFromPoint(dep, p, idx));
+    if (deduplicated.length >= 10) return;
+  }
+};
+
+const extractClusterIncidents = (
+  deployments: DeploymentSummary[],
+  metrics: Record<string, SimulationMetricPoint[]>
+): ClusterIncidentEvent[] => {
+  const deduplicated: ClusterIncidentEvent[] = [];
+  const seen = new Set<string>();
+
+  for (const dep of deployments) {
+    const points = metrics[dep.id] || [];
+    if (points.length === 0) continue;
+
+    scanDeploymentIncidents(dep, points, seen, deduplicated);
+    if (deduplicated.length >= 10) break;
+  }
+
+  return deduplicated;
+};
+
+const getIncidentIcon = (type: ClusterIncidentEvent['type'], level: ClusterIncidentEvent['level']) => {
+  if (level === 'critical') {
+    return <ShieldAlert size={13} className="text-rose-400 shrink-0" />;
+  }
+  if (type === 'throttle') {
+    return <Cpu size={13} className="text-amber-400 shrink-0" />;
+  }
+  if (type === 'scale') {
+    return <Layers size={13} className="text-purple-400 shrink-0" />;
+  }
+  return <AlertCircle size={13} className="text-blue-400 shrink-0" />;
+};
+
+const getIncidentBadgeClass = (level: ClusterIncidentEvent['level'], isDark: boolean) => {
+  if (level === 'critical') {
+    return isDark ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-rose-50 text-rose-800 border-rose-300';
+  }
+  if (level === 'warn') {
+    return isDark ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-amber-50 text-amber-800 border-amber-300';
+  }
+  return isDark ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' : 'bg-blue-50 text-blue-800 border-blue-300';
+};
+
+const getFilterButtonActiveClass = (
+  active: boolean,
+  level: 'all' | 'warn' | 'critical',
+  isDark: boolean
+): string => {
+  if (!active) return '';
+  if (level === 'warn') {
+    return isDark ? 'bg-amber-900/60 text-amber-300 font-bold' : 'bg-amber-100 text-amber-800 font-bold';
+  }
+  if (level === 'critical') {
+    return isDark ? 'bg-rose-900/60 text-rose-300 font-bold' : 'bg-rose-100 text-rose-800 font-bold';
+  }
+  return isDark ? 'bg-slate-700 text-white font-bold' : 'bg-slate-200 text-slate-800 font-bold';
+};
+
 export const SystemMonitorEventTimeline = memo(({
   deployments,
   metrics,
@@ -27,87 +137,20 @@ export const SystemMonitorEventTimeline = memo(({
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [filterLevel, setFilterLevel] = useState<'all' | 'warn' | 'critical'>('all');
 
-  const incidents = useMemo(() => {
-    const deduplicated: ClusterIncidentEvent[] = [];
-    const seen = new Set<string>();
-
-    for (let d = 0; d < deployments.length; d++) {
-      const dep = deployments[d];
-      const points = metrics[dep.id] || [];
-      const len = points.length;
-      if (len === 0) continue;
-
-      // Scan backwards from latest points (check recent points first)
-      const minBound = Math.max(0, len - 60);
-      for (let idx = len - 1; idx >= minBound; idx--) {
-        const p = points[idx];
-        if (!p.isOOM && !p.isThrottled) continue;
-
-        const type = p.isOOM ? 'oom' : 'throttle';
-        const key = `${type}-${dep.id}`;
-        if (seen.has(key)) continue;
-
-        seen.add(key);
-        const minIdx = typeof p.minuteIndex === 'number' ? ((p.minuteIndex % 1440) + 1440) % 1440 : idx;
-        const hh = String(Math.floor(minIdx / 60)).padStart(2, '0');
-        const mm = String(minIdx % 60).padStart(2, '0');
-        const timeStr = `${hh}:${mm}`;
-
-        if (p.isOOM) {
-          deduplicated.push({
-            id: `oom-${dep.id}-${minIdx}-${idx}`,
-            timestamp: timeStr,
-            type: 'oom',
-            level: 'critical',
-            title: `OOM Risk Detected on ${dep.label}`,
-            description: `Memory working set reached ${p.memoryValue || 0} MiB (Limit: ${p.memoryLimit || 256} MiB). Pod eviction imminent.`,
-          });
-        } else {
-          deduplicated.push({
-            id: `throttle-${dep.id}-${minIdx}-${idx}`,
-            timestamp: timeStr,
-            type: 'throttle',
-            level: 'warn',
-            title: `CPU Throttling on ${dep.label}`,
-            description: `CPU utilization hit 100% quota limit (${p.cpuValue || 0}m). CFS bandwidth throttle active.`,
-          });
-        }
-
-        if (deduplicated.length >= 10) break;
-      }
-      if (deduplicated.length >= 10) break;
-    }
-
-    return deduplicated;
-  }, [deployments, metrics]);
+  const incidents = useMemo(
+    () => extractClusterIncidents(deployments, metrics),
+    [deployments, metrics]
+  );
 
   const filteredIncidents = useMemo(() => {
     if (filterLevel === 'all') return incidents;
     return incidents.filter((inc) => inc.level === filterLevel);
   }, [incidents, filterLevel]);
 
-  const getIncidentIcon = (type: ClusterIncidentEvent['type'], level: ClusterIncidentEvent['level']) => {
-    if (level === 'critical') {
-      return <ShieldAlert size={13} className="text-rose-400 shrink-0" />;
-    }
-    if (type === 'throttle') {
-      return <Cpu size={13} className="text-amber-400 shrink-0" />;
-    }
-    if (type === 'scale') {
-      return <Layers size={13} className="text-purple-400 shrink-0" />;
-    }
-    return <AlertCircle size={13} className="text-blue-400 shrink-0" />;
-  };
-
-  const getIncidentBadgeClass = (level: ClusterIncidentEvent['level']) => {
-    if (level === 'critical') {
-      return isDark ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-rose-50 text-rose-800 border-rose-300';
-    }
-    if (level === 'warn') {
-      return isDark ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-amber-50 text-amber-800 border-amber-300';
-    }
-    return isDark ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' : 'bg-blue-50 text-blue-800 border-blue-300';
-  };
+  const hasCritical = incidents.some((i) => i.level === 'critical');
+  const countBadgeClass = hasCritical
+    ? 'bg-rose-500/20 text-rose-400 border-rose-500/40'
+    : 'bg-blue-500/20 text-blue-400 border-blue-500/40';
 
   return (
     <div
@@ -129,12 +172,7 @@ export const SystemMonitorEventTimeline = memo(({
           <Bell size={13} className="text-blue-500" />
           <span>Cluster Incidents & Autoscaling Event Timeline</span>
           {incidents.length > 0 && (
-            <span className={cn(
-              "px-1.5 py-0.2 rounded-full text-[9px] font-bold border",
-              incidents.some(i => i.level === 'critical')
-                ? "bg-rose-500/20 text-rose-400 border-rose-500/40"
-                : "bg-blue-500/20 text-blue-400 border-blue-500/40"
-            )}>
+            <span className={cn("px-1.5 py-0.2 rounded-full text-[9px] font-bold border", countBadgeClass)}>
               {incidents.length}
             </span>
           )}
@@ -146,21 +184,21 @@ export const SystemMonitorEventTimeline = memo(({
             <button
               type="button"
               onClick={() => setFilterLevel('all')}
-              className={cn("px-1.5 py-0.5 rounded transition-colors", filterLevel === 'all' && (isDark ? "bg-slate-700 text-white font-bold" : "bg-slate-200 text-slate-800 font-bold"))}
+              className={cn("px-1.5 py-0.5 rounded transition-colors", getFilterButtonActiveClass(filterLevel === 'all', 'all', isDark))}
             >
               All
             </button>
             <button
               type="button"
               onClick={() => setFilterLevel('warn')}
-              className={cn("px-1.5 py-0.5 rounded transition-colors", filterLevel === 'warn' && (isDark ? "bg-amber-900/60 text-amber-300 font-bold" : "bg-amber-100 text-amber-800 font-bold"))}
+              className={cn("px-1.5 py-0.5 rounded transition-colors", getFilterButtonActiveClass(filterLevel === 'warn', 'warn', isDark))}
             >
               Warnings
             </button>
             <button
               type="button"
               onClick={() => setFilterLevel('critical')}
-              className={cn("px-1.5 py-0.5 rounded transition-colors", filterLevel === 'critical' && (isDark ? "bg-rose-900/60 text-rose-300 font-bold" : "bg-rose-100 text-rose-800 font-bold"))}
+              className={cn("px-1.5 py-0.5 rounded transition-colors", getFilterButtonActiveClass(filterLevel === 'critical', 'critical', isDark))}
             >
               Critical
             </button>
@@ -198,7 +236,7 @@ export const SystemMonitorEventTimeline = memo(({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold">{inc.title}</span>
-                      <span className={cn("px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider border font-bold", getIncidentBadgeClass(inc.level))}>
+                      <span className={cn("px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider border font-bold", getIncidentBadgeClass(inc.level, isDark))}>
                         {inc.level}
                       </span>
                     </div>

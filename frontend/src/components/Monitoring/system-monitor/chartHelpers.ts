@@ -178,8 +178,7 @@ export const calculateDynamicYMax = (
     return minFloor;
   }
   let peak = 0;
-  for (let i = 0; i < len; i++) {
-    const v = values[i];
+  for (const v of values) {
     if (v > peak) peak = v;
   }
   if (peak <= 0) {
@@ -231,8 +230,7 @@ export const calculateSeriesStats = (
   let min = data[0];
   let max = data[0];
   let sum = 0;
-  for (let i = 0; i < len; i++) {
-    const v = data[i];
+  for (const v of data) {
     if (v < min) min = v;
     if (v > max) max = v;
     sum += v;
@@ -334,6 +332,58 @@ export const buildSvgPoints = (
   return result;
 };
 
+const collectMetricBuckets = (
+  points: SimulationMetricPoint[],
+  metricKey: keyof SimulationMetricPoint,
+  intervalMinutes: number,
+  dayBuckets: number
+) => {
+  let cycle = 0;
+  let lastRawMinute = -1;
+  const bucketSums = new Map<number, number>();
+  const bucketCounts = new Map<number, number>();
+
+  for (const p of points) {
+    const rawMin = p.minuteIndex ?? 0;
+    if (lastRawMinute >= 0 && rawMin < lastRawMinute) {
+      cycle++;
+    }
+    lastRawMinute = rawMin;
+
+    const minIdx = ((rawMin % 1440) + 1440) % 1440;
+    const bIdx = cycle * dayBuckets + Math.floor(minIdx / intervalMinutes);
+    const val = Number(p[metricKey]) || 0;
+
+    bucketSums.set(bIdx, (bucketSums.get(bIdx) || 0) + val);
+    bucketCounts.set(bIdx, (bucketCounts.get(bIdx) || 0) + 1);
+  }
+
+  return { bucketSums, bucketCounts };
+};
+
+const buildContiguousBucketAverages = (
+  bucketSums: Map<number, number>,
+  bucketCounts: Map<number, number>,
+  allBucketIndices: number[],
+  capacity: number
+): number[] => {
+  const firstB = allBucketIndices[0];
+  const maxB = allBucketIndices.at(-1)!;
+  const fullData: number[] = [];
+
+  let lastAvg = 0;
+  for (let b = firstB; b <= maxB; b++) {
+    const sum = bucketSums.get(b);
+    const count = bucketCounts.get(b);
+    if (count && count > 0 && sum !== undefined) {
+      lastAvg = sum / count;
+    }
+    fullData.push(Math.round(lastAvg * 10) / 10);
+  }
+
+  return fullData.slice(-capacity);
+};
+
 /**
  * Aggregates simulation metric points based on specified interval,
  * committing fixed points and streaming like Windows Task Manager oscilloscope.
@@ -375,47 +425,13 @@ export const aggregateMetricSeries = (
     };
   }
 
-  let cycle = 0;
-  let lastRawMinute = -1;
-  const bucketSums = new Map<number, number>();
-  const bucketCounts = new Map<number, number>();
-
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    const rawMin = p.minuteIndex ?? 0;
-    if (lastRawMinute >= 0 && rawMin < lastRawMinute) {
-      cycle++;
-    }
-    lastRawMinute = rawMin;
-
-    const minIdx = ((rawMin % 1440) + 1440) % 1440;
-    const bIdx = cycle * dayBuckets + Math.floor(minIdx / intervalMinutes);
-    const val = Number(p[metricKey]) || 0;
-
-    bucketSums.set(bIdx, (bucketSums.get(bIdx) || 0) + val);
-    bucketCounts.set(bIdx, (bucketCounts.get(bIdx) || 0) + 1);
-  }
-
+  const { bucketSums, bucketCounts } = collectMetricBuckets(points, metricKey, intervalMinutes, dayBuckets);
   const allBucketIndices = Array.from(bucketSums.keys()).sort((a, b) => a - b);
   if (allBucketIndices.length === 0) {
     return defaultEmpty;
   }
 
-  const firstB = allBucketIndices[0];
-  const maxB = allBucketIndices.at(-1)!;
-  const fullData: number[] = [];
-
-  let lastAvg = 0;
-  for (let b = firstB; b <= maxB; b++) {
-    const sum = bucketSums.get(b);
-    const count = bucketCounts.get(b);
-    if (count && count > 0 && sum !== undefined) {
-      lastAvg = sum / count;
-    }
-    fullData.push(Math.round(lastAvg * 10) / 10);
-  }
-
-  const aggregatedData = fullData.slice(-capacity);
+  const aggregatedData = buildContiguousBucketAverages(bucketSums, bucketCounts, allBucketIndices, capacity);
 
   // Windows Task Manager oscilloscope: stream linear polyline from right to left
   const svgPoints = buildSvgPoints(aggregatedData, maxVal, viewWidth, viewHeight, capacity);
@@ -457,6 +473,41 @@ const aggregateUnindexedNetworkMetrics = (
   return { rpsArr, latArr };
 };
 
+const accumulateDeploymentNetworkBuckets = (
+  dep: DeploymentSummary,
+  points: SimulationMetricPoint[],
+  intervalMinutes: number,
+  dayBuckets: number,
+  bucketRpsSum: Map<number, number>,
+  bucketRpsCount: Map<number, number>,
+  bucketLat: Map<number, number>
+) => {
+  const replicas = dep.replicas || 1;
+  let cycle = 0;
+  let lastRawMin = -1;
+
+  for (const p of points) {
+    const rawMin = p.minuteIndex ?? 0;
+    if (lastRawMin >= 0 && rawMin < lastRawMin) {
+      cycle++;
+    }
+    lastRawMin = rawMin;
+
+    const minIdx = ((rawMin % 1440) + 1440) % 1440;
+    const bIdx = cycle * dayBuckets + Math.floor(minIdx / intervalMinutes);
+    const rps = Math.round((p.cpuPercent || 0) * 15 * replicas);
+    const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
+
+    bucketRpsSum.set(bIdx, (bucketRpsSum.get(bIdx) || 0) + rps);
+    bucketRpsCount.set(bIdx, (bucketRpsCount.get(bIdx) || 0) + 1);
+
+    const existingLat = bucketLat.get(bIdx) || 0;
+    if (lat > existingLat) {
+      bucketLat.set(bIdx, lat);
+    }
+  }
+};
+
 const aggregateBucketNetworkMetrics = (
   deployments: DeploymentSummary[],
   metrics: Record<string, SimulationMetricPoint[]>,
@@ -469,34 +520,9 @@ const aggregateBucketNetworkMetrics = (
   const bucketRpsCount = new Map<number, number>();
   const bucketLat = new Map<number, number>();
 
-  for (let d = 0; d < deployments.length; d++) {
-    const dep = deployments[d];
+  for (const dep of deployments) {
     const points = metrics[dep.id] || [];
-    const replicas = dep.replicas || 1;
-    let cycle = 0;
-    let lastRawMin = -1;
-
-    for (let i = 0; i < points.length; i++) {
-      const p = points[i];
-      const rawMin = p.minuteIndex ?? 0;
-      if (lastRawMin >= 0 && rawMin < lastRawMin) {
-        cycle++;
-      }
-      lastRawMin = rawMin;
-
-      const minIdx = ((rawMin % 1440) + 1440) % 1440;
-      const bIdx = cycle * dayBuckets + Math.floor(minIdx / intervalMinutes);
-      const rps = Math.round((p.cpuPercent || 0) * 15 * replicas);
-      const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
-
-      bucketRpsSum.set(bIdx, (bucketRpsSum.get(bIdx) || 0) + rps);
-      bucketRpsCount.set(bIdx, (bucketRpsCount.get(bIdx) || 0) + 1);
-
-      const existingLat = bucketLat.get(bIdx) || 0;
-      if (lat > existingLat) {
-        bucketLat.set(bIdx, lat);
-      }
-    }
+    accumulateDeploymentNetworkBuckets(dep, points, intervalMinutes, dayBuckets, bucketRpsSum, bucketRpsCount, bucketLat);
   }
 
   const allIndices = Array.from(bucketRpsSum.keys()).sort((a, b) => a - b);

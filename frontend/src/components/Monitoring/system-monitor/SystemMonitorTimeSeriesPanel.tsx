@@ -94,6 +94,20 @@ export const DynamicThresholdLines = ({ lines, isDark = true }: DynamicThreshold
   );
 };
 
+const findDeploymentPeakValue = (
+  points: readonly Record<string, any>[] | undefined,
+  metricKey: string,
+  currentPeak: number
+): number => {
+  if (!points) return currentPeak;
+  let peak = currentPeak;
+  for (const pt of points) {
+    const val = Number(pt[metricKey]);
+    if (val > peak) peak = val;
+  }
+  return peak;
+};
+
 export const SystemMonitorTimeSeriesPanel = memo(({
   title,
   description,
@@ -112,14 +126,8 @@ export const SystemMonitorTimeSeriesPanel = memo(({
 
   const dynamicMax = useMemo(() => {
     let peak = 0;
-    for (let d = 0; d < deployments.length; d++) {
-      const points = metrics[deployments[d].id];
-      if (points) {
-        for (let p = 0; p < points.length; p++) {
-          const val = Number(points[p][metricKey]);
-          if (val > peak) peak = val;
-        }
-      }
+    for (const dep of deployments) {
+      peak = findDeploymentPeakValue(metrics[dep.id], metricKey, peak);
     }
     const floor =
       metricKey === 'memoryValue'

@@ -48,7 +48,7 @@ export const triggerFileDownload = (content: string, filename: string, mimeType:
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  a.remove();
   URL.revokeObjectURL(url);
 };
 
