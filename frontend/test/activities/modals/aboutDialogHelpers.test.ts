@@ -126,4 +126,52 @@ describe('aboutDialogHelpers', () => {
       isPrerelease: false,
     });
   });
+
+  it('fetches system info and update info from custom gateway when rawApp is absent', async () => {
+    delete (globalThis.window as any).go;
+
+    const mockGateway: any = {
+      getSystemInfo: vi.fn().mockResolvedValue({
+        os: 'darwin',
+        arch: 'arm64',
+        goVersion: 'go1.23.0',
+        version: '2.0.0',
+      }),
+      checkForUpdates: vi.fn().mockResolvedValue({
+        currentVersion: '2.0.0',
+        latestVersion: '2.1.0',
+        updateAvailable: true,
+        releaseUrl: 'https://github.com/release',
+        isPrerelease: false,
+      }),
+    };
+
+    let setSys: SystemInfo | null = null;
+    let setVer = '';
+    let setUpd: UpdateInfo | null = null;
+
+    await fetchAboutData(
+      '1.0.0',
+      (info) => { setSys = info; },
+      (v) => { setVer = v; },
+      (u) => { setUpd = u; },
+      null,
+      mockGateway
+    );
+
+    expect(setSys).toEqual({
+      os: 'darwin',
+      arch: 'arm64',
+      goVersion: 'go1.23.0',
+      version: '2.0.0',
+    });
+    expect(setVer).toBe('2.0.0');
+    expect(setUpd).toEqual({
+      currentVersion: '2.0.0',
+      latestVersion: '2.1.0',
+      updateAvailable: true,
+      releaseUrl: 'https://github.com/release',
+      isPrerelease: false,
+    });
+  });
 });

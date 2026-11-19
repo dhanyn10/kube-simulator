@@ -1,3 +1,8 @@
+import { getBackendGateway, WailsBackendGateway, IBackendGateway } from '@/gateway';
+import { isWailsDesktop } from '@/lib/mocks';
+import { APP_VERSION } from '@/constants/config';
+import { logger } from '@/lib/logger';
+
 export interface SystemInfo {
   os: string;
   arch: string;
@@ -13,6 +18,47 @@ export interface UpdateInfo {
   isPrerelease: boolean;
 }
 
+const resolveRawApp = () => {
+  const g = globalThis as any;
+  return g?.go?.main?.App || g?.window?.go?.main?.App || null;
+};
+
+const fetchSystemInfo = async (
+  rawApp: any,
+  gateway: IBackendGateway
+): Promise<SystemInfo> => {
+  let info: any = null;
+  if (rawApp?.GetSystemInfo) {
+    info = await rawApp.GetSystemInfo();
+  } else if (isWailsDesktop() || !(gateway instanceof WailsBackendGateway)) {
+    info = await gateway.getSystemInfo();
+  }
+
+  return {
+    os: info?.os ?? '',
+    arch: info?.arch ?? '',
+    goVersion: info?.goVersion ?? '',
+    version: info?.version ?? '',
+  };
+};
+
+const fetchUpdateInfo = async (
+  rawApp: any,
+  gateway: IBackendGateway,
+  version: string
+): Promise<UpdateInfo | null> => {
+  if (rawApp) {
+    if (typeof rawApp.CheckForUpdates === 'function') {
+      return rawApp.CheckForUpdates(version);
+    }
+    return null;
+  }
+  if (isWailsDesktop() || !(gateway instanceof WailsBackendGateway)) {
+    return gateway.checkForUpdates(version);
+  }
+  return null;
+};
+
 /**
  * Fetches system information and checks for available software updates.
  */
@@ -20,27 +66,24 @@ export const fetchAboutData = async (
   appVersion: string,
   setSystemInfo: (info: SystemInfo) => void,
   setAppVersion: (v: string) => void,
-  setUpdateInfo: (u: UpdateInfo) => void,
-  simulatedUpdateInfo?: { latestVersion: string; releaseUrl: string } | null
+  setUpdateInfo: (u: UpdateInfo | null) => void,
+  simulatedUpdateInfo?: { latestVersion: string; releaseUrl: string } | null,
+  gateway: IBackendGateway = getBackendGateway()
 ): Promise<void> => {
-  const app = globalThis.window?.go?.main?.App;
-  let sys: SystemInfo = { os: '', arch: '', goVersion: '', version: '' };
+  const rawApp = resolveRawApp();
 
-  if (app?.GetSystemInfo) {
-    const info = await app.GetSystemInfo();
-    sys = {
-      os: (info as any).os ?? '',
-      arch: (info as any).arch ?? '',
-      goVersion: (info as any).goVersion ?? '',
-      version: (info as any).version ?? '',
-    };
+  let sys: SystemInfo = { os: '', arch: '', goVersion: '', version: '' };
+  try {
+    sys = await fetchSystemInfo(rawApp, gateway);
     setSystemInfo(sys);
     if (sys.version) {
       setAppVersion(sys.version);
     }
+  } catch (err) {
+    logger.error('Failed to get system info:', err);
   }
 
-  const effectiveVersion = sys.version || appVersion;
+  const effectiveVersion = sys.version || appVersion || APP_VERSION;
 
   if (simulatedUpdateInfo) {
     setUpdateInfo({
@@ -53,9 +96,12 @@ export const fetchAboutData = async (
     return;
   }
 
-  if (app?.CheckForUpdates) {
-    const update = await app.CheckForUpdates(effectiveVersion);
+  try {
+    const update = await fetchUpdateInfo(rawApp, gateway, effectiveVersion);
     setUpdateInfo(update);
+  } catch (err) {
+    logger.error('Failed to check for updates:', err);
+    setUpdateInfo(null);
   }
 };
 

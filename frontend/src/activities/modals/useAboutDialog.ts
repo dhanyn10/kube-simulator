@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useFlowStore } from '@/store';
 import { logger } from '@/lib/logger';
 import { fetchAboutData, formatAboutCopyText, SystemInfo, UpdateInfo } from './aboutDialogHelpers';
@@ -20,12 +20,13 @@ export const useAboutDialog = ({ isOpen }: UseAboutDialogProps) => {
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen) return;
+  const appVersionRef = useRef(appVersion);
+  appVersionRef.current = appVersion;
 
+  const loadData = useCallback(() => {
     setIsCheckingUpdate(true);
     fetchAboutData(
-      appVersion,
+      appVersionRef.current,
       setSystemInfo,
       (v) => setAppVersion(simulatedCurrentVersion || v),
       setUpdateInfo,
@@ -33,7 +34,13 @@ export const useAboutDialog = ({ isOpen }: UseAboutDialogProps) => {
     )
       .catch((error) => logger.error('Failed to fetch info:', error))
       .finally(() => setIsCheckingUpdate(false));
-  }, [isOpen, appVersion, simulatedUpdateInfo, simulatedCurrentVersion]);
+  }, [simulatedUpdateInfo, simulatedCurrentVersion]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadData();
+    }
+  }, [isOpen, loadData]);
 
   const displayVersion = simulatedCurrentVersion || appVersion;
 
@@ -58,5 +65,6 @@ export const useAboutDialog = ({ isOpen }: UseAboutDialogProps) => {
     isCheckingUpdate,
     copied,
     handleCopy,
+    handleRetry: loadData,
   };
 };
