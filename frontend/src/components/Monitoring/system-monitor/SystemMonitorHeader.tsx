@@ -1,8 +1,6 @@
 import { memo, type CSSProperties } from 'react';
 import { Play, Pause, Square, Clock, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { isWailsDesktop } from '@/lib/mocks';
-import { getBackendGateway } from '@/gateway';
 import { WindowControls } from '@/components/Layout';
 import { TimeRangeFilter, SimulationSpeed, SystemMonitorColorMode } from './types';
 
@@ -16,6 +14,8 @@ interface SystemMonitorHeaderProps {
   readonly colorMode: SystemMonitorColorMode;
   readonly simulatedTime?: string;
   readonly canStart?: boolean;
+  readonly onClose?: () => void;
+  readonly onMaximize?: () => void;
 }
 
 const TICK_INTERVAL_MAP: Record<SimulationSpeed, string> = {
@@ -293,20 +293,11 @@ export const SystemMonitorHeader = memo(({
   colorMode,
   simulatedTime = '00:00',
   canStart = true,
+  onClose,
+  onMaximize,
 }: SystemMonitorHeaderProps) => {
   const isDark = colorMode === 'dark';
   const tickInterval = TICK_INTERVAL_MAP[simulationSpeed] || '150ms';
-
-  const handleWindowClose = () => {
-    void getBackendGateway().closeSimulationWindow();
-    if (!isWailsDesktop() && process.env.NODE_ENV !== 'test') {
-      try {
-        globalThis.close?.();
-      } catch {
-        // Fallback for browser popup
-      }
-    }
-  };
 
   return (
     <header className="flex flex-col shrink-0 select-none">
@@ -314,7 +305,7 @@ export const SystemMonitorHeader = memo(({
       <div
         data-testid="system-monitor-header"
         style={{ '--wails-draggable': 'drag' } as CSSProperties}
-        onDoubleClick={() => void getBackendGateway().maximizeWindow()}
+        onDoubleClick={onMaximize}
         className={cn(
           'h-10 border-b flex items-center justify-between pl-3 pr-0 z-50 text-xs transition-colors gap-2',
           isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
@@ -335,7 +326,7 @@ export const SystemMonitorHeader = memo(({
         <div className="shrink-0">
           <WindowControls
             colorMode={colorMode}
-            onClose={handleWindowClose}
+            onClose={onClose}
           />
         </div>
       </div>

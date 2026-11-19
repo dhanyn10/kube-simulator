@@ -1,6 +1,5 @@
 export * from './types';
 export * from './chartHelpers';
-export * from './useSystemMonitorDashboard';
 export * from './SystemMonitorHeader';
 export * from './SystemMonitorStatCard';
 export * from './SystemMonitorTimeSeriesPanel';

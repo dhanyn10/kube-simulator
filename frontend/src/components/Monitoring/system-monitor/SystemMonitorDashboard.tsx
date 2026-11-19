@@ -1,12 +1,9 @@
 import { useEffect, useState, useMemo, type MouseEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { Cpu, Database, Server, Activity, AlertCircle, Radio } from 'lucide-react';
-import { getBackendGateway } from '@/gateway';
-import { isWailsDesktop } from '@/lib/mocks';
-import { useFlowStore } from '@/store';
 import { SimulationMetricPoint } from '@/store/types';
+import { useSystemMonitorDashboard } from '@/activities/monitoring';
 import { DeploymentSummary } from './types';
-import { useSystemMonitorDashboard } from './useSystemMonitorDashboard';
 import { SystemMonitorHeader } from './SystemMonitorHeader';
 import { SystemMonitorStatCard } from './SystemMonitorStatCard';
 import { SystemMonitorTimeSeriesPanel } from './SystemMonitorTimeSeriesPanel';
@@ -108,6 +105,8 @@ export const SystemMonitorDashboard = () => {
     canStart,
     hasHpa,
     hpaTarget,
+    handleCloseWindow,
+    handleMaximizeWindow,
   } = useSystemMonitorDashboard();
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -115,19 +114,6 @@ export const SystemMonitorDashboard = () => {
   const handleContextMenu = (e: MouseEvent) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleCloseWindow = () => {
-    void getBackendGateway().closeSimulationWindow();
-    useFlowStore.getState().setMonitoringOpen(false);
-    useFlowStore.getState().setMonitoringDetached(false);
-    if (!isWailsDesktop() && process.env.NODE_ENV !== 'test') {
-      try {
-        globalThis.close?.();
-      } catch {
-        // Fallback for browser popup
-      }
-    }
   };
 
   useEffect(() => {
@@ -166,6 +152,8 @@ export const SystemMonitorDashboard = () => {
         colorMode={colorMode}
         simulatedTime={simulatedTime}
         canStart={canStart}
+        onClose={handleCloseWindow}
+        onMaximize={handleMaximizeWindow}
       />
 
       {/* Main Dashboard Body: scrollbar lives inside the window with a right gutter so the
