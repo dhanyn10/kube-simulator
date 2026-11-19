@@ -140,10 +140,11 @@ export const broadcastMetrics = (
     metricsChannel.postMessage({ type: 'METRICS_UPDATE', ...payload });
   }
 
+  const serialized = JSON.stringify(payload);
   const runtime = getRuntime();
-  runtime?.EventsEmit?.('metrics-update', JSON.stringify(payload));
+  runtime?.EventsEmit?.('metrics-update', serialized);
 
-  void getBackendGateway().broadcastSimulationSnapshot(JSON.stringify(payload));
+  void getBackendGateway().broadcastSimulationSnapshot(serialized);
 };
 
 /**

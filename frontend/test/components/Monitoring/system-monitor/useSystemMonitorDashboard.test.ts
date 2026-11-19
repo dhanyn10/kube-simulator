@@ -83,4 +83,62 @@ describe('useSystemMonitorDashboard hook', () => {
     unmount();
     useFlowStore.setState({ nodes: [] });
   });
+
+  it('deduplicates metrics-update events with the same or older timestamp', async () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') {
+        metricsCallback = cb;
+      }
+      return () => {};
+    });
+
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    const payload1 = {
+      timestamp: 1000,
+      deployments: [{ id: 'dep-1', label: 'web', replicas: 2 }],
+      isSimulating: true,
+      speed: 5,
+    };
+
+    act(() => {
+      metricsCallback?.(JSON.stringify(payload1));
+    });
+
+    expect(result.current.deployments).toHaveLength(1);
+    expect(result.current.simulationSpeed).toBe(5);
+
+    // Send redundant event with same timestamp
+    const payloadRedundant = {
+      timestamp: 1000,
+      deployments: [{ id: 'dep-1', label: 'web', replicas: 99 }],
+      isSimulating: true,
+      speed: 1,
+    };
+
+    act(() => {
+      metricsCallback?.(JSON.stringify(payloadRedundant));
+    });
+
+    // Should ignore payloadRedundant because timestamp <= 1000
+    expect(result.current.simulationSpeed).toBe(5);
+    expect(result.current.deployments[0].replicas).toBe(2);
+
+    // Send newer event with timestamp 2000
+    const payloadNewer = {
+      timestamp: 2000,
+      deployments: [{ id: 'dep-1', label: 'web', replicas: 4 }],
+      isSimulating: true,
+      speed: 10,
+    };
+
+    act(() => {
+      metricsCallback?.(JSON.stringify(payloadNewer));
+    });
+
+    expect(result.current.simulationSpeed).toBe(10);
+    expect(result.current.deployments[0].replicas).toBe(4);
+  });
 });

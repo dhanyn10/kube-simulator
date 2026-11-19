@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
@@ -13,6 +13,8 @@ import {
   SystemMonitorChartCanvas,
   useChartScales,
 } from './SystemMonitorChartAxes';
+import { SystemMonitorScrubber, type ScrubberSeriesValue } from './SystemMonitorScrubber';
+import { SystemMonitorCanvasRenderer, type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
 import { Activity, Globe } from 'lucide-react';
 
 export type SystemMonitorNetworkPanelProps = BaseSystemMonitorPanelProps;
@@ -37,6 +39,55 @@ export const SystemMonitorNetworkPanel = ({
   const rpsPoints = buildSvgPoints(rpsData, dynamicMaxRps, 500, 100, capacity);
   const areaPath = buildAreaPath(rpsPoints, 500, 100);
   const { yScale, xTicks } = useChartScales(dynamicMaxRps, ' req/s', interval);
+
+  const canvasSeries: CanvasSeriesItem[] = useMemo(() => [
+    {
+      id: 'network-rps',
+      color: '#10b981',
+      data: rpsData,
+      isArea: true,
+      lineWidth: 1.75,
+    },
+  ], [rpsData]);
+
+  const [hoverState, setHoverState] = useState<{
+    percent: number;
+    timeLabel: string;
+  } | null>(null);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const percent = Math.round((x / rect.width) * 1000) / 10;
+    const minute = Math.round((percent / 100) * 1440);
+    const hh = String(Math.floor(minute / 60)).padStart(2, '0');
+    const mm = String(minute % 60).padStart(2, '0');
+    setHoverState({ percent, timeLabel: `${hh}:${mm}` });
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoverState(null);
+  }, []);
+
+  const scrubberValues: ScrubberSeriesValue[] = useMemo(() => {
+    if (!hoverState) return [];
+    const len = rpsData.length;
+    let val = currentRps;
+    if (len > 0) {
+      const idx = Math.min(len - 1, Math.max(0, Math.round((hoverState.percent / 100) * (len - 1))));
+      val = rpsData[idx] ?? currentRps;
+    }
+    return [
+      {
+        id: 'ingress-rps',
+        label: 'Ingress Traffic',
+        color: '#10b981',
+        value: val.toLocaleString('en-US'),
+        unit: ' req/s',
+      },
+    ];
+  }, [hoverState, rpsData, currentRps]);
 
   return (
     <SystemMonitorPanelCard
@@ -66,26 +117,17 @@ export const SystemMonitorNetworkPanel = ({
         isDark={isDark}
         xTicks={xTicks}
         yScaleTicks={yScale.ticks}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        overlay={hoverState ? <SystemMonitorScrubber hoverPercent={hoverState.percent} timeLabel={hoverState.timeLabel} values={scrubberValues} isDark={isDark} /> : undefined}
         isEmpty={deployments.length === 0}
         emptyText="No active traffic simulation"
       >
-        <svg aria-hidden="true" viewBox="0 0 500 100" className="w-full h-full" preserveAspectRatio="none">
-          <path
-            d={areaPath}
-            fill="#10b981"
-            fillOpacity="0.15"
-            className="transition-all duration-150"
-          />
-          <polyline
-            fill="none"
-            stroke="#10b981"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            points={rpsPoints}
-            className="transition-all duration-150"
-          />
-        </svg>
+        <SystemMonitorCanvasRenderer
+          series={canvasSeries}
+          maxVal={dynamicMaxRps}
+          capacity={capacity}
+        />
       </SystemMonitorChartCanvas>
     </SystemMonitorPanelCard>
   );

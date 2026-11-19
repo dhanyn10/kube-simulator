@@ -66,6 +66,7 @@ export const useMonitoringDashboardHandler = () => {
   }, [isDragging]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault?.();
     isDraggingRef.current = true;
     setIsDragging(true);
     dragStart.current = {

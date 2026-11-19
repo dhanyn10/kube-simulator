@@ -131,10 +131,15 @@ export const calculateDynamicYMax = (
   minFloor: number = 100,
   headroom: number = 1.15
 ): number => {
-  if (!values || values.length === 0) {
+  const len = values?.length ?? 0;
+  if (len === 0) {
     return minFloor;
   }
-  const peak = Math.max(0, ...values);
+  let peak = 0;
+  for (let i = 0; i < len; i++) {
+    const v = values[i];
+    if (v > peak) peak = v;
+  }
   if (peak <= 0) {
     return minFloor;
   }
@@ -168,7 +173,7 @@ export const generateYAxisScale = (
 };
 
 /**
- * Computes min, max, avg, and current values for a numeric series.
+ * Computes min, max, avg, and current values for a numeric series in a single O(N) pass.
  */
 export const calculateSeriesStats = (
   id: string,
@@ -177,22 +182,29 @@ export const calculateSeriesStats = (
   data: number[],
   lastPoint?: { isThrottled?: boolean; isOOM?: boolean }
 ): SeriesStats => {
-  if (data.length === 0) {
+  const len = data.length;
+  if (len === 0) {
     return { id, label, color, current: 0, min: 0, max: 0, avg: 0 };
   }
-  const current = Math.round(data.at(-1) || 0);
-  const min = Math.round(Math.min(...data));
-  const max = Math.round(Math.max(...data));
-  const sum = data.reduce((acc, v) => acc + v, 0);
-  const avg = Math.round(sum / data.length);
+  let min = data[0];
+  let max = data[0];
+  let sum = 0;
+  for (let i = 0; i < len; i++) {
+    const v = data[i];
+    if (v < min) min = v;
+    if (v > max) max = v;
+    sum += v;
+  }
+  const current = Math.round(data[len - 1] || 0);
+  const avg = Math.round(sum / len);
 
   return {
     id,
     label,
     color,
     current,
-    min,
-    max,
+    min: Math.round(min),
+    max: Math.round(max),
     avg,
     isThrottled: lastPoint?.isThrottled,
     isOOM: lastPoint?.isOOM,
@@ -230,6 +242,7 @@ export const dataToCoords = (
 
 /**
  * Constructs an SVG path for area fill under the line, bounded between first point and viewWidth.
+ * High performance zero-split implementation.
  */
 export const buildAreaPath = (
   svgPoints: string,
@@ -237,14 +250,14 @@ export const buildAreaPath = (
   viewHeight: number = 140
 ): string => {
   if (!svgPoints) return `M0,${viewHeight} L${viewWidth},${viewHeight} Z`;
-  const firstCoord = svgPoints.split(' ')[0] || `0,${viewHeight}`;
-  const firstX = firstCoord.split(',')[0] || '0';
+  const commaIdx = svgPoints.indexOf(',');
+  const firstX = commaIdx > 0 ? svgPoints.slice(0, commaIdx) : '0';
   return `M${firstX},${viewHeight} L${svgPoints} L${viewWidth},${viewHeight} Z`;
 };
 
 /**
  * Generates an SVG polyline points string from data points streaming from right to left
- * (Windows Task Manager oscilloscope behavior).
+ * (Windows Task Manager oscilloscope behavior) directly in a single pass without intermediate objects.
  */
 export const buildSvgPoints = (
   data: number[],
@@ -253,9 +266,30 @@ export const buildSvgPoints = (
   viewHeight: number = 140,
   capacity?: number
 ): string => {
-  if (data.length === 0) return `0,${viewHeight} ${viewWidth},${viewHeight}`;
-  const coords = dataToCoords(data, maxVal, viewWidth, viewHeight, capacity);
-  return coords.map((p) => `${p.x},${p.y}`).join(' ');
+  const count = data.length;
+  if (count === 0) return `0,${viewHeight} ${viewWidth},${viewHeight}`;
+
+  const effectiveCapacity = capacity ? Math.max(count, capacity) : Math.max(30, count);
+  const stepX = viewWidth / Math.max(1, effectiveCapacity - 1);
+  const heightFactor = (viewHeight - 10) / Math.max(1, maxVal);
+
+  if (count === 1) {
+    const safeVal = Math.min(maxVal, Math.max(0, data[0]));
+    const y = Math.round(viewHeight - safeVal * heightFactor);
+    const x0 = Math.max(0, viewWidth - Math.round(stepX));
+    return `${x0},${y} ${viewWidth},${y}`;
+  }
+
+  let result = '';
+  for (let i = 0; i < count; i++) {
+    const x = Math.max(0, Math.round(viewWidth - (count - 1 - i) * stepX));
+    const val = data[i];
+    const safeVal = Math.min(maxVal, Math.max(0, val));
+    const y = Math.round(viewHeight - safeVal * heightFactor);
+    if (i > 0) result += ' ';
+    result += x + ',' + y;
+  }
+  return result;
 };
 
 /**
@@ -297,33 +331,35 @@ export const aggregateMetricSeries = (
     };
   }
 
-  const bucketMap = new Map<number, number[]>();
-  points.forEach((p) => {
-    const minIdx = ((p.minuteIndex ?? 0) % 1440 + 1440) % 1440;
-    const bIdx = Math.floor(minIdx / intervalMinutes);
-    const val = Number(p[metricKey]) || 0;
-    const existing = bucketMap.get(bIdx) || [];
-    existing.push(val);
-    bucketMap.set(bIdx, existing);
-  });
+  const bucketSums = new Float64Array(totalBuckets + 1);
+  const bucketCounts = new Uint16Array(totalBuckets + 1);
+  let maxBucket = -1;
 
-  const sortedBucketIndices = Array.from(bucketMap.keys()).sort((a, b) => a - b);
-  if (sortedBucketIndices.length === 0) {
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const minIdx = (((p.minuteIndex ?? 0) % 1440) + 1440) % 1440;
+    const bIdx = Math.floor(minIdx / intervalMinutes);
+    if (bIdx >= 0 && bIdx <= totalBuckets) {
+      bucketSums[bIdx] += Number(p[metricKey]) || 0;
+      bucketCounts[bIdx]++;
+      if (bIdx > maxBucket) {
+        maxBucket = bIdx;
+      }
+    }
+  }
+
+  if (maxBucket < 0) {
     return defaultEmpty;
   }
 
-  const maxBucket = sortedBucketIndices.at(-1)!;
-  const aggregatedData: number[] = [];
-
+  const aggregatedData: number[] = new Array(maxBucket + 1);
   let lastAvg = 0;
   for (let b = 0; b <= maxBucket; b++) {
-    const vals = bucketMap.get(b);
-    let avg = lastAvg;
-    if (vals && vals.length > 0) {
-      avg = vals.reduce((acc, curr) => acc + curr, 0) / vals.length;
-      lastAvg = avg;
+    const count = bucketCounts[b];
+    if (count > 0) {
+      lastAvg = bucketSums[b] / count;
     }
-    aggregatedData.push(Math.round(avg * 10) / 10);
+    aggregatedData[b] = Math.round(lastAvg * 10) / 10;
   }
 
   // Windows Task Manager oscilloscope: stream linear polyline from right to left
@@ -371,31 +407,39 @@ const aggregateBucketNetworkMetrics = (
   metrics: Record<string, SimulationMetricPoint[]>,
   intervalMinutes: number
 ) => {
-  const bucketRpsMap = new Map<number, number>();
-  const bucketLatMap = new Map<number, number>();
+  const totalBuckets = Math.round(1440 / intervalMinutes);
+  const bucketRps = new Float64Array(totalBuckets + 1);
+  const bucketLat = new Float64Array(totalBuckets + 1);
+  let maxB = -1;
 
-  deployments.forEach((dep) => {
+  for (let d = 0; d < deployments.length; d++) {
+    const dep = deployments[d];
     const points = metrics[dep.id] || [];
     const replicas = dep.replicas || 1;
-    points.forEach((p) => {
-      const minIdx = ((p.minuteIndex ?? 0) % 1440 + 1440) % 1440;
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      const minIdx = (((p.minuteIndex ?? 0) % 1440) + 1440) % 1440;
       const bIdx = Math.floor(minIdx / intervalMinutes);
-      const rps = Math.round((p.cpuPercent || 0) * 15 * replicas);
-      const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
+      if (bIdx >= 0 && bIdx <= totalBuckets) {
+        const rps = Math.round((p.cpuPercent || 0) * 15 * replicas);
+        const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
+        bucketRps[bIdx] += rps;
+        if (lat > bucketLat[bIdx]) {
+          bucketLat[bIdx] = lat;
+        }
+        if (bIdx > maxB) {
+          maxB = bIdx;
+        }
+      }
+    }
+  }
 
-      bucketRpsMap.set(bIdx, (bucketRpsMap.get(bIdx) || 0) + rps);
-      bucketLatMap.set(bIdx, Math.max(bucketLatMap.get(bIdx) || 0, lat));
-    });
-  });
-
-  const sortedIndices = Array.from(bucketRpsMap.keys()).sort((a, b) => a - b);
   const rpsArr: number[] = [];
   const latArr: number[] = [];
-  if (sortedIndices.length > 0) {
-    const maxB = sortedIndices.at(-1)!;
+  if (maxB >= 0) {
     for (let b = 0; b <= maxB; b++) {
-      rpsArr.push(bucketRpsMap.get(b) || 0);
-      latArr.push(bucketLatMap.get(b) || 0);
+      rpsArr.push(bucketRps[b]);
+      latArr.push(bucketLat[b]);
     }
   }
   return { rpsArr, latArr };

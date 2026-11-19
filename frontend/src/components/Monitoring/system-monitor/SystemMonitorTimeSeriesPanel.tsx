@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
@@ -8,6 +8,7 @@ import {
   calculateDynamicYMax,
   getThresholdReferenceLines,
   resolveMemoryLimit,
+  parseIntervalMinutes,
   ThresholdReferenceLine,
 } from './chartHelpers';
 import {
@@ -15,6 +16,8 @@ import {
   SystemMonitorChartCanvas,
   useChartScales,
 } from './SystemMonitorChartAxes';
+import { SystemMonitorScrubber, type ScrubberSeriesValue } from './SystemMonitorScrubber';
+import { SystemMonitorCanvasRenderer, type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
 import { ZapOff, AlertTriangle } from 'lucide-react';
 
 export interface SystemMonitorTimeSeriesPanelProps extends BaseSystemMonitorPanelProps {
@@ -110,19 +113,21 @@ export const SystemMonitorTimeSeriesPanel = ({
   const isDark = colorMode === 'dark';
 
   const dynamicMax = useMemo(() => {
-    const allValues: number[] = [];
-    deployments.forEach((dep) => {
-      const points = metrics[dep.id] || [];
-      points.forEach((p) => {
-        const val = Number(p[metricKey]);
-        if (!Number.isNaN(val)) allValues.push(val);
-      });
-    });
+    let peak = 0;
+    for (let d = 0; d < deployments.length; d++) {
+      const points = metrics[deployments[d].id];
+      if (points) {
+        for (let p = 0; p < points.length; p++) {
+          const val = Number(points[p][metricKey]);
+          if (val > peak) peak = val;
+        }
+      }
+    }
     const floor =
       metricKey === 'memoryValue'
         ? resolveMemoryLimit(deployments, metrics, maxVal)
         : maxVal;
-    return calculateDynamicYMax(allValues, floor);
+    return calculateDynamicYMax(peak > 0 ? [peak] : [], floor);
   }, [deployments, metrics, metricKey, maxVal]);
 
   const { yScale, xTicks } = useChartScales(dynamicMax, unit, interval);
@@ -148,6 +153,59 @@ export const SystemMonitorTimeSeriesPanel = ({
       };
     });
   }, [deployments, metrics, metricKey, dynamicMax, interval]);
+
+  const [hoverState, setHoverState] = useState<{
+    percent: number;
+    timeLabel: string;
+  } | null>(null);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const percent = Math.round((x / rect.width) * 1000) / 10;
+    const minute = Math.round((percent / 100) * 1440);
+    const hh = String(Math.floor(minute / 60)).padStart(2, '0');
+    const mm = String(minute % 60).padStart(2, '0');
+    setHoverState({ percent, timeLabel: `${hh}:${mm}` });
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoverState(null);
+  }, []);
+
+  const scrubberValues: ScrubberSeriesValue[] = useMemo(() => {
+    if (!hoverState) return [];
+    return seriesData.map((s) => {
+      const dataLen = s.data.length;
+      let val: number | string = s.current;
+      if (dataLen > 0) {
+        const idx = Math.min(dataLen - 1, Math.max(0, Math.round((hoverState.percent / 100) * (dataLen - 1))));
+        val = s.data[idx] ?? s.current;
+      }
+      return {
+        id: s.id,
+        label: s.label,
+        color: s.color,
+        value: val,
+        unit,
+        isThrottled: s.isThrottled,
+        isOOM: s.isOOM,
+      };
+    });
+  }, [hoverState, seriesData, unit]);
+
+  const capacity = Math.round(1440 / parseIntervalMinutes(interval));
+
+  const canvasSeriesList: CanvasSeriesItem[] = useMemo(() => {
+    return seriesData.map((s) => ({
+      id: s.id,
+      color: s.color,
+      data: s.data,
+      isArea: true,
+      lineWidth: 1.75,
+    }));
+  }, [seriesData]);
 
   return (
     <SystemMonitorPanelCard
@@ -237,31 +295,29 @@ export const SystemMonitorTimeSeriesPanel = ({
         isDark={isDark}
         xTicks={xTicks}
         yScaleTicks={yScale.ticks}
-        overlay={showThresholds ? <DynamicThresholdLines lines={thresholdLines} isDark={isDark} /> : undefined}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        overlay={
+          <>
+            {showThresholds && <DynamicThresholdLines lines={thresholdLines} isDark={isDark} />}
+            {hoverState && (
+              <SystemMonitorScrubber
+                hoverPercent={hoverState.percent}
+                timeLabel={hoverState.timeLabel}
+                values={scrubberValues}
+                isDark={isDark}
+              />
+            )}
+          </>
+        }
         isEmpty={deployments.length === 0}
         emptyText="No active workload metrics"
       >
-        <svg aria-hidden="true" viewBox="0 0 500 140" className="w-full h-full" preserveAspectRatio="none">
-          {seriesData.map((s) => (
-            <g key={`series-${s.id}`}>
-              <path
-                d={s.areaPath}
-                fill={s.color}
-                fillOpacity="0.12"
-                className="transition-all duration-150"
-              />
-              <polyline
-                points={s.svgPoints}
-                fill="none"
-                stroke={s.color}
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="transition-all duration-150"
-              />
-            </g>
-          ))}
-        </svg>
+        <SystemMonitorCanvasRenderer
+          series={canvasSeriesList}
+          maxVal={dynamicMax}
+          capacity={capacity}
+        />
       </SystemMonitorChartCanvas>
     </SystemMonitorPanelCard>
   );

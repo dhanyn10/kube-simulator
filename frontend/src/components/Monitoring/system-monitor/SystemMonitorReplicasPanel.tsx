@@ -1,16 +1,19 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { BaseSystemMonitorPanelProps } from './types';
 import {
   calculateDynamicYMax,
   extractReplicaCounts,
   calculateReplicaSeries,
+  parseIntervalMinutes,
 } from './chartHelpers';
 import {
   SystemMonitorPanelCard,
   SystemMonitorChartCanvas,
   useChartScales,
 } from './SystemMonitorChartAxes';
+import { SystemMonitorScrubber, type ScrubberSeriesValue } from './SystemMonitorScrubber';
+import { SystemMonitorCanvasRenderer, type CanvasSeriesItem } from './SystemMonitorCanvasRenderer';
 import { Layers } from 'lucide-react';
 
 export type SystemMonitorReplicasPanelProps = BaseSystemMonitorPanelProps;
@@ -36,6 +39,58 @@ export const SystemMonitorReplicasPanel = ({
   const replicaSeries = useMemo(() => {
     return calculateReplicaSeries(deployments, metrics, interval, dynamicMaxReplicas);
   }, [deployments, metrics, interval, dynamicMaxReplicas]);
+
+  const capacity = Math.round(1440 / parseIntervalMinutes(interval));
+
+  const canvasSeries: CanvasSeriesItem[] = useMemo(() => {
+    return replicaSeries.map((s) => ({
+      id: s.id,
+      color: s.color,
+      data: s.data,
+      isArea: false,
+      isStepped: true,
+      lineWidth: 2,
+    }));
+  }, [replicaSeries]);
+
+  const [hoverState, setHoverState] = useState<{
+    percent: number;
+    timeLabel: string;
+  } | null>(null);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const percent = Math.round((x / rect.width) * 1000) / 10;
+    const minute = Math.round((percent / 100) * 1440);
+    const hh = String(Math.floor(minute / 60)).padStart(2, '0');
+    const mm = String(minute % 60).padStart(2, '0');
+    setHoverState({ percent, timeLabel: `${hh}:${mm}` });
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoverState(null);
+  }, []);
+
+  const scrubberValues: ScrubberSeriesValue[] = useMemo(() => {
+    if (!hoverState) return [];
+    return replicaSeries.map((s) => {
+      const len = s.data.length;
+      let val = s.current;
+      if (len > 0) {
+        const idx = Math.min(len - 1, Math.max(0, Math.round((hoverState.percent / 100) * (len - 1))));
+        val = s.data[idx] ?? s.current;
+      }
+      return {
+        id: s.id,
+        label: s.label,
+        color: s.color,
+        value: val,
+        unit: ' Pods',
+      };
+    });
+  }, [hoverState, replicaSeries]);
 
   return (
     <SystemMonitorPanelCard
@@ -72,23 +127,17 @@ export const SystemMonitorReplicasPanel = ({
         isDark={isDark}
         xTicks={xTicks}
         yScaleTicks={yScale.ticks}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        overlay={hoverState ? <SystemMonitorScrubber hoverPercent={hoverState.percent} timeLabel={hoverState.timeLabel} values={scrubberValues} isDark={isDark} /> : undefined}
         isEmpty={deployments.length === 0}
         emptyText="No workload deployments active"
       >
-        <svg aria-hidden="true" viewBox="0 0 500 100" className="w-full h-full" preserveAspectRatio="none">
-          {replicaSeries.map((s) => (
-            <polyline
-              key={`replica-${s.id}`}
-              fill="none"
-              stroke={s.color}
-              strokeWidth="2"
-              strokeLinecap="square"
-              strokeLinejoin="miter"
-              points={s.svgPoints}
-              className="transition-all duration-150"
-            />
-          ))}
-        </svg>
+        <SystemMonitorCanvasRenderer
+          series={canvasSeries}
+          maxVal={dynamicMaxReplicas}
+          capacity={capacity}
+        />
       </SystemMonitorChartCanvas>
     </SystemMonitorPanelCard>
   );

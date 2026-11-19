@@ -68,13 +68,13 @@ export interface SystemMonitorVerticalGridProps {
 
 export const SystemMonitorVerticalGrid = ({ xTicks, isDark = true }: SystemMonitorVerticalGridProps) => (
   <div className={cn(
-    "absolute inset-0 flex justify-between pointer-events-none",
+    "absolute inset-0 pointer-events-none",
     isDark ? "opacity-15" : "opacity-25"
   )}>
     {xTicks.map((t, idx) => (
       <div
         key={`vgrid-${t.minute}-${idx}`}
-        className={cn("border-l h-full", isDark ? "border-slate-500" : "border-slate-300")}
+        className={cn("absolute inset-y-0 border-l", isDark ? "border-slate-500" : "border-slate-300")}
         style={{ left: `${t.percent}%` }}
       />
     ))}
@@ -102,6 +102,8 @@ export interface SystemMonitorChartCanvasProps {
   emptyText?: string;
   overlay?: React.ReactNode;
   children?: React.ReactNode;
+  onMouseMove?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onMouseLeave?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 export const SystemMonitorChartCanvas = ({
@@ -113,12 +115,16 @@ export const SystemMonitorChartCanvas = ({
   emptyText = 'No data available',
   overlay,
   children,
+  onMouseMove,
+  onMouseLeave,
 }: SystemMonitorChartCanvasProps) => (
   <>
     <div
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
       className={cn(
         heightClass,
-        "w-full rounded border relative overflow-hidden flex items-center justify-center transition-colors",
+        "w-full rounded border relative overflow-hidden flex items-center justify-center transition-colors cursor-crosshair",
         isDark ? "bg-[#111217] border-[#22252b]" : "bg-slate-50 border-slate-200"
       )}
     >

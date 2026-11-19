@@ -93,7 +93,7 @@ export const useSimulationSync = (options?: SimulationSyncOptions) => {
     });
     const unsubSnapReq = gw.onEvent('request-monitoring-snapshot', sendSnapshot);
     const unsubStore = useFlowStore.subscribe((state, prevState) => {
-      if (state.nodes !== prevState.nodes) {
+      if (!state.isSimulating && state.nodes !== prevState.nodes) {
         sendSnapshot();
       }
     });
