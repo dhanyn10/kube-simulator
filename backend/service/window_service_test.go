@@ -3,8 +3,73 @@ package service
 import (
 	"testing"
 
+	"build-wails/backend/domain"
+
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
+
+type mockWindowCtrl struct {
+	minimized    bool
+	maximized    bool
+	closed       bool
+	simOpenState bool
+}
+
+var _ domain.WindowController = (*mockWindowCtrl)(nil)
+
+func (m *mockWindowCtrl) Minimize() {
+	m.minimized = true
+}
+
+func (m *mockWindowCtrl) Maximize() {
+	m.maximized = true
+}
+
+func (m *mockWindowCtrl) Close() {
+	m.closed = true
+}
+
+func (m *mockWindowCtrl) OpenSimulationWindow() bool {
+	m.simOpenState = true
+	return true
+}
+
+func (m *mockWindowCtrl) CloseSimulationWindow() bool {
+	m.simOpenState = false
+	return true
+}
+
+func TestWindowService_WithMockController(t *testing.T) {
+	mock := &mockWindowCtrl{}
+	ws := NewWindowService(mock)
+
+	if ws.GetController() != mock {
+		t.Error("Expected GetController to return the injected mock controller")
+	}
+
+	ws.Minimize()
+	if !mock.minimized {
+		t.Error("Expected Minimize to be forwarded to mock controller")
+	}
+
+	ws.Maximize()
+	if !mock.maximized {
+		t.Error("Expected Maximize to be forwarded to mock controller")
+	}
+
+	if !ws.OpenSimulationWindow() || !mock.simOpenState {
+		t.Error("Expected OpenSimulationWindow to be forwarded to mock controller")
+	}
+
+	if !ws.CloseSimulationWindow() || mock.simOpenState {
+		t.Error("Expected CloseSimulationWindow to be forwarded to mock controller")
+	}
+
+	ws.Close()
+	if !mock.closed {
+		t.Error("Expected Close to be forwarded to mock controller")
+	}
+}
 
 func TestWindowService_CalculateAppHeight(t *testing.T) {
 	ws := NewWindowService()
