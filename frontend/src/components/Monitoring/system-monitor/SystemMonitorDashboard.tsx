@@ -235,55 +235,53 @@ export const SystemMonitorDashboard = () => {
         {deployments.length === 0 ? (
           <EmptySimulationState isDark={isDark} />
         ) : (
-          <>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-5">
-              <SystemMonitorTimeSeriesPanel
-                title="CPU Utilization (%)"
-                description="Processor load per deployment"
-                deployments={deployments}
-                metrics={metrics}
-                metricKey="cpuPercent"
-                unit="%"
-                maxVal={100}
-                showThresholds={true}
-                colorMode={colorMode}
-                interval={timeRange}
-                isSimulating={isSimulating && !isPaused}
-                hasHpa={hasHpa}
-                hpaTarget={hpaTarget}
-              />
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-5">
+            <SystemMonitorTimeSeriesPanel
+              title="CPU Utilization (%)"
+              description="Processor load per deployment"
+              deployments={deployments}
+              metrics={metrics}
+              metricKey="cpuPercent"
+              unit="%"
+              maxVal={100}
+              showThresholds={true}
+              colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
+              hasHpa={hasHpa}
+              hpaTarget={hpaTarget}
+            />
 
-              <SystemMonitorTimeSeriesPanel
-                title="Memory Allocation (MiB)"
-                description="Working set per deployment"
-                deployments={deployments}
-                metrics={metrics}
-                metricKey="memoryValue"
-                unit=" MiB"
-                maxVal={256}
-                showThresholds={true}
-                colorMode={colorMode}
-                interval={timeRange}
-                isSimulating={isSimulating && !isPaused}
-              />
+            <SystemMonitorTimeSeriesPanel
+              title="Memory Allocation (MiB)"
+              description="Working set per deployment"
+              deployments={deployments}
+              metrics={metrics}
+              metricKey="memoryValue"
+              unit=" MiB"
+              maxVal={256}
+              showThresholds={true}
+              colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
+            />
 
-              <SystemMonitorNetworkPanel
-                deployments={deployments}
-                metrics={metrics}
-                colorMode={colorMode}
-                interval={timeRange}
-                isSimulating={isSimulating && !isPaused}
-              />
+            <SystemMonitorNetworkPanel
+              deployments={deployments}
+              metrics={metrics}
+              colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
+            />
 
-              <SystemMonitorReplicasPanel
-                deployments={deployments}
-                metrics={metrics}
-                colorMode={colorMode}
-                interval={timeRange}
-                isSimulating={isSimulating && !isPaused}
-              />
-            </div>
-          </>
+            <SystemMonitorReplicasPanel
+              deployments={deployments}
+              metrics={metrics}
+              colorMode={colorMode}
+              interval={timeRange}
+              isSimulating={isSimulating && !isPaused}
+            />
+          </div>
         )}
       </main>
         </div>
