@@ -139,6 +139,39 @@ describe('nodeHelpers', () => {
       expect(dep.height).toBeGreaterThan(0);
     });
 
+    it('calculates dimensions for manually resized non-container cards with and without measured and width/height', () => {
+      const nodes = [
+        // 1. Manually resized Pod with explicit width, height, and measured
+        {
+          id: 'pod-resized-1',
+          type: 'Pod',
+          width: 320,
+          height: 220,
+          measured: { width: 320, height: 220 },
+          data: { label: 'pod-resized', isManuallyResized: true },
+        },
+        // 2. Manually resized Service with undefined width, height, and measured
+        {
+          id: 'svc-resized-2',
+          type: 'Service',
+          data: { label: 'svc-resized', isManuallyResized: true },
+        },
+      ];
+      const get = () => useFlowStore.getState();
+
+      const hydrated = hydrateNodes(nodes, get);
+
+      const podResized = hydrated.find(n => n.id === 'pod-resized-1');
+      expect(podResized.width).toBeGreaterThanOrEqual(320);
+      expect(podResized.height).toBeGreaterThanOrEqual(220);
+      expect(podResized.measured).toEqual({ width: 320, height: 220 });
+
+      const svcResized = hydrated.find(n => n.id === 'svc-resized-2');
+      expect(svcResized.width).toBeGreaterThan(0);
+      expect(svcResized.height).toBeGreaterThan(0);
+      expect(svcResized.measured).toBeDefined();
+    });
+
     it('syncs deployments and replicasets during hydration', () => {
       const nodes = [
         { id: 'd1', type: 'Deployment', data: { label: 'dep-1', replicas: 1 } },

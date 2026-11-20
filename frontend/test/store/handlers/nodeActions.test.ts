@@ -2050,4 +2050,171 @@ describe('nodeActions', () => {
     expect(updatedSvcEdge?.data.targetPort).toBe(9090);
     expect(updatedUnrelated?.data.targetPort).toBe(80);
   });
+
+  it('covers sanitizeAndUpdateServiceSelector when switching away from LoadBalancer with ingress targets or ingress selector', () => {
+    const { updateNodeData } = useFlowStore.getState();
+
+    // 1. Service with ingressTargets switching from LoadBalancer to ClusterIP
+    const svcWithTargets: Node = {
+      id: 'svc-targets',
+      type: 'Service',
+      position: { x: 0, y: 0 },
+      data: { label: 'svc-t', serviceType: 'LoadBalancer', ingressTargets: ['ing-1'], selector: 'ing-1' },
+    };
+    const ingNode: Node = {
+      id: 'ing-1',
+      type: 'Ingress',
+      position: { x: 100, y: 0 },
+      data: { label: 'ing-label' },
+    };
+
+    useFlowStore.setState({ nodes: [svcWithTargets, ingNode] as any });
+    updateNodeData('svc-targets', { serviceType: 'ClusterIP' });
+
+    const updatedSvc = useFlowStore.getState().nodes.find((n) => n.id === 'svc-targets');
+    expect(updatedSvc?.data.selector).toBe('');
+    expect(updatedSvc?.data.ingressTargets).toBeUndefined();
+
+    // 2. Service with selector matching Ingress by ID or label
+    const svcWithIngSelector: Node = {
+      id: 'svc-sel-ing',
+      type: 'Service',
+      position: { x: 0, y: 0 },
+      data: { label: 'svc-ing', serviceType: 'LoadBalancer', selector: 'ing-label' },
+    };
+    useFlowStore.setState({ nodes: [svcWithIngSelector, ingNode] as any });
+    updateNodeData('svc-sel-ing', { serviceType: 'NodePort' });
+    const updatedSvc2 = useFlowStore.getState().nodes.find((n) => n.id === 'svc-sel-ing');
+    expect(updatedSvc2?.data.selector).toBe('');
+  });
+
+  it('covers port propagation fallbacks: invalid port, non-workload target, and parent fallbacks', () => {
+    const { updateNodeData } = useFlowStore.getState();
+
+    // 1. Updating port on non-workload card (e.g. Service) does not propagate
+    const svcNode: Node = {
+      id: 'standalone-svc',
+      type: 'Service',
+      position: { x: 0, y: 0 },
+      data: { label: 'stand-svc', port: 80, targetPort: 80 },
+    };
+    useFlowStore.setState({ nodes: [svcNode] as any, edges: [] });
+    updateNodeData('standalone-svc', { port: 8080 });
+    expect(useFlowStore.getState().nodes.find(n => n.id === 'standalone-svc')?.data.port).toBe(8080);
+
+    // 2. Workload port update with 0 or NaN falls back to 80
+    const depNode: Node = {
+      id: 'dep-fallback-port',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'dep-fallback', workloadType: 'Deployment', replicas: 1 },
+    };
+    const svcForDep: Node = {
+      id: 'svc-for-dep',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: { label: 'svc-dep', selector: 'dep-fallback', targetPort: 8080 },
+    };
+    useFlowStore.setState({ nodes: [depNode, svcForDep] as any, edges: [] });
+    updateNodeData('dep-fallback-port', { port: 0 }); // Number(0) || 80 -> 80
+    expect(useFlowStore.getState().nodes.find(n => n.id === 'svc-for-dep')?.data.targetPort).toBe(80);
+
+    // 3. Child Pod with Namespace parent (not a WORKLOAD_CONTROLLER) and missing label fallbacks
+    const nsParent: Node = {
+      id: 'ns-parent-node',
+      type: 'Namespace',
+      position: { x: 0, y: 0 },
+      data: { label: 'test-ns' },
+    };
+    const childInNs: Node = {
+      id: 'pod-in-ns-node',
+      type: 'Pod',
+      parentId: 'ns-parent-node',
+      position: { x: 10, y: 10 },
+      data: { baseName: 'pod-base-name', port: 80 } as any, // label is undefined, baseName present
+    };
+    const svcForNsPod: Node = {
+      id: 'svc-ns-pod',
+      type: 'Service',
+      position: { x: 200, y: 0 },
+      data: { label: 'svc-ns', selector: 'pod-base-name', targetPort: 80 },
+    };
+    useFlowStore.setState({ nodes: [nsParent, childInNs, svcForNsPod] as any, edges: [] });
+    updateNodeData('pod-in-ns-node', { port: 5000 });
+    expect(useFlowStore.getState().nodes.find(n => n.id === 'svc-ns-pod')?.data.targetPort).toBe(5000);
+
+    // 4. Child Pod whose parentId does not exist in nodes
+    const orphanPod: Node = {
+      id: 'orphan-pod-node',
+      type: 'Pod',
+      parentId: 'non-existent-parent',
+      position: { x: 0, y: 0 },
+      data: { port: 80 } as any, // label and baseName both undefined -> falls back to id 'orphan-pod-node'
+    };
+    const svcForOrphan: Node = {
+      id: 'svc-orphan',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: { label: 'svc-orph', selector: 'orphan-pod-node', targetPort: 80 },
+    };
+    useFlowStore.setState({ nodes: [orphanPod, svcForOrphan] as any, edges: [] });
+    updateNodeData('orphan-pod-node', { port: 6000 });
+    expect(useFlowStore.getState().nodes.find(n => n.id === 'svc-orphan')?.data.targetPort).toBe(6000);
+
+    // 5. Child Pod with Deployment parent whose label is undefined (falls back to baseName, then id)
+    const depWithoutLabel: Node = {
+      id: 'dep-nolabel-id',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { baseName: 'dep-base-only', workloadType: 'Deployment' } as any,
+    };
+    const childUnderDep: Node = {
+      id: 'pod-under-dep-nolabel',
+      type: 'Pod',
+      parentId: 'dep-nolabel-id',
+      position: { x: 10, y: 10 },
+      data: { port: 80 } as any,
+    };
+    const svcForDepBase: Node = {
+      id: 'svc-dep-base',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: { label: 'svc-db', selector: 'dep-base-only', targetPort: 80 },
+    };
+    const svcWithoutSelector: Node = {
+      id: 'svc-noselector',
+      type: 'Service',
+      position: { x: 200, y: 0 },
+      data: { label: 'svc-nosel', targetPort: 80 },
+    };
+    useFlowStore.setState({ nodes: [depWithoutLabel, childUnderDep, svcForDepBase, svcWithoutSelector] as any, edges: [] });
+    updateNodeData('pod-under-dep-nolabel', { port: 7000 });
+    expect(useFlowStore.getState().nodes.find(n => n.id === 'svc-dep-base')?.data.targetPort).toBe(7000);
+    expect(useFlowStore.getState().nodes.find(n => n.id === 'svc-noselector')?.data.targetPort).toBe(80);
+  });
+
+  it('covers deleteNodes dimension and label fallbacks when deleting nodes without width/height/label', () => {
+    const { deleteNodes } = useFlowStore.getState();
+
+    // Node without width/height but with measured dimensions and baseName instead of label
+    const measuredNode = {
+      id: 'node-measured-only',
+      type: 'Pod',
+      position: { x: 10, y: 10 },
+      measured: { width: 180, height: 120 },
+      data: { baseName: 'pod-base-only' },
+    };
+
+    // Node without width, height, measured, or label/baseName
+    const nakedNode = {
+      id: 'node-naked',
+      position: { x: 20, y: 20 },
+      data: {},
+    };
+
+    useFlowStore.setState({ nodes: [measuredNode, nakedNode] as any, edges: [] });
+    deleteNodes([measuredNode as any, nakedNode as any]);
+
+    expect(useFlowStore.getState().nodes).toHaveLength(0);
+  });
 });
