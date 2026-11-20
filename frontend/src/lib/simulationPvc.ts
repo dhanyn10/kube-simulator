@@ -5,7 +5,8 @@ import { SimulationContext, updateNodeData, emitSimulationLog } from './simulati
 import {
   analyzePvcWorkloadConnections,
   getPvcValidationErrorMsg,
-  PvcWorkloadAnalysis,
+  PvcNamespaceConflict,
+  PvcTemplateConflict,
 } from './pvcAnalysis';
 
 const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
@@ -35,8 +36,8 @@ export interface PvcSimulationCountResult {
   connectedEdges: Edge[];
   connectedPods: Node[];
   workerNodes: Set<string>;
-  namespaceConflict?: PvcWorkloadAnalysis['namespaceConflict'];
-  templateConflict?: PvcWorkloadAnalysis['templateConflict'];
+  namespaceConflict?: PvcNamespaceConflict;
+  templateConflict?: PvcTemplateConflict;
   errorMsg?: string;
 }
 

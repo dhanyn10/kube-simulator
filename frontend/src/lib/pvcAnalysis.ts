@@ -25,14 +25,25 @@ export const collectWorkloadChildPods = (workloadNode: Node, allNodes: Node[]): 
   );
 };
 
+export interface PvcNamespaceConflict {
+  pvcNs: string;
+  workloadNs: string;
+  workloadLabel: string;
+}
+
+export interface PvcTemplateConflict {
+  statefulSetLabel: string;
+  otherWorkloadLabel: string;
+}
+
 export interface PvcWorkloadAnalysis {
   totalReplicas: number;
   connectedEdges: Edge[];
   connectedPods: Node[];
   distinctWorkerNodes: Set<string>;
-  namespaceConflict?: { pvcNs: string; workloadNs: string; workloadLabel: string };
+  namespaceConflict?: PvcNamespaceConflict;
   workerNodeConflict?: { workerNodes: string[] };
-  templateConflict?: { statefulSetLabel: string; otherWorkloadLabel: string };
+  templateConflict?: PvcTemplateConflict;
 }
 
 export const isStatefulSetNode = (node: Node): boolean => {
@@ -110,8 +121,8 @@ const checkWorkloadNamespaceConflict = (
   pvcNamespace: string,
   workloadNode: Node,
   nodes: Node[],
-  currentConflict?: PvcWorkloadAnalysis['namespaceConflict']
-): PvcWorkloadAnalysis['namespaceConflict'] => {
+  currentConflict?: PvcNamespaceConflict
+): PvcNamespaceConflict | undefined => {
   if (currentConflict) return currentConflict;
   const workloadNamespace = resolveNodeNamespace(workloadNode, nodes);
   if (pvcNamespace !== workloadNamespace) {
@@ -182,7 +193,7 @@ const processConnectedWorkloadNode = (
 
 const detectPvcTemplateConflict = (
   connectedNodes: Node[]
-): PvcWorkloadAnalysis['templateConflict'] => {
+): PvcTemplateConflict | undefined => {
   const workloads = connectedNodes.filter(
     (n) => isControllerWorkload(n) || n.type === 'Pod'
   );
