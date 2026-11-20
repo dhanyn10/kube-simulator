@@ -119,7 +119,10 @@ describe('useAttachedResourceSettings', () => {
           id: 'node-2',
           data: {
             label: 'Node Two',
-            configMaps: [{ id: 'cm-target', name: 'target-cm', resourceName: 'Node Two' }],
+            configMaps: [
+              { id: 'cm-target', name: 'target-cm', resourceName: 'Node Two' },
+              { id: 'cm-other', name: 'other-cm', resourceName: 'Node Two' },
+            ],
           },
         },
       ],
@@ -140,6 +143,57 @@ describe('useAttachedResourceSettings', () => {
 
     expect(result.current.isEditModalOpen).toBe(false);
     const updatedNode = useFlowStore.getState().nodes.find((n) => n.id === 'node-2');
-    expect(updatedNode?.data.configMaps).toHaveLength(0);
+    expect(updatedNode?.data.configMaps).toHaveLength(1);
+    expect(updatedNode?.data.configMaps?.[0].id).toBe('cm-other');
+  });
+
+  it('falls back to nodeId when label is empty and matches resourceName using nodeId', () => {
+    useFlowStore.setState({
+      colorMode: 'dark',
+      updateNodeData: (id, updates) => {
+        const storeNodes = useFlowStore.getState().nodes;
+        useFlowStore.setState({
+          nodes: storeNodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...updates } } : n)),
+        });
+      },
+      addLog: () => {},
+      nodes: [
+        {
+          id: 'node-fallback-id',
+          data: {
+            label: '',
+            configMaps: [{ id: 'cm-fb', name: 'fallback-cm', resourceName: 'node-fallback-id' }],
+          },
+        },
+      ],
+    });
+
+    const data = useFlowStore.getState().nodes[0].data;
+    const { result } = renderHook(() =>
+      useAttachedResourceSettings(data, 'node-fallback-id', 'configMaps', 'ConfigMap')
+    );
+
+    expect(result.current.targetNodeLabel).toBe('node-fallback-id');
+
+    act(() => {
+      result.current.handleSaveItem({
+        id: 'cm-fb',
+        name: 'fallback-cm-updated',
+        resourceName: 'node-fallback-id',
+      } as any);
+    });
+
+    expect(result.current.isEditModalOpen).toBe(false);
+    const updatedNode = useFlowStore.getState().nodes.find((n) => n.id === 'node-fallback-id');
+    expect(updatedNode?.data.configMaps?.[0].name).toBe('fallback-cm-updated');
+  });
+
+  it('defaults to empty array when rawItems is not an array', () => {
+    const dataWithoutItems = { label: 'Node Empty' };
+    const { result } = renderHook(() =>
+      useAttachedResourceSettings(dataWithoutItems as any, 'node-empty', 'configMaps', 'ConfigMap')
+    );
+
+    expect(result.current.items).toEqual([]);
   });
 });

@@ -199,6 +199,25 @@ describe('InternetProfileModal', () => {
     expect(miniDot).toBeDefined();
   });
 
+  it('renders simulation overlay and notice in light mode', async () => {
+    useFlowStore.setState({ isSimulating: true, colorMode: 'light' });
+
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
+
+    const pauseNotice = screen.getByText('Pause or Stop simulation to add custom profile');
+    expect(pauseNotice).toBeDefined();
+    expect(pauseNotice.className).toContain('text-amber-600');
+  });
+
   it('handles custom profile cards with delete button, metrics summary formatting (<1000 and >=1000)', async () => {
     const customProfile = {
       name: 'Custom Heavy Load',
