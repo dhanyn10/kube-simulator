@@ -1,6 +1,5 @@
 # Binaries and build outputs
 /bin
-/build
 /build/bin
 /dist
 /.task

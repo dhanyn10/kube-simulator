@@ -1,0 +1,44 @@
+# Wails v3 configuration for Kube Simulator
+version: '3'
+
+info:
+  companyName: "Dhany N"
+  productName: "Kube Simulator"
+  productIdentifier: "com.dhanyn.kubesimulator"
+  description: "Kubernetes Infrastructure Simulator"
+  copyright: "Copyright 2026"
+  version: "0.15.0"
+
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+      - dist
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+      - "*_test.go"
+    watched_extension:
+      - "*.go"
+    git_ignore: true
+  executes:
+    - cmd: wails3 build DEV=true
+      type: blocking
+    - cmd: wails3 task common:dev:frontend
+      type: background
+    - cmd: wails3 task run
+      type: primary
+      exit_policy: shutdown
+
+fileAssociations:
+  - ext: infra
+    name: Kube Simulator Project
+    description: Infrastructure Design Project
+    iconName: appicon
