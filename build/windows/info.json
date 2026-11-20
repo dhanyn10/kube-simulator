@@ -1,15 +1,19 @@
 {
 	"fixed": {
-		"file_version": "{{.Info.ProductVersion}}"
+		"file_version": "0.16.0",
+		"product_version": "0.16.0"
 	},
 	"info": {
-		"0000": {
-			"ProductVersion": "{{.Info.ProductVersion}}",
-			"CompanyName": "{{.Info.CompanyName}}",
-			"FileDescription": "{{.Info.ProductName}}",
-			"LegalCopyright": "{{.Info.Copyright}}",
-			"ProductName": "{{.Info.ProductName}}",
-			"Comments": "{{.Info.Comments}}"
+		"0409": {
+			"FileVersion": "0.16.0",
+			"ProductVersion": "0.16.0",
+			"CompanyName": "Dhany N",
+			"FileDescription": "Kubernetes Infrastructure Simulator",
+			"LegalCopyright": "Copyright 2026",
+			"ProductName": "Kube Simulator",
+			"Comments": "Kubernetes Architecture Simulator",
+			"OriginalFilename": "kube-simulator.exe",
+			"InternalName": "kube-simulator"
 		}
 	}
 }

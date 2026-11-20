@@ -19,7 +19,7 @@ Kube Simulator is a powerful, interactive visual designer for Kubernetes infrast
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Go with [Wails v2](https://wails.io/)
+- **Backend**: Go with [Wails v3](https://v3.wails.io/)
 - **Frontend**: React, TypeScript, Tailwind CSS, Zustand
 - **Canvas Engine**: [React Flow](https://reactflow.dev/)
 - **Build System**: pnpm
@@ -45,7 +45,7 @@ Kube Simulator is a powerful, interactive visual designer for Kubernetes infrast
 - [Go](https://go.dev/) 1.26+
 - [Node.js](https://nodejs.org/) 22+
 - [pnpm](https://pnpm.io/)
-- [Wails CLI v2.16.0+](https://wails.io/docs/gettingstarted/installation)
+- [Wails3 CLI](https://v3.wails.io/getting-started/installation/)
 
 ### Setup
 1. Clone the repository:
@@ -54,27 +54,36 @@ Kube Simulator is a powerful, interactive visual designer for Kubernetes infrast
    cd kube-simulator
    ```
 
-2. Install or update Wails CLI and dependencies:
+2. Install Wails3 CLI and dependencies:
    ```bash
-   # Install/update Wails CLI v2.16.0 globally
-   go install github.com/wailsapp/wails/v2/cmd/wails@latest
+   # Install Wails3 CLI globally
+   go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
-   # Root directory
+   # Download Go backend dependencies
    go mod download
 
-   # Frontend directory
+   # Install frontend dependencies
    cd frontend
    pnpm install
+   cd ..
    ```
 
 3. Run in development mode:
    ```bash
-   wails dev
+   wails3 dev
+   # or using task
+   wails3 task dev
    ```
 
-4. Build for production:
+4. Build & Package for production:
    ```bash
-   # Using the provided script
+   # Build portable binary (output: bin/kube-simulator.exe)
+   wails3 task build
+
+   # Package installer (output: build/bin/Kube Simulator-amd64-installer.exe)
+   wails3 task package
+
+   # Or using the build script
    ./build-dist.sh
    ```
 
