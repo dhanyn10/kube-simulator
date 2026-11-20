@@ -84,7 +84,8 @@ Kube Simulator is a powerful, interactive visual designer for Kubernetes infrast
    wails3 task package
 
    # Or using the build script
-   ./build-dist.sh
+   .\build-dist.ps1
+   # or ./build-dist.sh
    ```
 
 ## 📄 License
