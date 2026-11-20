@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { MiniCurvePreview, InteractiveTrafficChart } from '@/components/UI/ProfileChart';
+import { MiniCurvePreview, InteractiveTrafficChart, ResampleWarningOverlay } from '@/components/UI/ProfileChart';
 import { InternetProfileItem } from '@/activities/modals';
 import { useFlowStore } from '@/store';
 import '@testing-library/jest-dom';
@@ -228,7 +228,10 @@ describe('ProfileChart', () => {
       // Trigger warning again and click Continue
       fireEvent.change(subIntervalSelect, { target: { value: '60' } });
       const confirmBtn = screen.getByTestId('confirm-resample-btn');
-      fireEvent.click(confirmBtn);
+      act(() => {
+        fireEvent.click(confirmBtn);
+        fireEvent.click(confirmBtn);
+      });
 
       expect(onUpdateProfile).toHaveBeenCalled();
       expect(screen.queryByTestId('interval-resample-warning-overlay')).not.toBeInTheDocument();
@@ -608,6 +611,91 @@ describe('ProfileChart', () => {
       // Change to 60 (newInterval = 60, so line 380 newInterval < 60 is false)
       fireEvent.change(selectEl, { target: { value: '60' } });
       expect(selectEl.value).toBe('60');
+    });
+
+    it('covers modified=false branch when switching interval to 30m on an already fully populated 30m profile', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+      const onUpdateProfile = vi.fn();
+
+      const full30mProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {},
+      };
+      for (let m = 0; m <= 1380; m += 30) {
+        const hh = String(Math.floor(m / 60)).padStart(2, '0');
+        const mm = String(m % 60).padStart(2, '0');
+        full30mProfile.hourly[`${hh}:${mm}`] = 100;
+      }
+
+      render(
+        <InteractiveTrafficChart
+          profile={full30mProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+          onUpdateProfile={onUpdateProfile}
+        />
+      );
+
+      const intervalSelect = screen.getByRole('combobox') as HTMLSelectElement;
+      fireEvent.change(intervalSelect, { target: { value: '30' } });
+      expect(onUpdateProfile).not.toHaveBeenCalled();
+    });
+
+    it('covers handleIntervalChange when newInterval < 60 and onUpdateProfile is undefined on hourly profile', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+
+      const hourlyOnlyProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {
+          '00:00': 100,
+          '01:00': 200,
+        },
+      };
+
+      render(
+        <InteractiveTrafficChart
+          profile={hourlyOnlyProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+        />
+      );
+
+      const intervalSelect = screen.getByRole('combobox') as HTMLSelectElement;
+      fireEvent.change(intervalSelect, { target: { value: '10' } });
+      expect(intervalSelect.value).toBe('10');
+    });
+
+    it('renders ResampleWarningOverlay directly when pendingInterval is null and when pendingInterval is set', () => {
+      const onCancel = vi.fn();
+      const onConfirm = vi.fn();
+
+      const { container, rerender } = render(
+        <ResampleWarningOverlay
+          pendingInterval={null}
+          onCancel={onCancel}
+          onConfirm={onConfirm}
+        />
+      );
+      expect(container.firstChild).toBeNull();
+
+      rerender(
+        <ResampleWarningOverlay
+          pendingInterval={60}
+          onCancel={onCancel}
+          onConfirm={onConfirm}
+        />
+      );
+      expect(screen.getByTestId('interval-resample-warning-overlay')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('cancel-resample-btn'));
+      expect(onCancel).toHaveBeenCalled();
+      fireEvent.click(screen.getByTestId('confirm-resample-btn'));
+      expect(onConfirm).toHaveBeenCalled();
     });
   });
 });

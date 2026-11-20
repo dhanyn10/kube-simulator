@@ -500,4 +500,15 @@ describe('AttachedResourceOverviewModal', () => {
       label: 'Cluster Resource Limit',
     });
   });
+
+  it('renders ConfigMap overview with items in light mode to cover non-dark theme branches', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
+    render(<AttachedResourceOverviewModal type="ConfigMap" onClose={vi.fn()} />);
+
+    expect(screen.getByText('Cluster ConfigMaps Overview')).toBeInTheDocument();
+    expect(screen.getByText('app-config')).toBeInTheDocument();
+    expect(screen.getByText('PORT:')).toBeInTheDocument();
+    expect(screen.getByText('3000')).toBeInTheDocument();
+  });
 });

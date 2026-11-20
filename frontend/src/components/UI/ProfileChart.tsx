@@ -213,13 +213,13 @@ const hydrateMissingPoints = (
   return { updatedHourly, modified };
 };
 
-interface ResampleWarningOverlayProps {
+export interface ResampleWarningOverlayProps {
   readonly pendingInterval: number | null;
   readonly onCancel: () => void;
   readonly onConfirm: () => void;
 }
 
-const ResampleWarningOverlay: React.FC<ResampleWarningOverlayProps> = ({
+export const ResampleWarningOverlay: React.FC<ResampleWarningOverlayProps> = ({
   pendingInterval,
   onCancel,
   onConfirm,
@@ -413,12 +413,11 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   };
 
   const handleConfirmResample = () => {
-    if (pendingInterval === null) return;
     const resampled = resampleProfileHourly(profile);
     if (onUpdateProfile) {
       onUpdateProfile(resampled);
     }
-    setIntervalMinutes(pendingInterval);
+    setIntervalMinutes(pendingInterval as number);
     setPendingInterval(null);
   };
 

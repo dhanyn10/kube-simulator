@@ -13,8 +13,9 @@ import { SystemMonitorDashboard } from '@/components/Monitoring/system-monitor/S
 import {
   SystemMonitorChartCanvas,
   SystemMonitorPanelCard,
-  SystemMonitorHorizontalGrid,
   SystemMonitorVerticalGrid,
+  SystemMonitorAxisBottom,
+  SystemMonitorInteractiveChart,
 } from '@/components/Monitoring/system-monitor/SystemMonitorChartAxes';
 import { Activity } from 'lucide-react';
 
@@ -678,5 +679,63 @@ describe('SystemMonitor UI Components', () => {
 
     // Click Close Window button in header
     fireEvent.click(screen.getByLabelText('close'));
+  });
+
+  it('covers SystemMonitorAxisBottom edge cases for zero step interval and missing last tick minute', () => {
+    // 1. Equal minutes on first two ticks -> stepVal becomes 0, so || 1 fallback is triggered (covers line 32)
+    // 2. Last tick has minute: undefined -> ?? 0 fallback is triggered (covers line 33)
+    const mockTicks = [
+      { minute: 5, label: '5m' },
+      { minute: 5, label: '5m' },
+      { minute: undefined as any, label: 'end' },
+    ];
+
+    const { rerender } = render(
+      <SystemMonitorAxisBottom xTicks={mockTicks} isDark={false} unit="Minutes" />
+    );
+
+    expect(screen.getByText('1m / div')).toBeDefined();
+    expect(screen.getByText('0 Minutes')).toBeDefined();
+
+    // Suffix 'h' when unit is Hours
+    rerender(
+      <SystemMonitorAxisBottom
+        xTicks={[
+          { minute: 0, label: '0h' },
+          { minute: 2, label: '2h' },
+        ]}
+        isDark={true}
+        unit="Hours"
+      />
+    );
+    expect(screen.getByText('2h / div')).toBeDefined();
+  });
+
+  it('covers handleMouseMove early return when canvas bounding rect width <= 0 in SystemMonitorInteractiveChart', () => {
+    const { container } = render(
+      <SystemMonitorInteractiveChart maxVal={100} series={[]} heightClass="h-40">
+        <div>Content</div>
+      </SystemMonitorInteractiveChart>
+    );
+
+    const canvasArea = container.querySelector('.cursor-crosshair');
+    expect(canvasArea).not.toBeNull();
+    if (canvasArea) {
+      // Mock getBoundingClientRect to return width <= 0 (covers line 304)
+      vi.spyOn(canvasArea, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 100,
+        width: 0,
+        height: 100,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      });
+
+      fireEvent.mouseMove(canvasArea, { clientX: 50 });
+      expect(screen.queryByText('Snapshot')).toBeNull();
+    }
   });
 });
