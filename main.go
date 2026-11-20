@@ -47,6 +47,8 @@ func main() {
 	appInstance := NewApp()
 	handleFileAssociation(appInstance)
 
+	var mainWindow *application.WebviewWindow
+
 	wailsApp := application.New(application.Options{
 		Name: "Kube Simulator",
 		Services: []application.Service{
@@ -54,6 +56,25 @@ func main() {
 		},
 		Assets: application.AssetOptions{
 			Handler: application.BundledAssetFileServer(assets),
+		},
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID: "com.dhanyn.kubesimulator",
+			OnSecondInstanceLaunch: func(data application.SecondInstanceData) {
+				if len(data.Args) > 1 {
+					arg := data.Args[1]
+					if strings.HasSuffix(strings.ToLower(arg), ".infra") {
+						if _, err := os.Stat(arg); err == nil {
+							if absPath, err := filepath.Abs(arg); err == nil {
+								appInstance.LoadFileContent(absPath)
+							}
+						}
+					}
+				}
+				if mainWindow != nil {
+					mainWindow.Restore()
+					mainWindow.Focus()
+				}
+			},
 		},
 		OnShutdown: func() {
 			appInstance.shutdown(context.Background())
@@ -63,13 +84,16 @@ func main() {
 	appMenu := setupApplicationMenu(wailsApp)
 	wailsApp.Menu.SetApplicationMenu(appMenu)
 
-	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
+	mainWindow = wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "Kube Simulator",
 		Width:            1024,
 		Height:           768,
 		Frameless:        true,
 		URL:              "/",
 		BackgroundColour: application.NewRGBA(27, 38, 54, 255),
+		Windows: application.WindowsWindow{
+			DisableFramelessWindowDecorations: false,
+		},
 	})
 
 	appInstance.startup(context.Background())

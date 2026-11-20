@@ -1175,3 +1175,16 @@ func TestSelectProjectFileDialog_NilApp(t *testing.T) {
 		t.Log("OpenFileDialog handled or returned safely")
 	}
 }
+
+func TestApp_LoadFileContent(t *testing.T) {
+	app := NewApp()
+	tmpDir := t.TempDir()
+	validFile := filepath.Join(tmpDir, "test.infra")
+	_ = os.WriteFile(validFile, []byte(`{"version": "1.0"}`), 0644)
+
+	// Valid file
+	app.LoadFileContent(validFile)
+
+	// Non-existent file
+	app.LoadFileContent(filepath.Join(tmpDir, "nonexistent.infra"))
+}

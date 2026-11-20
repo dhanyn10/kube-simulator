@@ -287,6 +287,16 @@ func (a *App) SetInitialFile(path string) {
 	a.initialFilePath = path
 }
 
+// LoadFileContent reads and emits the contents of a .infra project file to the frontend.
+func (a *App) LoadFileContent(filePath string) {
+	fileData, err := os.ReadFile(filePath)
+	if err == nil {
+		if app := application.Get(); app != nil && app.Event != nil {
+			app.Event.Emit("open-infra-file", string(fileData))
+		}
+	}
+}
+
 func (a *App) UpdateProject(id int64, content string) bool {
 	err := a.projects.UpdateProject(id, content)
 	if err != nil {
