@@ -48,6 +48,8 @@ export const applyTrafficSpike = (
     return n;
   });
 
+  state.setNodes?.(updatedNodes);
+
   state.addLog?.(
     'warning',
     `[Chaos/Spike] Injected ${safeMult}x traffic surge across internet gateways.`,

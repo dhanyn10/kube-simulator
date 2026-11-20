@@ -44,16 +44,19 @@ describe('simulationControlHelpers', () => {
 
   it('applies traffic spike and defaults multiplier when <= 0', () => {
     const addLog = vi.fn();
+    const setNodes = vi.fn();
     const mockState = {
       nodes: [
         { id: 'inet-1', type: 'Internet', data: { traffic: 500 } },
         { id: 'node-2', type: 'Service', data: {} }
       ],
       addLog,
+      setNodes,
     } as any;
 
     const updated = applyTrafficSpike(() => mockState, -1);
     expect(updated[0].data.currentTraffic).toBe(1000); // 500 * default 2
+    expect(setNodes).toHaveBeenCalledWith(updated);
     expect(addLog).toHaveBeenCalled();
   });
 });
