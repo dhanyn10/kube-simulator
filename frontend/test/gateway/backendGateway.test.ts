@@ -151,6 +151,13 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(await mock.getSimulationSnapshot()).toBe('{"test":1}');
       expect(await mock.triggerTrafficSpike(2.0)).toBe(true);
       expect(await mock.stopSimulation()).toBe(true);
+
+      // Edge cases for non-positive speed, empty snapshot, non-positive spike multiplier
+      expect(await mock.startSimulation(0)).toBe(true);
+      expect(await mock.setSimulationSpeed(-1)).toBe(true);
+      expect(await mock.broadcastSimulationSnapshot('')).toBe(true);
+      expect(await mock.getSimulationSnapshot()).toBe('{}');
+      expect(await mock.triggerTrafficSpike(-1)).toBe(true);
       expect(await mock.calculateAppHeight(1000)).toBe(850);
       expect(await mock.getTargetScreen([])).toBe(false);
       expect(await mock.getTargetScreenHeight([])).toBe(1080);
@@ -179,6 +186,12 @@ describe('Clean Architecture Backend Gateway', () => {
 
       const yaml = await mock.generateYaml('[]', '[]');
       expect(typeof yaml).toBe('string');
+
+      // Test generateYaml with empty strings (fallback to '[]') and invalid JSON (fallback to '')
+      const emptyYaml = await mock.generateYaml('', '');
+      expect(typeof emptyYaml).toBe('string');
+      const invalidJsonYaml = await mock.generateYaml('{invalid-json', '[]');
+      expect(invalidJsonYaml).toBe('');
 
       const popular = await mock.fetchDockerHubPopular();
       expect(popular).toContain('nginx');

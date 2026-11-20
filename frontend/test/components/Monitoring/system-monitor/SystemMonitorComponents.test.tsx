@@ -4,7 +4,10 @@ import { useFlowStore } from '@/store';
 import { getBackendGateway } from '@/gateway';
 import { SystemMonitorHeader } from '@/components/Monitoring/system-monitor/SystemMonitorHeader';
 import { SystemMonitorStatCard } from '@/components/Monitoring/system-monitor/SystemMonitorStatCard';
-import { SystemMonitorTimeSeriesPanel } from '@/components/Monitoring/system-monitor/SystemMonitorTimeSeriesPanel';
+import {
+  SystemMonitorTimeSeriesPanel,
+  DynamicThresholdLines,
+} from '@/components/Monitoring/system-monitor/SystemMonitorTimeSeriesPanel';
 import { SystemMonitorReplicasPanel } from '@/components/Monitoring/system-monitor/SystemMonitorReplicasPanel';
 import { SystemMonitorNetworkPanel } from '@/components/Monitoring/system-monitor/SystemMonitorNetworkPanel';
 import { SystemMonitorContextMenu } from '@/components/Monitoring/system-monitor/SystemMonitorContextMenu';
@@ -254,6 +257,86 @@ describe('SystemMonitor UI Components', () => {
     expect(screen.getByText('85% OOM Risk')).toBeDefined();
     expect(screen.getByText('85% OOM Risk (435 MiB)')).toBeDefined();
     expect(screen.getAllByText('Limit: 512 MiB')).toHaveLength(2);
+
+    // Rerender with isThrottled and isOOM in light mode
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        description="CPU per deployment"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 2 }]}
+        metrics={{
+          'dep-1': [
+            { cpuPercent: 95, isThrottled: true, isOOM: true }
+          ]
+        }}
+        metricKey="cpuPercent"
+        colorMode="light"
+        showThresholds={false}
+      />
+    );
+    expect(screen.getByText('Throttled')).toBeDefined();
+    expect(screen.getByText('OOM Risk')).toBeDefined();
+
+    // Rerender with isThrottled and isOOM in dark mode
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        description="CPU per deployment"
+        deployments={[{ id: 'dep-1', label: 'web-server', replicas: 2 }]}
+        metrics={{
+          'dep-1': [
+            { cpuPercent: 95, isThrottled: true, isOOM: true }
+          ]
+        }}
+        metricKey="cpuPercent"
+        colorMode="dark"
+        showThresholds={true}
+      />
+    );
+    expect(screen.getByText('Throttled')).toBeDefined();
+    expect(screen.getByText('OOM Risk')).toBeDefined();
+  });
+
+  it('renders DynamicThresholdLines with empty lines, dark mode default, and light mode colors', () => {
+    // 1. Empty lines returns null
+    const { container, rerender } = render(<DynamicThresholdLines lines={[]} />);
+    expect(container.firstChild).toBeNull();
+
+    // 2. Populated lines in light mode
+    rerender(
+      <DynamicThresholdLines
+        lines={[
+          { label: 'Limit', value: 100, percentFromTop: 10, color: 'rose', badge: '100% Limit' },
+          { label: 'Warning', value: 80, percentFromTop: 30, color: 'amber', badge: '80% Warning' },
+          { label: 'Quota', value: 120, percentFromTop: 5, color: 'red', badge: '120% Quota' },
+        ]}
+        isDark={false}
+      />
+    );
+    expect(screen.getByText('100% Limit')).toBeDefined();
+    expect(screen.getByText('80% Warning')).toBeDefined();
+    expect(screen.getByText('120% Quota')).toBeDefined();
+
+    // 3. Default isDark parameter (undefined)
+    rerender(
+      <DynamicThresholdLines
+        lines={[
+          { label: 'Limit', value: 100, percentFromTop: 10, color: 'rose', badge: '100% Limit' },
+        ]}
+      />
+    );
+    expect(screen.getByText('100% Limit')).toBeDefined();
+
+    // 4. TimeSeriesPanel with deployment missing from metrics dictionary covers fallbacks on lines 102 and 147
+    rerender(
+      <SystemMonitorTimeSeriesPanel
+        title="CPU Utilization"
+        deployments={[{ id: 'dep-unrecorded', label: 'unrecorded-service', replicas: 1 }]}
+        metrics={{}}
+        metricKey="cpuPercent"
+      />
+    );
+    expect(screen.getByText('unrecorded-service')).toBeDefined();
   });
 
   it('renders SystemMonitorReplicasPanel and SystemMonitorNetworkPanel', () => {
@@ -394,6 +477,10 @@ describe('SystemMonitor UI Components', () => {
     // Click Close
     fireEvent.click(screen.getByTestId('system-monitor-menu-close'));
     expect(onCloseWindow).toHaveBeenCalledTimes(1);
+    expect(onCloseMenu).toHaveBeenCalledTimes(2);
+
+    // Press non-Escape key (e.g. Tab) should not trigger onCloseMenu
+    fireEvent.keyDown(globalThis, { key: 'Tab' });
     expect(onCloseMenu).toHaveBeenCalledTimes(2);
 
     // Press Escape key

@@ -476,6 +476,161 @@ describe('nodeUtils', () => {
       expect(info.excludeId).toBe('pod-standalone');
     });
 
+    it('resolves target info when targetNode is not found, or when override parameters are provided', () => {
+      // 1. Target node not found with explicit overrides
+      const missingWithOverrides = resolveTargetInfo('missing-node', [], 'Service', 'ns-custom', 'custom-exclude');
+      expect(missingWithOverrides.type).toBe('Service');
+      expect(missingWithOverrides.parentId).toBe('ns-custom');
+      expect(missingWithOverrides.excludeId).toBe('custom-exclude');
+
+      // 2. Target node not found with defaults
+      const missingDefaults = resolveTargetInfo('missing-node-2', []);
+      expect(missingDefaults.type).toBe('');
+      expect(missingDefaults.parentId).toBeUndefined();
+      expect(missingDefaults.excludeId).toBe('missing-node-2');
+
+      // 3. Target node found with override parent and exclude ID on Pod under Deployment
+      const nodes = [
+        { id: 'dep-1', type: 'Deployment', parentId: 'ns-1', data: { label: 'my-dep' } },
+        { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: {} },
+        { id: 'svc-1', type: 'Service', data: {} },
+        { id: 'node-notype', data: {} },
+      ];
+
+      const podWithOverrides = resolveTargetInfo('pod-1', nodes, undefined, 'ns-override', 'exclude-override');
+      expect(podWithOverrides.parentId).toBe('ns-override');
+      expect(podWithOverrides.excludeId).toBe('exclude-override');
+
+      // 4. Non-pod node with override type and excludeId
+      const svcInfo = resolveTargetInfo('svc-1', nodes, 'CustomKind', undefined, 'custom-svc-exclude');
+      expect(svcInfo.type).toBe('CustomKind');
+      expect(svcInfo.excludeId).toBe('custom-svc-exclude');
+
+      // 5. Node with undefined type
+      const noTypeInfo = resolveTargetInfo('node-notype', nodes);
+      expect(noTypeInfo.type).toBe('');
+
+      // 6. Pod with parent that is NOT a workload controller (e.g. Namespace parent or missing parent)
+      const orphanParentPod = { id: 'pod-missing-parent', type: 'Pod', parentId: 'missing-p-id', data: {} };
+      const nsParentPod = { id: 'pod-ns-parent', type: 'Pod', parentId: 'ns-1', data: {} };
+      const nodesWithNonWorkloadParents = [...nodes, orphanParentPod, nsParentPod];
+
+      const missingParentInfo = resolveTargetInfo('pod-missing-parent', nodesWithNonWorkloadParents);
+      expect(missingParentInfo.type).toBe('Pod');
+
+      const nsParentInfo = resolveTargetInfo('pod-ns-parent', nodesWithNonWorkloadParents);
+      expect(nsParentInfo.type).toBe('Pod');
+      expect(nsParentInfo.parentId).toBe('ns-1');
+    });
+
+    it('covers isDuplicateResourceName edge cases: empty candidate, untyped nodes, excludeNodeId parent match, and namespace duplicate', () => {
+      const nodes = [
+        { id: 'ns-prod', type: 'Namespace', data: { label: 'production' } },
+        { id: 'dep-prod', type: 'Deployment', parentId: 'ns-prod', data: { baseName: 'api-service', label: 'api-service' } },
+        { id: 'pod-child', type: 'Pod', parentId: 'dep-prod', data: { label: 'api-service-pod' } },
+        { id: 'untyped-node', data: {} } as any,
+      ];
+
+      // Empty / invalid candidate slug returns false
+      expect(isDuplicateResourceName('---', 'Deployment', 'ns-prod', nodes)).toBe(false);
+
+      // Node without type is skipped
+      expect(isDuplicateResourceName('untyped', 'Deployment', 'ns-prod', nodes)).toBe(false);
+
+      // Node where n.parentId === excludeNodeId is skipped
+      expect(isDuplicateResourceName('api-service-pod', 'Pod', 'ns-prod', nodes, 'dep-prod')).toBe(false);
+
+      // Namespace cluster-wide check
+      expect(isDuplicateResourceName('production', 'Namespace', undefined, nodes)).toBe(true);
+      expect(isDuplicateResourceName('staging', 'Namespace', undefined, nodes)).toBe(false);
+
+      // Namespace node with undefined label
+      const nodesWithEmptyNs = [{ id: 'ns-empty', type: 'Namespace', data: {} } as any];
+      expect(isDuplicateResourceName('production', 'Namespace', undefined, nodesWithEmptyNs)).toBe(false);
+    });
+
+    it('handles duplicate rename warnings for parent workload and general resources', () => {
+      const addLogMock = vi.fn();
+      const updateNodeDataMock = vi.fn();
+
+      // 1. Pod under parent Deployment when renamed to existing deployment name
+      const storeWithDupDep = () =>
+        ({
+          nodes: [
+            { id: 'dep-a', type: 'Deployment', parentId: 'ns-1', data: { label: 'existing-dep' } },
+            { id: 'dep-b', type: 'Deployment', parentId: 'ns-1', data: { label: 'current-dep' } },
+            { id: 'pod-b', type: 'Pod', parentId: 'dep-b', data: {} },
+          ],
+          addLog: addLogMock,
+          updateNodeData: updateNodeDataMock,
+        } as any);
+
+      const handlers = createNodeHandlers('pod-b', storeWithDupDep);
+      handlers.onRename('existing-dep');
+      expect(updateNodeDataMock).not.toHaveBeenCalled();
+      expect(addLogMock).toHaveBeenCalledWith('warn', expect.stringContaining("Cannot rename: Deployment 'existing-dep' already exists"), 'UI');
+
+      // 2. Pod under parent with workloadType: 'StatefulSet' and empty base slug
+      addLogMock.mockClear();
+      const storeWithStsWorkload = () =>
+        ({
+          nodes: [
+            { id: 'sts-w', type: 'Deployment', data: { workloadType: 'StatefulSet', label: 'db' } },
+            { id: 'pod-w', type: 'Pod', parentId: 'sts-w', data: {} },
+          ],
+          addLog: addLogMock,
+          updateNodeData: updateNodeDataMock,
+        } as any);
+
+      const stsHandlers = createNodeHandlers('pod-w', storeWithStsWorkload);
+      stsHandlers.onRename('---'); // rawClean is '' -> replace(/-\d+$/, '') is '' -> fallback 'statefulset'
+      expect(updateNodeDataMock).toHaveBeenCalledWith('sts-w', { label: 'statefulset' });
+
+      // 3. Service rename collision
+      addLogMock.mockClear();
+      updateNodeDataMock.mockClear();
+      const storeWithSvcCollision = () =>
+        ({
+          nodes: [
+            { id: 'svc-1', type: 'Service', parentId: 'ns-1', data: { label: 'web-svc' } },
+            { id: 'svc-2', type: 'Service', parentId: 'ns-1', data: { label: 'api-svc' } },
+          ],
+          addLog: addLogMock,
+          updateNodeData: updateNodeDataMock,
+        } as any);
+
+      const svcHandlers = createNodeHandlers('svc-2', storeWithSvcCollision);
+      svcHandlers.onRename('web-svc');
+      expect(updateNodeDataMock).not.toHaveBeenCalled();
+      expect(addLogMock).toHaveBeenCalledWith('warn', expect.stringContaining("Cannot rename: Service 'web-svc' already exists"), 'UI');
+
+      // 4. Node rename when cleanBase falls back to 'resource' (untyped node)
+      updateNodeDataMock.mockClear();
+      const storeWithUntyped = () =>
+        ({
+          nodes: [{ id: 'custom-node', data: {} }],
+          addLog: addLogMock,
+          updateNodeData: updateNodeDataMock,
+        } as any);
+
+      const untypedHandlers = createNodeHandlers('custom-node', storeWithUntyped);
+      untypedHandlers.onRename('');
+      expect(updateNodeDataMock).toHaveBeenCalledWith('custom-node', { label: 'resource' });
+
+      // 5. Pod with parentId that does not exist in store
+      updateNodeDataMock.mockClear();
+      const storeWithMissingParent = () =>
+        ({
+          nodes: [{ id: 'pod-orphan', type: 'Pod', parentId: 'missing-dep-id', data: {} }],
+          addLog: addLogMock,
+          updateNodeData: updateNodeDataMock,
+        } as any);
+
+      const orphanHandlers = createNodeHandlers('pod-orphan', storeWithMissingParent);
+      orphanHandlers.onRename('standalone-name');
+      expect(updateNodeDataMock).toHaveBeenCalledWith('pod-orphan', expect.objectContaining({ label: 'standalone-name' }));
+    });
+
     it('blocks renaming standalone Pod when candidate name already exists in same namespace', () => {
       const addLogMock = vi.fn();
       const updateNodeDataMock = vi.fn();

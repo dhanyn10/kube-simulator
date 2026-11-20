@@ -26,6 +26,7 @@ describe('MonitoringDashboard', () => {
     useFlowStore.setState({
       isMonitoringOpen: true,
       isMonitoringDetached: false,
+      isSimulating: false,
       nodes: [],
       simulationMetrics: {},
       colorMode: 'dark',
@@ -40,6 +41,18 @@ describe('MonitoringDashboard', () => {
     useFlowStore.setState({ isMonitoringOpen: true, isMonitoringDetached: true });
     rerender(<MonitoringDashboard />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('renders LIVE indicator and active stats banner when simulation is running', () => {
+    useFlowStore.setState({
+      isMonitoringOpen: true,
+      isMonitoringDetached: false,
+      isSimulating: true,
+      colorMode: 'dark',
+    });
+
+    render(<MonitoringDashboard />);
+    expect(screen.getByText('LIVE')).toBeDefined();
   });
 
   it('renders correctly when open and handles standalone pod, pod with parentId, replica set, and service workloads in light mode', () => {
