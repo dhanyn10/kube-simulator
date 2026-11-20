@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { initWailsMocks } from "@/lib/mocks";
+import { initWailsMocks, isWailsDesktop } from "@/lib/mocks";
 import { APP_VERSION } from "@/constants/config";
 
 describe("initWailsMocks", () => {
@@ -228,6 +228,10 @@ describe("initWailsMocks", () => {
     const invalidYaml = await app.GenerateYaml('{ invalid json', '[]');
     expect(invalidYaml).toBe('');
 
+    // GenerateYaml with empty strings fallback to '[]'
+    const emptyYaml = await app.GenerateYaml('', '');
+    expect(typeof emptyYaml).toBe('string');
+
     // WriteLog and OpenLogFile
     const logWritten = await app.WriteLog('app', 'info', 'Test log message');
     expect(logWritten).toBe(true);
@@ -271,5 +275,78 @@ describe("initWailsMocks", () => {
 
     // SetInitialFile
     await expect(app.SetInitialFile('init.infra')).resolves.toBeUndefined();
+  });
+
+  it("uses standard console functions when _originalConsole* are undefined", () => {
+    delete (window as any)._originalConsoleLog;
+    delete (window as any)._originalConsoleWarn;
+    delete (window as any)._originalConsoleError;
+    delete (window as any).go;
+
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    initWailsMocks();
+
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[Mocks] Real Wails backend not detected')
+    );
+
+    const runtime = (window as any).runtime;
+    runtime.LogWarning('warn msg');
+    runtime.LogError('err msg');
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith('warn msg');
+    expect(consoleErrorSpy).toHaveBeenCalledWith('err msg');
+
+    consoleLogSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  describe("isWailsDesktop", () => {
+    it("returns true when desktop markers are present, and covers fallback to g when window is undefined", () => {
+      // 1. chrome.webview.postMessage
+      const origChrome = (globalThis as any).chrome;
+      (globalThis as any).chrome = { webview: { postMessage: vi.fn() } };
+      expect(isWailsDesktop()).toBe(true);
+      delete (globalThis as any).chrome;
+
+      // 2. webkit messageHandlers
+      (globalThis as any).webkit = { messageHandlers: { external: { postMessage: vi.fn() } } };
+      expect(isWailsDesktop()).toBe(true);
+      delete (globalThis as any).webkit;
+
+      // 3. wails.invoke
+      (globalThis as any).wails = { invoke: vi.fn() };
+      expect(isWailsDesktop()).toBe(true);
+      delete (globalThis as any).wails;
+
+      // 4. location.origin includes wails.localhost
+      const origLocation = window.location;
+      try {
+        delete (window as any).location;
+        (window as any).location = { origin: 'http://wails.localhost:8080' };
+        expect(isWailsDesktop()).toBe(true);
+      } finally {
+        (window as any).location = origLocation;
+      }
+
+      // 5. Fallback when window property on globalThis is null/undefined (g.window ?? g)
+      const origWindow = (globalThis as any).window;
+      try {
+        (globalThis as any).window = undefined;
+        // Without any marker
+        expect(isWailsDesktop()).toBe(false);
+
+        // With marker on g directly
+        (globalThis as any).wails = { invoke: vi.fn() };
+        expect(isWailsDesktop()).toBe(true);
+        delete (globalThis as any).wails;
+      } finally {
+        (globalThis as any).window = origWindow;
+      }
+    });
   });
 });

@@ -190,5 +190,43 @@ describe('ConfigMapComponentSection (Tagify)', () => {
       />
     );
     expect(screen.getByTestId('attached-component-tag-dep-1')).toBeInTheDocument();
+
+    // Rerender with dark mode and rose accent
+    rerender(
+      <ConfigMapComponentSection
+        {...defaultProps}
+        attachedComponents={[{ id: 'dep-1', label: 'web-api', type: 'Deployment' }]}
+        availableComponents={[
+          { id: 'dep-1', label: 'web-api', type: 'Deployment' },
+          { id: 'pod-1', label: 'nginx', type: 'Pod' },
+        ]}
+        accentColor="rose"
+        isDark={true}
+      />
+    );
+    expect(screen.getByTestId('attached-component-tag-dep-1')).toBeInTheDocument();
+    fireEvent.focus(screen.getByPlaceholderText('Add more components...'));
+    expect(screen.getByTestId('tagify-suggestion-pod-1')).toBeInTheDocument();
+
+    // Rerender with dark mode and indigo accent
+    rerender(
+      <ConfigMapComponentSection
+        {...defaultProps}
+        attachedComponents={[{ id: 'dep-1', label: 'web-api', type: 'Deployment' }]}
+        availableComponents={[
+          { id: 'dep-1', label: 'web-api', type: 'Deployment' },
+          { id: 'pod-1', label: 'nginx', type: 'Pod' },
+        ]}
+        accentColor="indigo"
+        isDark={true}
+      />
+    );
+    expect(screen.getByTestId('attached-component-tag-dep-1')).toBeInTheDocument();
+    expect(screen.getByTestId('tagify-suggestion-pod-1')).toBeInTheDocument();
+
+    // Test non-special keypress (e.g. 'a') does not trigger escape or navigation
+    const inputField = screen.getByPlaceholderText('Add more components...');
+    fireEvent.keyDown(inputField, { key: 'a' });
+    expect(screen.getByTestId('tagify-suggestions-dropdown')).toBeInTheDocument();
   });
 });
