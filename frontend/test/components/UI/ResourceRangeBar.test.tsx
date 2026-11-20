@@ -46,6 +46,25 @@ describe('ResourceRangeBar', () => {
     expect(screen.queryByTestId('range-track-burst-memory')).not.toBeInTheDocument();
   });
 
+  it('renders Guaranteed range in dark mode', () => {
+    render(
+      <ResourceRangeBar
+        label="Memory"
+        unit="Mi"
+        requestStr="512Mi"
+        limitStr="512Mi"
+        parsedRequest={512}
+        parsedLimit={512}
+        maxScale={2048}
+        colorMode="dark"
+      />
+    );
+
+    const badge = screen.getByTestId('range-status-guaranteed-memory');
+    expect(badge).toBeInTheDocument();
+    expect(badge.className).toContain('text-emerald-400');
+  });
+
   it('renders Invalid state when request > limit', () => {
     render(
       <ResourceRangeBar

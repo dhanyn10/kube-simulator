@@ -92,6 +92,24 @@ describe('SimulationControls', () => {
     expect(stopSimulation).toHaveBeenCalled();
   });
 
+  it('renders disabled resume button with error title when paused but cannot start due to no internet', () => {
+    render(
+      <SimulationControls
+        isSimulating={false}
+        isPaused={true}
+        startSimulation={vi.fn()}
+        stopSimulation={vi.fn()}
+        hasInternet={false}
+        hasHpaValidationError={false}
+        colorMode="dark"
+      />
+    );
+
+    const resumeButton = screen.getByRole('button', { name: /resume/i });
+    expect(resumeButton).toBeDisabled();
+    expect(resumeButton.title).toBe('Add an Internet card to start simulation');
+  });
+
   it('shows red pulsing stop button when simulating with HPA validation error in light mode', () => {
     render(
       <SimulationControls

@@ -115,10 +115,36 @@ describe('NodeConfig', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(blurSpy).toHaveBeenCalled();
 
-    // 6. Pressing non-Enter key does not blur
+    // 6. Pressing non-Enter, non-Escape key (e.g. Tab)
     blurSpy.mockClear();
-    fireEvent.keyDown(input, { key: 'Escape' });
+    fireEvent.keyDown(input, { key: 'Tab' });
     expect(blurSpy).not.toHaveBeenCalled();
+
+    // 7. Pressing Escape key resets local value to original value
+    fireEvent.change(input, { target: { value: 'temp-typing' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(input.value).toBe('my-service');
+  });
+
+  it('handles empty label reverting on blur and escape key', () => {
+    const nodeWithoutLabel = { id: 'svc-no-label', type: 'Service', data: { label: '' } };
+    useFlowStore.setState({
+      nodes: [nodeWithoutLabel],
+      updateNodeData: mockUpdateNodeData,
+    });
+
+    render(<NodeConfig selectedNode={nodeWithoutLabel} />);
+    const input = screen.getByPlaceholderText('node-name') as HTMLInputElement;
+
+    // 1. Blur with empty string reverts to fallback empty string
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('');
+
+    // 2. Escape key reverts to fallback empty string
+    fireEvent.change(input, { target: { value: 'some-text' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(input.value).toBe('');
   });
 
   it('validates duplicate names in real-time with concise error notice and no validation when name is different', () => {

@@ -58,6 +58,11 @@ describe('CanvasProfilePopover', () => {
     fireEvent.mouseDown(document.body);
     expect(onClose).toHaveBeenCalledTimes(2);
 
+    // Click inside popover should not trigger onClose
+    const popoverEl = screen.getByTestId('canvas-profile-popover');
+    fireEvent.mouseDown(popoverEl);
+    expect(onClose).toHaveBeenCalledTimes(2);
+
     // Rerender with light mode
     rerender(<CanvasProfilePopover isOpen={true} onClose={onClose} colorMode="light" />);
     expect(screen.getByTestId('canvas-profile-popover')).toBeInTheDocument();
