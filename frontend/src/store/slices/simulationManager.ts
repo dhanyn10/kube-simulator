@@ -29,6 +29,9 @@ export const resetSimulationNodes = (nodes: Node[]): Node[] => {
     if (n.type === 'Internet') {
       return { ...n, data: { ...n.data, currentHourIndex: 0, currentMinuteIndex: 0, profileTicks: 0 } };
     }
+    if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet') {
+      return { ...n, data: { ...n.data, lowCpuTicks: 0 } };
+    }
     if (n.type === 'Pod') {
       const podData = n.data as K8sNodeData;
       const initialStatus = podData.image ? 'ready' : 'pending';

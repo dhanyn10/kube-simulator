@@ -315,6 +315,13 @@ const findConnectedHPA = (depId: string, ctx: SimulationContext): Node | undefin
   return undefined;
 };
 
+/** Consecutive low-CPU ticks required before HPA removes a replica (~5 simulated minutes). */
+export const HPA_SCALE_DOWN_STABILIZATION_TICKS = 5;
+
+/**
+ * Pure replica formula: scale toward CPU/target with a 10% deadband.
+ * Timing policy (stabilization) is applied by handleHpaScaling, not here.
+ */
 export const calculateDesiredReplicas = (
   replicas: number,
   cpuPercent: number,
@@ -328,9 +335,6 @@ export const calculateDesiredReplicas = (
     desired = Math.max(hpaData.minReplicas || 1, Math.min(hpaData.maxReplicas || 10, Math.ceil(replicas * cpuRatio)));
   }
 
-  if (desired < replicas && safeRandom() < 0.7) {
-    desired = replicas;
-  }
   return desired;
 };
 
@@ -385,6 +389,30 @@ const resolveHpaConfig = (dep: Node, ctx: SimulationContext): { config: { minRep
   if (nodeBoundConfig) return { config: nodeBoundConfig, connectedHPA: undefined };
 
   return { config: null, connectedHPA: undefined };
+};
+
+interface StabilizedReplicaDecision {
+  desiredReplicas: number;
+  lowCpuTicks: number;
+  counterChanged: boolean;
+}
+
+/** Applies the scale-down stabilization window as a pure decision. */
+const resolveStabilizedReplicas = (
+  replicas: number,
+  formulaReplicas: number,
+  deploymentData: K8sNodeData
+): StabilizedReplicaDecision => {
+  const wantsScaleDown = formulaReplicas < replicas;
+  const previousTicks = Number(deploymentData.lowCpuTicks) || 0;
+  const lowCpuTicks = wantsScaleDown ? previousTicks + 1 : 0;
+  const isStabilized = lowCpuTicks >= HPA_SCALE_DOWN_STABILIZATION_TICKS;
+
+  return {
+    desiredReplicas: wantsScaleDown && !isStabilized ? replicas : formulaReplicas,
+    lowCpuTicks,
+    counterChanged: lowCpuTicks !== previousTicks,
+  };
 };
 
 const scaleDeploymentReplicas = (dep: Node, diff: number, ctx: SimulationContext): boolean => {
@@ -453,7 +481,20 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
 
   let hasChanges = false;
   const replicas = deploymentData.replicas || 1;
-  const desiredReplicas = calculateDesiredReplicas(replicas, cpuPercent, hpaConfig as any);
+  const formulaReplicas = calculateDesiredReplicas(replicas, cpuPercent, hpaConfig as any);
+
+  // Real HPA uses a stabilization window before scaling down so a short CPU dip
+  // does not remove replicas. Counting consecutive low-CPU ticks is deterministic
+  // and reproducible, unlike the previous random coin flip.
+  const { desiredReplicas, lowCpuTicks, counterChanged } = resolveStabilizedReplicas(
+    replicas,
+    formulaReplicas,
+    deploymentData
+  );
+
+  if (counterChanged && updateNodeData(ctx, dep.id, { lowCpuTicks })) {
+    hasChanges = true;
+  }
 
   if (desiredReplicas !== replicas) {
     hasChanges = scaleDeploymentReplicas(dep, desiredReplicas - replicas, ctx);

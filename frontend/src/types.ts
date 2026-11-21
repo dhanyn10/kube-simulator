@@ -146,6 +146,8 @@ export interface K8sNodeData {
   maxReplicas?: number;
   targetCPU?: number;
   targetMemory?: number;
+  /** Consecutive low-CPU ticks used by scale-down stabilization. */
+  lowCpuTicks?: number;
 
   // Ingress specific fields
   ingressHost?: string;

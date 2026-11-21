@@ -351,30 +351,29 @@ describe('simulation test suite', () => {
     expect(handleHpaScaling(depWithMinMax, 100, ctx3)).toBe(true);
   });
 
-  it('hpa scaling execution - scale down blocked by random check or allowed when random >= 0.7', () => {
-    (safeRandom as any).mockReturnValue(0.5); // < 0.7 triggers scale down dampening
-    const depWith3 = createNode('d-scaled', 'Deployment', {
-      replicas: 3,
-      hpas: [{ minReplicas: 1, maxReplicas: 5, targetCPU: 50 }]
-    });
-    const ctx = getMockCtx();
-    ctx.updatedNodes.push(depWith3);
-    ctx.nodeIndexMap?.set('d-scaled', ctx.updatedNodes.length - 1);
+  it('hpa scale-down is deterministic and never depends on random values', () => {
+    const runWithRandom = (randomValue: number) => {
+      (safeRandom as any).mockReturnValue(randomValue);
+      const dep = createNode(`d-scaled-${randomValue}`, 'Deployment', {
+        replicas: 3,
+        hpas: [{ minReplicas: 1, maxReplicas: 5, targetCPU: 50 }]
+      });
+      const ctx = getMockCtx();
+      ctx.updatedNodes.push(dep);
+      ctx.nodeIndexMap?.set(dep.id, ctx.updatedNodes.length - 1);
 
-    // cpuPercent = 10% on target 50% -> scale down attempt dampened
-    expect(handleHpaScaling(depWith3, 10, ctx)).toBe(false);
+      const changed = handleHpaScaling(dep, 10, ctx);
+      const updated = ctx.updatedNodes.find((n: any) => n.id === dep.id);
+      return { changed, replicas: updated?.data?.replicas, lowCpuTicks: updated?.data?.lowCpuTicks };
+    };
 
-    // safeRandom >= 0.7 allows scale down
-    (safeRandom as any).mockReturnValue(0.8);
-    const depWith3Down = createNode('d-scaled-down', 'Deployment', {
-      replicas: 3,
-      hpas: [{ minReplicas: 1, maxReplicas: 5, targetCPU: 50 }]
-    });
-    const ctxDown = getMockCtx();
-    ctxDown.updatedNodes.push(depWith3Down);
-    ctxDown.nodeIndexMap?.set('d-scaled-down', ctxDown.updatedNodes.length - 1);
+    const blockedLow = runWithRandom(0.1);
+    const blockedHigh = runWithRandom(0.99);
 
-    expect(handleHpaScaling(depWith3Down, 10, ctxDown)).toBe(true);
+    expect(blockedLow).toEqual(blockedHigh);
+    expect(blockedLow.changed).toBe(true);
+    expect(blockedLow.replicas).toBe(3);
+    expect(blockedLow.lowCpuTicks).toBe(1);
   });
 
   it('hpa scaling execution - update currentCPU', () => {

@@ -175,18 +175,21 @@ describe('simulationManager', () => {
       }));
     });
 
-    it('resetSimulationNodes correctly handles Pods, PVCs, Internet, and pass-through nodes', () => {
+    it('resetSimulationNodes correctly handles Pods, PVCs, Internet, HPA counters, and pass-through nodes', () => {
       const nodes: any[] = [
         { id: 'p1', type: 'Pod', data: { image: 'alpine', status: 'crashing' } },
         { id: 'pvc1', type: 'PVC', data: { pvcStatus: 'Bound' } },
         { id: 'net1', type: 'Internet', data: { currentHourIndex: 3, currentMinuteIndex: 2, profileTicks: 99 } },
         { id: 'svc1', type: 'Service', data: { label: 'my-svc' } },
+        { id: 'dep1', type: 'Deployment', data: { replicas: 3, lowCpuTicks: 4 } },
       ];
       const result = resetSimulationNodes(nodes);
       expect(result[0].data.status).toBe('ready');
       expect(result[1].data.pvcStatus).toBe('Pending');
       expect(result[2].data.profileTicks).toBe(0);
       expect(result[3].data.label).toBe('my-svc');
+      expect(result[4].data.lowCpuTicks).toBe(0);
+      expect(result[4].data.replicas).toBe(3);
     });
   });
 

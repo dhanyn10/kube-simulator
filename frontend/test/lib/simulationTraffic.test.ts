@@ -7,6 +7,7 @@ import {
   updateInternetTraffic,
   calculateResourceMetrics,
   calculateResponseLatencyMs,
+  HPA_SCALE_DOWN_STABILIZATION_TICKS,
   handleHpaScaling,
   calculateDesiredReplicas,
 } from '@/lib/simulationTraffic';
@@ -429,6 +430,81 @@ describe('simulationTraffic', () => {
       expect(calculateDesiredReplicas(2, 50, {})).toBe(2);
       // ratio = 100 / 50 = 2 => scales up to 2, min/max fallback to 1 and 10
       expect(calculateDesiredReplicas(1, 100, {})).toBe(2);
+    });
+
+    it('returns the lower replica count directly without any randomness', () => {
+      const config = { minReplicas: 1, maxReplicas: 8, targetCPU: 50 };
+      // ratio = 10 / 50 = 0.2 -> ceil(4 * 0.2) = 1
+      expect(calculateDesiredReplicas(4, 10, config)).toBe(1);
+      expect(calculateDesiredReplicas(4, 10, config)).toBe(1);
+    });
+  });
+
+  describe('HPA scale-down stabilization', () => {
+    const makeScalingCtx = (dep: Node) => ({
+      updatedNodes: [{ ...dep, data: { ...dep.data } }],
+      nodeIndexMap: new Map([[dep.id, 0]]),
+      get: () => ({ addActivityLog: vi.fn() }) as any,
+    } as any);
+
+    it('waits for consecutive low-CPU ticks before removing replicas', () => {
+      const initial: Node = {
+        id: 'dep-stabilize',
+        position: { x: 0, y: 0 },
+        data: {
+          replicas: 4,
+          hpas: [{ minReplicas: 1, maxReplicas: 8, targetCPU: 50 }],
+        },
+      };
+      const ctx = makeScalingCtx(initial);
+      let current = initial;
+
+      for (let tick = 1; tick < HPA_SCALE_DOWN_STABILIZATION_TICKS; tick++) {
+        handleHpaScaling(current, 10, ctx);
+        const updated = ctx.updatedNodes[0].data;
+        expect(updated.replicas).toBe(4);
+        expect(updated.lowCpuTicks).toBe(tick);
+        current = ctx.updatedNodes[0];
+      }
+
+      handleHpaScaling(current, 10, ctx);
+      expect(ctx.updatedNodes[0].data.lowCpuTicks).toBe(HPA_SCALE_DOWN_STABILIZATION_TICKS);
+      expect(ctx.updatedNodes[0].data.replicas).toBe(1);
+    });
+
+    it('resets the counter as soon as CPU returns to the target range', () => {
+      const initial: Node = {
+        id: 'dep-reset',
+        position: { x: 0, y: 0 },
+        data: {
+          replicas: 4,
+          lowCpuTicks: 3,
+          hpas: [{ minReplicas: 1, maxReplicas: 8, targetCPU: 50 }],
+        },
+      };
+      const ctx = makeScalingCtx(initial);
+
+      handleHpaScaling(initial, 50, ctx);
+
+      expect(ctx.updatedNodes[0].data.lowCpuTicks).toBe(0);
+      expect(ctx.updatedNodes[0].data.replicas).toBe(4);
+    });
+
+    it('does not delay scale-up', () => {
+      const initial: Node = {
+        id: 'dep-up',
+        position: { x: 0, y: 0 },
+        data: {
+          replicas: 2,
+          hpas: [{ minReplicas: 1, maxReplicas: 8, targetCPU: 50 }],
+        },
+      };
+      const ctx = makeScalingCtx(initial);
+
+      handleHpaScaling(initial, 100, ctx);
+
+      expect(ctx.updatedNodes[0].data.replicas).toBe(4);
+      expect(ctx.updatedNodes[0].data.lowCpuTicks ?? 0).toBe(0);
     });
   });
 });
