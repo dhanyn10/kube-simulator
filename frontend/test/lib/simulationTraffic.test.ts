@@ -254,6 +254,7 @@ describe('simulationTraffic', () => {
 
       const metrics = calculateResourceMetrics(dep, 1000, ctx);
       expect(metrics.cpuPercent).toBeGreaterThan(0);
+      expect(metrics.memoryPercent).toBeGreaterThan(0);
       expect(ctx.newMetrics['dep-1']).toHaveLength(1);
       expect(ctx.newMetrics['dep-1'][0].trafficRpm).toBe(1000);
       expect(ctx.newMetrics['dep-1'][0].latencyMs).toBeGreaterThan(0);
@@ -344,6 +345,41 @@ describe('simulationTraffic', () => {
       const scaled = handleHpaScaling(dep, 90, ctx);
       expect(scaled).toBe(true);
       expect(addActivityLog).toHaveBeenCalledWith(expect.stringContaining('[HPA Autoscaler] Scaled up'));
+    });
+
+    it('uses targetMemory from an attached HPA to decide scaling', () => {
+      const dep: Node = {
+        id: 'dep-memory',
+        position: { x: 0, y: 0 },
+        data: {
+          replicas: 4,
+          hpas: [{
+            id: 'hpa-memory',
+            name: 'memory-aware-hpa',
+            minReplicas: 1,
+            maxReplicas: 10,
+            targetCPU: 80,
+            targetMemory: 50,
+          }],
+        },
+      };
+      const makeCtx = () => ({
+        updatedNodes: [{ ...dep, data: { ...dep.data } }],
+        nodeIndexMap: new Map([['dep-memory', 0]]),
+        get: () => ({ addActivityLog: vi.fn() }) as any,
+      } as any);
+
+      // CPU wants 2, memory is inside its deadband -> 4, so no scale-down
+      // is even considered and the stabilization counter stays idle.
+      const blocked = makeCtx();
+      expect(handleHpaScaling(dep, 40, blocked, 45)).toBe(false);
+      expect(blocked.updatedNodes[0].data.replicas).toBe(4);
+      expect(blocked.updatedNodes[0].data.lowCpuTicks ?? 0).toBe(0);
+
+      // Memory is the bottleneck -> 8 replicas.
+      const scaledUp = makeCtx();
+      expect(handleHpaScaling(dep, 60, scaledUp, 90)).toBe(true);
+      expect(scaledUp.updatedNodes[0].data.replicas).toBe(8);
     });
 
     it('handles connected HPA node with missing minReplicas, maxReplicas, and targetCPU fallbacks', () => {
@@ -437,6 +473,36 @@ describe('simulationTraffic', () => {
       // ratio = 10 / 50 = 0.2 -> ceil(4 * 0.2) = 1
       expect(calculateDesiredReplicas(4, 10, config)).toBe(1);
       expect(calculateDesiredReplicas(4, 10, config)).toBe(1);
+    });
+
+    it('ignores memory when targetMemory is not configured', () => {
+      const config = { minReplicas: 1, maxReplicas: 10, targetCPU: 50 };
+      expect(calculateDesiredReplicas(4, 10, config, 100)).toBe(1);
+    });
+
+    it('ignores memory when memoryPercent is not supplied', () => {
+      const config = { minReplicas: 1, maxReplicas: 10, targetCPU: 50, targetMemory: 50 };
+      expect(calculateDesiredReplicas(4, 10, config)).toBe(1);
+    });
+
+    it('takes the larger CPU and memory recommendation', () => {
+      const config = { minReplicas: 1, maxReplicas: 10, targetCPU: 80, targetMemory: 50 };
+      // CPU 40/80 = 0.5 -> 2; memory 45/50 = 0.9 is inside the 10% deadband -> 4
+      expect(calculateDesiredReplicas(4, 40, config, 45)).toBe(4);
+      // CPU 60/80 = 0.75 -> 3; memory 90/50 = 1.8 -> 8
+      expect(calculateDesiredReplicas(4, 60, config, 90)).toBe(8);
+    });
+
+    it('does not scale down unless every configured metric agrees', () => {
+      const config = { minReplicas: 1, maxReplicas: 10, targetCPU: 50, targetMemory: 50 };
+      expect(calculateDesiredReplicas(4, 10, config, 50)).toBe(4);
+      expect(calculateDesiredReplicas(4, 10, config, 20)).toBe(2);
+    });
+
+    it('clamps the memory recommendation to min and max replicas', () => {
+      const config = { minReplicas: 2, maxReplicas: 5, targetCPU: 50, targetMemory: 50 };
+      expect(calculateDesiredReplicas(3, 10, config, 200)).toBe(5);
+      expect(calculateDesiredReplicas(3, 10, config, 10)).toBe(2);
     });
   });
 

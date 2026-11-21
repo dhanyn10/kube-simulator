@@ -434,7 +434,7 @@ export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { 
   const metricsResult = calculateResourceMetrics(dep, effectiveTraffic, ctx);
 
   const oomChanged = handleOomCrashes(dep, metricsResult.isOOM, ctx);
-  const hpaChanged = handleHpaScaling(dep, metricsResult.cpuPercent, ctx);
+  const hpaChanged = handleHpaScaling(dep, metricsResult.cpuPercent, ctx, metricsResult.memoryPercent);
 
   return { hasChanges: cmResult.hasChanges || secretResult.hasChanges || pvcResult.hasChanges || oomChanged || hpaChanged };
 };
