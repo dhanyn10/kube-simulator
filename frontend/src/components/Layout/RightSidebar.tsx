@@ -43,7 +43,7 @@ export const CanvasWidgetsPanel = ({ nodes, colorMode, visibleWidgets }: CanvasW
               <Activity size={16} />
             </div>
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider">Hardware Budget</h3>
+              <h3 className="text-eyebrow">Hardware Budget</h3>
               <p className="text-[9px] text-slate-500 font-medium">Host resource tracking</p>
             </div>
           </div>
@@ -67,7 +67,7 @@ export const CanvasWidgetsPanel = ({ nodes, colorMode, visibleWidgets }: CanvasW
               <Info size={16} />
             </div>
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider">Object Statistics</h3>
+              <h3 className="text-eyebrow">Object Statistics</h3>
               <p className="text-[9px] text-slate-500 font-medium">Visual status tracking</p>
             </div>
           </div>
@@ -121,7 +121,7 @@ export const SettingsPanel = ({ selectedNode, selectedEdge, isElementSelected, c
               <Settings size={16} />
             </div>
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider">
+              <h3 className="text-eyebrow">
                 {selectedEdge ? 'Edge' : selectedNode?.type} Config
               </h3>
               <p className="text-[9px] text-slate-500 font-medium">Modify element properties</p>

@@ -822,7 +822,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
           {hasExistingItem && (
             <div>
-              <label htmlFor="configmap-id-input" className="block text-xs font-semibold mb-1 text-slate-400">
+              <label htmlFor="configmap-id-input" className="form-label">
                 ConfigMap ID
               </label>
               <input
@@ -844,7 +844,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
           {/* ConfigMap Name */}
           <div>
-            <label htmlFor="configmap-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
+            <label htmlFor="configmap-name-input" className="form-label">
               ConfigMap Name
             </label>
             <input

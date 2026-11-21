@@ -209,7 +209,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
           </p>
         </div>
         <div className="relative">
-          <Search className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} size={12} />
+          <Search className={cn("search-input-icon-sm", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} size={12} />
           <input
             type="text"
             placeholder="Search..."

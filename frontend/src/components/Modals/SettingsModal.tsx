@@ -57,7 +57,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
             type="checkbox"
             checked={isSidebarVisible}
             onChange={() => setSidebarVisible(!isSidebarVisible)}
-            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+            className="settings-checkbox"
             aria-label="Toggle Components Sidebar"
           />
         </label>
@@ -75,7 +75,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
             type="checkbox"
             checked={isRightSidebarVisible}
             onChange={() => setRightSidebarVisible(!isRightSidebarVisible)}
-            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+            className="settings-checkbox"
             aria-label="Toggle Utilities Sidebar"
           />
         </label>
@@ -93,7 +93,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
             type="checkbox"
             checked={isMonitoringOpen}
             onChange={() => setMonitoringOpen(!isMonitoringOpen)}
-            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+            className="settings-checkbox"
             aria-label="Toggle Simulation Panel"
           />
         </label>
@@ -111,7 +111,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
             type="checkbox"
             checked={isAutofocusEnabled}
             onChange={() => toggleAutofocus()}
-            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+            className="settings-checkbox"
             aria-label="Toggle Autofocus"
           />
         </label>
@@ -129,7 +129,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
             type="checkbox"
             checked={isTerminalAutoOpenOnPlay}
             onChange={() => toggleTerminalAutoOpenOnPlay()}
-            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+            className="settings-checkbox"
             aria-label="Toggle Auto-open Terminal on Play"
           />
         </label>

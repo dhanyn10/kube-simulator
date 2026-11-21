@@ -636,7 +636,7 @@ export const ResourcePrecedenceView: React.FC<ResourcePrecedenceViewProps> = ({
 
       {orderedItems.length > 2 && (
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={14} className="search-input-icon" />
           <input
             type="text"
             placeholder={`Filter ${resourceType}s by ID, key, or value...`}

@@ -83,7 +83,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
               aria-label="Components Sidebar"
               checked={isSidebarVisible}
               onChange={() => setSidebarVisible(!isSidebarVisible)}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+              className="settings-checkbox"
             />
           </label>
 
@@ -102,7 +102,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
               aria-label="Utilities Sidebar"
               checked={isRightSidebarVisible}
               onChange={() => setRightSidebarVisible(!isRightSidebarVisible)}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+              className="settings-checkbox"
             />
           </label>
 
@@ -121,7 +121,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
               aria-label="Simulation Panel"
               checked={isMonitoringOpen}
               onChange={() => setMonitoringOpen(!isMonitoringOpen)}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+              className="settings-checkbox"
             />
           </label>
 
@@ -140,7 +140,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
               aria-label="Autofocus"
               checked={isAutofocusEnabled}
               onChange={() => toggleAutofocus()}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+              className="settings-checkbox"
             />
           </label>
 
@@ -159,7 +159,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
               aria-label="Auto-open Terminal on Play"
               checked={Boolean(isTerminalAutoOpenOnPlay)}
               onChange={() => toggleTerminalAutoOpenOnPlay?.()}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+              className="settings-checkbox"
             />
           </label>
         </div>

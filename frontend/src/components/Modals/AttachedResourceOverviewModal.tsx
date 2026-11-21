@@ -309,7 +309,7 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
           type="button"
           onClick={onClose}
           className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
+            "modal-outline-btn",
             colorMode === 'dark'
               ? "border-slate-700 hover:bg-slate-800 text-slate-300"
               : "border-slate-300 hover:bg-slate-100 text-slate-700"
@@ -337,7 +337,7 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
         <div className="relative">
           <Search
             size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            className="search-input-icon"
           />
           <input
             type="text"

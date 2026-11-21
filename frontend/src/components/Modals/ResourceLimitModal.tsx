@@ -105,7 +105,7 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
       <div className="space-y-4">
         {/* Name */}
         <div>
-          <label htmlFor="res-limit-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
+          <label htmlFor="res-limit-name-input" className="form-label">
             Resource Limit Name
           </label>
           <input

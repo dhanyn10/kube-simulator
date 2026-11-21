@@ -80,7 +80,7 @@ export const HPAModal: React.FC<HPAModalProps> = ({
       <div className="space-y-4">
         {/* HPA Name */}
         <div>
-          <label htmlFor="hpa-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
+          <label htmlFor="hpa-name-input" className="form-label">
             HPA Name
           </label>
           <input
@@ -102,7 +102,7 @@ export const HPAModal: React.FC<HPAModalProps> = ({
         {/* Replica Limits */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="hpa-min-replicas" className="block text-xs font-semibold mb-1 text-slate-400">
+            <label htmlFor="hpa-min-replicas" className="form-label">
               Min Replicas
             </label>
             <input
@@ -120,7 +120,7 @@ export const HPAModal: React.FC<HPAModalProps> = ({
             />
           </div>
           <div>
-            <label htmlFor="hpa-max-replicas" className="block text-xs font-semibold mb-1 text-slate-400">
+            <label htmlFor="hpa-max-replicas" className="form-label">
               Max Replicas
             </label>
             <input
@@ -142,7 +142,7 @@ export const HPAModal: React.FC<HPAModalProps> = ({
         {/* Target CPU & Memory Thresholds */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="hpa-target-cpu" className="block text-xs font-semibold mb-1 text-slate-400">
+            <label htmlFor="hpa-target-cpu" className="form-label">
               Target CPU Utilization (%)
             </label>
             <input
@@ -161,7 +161,7 @@ export const HPAModal: React.FC<HPAModalProps> = ({
             />
           </div>
           <div>
-            <label htmlFor="hpa-target-memory" className="block text-xs font-semibold mb-1 text-slate-400">
+            <label htmlFor="hpa-target-memory" className="form-label">
               Target Memory Utilization (%) (Optional)
             </label>
             <input

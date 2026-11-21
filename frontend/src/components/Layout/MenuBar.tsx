@@ -68,9 +68,8 @@ export const MenuBar = ({
   return (
     <div
       ref={menuRef}
-      style={{ '--wails-draggable': 'drag' }}
       className={cn(
-        "menubar-container",
+        "menubar-container wails-drag",
         themeClasses
       )}
     >
@@ -98,9 +97,8 @@ export const MenuBar = ({
         <button
           type="button"
           onClick={toggleColorMode}
-          style={{ '--wails-draggable': 'no-drag' }}
           className={cn(
-            "p-1.5 rounded-md transition-colors mr-1",
+            "wails-no-drag p-1.5 rounded-md transition-colors mr-1",
             colorMode === 'dark' ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-200 text-slate-500"
           )}
           title="Toggle Theme"
@@ -123,11 +121,10 @@ export const MenuBar = ({
           <button
             type="button"
             onClick={() => setKubeIamModalOpen(true)}
-            style={{ '--wails-draggable': 'no-drag' }}
             title={`Active Identity Context: ${activeIdentity} (Click to open Kube IAM Management)`}
             data-testid="menubar-identity-passport-btn"
             className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition-all ml-1 border shadow-xs cursor-pointer",
+              "wails-no-drag flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition-all ml-1 border shadow-xs cursor-pointer",
               colorMode === 'dark'
                 ? "bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border-emerald-500/30"
                 : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300"
@@ -149,11 +146,10 @@ export const MenuBar = ({
                 onOpenAbout();
               }
             }}
-            style={{ '--wails-draggable': 'no-drag' }}
             title={`Update v${effectiveUpdateInfo.version} is available! Click to view release.`}
             data-testid="menubar-update-btn"
             className={cn(
-              "flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold shadow-sm transition-all animate-in fade-in zoom-in duration-200 ml-1",
+              "wails-no-drag flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold shadow-sm transition-all animate-in fade-in zoom-in duration-200 ml-1",
               colorMode === 'dark'
                 ? "bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/30"
                 : "bg-blue-600 hover:bg-blue-700 text-white border border-blue-500/30"
@@ -168,11 +164,10 @@ export const MenuBar = ({
         <button
           type="button"
           onClick={() => setLogModalOpen(true)}
-          style={{ '--wails-draggable': 'no-drag' }}
           title={errorCount > 0 ? `${errorCount} application errors recorded` : "View Logs"}
           data-testid="bell-notification-btn"
           className={cn(
-            "relative p-1.5 rounded-md transition-colors ml-1",
+            "wails-no-drag relative p-1.5 rounded-md transition-colors ml-1",
             colorMode === 'dark' ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-200 text-slate-500 hover:text-slate-900"
           )}
         >

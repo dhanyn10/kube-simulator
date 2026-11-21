@@ -357,7 +357,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
 
           {hasExistingItem && (
             <div>
-              <label htmlFor="secret-id-input" className="block text-xs font-semibold mb-1 text-slate-400">
+              <label htmlFor="secret-id-input" className="form-label">
                 Secret ID
               </label>
               <input
@@ -380,7 +380,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
           {/* Secret Name & Type */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label htmlFor="secret-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
+              <label htmlFor="secret-name-input" className="form-label">
                 Secret Name
               </label>
               <input
@@ -400,7 +400,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="secret-type-select" className="block text-xs font-semibold mb-1 text-slate-400">
+              <label htmlFor="secret-type-select" className="form-label">
                 Secret Type
               </label>
               <select

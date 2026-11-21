@@ -53,7 +53,7 @@ const ListModeFooter: React.FC<{
       data-testid={closeButtonTestId}
       onClick={onClose}
       className={cn(
-        "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
+        "modal-outline-btn",
         isDark
           ? "border-slate-700 hover:bg-slate-800 text-slate-300"
           : "border-slate-300 hover:bg-slate-100 text-slate-700"
@@ -126,7 +126,7 @@ const ProfileModeFooter: React.FC<{
         type="button"
         onClick={onClose}
         className={cn(
-          "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
+          "modal-outline-btn",
           isDark
             ? "border-slate-700 hover:bg-slate-800 text-slate-300"
             : "border-slate-300 hover:bg-slate-100 text-slate-700"
@@ -176,7 +176,7 @@ const FormModeFooter: React.FC<{
         data-testid={closeButtonTestId}
         onClick={onClose}
         className={cn(
-          "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
+          "modal-outline-btn",
           isDark
             ? "border-slate-700 hover:bg-slate-800 text-slate-300"
             : "border-slate-300 hover:bg-slate-100 text-slate-700"

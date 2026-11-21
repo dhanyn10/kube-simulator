@@ -58,7 +58,7 @@ export const TerminalLogBody = ({
       )}>
         <Layers size={24} className="opacity-25" />
         <div className="space-y-0.5">
-          <p className="text-xs font-bold uppercase tracking-wider">No Loggable Resources</p>
+          <p className="text-eyebrow">No Loggable Resources</p>
           <p className="text-[10px] max-w-xs">Add a Pod, Deployment, or ReplicaSet to the canvas to view container logs.</p>
         </div>
       </div>

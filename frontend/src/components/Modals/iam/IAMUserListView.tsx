@@ -55,7 +55,7 @@ export const IAMUserListView: React.FC<IAMUserListViewProps> = ({
 
       {iamUsers.length > 0 && (
         <div className="relative mb-3">
-          <Search size={14} className={cn('absolute left-2.5 top-1/2 -translate-y-1/2', isDark ? 'text-slate-500' : 'text-slate-400')} />
+          <Search size={14} className={cn('search-input-icon-sm', isDark ? 'text-slate-500' : 'text-slate-400')} />
           <input
             type="text"
             placeholder="Filter users by name..."

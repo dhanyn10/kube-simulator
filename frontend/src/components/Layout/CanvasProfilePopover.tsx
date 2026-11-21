@@ -120,7 +120,7 @@ export const CanvasProfilePopover: React.FC<CanvasProfilePopoverProps> = ({
         {/* Opacity Range Slider */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="text-eyebrow-sm">
               Grid Opacity
             </span>
             <span className="text-[11px] font-mono font-semibold text-blue-400">

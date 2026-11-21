@@ -37,11 +37,11 @@ export const PVCNode = memo((props: NodeProps) => {
         </div>
       </div>
       <div className="space-y-1.5 mt-1">
-        <div className="flex justify-between items-center text-[9px] font-mono">
+        <div className="node-metric-row">
           <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>capacity:</span>
           <span className="text-orange-500 font-bold">{data.storageCapacity || '1Gi'}</span>
         </div>
-        <div className="flex justify-between items-center text-[9px] font-mono">
+        <div className="node-metric-row">
           <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>access:</span>
           <span
             className={cn(

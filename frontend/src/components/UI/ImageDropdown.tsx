@@ -229,7 +229,7 @@ export const ImageDropdown = ({ value, onChange, colorMode }: ImageDropdownProps
             : "bg-white/95 border-slate-200 backdrop-blur-lg shadow-slate-200/50"
         )}>
           <div className="relative mb-2">
-            <Search size={12} className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} />
+            <Search size={12} className={cn("search-input-icon-sm", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} />
             <input
               ref={inputRef}
               type="text"
