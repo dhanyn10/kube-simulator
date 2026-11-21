@@ -231,10 +231,6 @@
     @apply absolute bottom-full left-4 mb-1 w-[420px] max-h-60 overflow-y-auto rounded-md shadow-2xl border font-mono text-[11px] z-40 divide-y;
   }
 
-  .terminal-autocomplete-item {
-    @apply flex flex-col transition-colors border-b last:border-b-0;
-  }
-
   /* RightSidebar Component Styles */
   .right-sidebar-container {
     @apply w-72 border-l flex flex-col h-full shrink-0 z-10 transition-colors overflow-hidden;
@@ -343,29 +339,41 @@
     @apply fixed inset-0 z-[500] flex font-sans select-none;
   }
 
+  .backstage-context-menu-surface {
+    @apply fixed z-[600] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md;
+  }
+
   .backstage-context-menu-dark {
-    @apply fixed z-[600] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50;
+    @apply bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50;
   }
 
   .backstage-context-menu-light {
-    @apply fixed z-[600] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50;
+    @apply bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50;
   }
 
   /* Backstage & Modal Layout Component Styles */
+  .backstage-sidebar-surface {
+    @apply w-64 border-r flex flex-col shrink-0 shadow-lg select-none;
+  }
+
   .backstage-sidebar-dark {
-    @apply w-64 border-r flex flex-col shrink-0 shadow-lg select-none bg-slate-900 border-slate-800;
+    @apply bg-slate-900 border-slate-800;
   }
 
   .backstage-sidebar-light {
-    @apply w-64 border-r flex flex-col shrink-0 shadow-lg select-none bg-blue-900 text-white border-blue-800;
+    @apply bg-blue-900 text-white border-blue-800;
+  }
+
+  .backstage-btn-back-surface {
+    @apply p-2.5 rounded-full transition-colors flex items-center justify-center cursor-pointer;
   }
 
   .backstage-btn-back-dark {
-    @apply p-2.5 rounded-full transition-colors flex items-center justify-center cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200;
+    @apply bg-slate-800 hover:bg-slate-700 text-slate-200;
   }
 
   .backstage-btn-back-light {
-    @apply p-2.5 rounded-full transition-colors flex items-center justify-center cursor-pointer bg-white/20 hover:bg-white/30 text-white;
+    @apply bg-white/20 hover:bg-white/30 text-white;
   }
 
   .backstage-nav-btn {
@@ -388,44 +396,56 @@
     @apply text-blue-100 hover:bg-white/10;
   }
 
+  .backstage-settings-surface {
+    @apply w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer;
+  }
+
   .backstage-settings-active-dark {
-    @apply w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-slate-800 text-blue-400;
+    @apply bg-slate-800 text-blue-400;
   }
 
   .backstage-settings-active-light {
-    @apply w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-white/20 text-white;
+    @apply bg-white/20 text-white;
   }
 
   .backstage-settings-inactive-dark {
-    @apply w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer text-slate-300 hover:bg-slate-800/80;
+    @apply text-slate-300 hover:bg-slate-800/80;
   }
 
   .backstage-settings-inactive-light {
-    @apply w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer text-blue-100 hover:bg-white/10;
+    @apply text-blue-100 hover:bg-white/10;
+  }
+
+  .backstage-submenu-surface {
+    @apply w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer;
   }
 
   .backstage-submenu-active-dark {
-    @apply w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer bg-blue-600 text-white;
+    @apply bg-blue-600 text-white;
   }
 
   .backstage-submenu-active-light {
-    @apply w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer bg-white text-blue-900 shadow-sm;
+    @apply bg-white text-blue-900 shadow-sm;
   }
 
   .backstage-submenu-inactive-dark {
-    @apply w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer text-slate-400 hover:text-white;
+    @apply text-slate-400 hover:text-white;
   }
 
   .backstage-submenu-inactive-light {
-    @apply w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer text-blue-100 hover:bg-white/10;
+    @apply text-blue-100 hover:bg-white/10;
+  }
+
+  .backstage-theme-toggle-surface {
+    @apply w-full px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer;
   }
 
   .backstage-theme-toggle-dark {
-    @apply w-full px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-slate-800 text-amber-400 hover:bg-slate-700;
+    @apply bg-slate-800 text-amber-400 hover:bg-slate-700;
   }
 
   .backstage-theme-toggle-light {
-    @apply w-full px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-white/20 text-white hover:bg-white/30;
+    @apply bg-white/20 text-white hover:bg-white/30;
   }
 
   .backstage-table-row-autosave-dark {
@@ -519,29 +539,37 @@
     pointer-events: none !important;
   }
 
+  .text-mat-amber { color: var(--color-mat-amber); }
+
+  .text-mat-cyan { color: var(--color-mat-cyan); }
+
   /* Node Attached Resources Footer Component Styles */
   .node-attached-footer {
     @apply mt-2 pt-1.5 border-t border-slate-500/20 flex flex-wrap items-center justify-center gap-1.5 z-20 pointer-events-auto shrink-0 w-full;
   }
 
+  .node-attached-badge-surface {
+    @apply p-1 rounded-full text-white transition-colors cursor-pointer shadow-sm;
+  }
+
   .node-attached-badge-role {
-    @apply p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm;
+    @apply bg-indigo-600 hover:bg-indigo-500;
   }
 
   .node-attached-badge-configmap {
-    @apply p-1 rounded-full bg-teal-600 text-white hover:bg-teal-500 transition-colors cursor-pointer shadow-sm;
+    @apply bg-teal-600 hover:bg-teal-500;
   }
 
   .node-attached-badge-secret {
-    @apply p-1 rounded-full bg-rose-600 text-white hover:bg-rose-500 transition-colors cursor-pointer shadow-sm;
+    @apply bg-rose-600 hover:bg-rose-500;
   }
 
   .node-attached-badge-resource-limit {
-    @apply p-1 rounded-full bg-purple-600 text-white hover:bg-purple-500 transition-colors cursor-pointer shadow-sm;
+    @apply bg-purple-600 hover:bg-purple-500;
   }
 
   .node-attached-badge-hpa {
-    @apply p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer shadow-sm;
+    @apply bg-fuchsia-600 hover:bg-fuchsia-500;
   }
 
   /* ReplicaSet Node Component Styles */

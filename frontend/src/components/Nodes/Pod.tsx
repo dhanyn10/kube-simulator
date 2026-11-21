@@ -46,7 +46,7 @@ export const PodNode = memo((props: NodeProps) => {
         {showImage && (
           <div className="flex justify-between items-center text-[9px] font-mono gap-1">
             <span className={colorMode === 'dark' ? "text-slate-500 shrink-0" : "text-slate-400 shrink-0"}>image:</span>
-            <span className="font-bold truncate text-right min-w-0" style={{ color: 'var(--color-mat-cyan)' }} title={data.image}>
+            <span className="font-bold truncate text-right min-w-0 text-mat-cyan" title={data.image}>
               {data.image}
             </span>
           </div>
@@ -54,7 +54,7 @@ export const PodNode = memo((props: NodeProps) => {
         {showRestart && (
           <div className="node-metric-row">
             <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>restart:</span>
-            <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{restartPolicy}</span>
+            <span className="font-bold text-mat-cyan">{restartPolicy}</span>
           </div>
         )}
         {showResources && (
@@ -62,13 +62,13 @@ export const PodNode = memo((props: NodeProps) => {
             {data.cpuLimit && (
               <div className="node-metric-row">
                 <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>cpu:</span>
-                <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{data.cpuLimit}</span>
+                <span className="font-bold text-mat-cyan">{data.cpuLimit}</span>
               </div>
             )}
             {data.memoryLimit && (
               <div className="node-metric-row">
                 <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>mem:</span>
-                <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{data.memoryLimit}</span>
+                <span className="font-bold text-mat-cyan">{data.memoryLimit}</span>
               </div>
             )}
           </>

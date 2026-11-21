@@ -70,25 +70,25 @@ export const ServiceNode = memo((props: NodeProps) => {
         {data.displaySettings?.serviceType !== false && (
           <div className="node-metric-row">
             <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>type:</span>
-            <span className="font-bold" style={{ color: 'var(--color-mat-amber)' }}>{serviceType}</span>
+            <span className="font-bold text-mat-amber">{serviceType}</span>
           </div>
         )}
         {data.displaySettings?.port !== false && (
           <div className="node-metric-row">
             <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>port:</span>
-            <span className="font-bold" style={{ color: 'var(--color-mat-amber)' }}>{data.port || 80}</span>
+            <span className="font-bold text-mat-amber">{data.port || 80}</span>
           </div>
         )}
         {data.displaySettings?.targetPort !== false && (
           <div className="node-metric-row">
             <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>targetPort:</span>
-            <span className="font-bold" style={{ color: 'var(--color-mat-amber)' }}>{data.targetPort || 80}</span>
+            <span className="font-bold text-mat-amber">{data.targetPort || 80}</span>
           </div>
         )}
         {showNodePort && data.displaySettings?.nodePort !== false && (
           <div className="node-metric-row">
             <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>nodePort:</span>
-            <span className="font-bold" style={{ color: 'var(--color-mat-amber)' }}>{data.nodePort}</span>
+            <span className="font-bold text-mat-amber">{data.nodePort}</span>
           </div>
         )}
       </div>

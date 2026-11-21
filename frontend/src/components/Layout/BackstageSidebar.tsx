@@ -61,14 +61,14 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
   const isDark = colorMode === 'dark';
 
   return (
-    <div className={getSidebarContainerClass(isDark)}>
+    <div className={cn("backstage-sidebar-surface", getSidebarContainerClass(isDark))}>
       {/* Back Button (← Arrow) */}
       <div className="p-4 border-b border-white/10 flex items-center gap-3">
         <button
           type="button"
           onClick={onClose}
           data-testid="file-backstage-back-btn"
-          className={getBackButtonClass(isDark)}
+          className={cn("backstage-btn-back-surface", getBackButtonClass(isDark))}
           title="Return to Canvas (Esc)"
         >
           <ArrowLeft size={20} />
@@ -153,7 +153,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
                 setActiveTab('settings-view');
               }
             }}
-            className={getSettingsButtonClass(activeTab, isDark)}
+            className={cn("backstage-settings-surface", getSettingsButtonClass(activeTab, isDark))}
           >
             <div className="flex items-center gap-3">
               <Sliders size={16} />
@@ -168,7 +168,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('settings-view')}
-                className={getSubmenuItemClass(activeTab === 'settings-view', isDark)}
+                className={cn("backstage-submenu-surface", getSubmenuItemClass(activeTab === 'settings-view', isDark))}
               >
                 <Eye size={14} />
                 <span>View & Layout</span>
@@ -177,7 +177,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('settings-canvas')}
-                className={getSubmenuItemClass(activeTab === 'settings-canvas', isDark)}
+                className={cn("backstage-submenu-surface", getSubmenuItemClass(activeTab === 'settings-canvas', isDark))}
               >
                 <Grid size={14} />
                 <span>Canvas Grid</span>
@@ -192,7 +192,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
         <button
           type="button"
           onClick={toggleColorMode}
-          className={getThemeToggleClass(isDark)}
+          className={cn("backstage-theme-toggle-surface", getThemeToggleClass(isDark))}
         >
           <span className="flex items-center gap-2">
             {isDark ? <Sun size={15} /> : <Moon size={15} />}

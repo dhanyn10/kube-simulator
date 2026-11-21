@@ -52,7 +52,7 @@ export const BackstageContextMenu: React.FC<BackstageContextMenuProps> = ({
     <div
       ref={contextMenuRef}
       style={{ top: position.top, left: position.left }}
-      className={getContextMenuContainerClass(isDark)}
+      className={`backstage-context-menu-surface ${getContextMenuContainerClass(isDark)}`}
     >
       <button
         type="button"
