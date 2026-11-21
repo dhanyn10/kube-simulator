@@ -141,7 +141,7 @@ const ReadOnlyProfileChart = ({
         </div>
         {isSimulating && (
           <span className={cn(
-            "text-[10px] font-mono font-extrabold flex items-center gap-1 px-1.5 py-0.5 rounded border",
+            "text-[10px] font-mono font-extrabold flex items-center gap-1 badge-chip",
             isDark
               ? "text-emerald-400 bg-emerald-950/60 border-emerald-500/30"
               : "text-emerald-700 bg-emerald-50 border-emerald-300"

@@ -29,7 +29,7 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
       <div className="flex items-center justify-between pb-2 border-b border-slate-700/30">
         <div className="flex items-center gap-2">
           <Shield size={14} className="text-indigo-400" />
-          <h3 className={cn("text-xs font-bold uppercase tracking-wider", colorMode === 'dark' ? "text-slate-200" : "text-slate-700")}>
+          <h3 className={cn("text-eyebrow", colorMode === 'dark' ? "text-slate-200" : "text-slate-700")}>
             RBAC Role Rules
           </h3>
         </div>
@@ -86,7 +86,7 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
                         type="button"
                         onClick={() => handleDisconnectResource(res)}
                         title="Click to disconnect resource"
-                        className="text-[9px] font-mono px-1.5 py-0.5 rounded border bg-indigo-500/20 border-indigo-500/50 text-indigo-300 font-bold hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-300 transition-colors cursor-pointer"
+                        className="text-[9px] font-mono badge-chip bg-indigo-500/20 border-indigo-500/50 text-indigo-300 font-bold hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-300 transition-colors cursor-pointer"
                       >
                         {res} ×
                       </button>
@@ -112,7 +112,7 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
                         type="button"
                         onClick={() => handleToggleVerb(ruleIdx, verb)}
                         className={cn(
-                          "text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors",
+                          "text-[9px] font-mono badge-chip transition-colors",
                           getVerbButtonStyles(isSelected, colorMode)
                         )}
                       >

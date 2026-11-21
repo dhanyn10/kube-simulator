@@ -105,7 +105,7 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
       <div className="space-y-4">
         {/* Name */}
         <div>
-          <label htmlFor="res-limit-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
+          <label htmlFor="res-limit-name-input" className="form-label">
             Resource Limit Name
           </label>
           <input
@@ -170,7 +170,7 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
           </div>
           <div className="space-y-2">
             <div>
-              <span className="block text-[10px] font-medium text-slate-400 mb-1">CPU Limit</span>
+              <span className="form-label-sm">CPU Limit</span>
               <SelectorGroup
                 options={CPU_OPTIONS}
                 currentValue={cpuLimit}
@@ -179,7 +179,7 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
               />
             </div>
             <div>
-              <span className="block text-[10px] font-medium text-slate-400 mb-1">CPU Request</span>
+              <span className="form-label-sm">CPU Request</span>
               <SelectorGroup
                 options={CPU_OPTIONS}
                 currentValue={cpuRequest}
@@ -209,7 +209,7 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
           </div>
           <div className="space-y-2">
             <div>
-              <span className="block text-[10px] font-medium text-slate-400 mb-1">Memory Limit</span>
+              <span className="form-label-sm">Memory Limit</span>
               <SelectorGroup
                 options={MEMORY_OPTIONS}
                 currentValue={memoryLimit}
@@ -218,7 +218,7 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
               />
             </div>
             <div>
-              <span className="block text-[10px] font-medium text-slate-400 mb-1">Memory Request</span>
+              <span className="form-label-sm">Memory Request</span>
               <SelectorGroup
                 options={MEMORY_OPTIONS}
                 currentValue={memoryRequest}

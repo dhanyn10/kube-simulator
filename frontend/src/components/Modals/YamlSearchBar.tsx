@@ -75,7 +75,7 @@ export const YamlSearchBar: React.FC<YamlSearchBarProps> = ({
           <span
             data-testid="yaml-search-count"
             className={cn(
-              'text-[9px] font-mono px-1.5 py-0.5 rounded border font-semibold',
+              'text-[9px] font-mono badge-chip font-semibold',
               getSearchCountBadgeClass(totalMatches, isDark)
             )}
           >
@@ -137,7 +137,7 @@ export const YamlSearchBar: React.FC<YamlSearchBarProps> = ({
               disabled={totalMatches === 0}
               title="Previous match (Shift+Enter)"
               className={cn(
-                'px-1.5 py-0.5 rounded border text-[9px] font-semibold flex items-center gap-0.5 transition-colors disabled:opacity-40 disabled:pointer-events-none',
+                'badge-chip text-[9px] font-semibold flex items-center gap-0.5 transition-colors disabled:opacity-40 disabled:pointer-events-none',
                 isDark
                   ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
                   : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
@@ -152,7 +152,7 @@ export const YamlSearchBar: React.FC<YamlSearchBarProps> = ({
               disabled={totalMatches === 0}
               title="Next match (Enter)"
               className={cn(
-                'px-1.5 py-0.5 rounded border text-[9px] font-semibold flex items-center gap-0.5 transition-colors disabled:opacity-40 disabled:pointer-events-none',
+                'badge-chip text-[9px] font-semibold flex items-center gap-0.5 transition-colors disabled:opacity-40 disabled:pointer-events-none',
                 isDark
                   ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
                   : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'

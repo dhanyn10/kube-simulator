@@ -303,7 +303,7 @@ export const IAMStep3Review: React.FC<IAMStep3ReviewProps> = ({
                   <span className="font-semibold text-emerald-400">{p.name}</span>
                   <p className={cn('text-[10px]', isDark ? 'text-slate-400' : 'text-slate-500')}>{p.description}</p>
                 </div>
-                <span className={cn('text-[10px] px-1.5 py-0.5 rounded border', isDark ? 'bg-slate-900 border-slate-700 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500')}>
+                <span className={cn('text-[10px] badge-chip', isDark ? 'bg-slate-900 border-slate-700 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500')}>
                   {p.type}
                 </span>
               </div>

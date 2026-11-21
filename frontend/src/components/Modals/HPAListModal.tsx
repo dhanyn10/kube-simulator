@@ -37,7 +37,7 @@ export const HPAListModal: React.FC<HPAListModalProps> = ({
       addLabel="Add HPA"
       itemTypeName="HPA"
       renderItemDetails={(hpa) => (
-        <div className="text-[11px] text-slate-400 font-mono">
+        <div className="mono-muted">
           Replicas: {hpa.minReplicas} - {hpa.maxReplicas} | Target CPU: {hpa.targetCPU}%
           {hpa.targetMemory ? ` | Target Mem: ${hpa.targetMemory}%` : ''}
         </div>

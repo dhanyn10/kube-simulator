@@ -298,7 +298,7 @@ export const IngressPathsModal: React.FC<IngressPathsModalProps> = ({
         type="button"
         onClick={handleAdd}
         className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
+          "flex items-center gap-1.5 modal-outline-btn",
           colorMode === 'dark'
             ? "border-slate-700 hover:bg-slate-800 text-rose-400"
             : "border-slate-300 hover:bg-slate-100 text-rose-600"
@@ -312,7 +312,7 @@ export const IngressPathsModal: React.FC<IngressPathsModalProps> = ({
           type="button"
           onClick={onClose}
           className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
+            "modal-outline-btn",
             colorMode === 'dark'
               ? "border-slate-700 hover:bg-slate-800 text-slate-300"
               : "border-slate-300 hover:bg-slate-100 text-slate-700"

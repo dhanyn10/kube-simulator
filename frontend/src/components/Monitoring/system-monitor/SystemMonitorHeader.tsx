@@ -1,4 +1,4 @@
-import { memo, type CSSProperties } from 'react';
+import { memo } from 'react';
 import { Play, Pause, Square, Clock, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WindowControls } from '@/components/Layout';
@@ -314,14 +314,13 @@ export const SystemMonitorHeader = memo(({
       {/* 1. Native Frameless Titlebar (Identical to main app MenuBar) */}
       <div
         data-testid="system-monitor-header"
-        style={{ '--wails-draggable': 'drag' } as CSSProperties}
         onDoubleClick={onMaximize}
         className={cn(
-          'h-10 border-b flex items-center justify-between pl-3 pr-0 z-50 text-xs transition-colors gap-2',
+          'wails-drag h-10 border-b flex items-center justify-between pl-3 pr-0 z-50 text-xs transition-colors gap-2',
           isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
         )}
       >
-        <div className="flex items-center gap-2 min-w-0 truncate" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
+        <div className="wails-no-drag flex items-center gap-2 min-w-0 truncate">
           <ClusterLogo />
           <span className="hidden sm:inline font-bold text-[11px] tracking-wide whitespace-nowrap">Kube Simulator</span>
           <span className="hidden sm:inline text-slate-500 text-[11px]">/</span>
@@ -343,14 +342,13 @@ export const SystemMonitorHeader = memo(({
 
       {/* 2. Simulation & System Monitor Action Ribbon */}
       <div
-        style={{ '--wails-draggable': 'drag' } as CSSProperties}
         className={cn(
-          'min-h-11 py-1.5 px-3 sm:px-4 border-b flex flex-wrap items-center justify-between gap-2 z-40 transition-colors',
+          'wails-drag min-h-11 py-1.5 px-3 sm:px-4 border-b flex flex-wrap items-center justify-between gap-2 z-40 transition-colors',
           isDark ? 'bg-[#181b1f] border-[#22252b] text-slate-200' : 'bg-white border-slate-200 text-slate-800'
         )}
       >
         {/* Left: Live Status & Simulation Controls */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
+        <div className="wails-no-drag flex flex-wrap items-center gap-1.5 sm:gap-2.5">
           <SystemMonitorLiveStatus isSimulating={isSimulating} isPaused={isPaused} isDark={isDark} />
 
           {/* Simulated 24-Hour Timeline Clock */}
@@ -381,7 +379,7 @@ export const SystemMonitorHeader = memo(({
         <div className="hidden xl:block flex-1 h-full" />
 
         {/* Right: Time Range & Refresh Clock */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 ml-auto" style={{ '--wails-draggable': 'no-drag' } as CSSProperties}>
+        <div className="wails-no-drag flex flex-wrap items-center gap-1.5 sm:gap-2 ml-auto">
           <TimeRangeSelector timeRange={timeRange} setTimeRange={setTimeRange} isDark={isDark} />
 
           {/* Sync Rate Indicator */}

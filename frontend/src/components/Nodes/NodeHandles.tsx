@@ -28,14 +28,14 @@ export const NodeHandles = memo(({
         position={Position.Top}
         id="top-t"
         style={{ left: '50%', top: 0, transform: 'translate(-50%, -50%)' }}
-        className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`, className)}
+        className={cn("node-handle-dot", `!bg-${color}-500`, className)}
       />
       <Handle
         type="source"
         position={Position.Top}
         id="top-s"
         style={{ left: '50%', top: 0, transform: 'translate(-50%, -50%)' }}
-        className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`, className)}
+        className={cn("node-handle-dot-hidden", `!bg-${color}-500`, className)}
       />
 
       {/* Bottom handles: exact horizontal center (50%), bottom edge */}
@@ -44,14 +44,14 @@ export const NodeHandles = memo(({
         position={Position.Bottom}
         id="bottom-t"
         style={{ left: '50%', bottom: 0, transform: 'translate(-50%, 50%)' }}
-        className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`, className)}
+        className={cn("node-handle-dot-hidden", `!bg-${color}-500`, className)}
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="bottom-s"
         style={{ left: '50%', bottom: 0, transform: 'translate(-50%, 50%)' }}
-        className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`, bottomSourceClassName, className)}
+        className={cn("node-handle-dot", `!bg-${color}-500`, bottomSourceClassName, className)}
       />
 
       {/* Left handles: exact vertical center (50%), left edge */}
@@ -60,14 +60,14 @@ export const NodeHandles = memo(({
         position={Position.Left}
         id="left-t"
         style={{ top: '50%', left: 0, transform: 'translate(-50%, -50%)' }}
-        className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`, className)}
+        className={cn("node-handle-dot", `!bg-${color}-500`, className)}
       />
       <Handle
         type="source"
         position={Position.Left}
         id="left-s"
         style={{ top: '50%', left: 0, transform: 'translate(-50%, -50%)' }}
-        className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`, className)}
+        className={cn("node-handle-dot-hidden", `!bg-${color}-500`, className)}
       />
 
       {/* Right handles: exact vertical center (50%), right edge */}
@@ -76,14 +76,14 @@ export const NodeHandles = memo(({
         position={Position.Right}
         id="right-t"
         style={{ top: '50%', right: 0, transform: 'translate(50%, -50%)' }}
-        className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`, className)}
+        className={cn("node-handle-dot-hidden", `!bg-${color}-500`, className)}
       />
       <Handle
         type="source"
         position={Position.Right}
         id="right-s"
         style={{ top: '50%', right: 0, transform: 'translate(50%, -50%)' }}
-        className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`, rightSourceClassName, className)}
+        className={cn("node-handle-dot", `!bg-${color}-500`, rightSourceClassName, className)}
       />
     </>
   );

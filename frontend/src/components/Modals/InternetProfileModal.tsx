@@ -154,7 +154,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
             <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
               <div className="flex items-center gap-2">
                 <LayoutGrid size={16} className="text-blue-500" />
-                <h3 className={cn("text-xs font-bold uppercase tracking-wider", isDark ? "text-slate-300" : "text-slate-700")}>
+                <h3 className={cn("text-eyebrow", isDark ? "text-slate-300" : "text-slate-700")}>
                   Select Connection Simulation Profile
                 </h3>
               </div>

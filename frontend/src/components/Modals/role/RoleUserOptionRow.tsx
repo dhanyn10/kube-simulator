@@ -71,7 +71,7 @@ export const RoleUserOptionRow: React.FC<RoleUserOptionRowProps> = ({
             <span
               key={p.name}
               className={cn(
-                "text-[9px] px-1.5 py-0.5 rounded border",
+                "text-[9px] badge-chip",
                 colorMode === 'dark'
                   ? "bg-slate-800 border-slate-700 text-slate-400"
                   : "bg-slate-100 border-slate-200 text-slate-600"

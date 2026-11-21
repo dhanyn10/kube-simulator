@@ -63,7 +63,7 @@ export const MenuBarDropdown = (props: MenuBarDropdownProps) => {
   } = useMenuBarDropdown(props);
 
   return (
-    <div className="relative" style={{ '--wails-draggable': 'no-drag' }}>
+    <div className="relative wails-no-drag">
       <button
         type="button"
         onClick={handleHeaderClick}

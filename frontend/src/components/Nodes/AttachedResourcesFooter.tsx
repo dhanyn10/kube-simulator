@@ -44,7 +44,7 @@ const ConfigMapBadge: React.FC<ConfigMapBadgeProps> = ({ configMaps, nodeId, nod
   return (
     <button
       type="button"
-      className="node-attached-badge-configmap relative border-0 outline-none flex items-center justify-center cursor-pointer"
+      className="node-attached-badge-surface node-attached-badge-configmap relative border-0 outline-none flex items-center justify-center cursor-pointer"
       title={title}
       aria-label={ariaLabel}
       onClick={handleClick}
@@ -95,7 +95,7 @@ export const AttachedResourcesFooter: React.FC<AttachedResourcesFooterProps> = (
           <button
             type="button"
             key={role.id || role.name}
-            className="node-attached-badge-role border-0 outline-none flex items-center justify-center cursor-pointer"
+            className="node-attached-badge-surface node-attached-badge-role border-0 outline-none flex items-center justify-center cursor-pointer"
             title={`Role: ${role.name}${usersText}`}
             aria-label={`Inspect Role ${role.name}`}
             onClick={(e) => {
@@ -118,7 +118,7 @@ export const AttachedResourcesFooter: React.FC<AttachedResourcesFooterProps> = (
         <button
           type="button"
           key={`attached-secret-${sec.id || sec.name || idx}`}
-          className="node-attached-badge-secret border-0 outline-none flex items-center justify-center cursor-pointer"
+          className="node-attached-badge-surface node-attached-badge-secret border-0 outline-none flex items-center justify-center cursor-pointer"
           title={`Secret: ${sec.name || sec.id || 'Unnamed'}`}
           aria-label={`Inspect Secret ${sec.name || sec.id || 'Unnamed'}`}
           onClick={(e) => {
@@ -138,7 +138,7 @@ export const AttachedResourcesFooter: React.FC<AttachedResourcesFooterProps> = (
           <button
             type="button"
             key={res.id || res.name}
-            className="node-attached-badge-resource-limit border-0 outline-none flex items-center justify-center cursor-pointer"
+            className="node-attached-badge-surface node-attached-badge-resource-limit border-0 outline-none flex items-center justify-center cursor-pointer"
             title={`Resource Limit: ${res.name}${details}`}
             aria-label={`Inspect Resource Limit ${res.name}`}
             onClick={(e) => {
@@ -160,7 +160,7 @@ export const AttachedResourcesFooter: React.FC<AttachedResourcesFooterProps> = (
           <button
             type="button"
             key={hpa.id || hpa.name}
-            className="node-attached-badge-hpa border-0 outline-none flex items-center justify-center cursor-pointer"
+            className="node-attached-badge-surface node-attached-badge-hpa border-0 outline-none flex items-center justify-center cursor-pointer"
             title={`HPA: ${hpa.name}${details}`}
             aria-label={`Inspect HPA ${hpa.name}`}
             onClick={(e) => {

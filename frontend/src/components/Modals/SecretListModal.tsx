@@ -43,7 +43,7 @@ export const SecretListModal: React.FC<SecretListModalProps> = ({
               {sec.type || 'Opaque'}
             </span>
           </div>
-          <div className="text-[11px] text-slate-400 font-mono">
+          <div className="mono-muted">
             {sec.secretData && sec.secretData.length > 0 ? (
               <span>
                 {sec.secretData.length} key-value pair{sec.secretData.length > 1 ? 's' : ''} ({sec.secretData.map((d) => d.key).join(', ')})

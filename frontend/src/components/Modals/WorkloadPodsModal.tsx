@@ -178,7 +178,7 @@ interface WorkerSummaryProps {
 const WorkloadWorkerSummaryBar: React.FC<WorkerSummaryProps> = ({ distributions }) => {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+      <span className="text-eyebrow-sm">
         Worker Distribution:
       </span>
       {distributions.map((item) => (

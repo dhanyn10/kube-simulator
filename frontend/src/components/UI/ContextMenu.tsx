@@ -126,7 +126,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           className={cn(itemClass, "disabled:opacity-30 disabled:pointer-events-none")}
         >
           <Copy size={14} />
-          <div className="flex-1 flex justify-between items-center">
+          <div className="context-menu-row">
             <span className="font-medium">Copy</span>
             <span className="text-[10px] opacity-50">Ctrl+C</span>
           </div>
@@ -140,7 +140,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           className={cn(itemClass, "disabled:opacity-30 disabled:pointer-events-none")}
         >
           <Clipboard size={14} />
-          <div className="flex-1 flex justify-between items-center">
+          <div className="context-menu-row">
             <span className="font-medium">Paste</span>
             <span className="text-[10px] opacity-50">Ctrl+V</span>
           </div>
@@ -157,7 +157,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           className={cn(itemClass, "disabled:opacity-30 disabled:pointer-events-none")}
         >
           <Boxes size={14} className={canGroup ? "text-emerald-500" : ""} />
-          <div className="flex-1 flex justify-between items-center">
+          <div className="context-menu-row">
             <span className="font-medium">Group</span>
             <span className="text-[10px] opacity-50">Ctrl+G</span>
           </div>
@@ -171,7 +171,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           className={cn(itemClass, "disabled:opacity-30 disabled:pointer-events-none")}
         >
           <Box size={14} />
-          <div className="flex-1 flex justify-between items-center">
+          <div className="context-menu-row">
             <span className="font-medium">Ungroup</span>
             <span className="text-[10px] opacity-50">Ctrl+U</span>
           </div>
@@ -188,7 +188,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           className="w-full px-3 py-2 text-xs flex items-center gap-3 transition-colors text-red-500 hover:bg-red-500 hover:text-white focus:bg-red-500 focus:text-white focus:outline-none disabled:opacity-30 disabled:pointer-events-none"
         >
           <Trash2 size={14} />
-          <div className="flex-1 flex justify-between items-center">
+          <div className="context-menu-row">
             <span className="font-medium">Delete</span>
             <span className="text-[10px] opacity-50 uppercase">Del</span>
           </div>

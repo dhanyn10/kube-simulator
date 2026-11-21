@@ -65,11 +65,11 @@ export const HPANode = memo((props: NodeProps) => {
 
       {data.displaySettings?.replicas !== false && (
         <div className="space-y-1 mt-1">
-          <div className="flex justify-between items-center text-[9px] font-mono">
+          <div className="node-metric-row">
             <span className={colorMode === 'dark' ? 'text-slate-500' : 'text-slate-400'}>min:</span>
             <span className="text-fuchsia-500 font-bold">{data.minReplicas || 1}</span>
           </div>
-          <div className="flex justify-between items-center text-[9px] font-mono">
+          <div className="node-metric-row">
             <span className={colorMode === 'dark' ? 'text-slate-500' : 'text-slate-400'}>max:</span>
             <span className="text-fuchsia-500 font-bold">{data.maxReplicas ?? HPA_DEFAULT_MAX_REPLICAS}</span>
           </div>

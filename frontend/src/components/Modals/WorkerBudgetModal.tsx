@@ -179,7 +179,7 @@ const WorkerScaleSlider: React.FC<ScaleSliderProps> = ({ isDark, workerCount, on
             type="button"
             onClick={() => adjust(-10)}
             disabled={workerCount <= 1}
-            className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold border disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
+            className={cn("budget-chip disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
           >
             -10
           </button>
@@ -187,7 +187,7 @@ const WorkerScaleSlider: React.FC<ScaleSliderProps> = ({ isDark, workerCount, on
             type="button"
             onClick={() => adjust(-1)}
             disabled={workerCount <= 1}
-            className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold border disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
+            className={cn("budget-chip disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
           >
             -1
           </button>
@@ -195,7 +195,7 @@ const WorkerScaleSlider: React.FC<ScaleSliderProps> = ({ isDark, workerCount, on
             type="button"
             onClick={() => adjust(1)}
             disabled={workerCount >= 100}
-            className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold border disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
+            className={cn("budget-chip disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
           >
             +1
           </button>
@@ -203,7 +203,7 @@ const WorkerScaleSlider: React.FC<ScaleSliderProps> = ({ isDark, workerCount, on
             type="button"
             onClick={() => adjust(10)}
             disabled={workerCount >= 100}
-            className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold border disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
+            className={cn("budget-chip disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
           >
             +10
           </button>
@@ -255,7 +255,7 @@ const WorkerCapacityCards: React.FC<CapacityCardsProps> = ({
 }) => (
   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
     <div className={cn("p-3 rounded-xl border", isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200")}>
-      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Cluster CPU</div>
+      <div className="text-eyebrow-sm">Total Cluster CPU</div>
       <div className={cn("text-lg font-mono font-extrabold mt-0.5", isOverloaded ? "text-rose-400" : "text-sky-400")}>
         {totalCpu} vCPUs
       </div>
@@ -263,7 +263,7 @@ const WorkerCapacityCards: React.FC<CapacityCardsProps> = ({
     </div>
 
     <div className={cn("p-3 rounded-xl border", isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200")}>
-      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Cluster Memory</div>
+      <div className="text-eyebrow-sm">Total Cluster Memory</div>
       <div className={cn("text-lg font-mono font-extrabold mt-0.5", isOverloaded ? "text-rose-400" : "text-purple-400")}>
         {totalMem} GB RAM
       </div>
@@ -272,7 +272,7 @@ const WorkerCapacityCards: React.FC<CapacityCardsProps> = ({
 
     <div className={cn("p-3 rounded-xl border", isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-50 border-slate-200")}>
       <div className="flex items-center justify-between">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Max Pods Capacity</div>
+        <div className="text-eyebrow-sm">Max Pods Capacity</div>
         {isPodCapacityExceeded ? (
           <span
             data-testid="pod-capacity-warning-badge"

@@ -207,7 +207,7 @@ export const TerminalToolbar = ({
         {showFilterLogs && (
           <>
             <div data-testid="terminal-filter-section" className="relative w-36">
-              <Search size={10} className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", isDark ? "text-slate-500" : "text-slate-400")} />
+              <Search size={10} className={cn("search-input-icon-sm", isDark ? "text-slate-500" : "text-slate-400")} />
               <input
                 type="text"
                 placeholder="Filter logs..."

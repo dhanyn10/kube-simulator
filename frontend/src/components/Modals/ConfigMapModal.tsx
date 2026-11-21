@@ -771,7 +771,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
       {mode === 'profile' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between pb-1 border-b border-slate-800/40">
+          <div className="section-header-bordered">
             <button
               type="button"
               data-testid="configmap-profile-back-button"
@@ -781,7 +781,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
               <ArrowLeft size={13} />
               <span>Back to ConfigMap list</span>
             </button>
-            <span className="text-[11px] text-slate-400 font-mono">
+            <span className="mono-muted">
               Profile: <strong className="text-teal-400">{selectedProfile}</strong>
             </span>
           </div>
@@ -799,7 +799,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
       {mode === 'form' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between pb-1 border-b border-slate-800/40">
+          <div className="section-header-bordered">
             <button
               type="button"
               data-testid="configmap-header-back-button"
@@ -822,7 +822,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
           {hasExistingItem && (
             <div>
-              <label htmlFor="configmap-id-input" className="block text-xs font-semibold mb-1 text-slate-400">
+              <label htmlFor="configmap-id-input" className="form-label">
                 ConfigMap ID
               </label>
               <input
@@ -844,7 +844,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
           {/* ConfigMap Name */}
           <div>
-            <label htmlFor="configmap-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
+            <label htmlFor="configmap-name-input" className="form-label">
               ConfigMap Name
             </label>
             <input

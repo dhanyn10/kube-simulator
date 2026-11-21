@@ -20,7 +20,7 @@ export const NodePodBadges = ({ data, nodeId }: NodePodBadgesProps) => {
       {showNodeBadge && (
         <span
           className={cn(
-            'min-w-0 max-w-full truncate text-[8px] px-1.5 py-0.5 rounded border uppercase font-bold tracking-wider whitespace-nowrap inline-flex items-center gap-1',
+            'min-w-0 max-w-full truncate text-[8px] badge-chip uppercase font-bold tracking-wider whitespace-nowrap inline-flex items-center gap-1',
             workerInfo.badgeBg,
             workerInfo.badgeText,
             workerInfo.badgeBorder
