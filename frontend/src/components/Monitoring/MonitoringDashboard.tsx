@@ -17,6 +17,7 @@ export const MonitoringDashboard = () => {
     isSimulating,
     clusterCpuAvg,
     clusterMemAvg,
+    isOverloaded,
     handleDetach,
     handleMouseDown,
   } = useMonitoringDashboardHandler();
@@ -29,13 +30,21 @@ export const MonitoringDashboard = () => {
       style={{ left: position.x, top: position.y }}
       className={cn(
         "fixed w-[420px] rounded-xl shadow-2xl border z-[500] flex flex-col overflow-hidden backdrop-blur-md transition-colors",
-        colorMode === 'dark' ? "bg-slate-900/95 border-slate-700" : "bg-white/95 border-slate-200"
+        isOverloaded
+          ? "bg-red-950/95 border-red-500 shadow-red-900/50"
+          : colorMode === 'dark'
+            ? "bg-slate-900/95 border-slate-700"
+            : "bg-white/95 border-slate-200"
       )}
     >
       {/* Header / Drag Handle */}
       <div className={cn(
           "h-10 flex items-center justify-between border-b select-none",
-          colorMode === 'dark' ? "bg-slate-800/60 border-slate-700/50" : "bg-slate-100 border-slate-200"
+          isOverloaded
+            ? "bg-red-900/70 border-red-700"
+            : colorMode === 'dark'
+              ? "bg-slate-800/60 border-slate-700/50"
+              : "bg-slate-100 border-slate-200"
         )}>
         <button
           type="button"
@@ -43,8 +52,10 @@ export const MonitoringDashboard = () => {
           className="flex-1 h-full px-4 flex items-center gap-2 cursor-move select-none outline-none focus-visible:ring-inset focus-visible:ring-2 focus-visible:ring-blue-500/50"
           aria-label="Drag to move dashboard"
         >
-          <Activity size={14} className="text-blue-500" />
-          <span className="text-[11px] font-bold uppercase tracking-widest font-mono">System Monitoring</span>
+          <Activity size={14} className={isOverloaded ? "text-red-300 animate-pulse" : "text-blue-500"} />
+          <span className="text-[11px] font-bold uppercase tracking-widest font-mono">
+            {isOverloaded ? 'System Overloaded' : 'System Monitoring'}
+          </span>
         </button>
         <button
           type="button"
@@ -138,6 +149,7 @@ export const MonitoringDashboard = () => {
                     label="CPU Usage"
                     valueFormatter={formatCPU}
                     limitValue={lastPoint?.cpuLimit}
+                    isAlert={Boolean(lastPoint?.isThrottled || lastPoint?.isOOM)}
                   />
                   <LineChart
                     data={memData}
@@ -145,6 +157,7 @@ export const MonitoringDashboard = () => {
                     label="Memory Usage"
                     valueFormatter={formatMemory}
                     limitValue={lastPoint?.memoryLimit}
+                    isAlert={Boolean(lastPoint?.isThrottled || lastPoint?.isOOM)}
                   />
                 </div>
               </div>

@@ -17,14 +17,16 @@ export const LineChart = ({
   label,
   valueFormatter,
   limitValue,
-  isPercent = true
+  isPercent = true,
+  isAlert = false
 }: {
   data: number[],
   color: string,
   label: string,
   valueFormatter?: (v: number) => string,
   limitValue?: number,
-  isPercent?: boolean
+  isPercent?: boolean,
+  isAlert?: boolean
 }) => {
   const simulationSpeed = useFlowStore((state) => state.simulationSpeed) || 1;
 
@@ -56,7 +58,7 @@ export const LineChart = ({
               {valueFormatter(data.at(-1) || 0)} / {valueFormatter(limitValue || 0)}
             </span>
           )}
-          <span className={cn("text-[11px] font-mono font-bold", `text-${color}-500`)}>
+          <span className={cn("text-[11px] font-mono font-bold", isAlert ? "text-red-500" : `text-${color}-500`)}>
             {data.length > 0 ? Math.round(data.at(-1) || 0) : 0}%
           </span>
         </div>
@@ -90,10 +92,10 @@ export const LineChart = ({
             strokeDasharray="4 2"
             className="opacity-50"
           />
-          {/* Real-time Polyline */}
+          {/* Real-time Polyline (red while the workload is overloaded) */}
           <polyline
             fill="none"
-            stroke={color === 'blue' ? '#3b82f6' : '#a855f7'}
+            stroke={isAlert ? '#ef4444' : color === 'blue' ? '#3b82f6' : '#a855f7'}
             strokeWidth="2"
             points={points}
             className={transitionClass}
@@ -101,7 +103,9 @@ export const LineChart = ({
           {/* Area under line */}
           <path
             d={areaPath}
-            fill={color === 'blue' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(168, 85, 247, 0.1)'}
+            fill={isAlert
+              ? 'rgba(239, 68, 68, 0.15)'
+              : color === 'blue' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(168, 85, 247, 0.1)'}
             className={transitionClass}
           />
         </svg>

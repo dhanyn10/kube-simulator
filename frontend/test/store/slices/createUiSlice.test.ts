@@ -1154,7 +1154,7 @@ describe('createUiSlice', () => {
     expect(useFlowStore.getState().isSimulating).toBe(false);
   });
 
-  it('covers emergency stop triggering when all pods remain unready past grace period', () => {
+  it.each([1, 5, 10])('pauses on the very first error tick at speed %i', speed => {
     useFlowStore.setState({
       nodes: [
         { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
@@ -1162,16 +1162,25 @@ describe('createUiSlice', () => {
         { id: 'pod-unready', type: 'Pod', parentId: 'dep-1', data: { status: 'CrashLoopBackOff', label: 'crash-pod' } },
       ] as any,
       edges: [{ id: 'e1', source: 'i1', target: 'dep-1' }] as any,
+      isMonitoringOpen: true,
+      isPaused: false,
+      simulationMetrics: {},
+      simulationSpeed: speed,
     });
 
     vi.useFakeTimers();
     const { startSimulation, stopSimulation } = useFlowStore.getState();
     startSimulation();
 
-    // 50 ticks (50 * 150ms = 7500ms) to pass the 40 unready ticks threshold for checkEmergencyStop
-    vi.advanceTimersByTime(7500);
+    // One tick is enough: no grace period, regardless of the speed interval.
+    vi.advanceTimersByTime(Math.max(10, Math.round(150 / speed)));
 
-    expect(useFlowStore.getState().isSimulating).toBe(false);
+    const state = useFlowStore.getState();
+    expect(state.isSimulating).toBe(false);
+    expect(state.isPaused).toBe(true);
+    expect(state.isMonitoringOpen).toBe(true);
+    expect(Object.keys(state.simulationMetrics).length).toBeGreaterThan(0);
+    expect(state.nodes.find(n => n.id === 'pod-unready')?.data.status).toBe('CrashLoopBackOff');
     stopSimulation();
     vi.useRealTimers();
   });

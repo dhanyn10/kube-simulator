@@ -114,6 +114,25 @@ describe('SystemMonitor UI Components', () => {
     fireEvent.click(screen.getByTitle('Stop Simulation'));
     expect(sendControl).toHaveBeenCalledWith('stop');
 
+    // Auto-pause (error/red chart) is broadcast as isSimulating=false + isPaused=true.
+    // The monitor must still offer Resume and Stop, like the main window.
+    rerender(
+      <SystemMonitorHeader
+        isSimulating={false}
+        isPaused={true}
+        simulationSpeed={10}
+        timeRange="1h"
+        setTimeRange={setTimeRange}
+        sendControl={sendControl}
+        colorMode="dark"
+      />
+    );
+    expect(screen.getByText('Paused')).toBeDefined();
+    expect(screen.getByTitle('Resume Simulation')).toBeDefined();
+    expect(screen.getByTitle('Stop Simulation')).toBeDefined();
+    fireEvent.click(screen.getByTitle('Resume Simulation'));
+    expect(sendControl).toHaveBeenCalledWith('resume');
+
     // Test frameless window controls (minimize, maximize, close)
     fireEvent.click(screen.getByLabelText('minimize'));
     fireEvent.click(screen.getByLabelText('maximize'));

@@ -125,6 +125,9 @@ export const useSystemMonitorDashboard = () => {
       setIsPaused(false);
     } else if (action === 'pause') {
       await gw.pauseSimulation();
+      // Match the main window: a paused simulation is no longer "simulating",
+      // but is still active so Resume and Stop remain available.
+      setIsSimulating(false);
       setIsPaused(true);
     } else if (action === 'stop') {
       await gw.stopSimulation();

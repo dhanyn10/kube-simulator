@@ -19,7 +19,7 @@ import {
   stopSimulation as stopSimulationInternal,
   pauseSimulation as pauseSimulationInternal,
   broadcastMetrics,
-  checkEmergencyStop,
+  hasMonitorError,
   validateHpaTargets,
   getMetricsChannel
 } from './simulationManager';
@@ -501,18 +501,23 @@ const runSimulationTick = (params: {
 
   set({ simulationMetrics: newMetrics, ...(shouldCommitNodes ? { nodes: updatedNodes } : {}) });
 
-  const stopParams = { ticks, workloads, nodes: updatedNodes, metrics: newMetrics, set, simulationInterval: simulationIntervalObj };
-  if (!checkEmergencyStop(stopParams)) {
-    const hasHpa = updatedNodes.some(
-      n => n.type === 'HPA' || (Array.isArray(n.data?.hpas) && n.data.hpas.length > 0)
-    );
-    broadcastMetrics(newMetrics, updatedNodes.filter(isBroadcastWorkloadNode), {
-      isSimulating: state.isSimulating,
-      isPaused: state.isPaused,
-      speed: state.simulationSpeed,
-      hasHpa,
-    });
+  const monitorError = hasMonitorError({ metrics: newMetrics, nodes: updatedNodes });
+  if (monitorError) {
+    // Pause on the exact tick the monitor turns red; keep chart history and panels intact.
+    logger.error('[Simulation] ERROR/OVERLOAD detected in system monitor. Simulation paused, charts stay open in red.');
+    pauseSimulationInternal(set, simulationIntervalObj);
   }
+  const hasHpa = updatedNodes.some(
+    n => n.type === 'HPA' || (Array.isArray(n.data?.hpas) && n.data.hpas.length > 0)
+  );
+  const latestState = get();
+  broadcastMetrics(newMetrics, updatedNodes.filter(isBroadcastWorkloadNode), {
+    isSimulating: latestState.isSimulating,
+    isPaused: latestState.isPaused,
+    speed: state.simulationSpeed,
+    hasHpa,
+    force: monitorError,
+  });
 };
 
 /**

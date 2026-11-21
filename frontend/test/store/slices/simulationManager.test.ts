@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pauseSimulation, stopSimulation, resetSimulationNodes, checkEmergencyStop, broadcastMetrics, validateHpaTargets, getMetricsChannel, setMetricsChannel } from '@/store/slices/simulationManager';
+import {
+  pauseSimulation,
+  stopSimulation,
+  resetSimulationNodes,
+  hasMonitorError,
+  broadcastMetrics,
+  validateHpaTargets,
+  getMetricsChannel,
+  setMetricsChannel,
+} from '@/store/slices/simulationManager';
 import { Node, Edge } from '@xyflow/react';
 
 describe('simulationManager', () => {
@@ -181,147 +190,52 @@ describe('simulationManager', () => {
     });
   });
 
-  describe('checkEmergencyStop', () => {
-    it('returns false if ticks <= 3', () => {
-      const result = checkEmergencyStop({
-        ticks: 2,
-        workloads: [],
-        nodes: [],
-        metrics: {},
-        set: vi.fn(),
-        simulationInterval: { current: null }
-      });
-      expect(result).toBe(false);
+  describe('hasMonitorError', () => {
+    const healthyMetrics = {
+      d1: [{ cpuValue: 10, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }],
+    };
+    const readyNodes: Node[] = [
+      { id: 'p1', type: 'Pod', parentId: 'd1', position: { x: 0, y: 0 }, data: { status: 'ready' } } as Node,
+    ];
+
+    it('returns false when metrics and pods are healthy', () => {
+      expect(hasMonitorError({ metrics: healthyMetrics, nodes: readyNodes })).toBe(false);
+      expect(hasMonitorError({ metrics: {}, nodes: [] })).toBe(false);
     });
 
-    it('returns false when ready pods exist', () => {
-      const workloads: Node[] = [{ id: 'w1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'w1' } }];
-      const nodes: Node[] = [
-        { id: 'p1', type: 'Pod', parentId: 'w1', position: { x: 0, y: 0 }, data: { status: 'ready' } },
-      ];
-      const metrics = { w1: [{ cpuValue: 10, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
-
-      const result = checkEmergencyStop({
-        ticks: 5,
-        workloads,
-        nodes,
-        metrics,
-        set: vi.fn(),
-        simulationInterval: { current: null }
-      });
-
-      expect(result).toBe(false);
+    it('detects OOM immediately from the latest metric point', () => {
+      const metrics = { d1: [{ ...healthyMetrics.d1[0], isOOM: true }] };
+      expect(hasMonitorError({ metrics, nodes: readyNodes })).toBe(true);
     });
 
-    it('returns true and stops simulation after grace period of consecutive unready ticks', () => {
-      const set = vi.fn();
-      const mockEmit = vi.fn();
-      (window as any).runtime = { EventsEmit: mockEmit };
+    it('detects CPU throttling immediately from the latest metric point', () => {
+      const metrics = { d1: [{ ...healthyMetrics.d1[0], isThrottled: true }] };
+      expect(hasMonitorError({ metrics, nodes: readyNodes })).toBe(true);
+    });
 
-      const workloads = [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node];
-      const nodes = [
-        { id: 'p1', type: 'Pod', parentId: 'd1', data: { status: 'pending' }, position: { x: 0, y: 0 } } as unknown as Node
-      ];
-      const metrics = { 'd1': [{ cpuValue: 100, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
-      const interval = { current: setInterval(() => {}, 1000) as any };
-
-      let result = false;
-      for (let i = 0; i < 40; i++) {
-        result = checkEmergencyStop({
-          ticks: 5 + i,
-          workloads,
-          nodes,
-          metrics,
-          set,
-          simulationInterval: interval
-        });
+    it('detects failed pods even when metrics are still healthy', () => {
+      for (const status of ['crashing', 'CrashLoopBackOff', 'error']) {
+        const nodes: Node[] = [{ id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { status } } as Node];
+        expect(hasMonitorError({ metrics: healthyMetrics, nodes })).toBe(true);
       }
-
-      expect(result).toBe(true);
-      expect(set).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
-      expect(interval.current).toBeNull();
-      expect(mockEmit).toHaveBeenCalledWith('detached-closed');
     });
 
-    it('returns true and stops simulation when simulationInterval.current is null without runtime after grace period', () => {
-      const set = vi.fn();
-      const workloads = [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node];
-      const nodes = [
-        { id: 'p1', type: 'Pod', parentId: 'd1', data: { status: 'pending' }, position: { x: 0, y: 0 } } as unknown as Node
-      ];
-      const metrics = { 'd1': [{ cpuValue: 100, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
-      const interval = { current: null };
-
-      let result = false;
-      for (let i = 0; i < 40; i++) {
-        result = checkEmergencyStop({
-          ticks: 5 + i,
-          workloads,
-          nodes,
-          metrics,
-          set,
-          simulationInterval: interval
-        });
-      }
-
-      expect(result).toBe(true);
-      expect(set).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
+    it('ignores an old error point when the latest point is healthy', () => {
+      const metrics = {
+        d1: [
+          { ...healthyMetrics.d1[0], isOOM: true },
+          { ...healthyMetrics.d1[0] },
+        ],
+      };
+      expect(hasMonitorError({ metrics, nodes: readyNodes })).toBe(false);
     });
 
-    it('posts DETACHED_CLOSED message when metricsChannel is active during emergency stop', () => {
-      const channel = getMetricsChannel();
-      const postMessageSpy = vi.spyOn(channel!, 'postMessage');
-      const set = vi.fn();
-      const workloads = [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node];
-      const nodes = [
-        { id: 'p1', type: 'Pod', parentId: 'd1', data: { status: 'pending' }, position: { x: 0, y: 0 } } as unknown as Node
-      ];
-      const metrics = { 'd1': [{ cpuValue: 100, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
-      const interval = { current: null };
-
-      for (let i = 0; i < 40; i++) {
-        checkEmergencyStop({
-          ticks: 5 + i,
-          workloads,
-          nodes,
-          metrics,
-          set,
-          simulationInterval: interval
-        });
-      }
-
-      expect(postMessageSpy).toHaveBeenCalledWith({ type: 'DETACHED_CLOSED' });
-    });
-
-    it('handles emergency stop when metricsChannel is null', () => {
-      const originalChannel = getMetricsChannel();
-      setMetricsChannel(null);
-      try {
-        const set = vi.fn();
-        const workloads = [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node];
-        const nodes = [
-          { id: 'p1', type: 'Pod', parentId: 'd1', data: { status: 'pending' }, position: { x: 0, y: 0 } } as unknown as Node
-        ];
-        const metrics = { 'd1': [{ cpuValue: 100, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
-        const interval = { current: null };
-
-        let result = false;
-        for (let i = 0; i < 40; i++) {
-          result = checkEmergencyStop({
-            ticks: 5 + i,
-            workloads,
-            nodes,
-            metrics,
-            set,
-            simulationInterval: interval
-          });
-        }
-
-        expect(result).toBe(true);
-        expect(set).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
-      } finally {
-        setMetricsChannel(originalChannel);
-      }
+    it('ignores stale error metrics from workloads no longer on the canvas', () => {
+      const metrics = {
+        ...healthyMetrics,
+        'old-dep': [{ ...healthyMetrics.d1[0], isOOM: true }],
+      };
+      expect(hasMonitorError({ metrics, nodes: readyNodes })).toBe(false);
     });
   });
 
@@ -382,18 +296,6 @@ describe('simulationManager', () => {
       expect(setFn).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
     });
 
-    it('checkEmergencyStop returns false when activeWorkloads is empty after tick 3', () => {
-      const result = checkEmergencyStop({
-        ticks: 10,
-        workloads: [{ id: 'w1', type: 'Deployment', position: { x: 0, y: 0 }, data: {} }], // no metrics -> activeWorkloads empty
-        nodes: [],
-        metrics: {},
-        set: vi.fn(),
-        simulationInterval: { current: null }
-      });
-      expect(result).toBe(false);
-    });
-
     it('validateHpaTargets returns false when cpuLimit is present but memoryLimit is missing', () => {
       const nodes: Node[] = [
         { id: 'hpa1', type: 'HPA', data: {}, position: { x: 0, y: 0 } } as Node,
@@ -406,26 +308,7 @@ describe('simulationManager', () => {
       expect(validateHpaTargets(nodes, edges)).toBe(false);
     });
 
-    it('checkEmergencyStop evaluates standalone pods matching active workloads', () => {
-      const workloads: Node[] = [{ id: 'pod-standalone-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'standalone-app' } }];
-      const nodes: Node[] = [
-        { id: 'pod-standalone-1', type: 'Pod', parentId: undefined, position: { x: 0, y: 0 }, data: { status: 'pending' } },
-      ];
-      const metrics = { 'pod-standalone-1': [{ cpuValue: 10, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
-
-      const result = checkEmergencyStop({
-        ticks: 5,
-        workloads,
-        nodes,
-        metrics,
-        set: vi.fn(),
-        simulationInterval: { current: null }
-      });
-
-      expect(result).toBe(false);
-    });
-
-    it('covers all remaining branches in validateHpaTargets, checkEmergencyStop, and getMetricsChannel', () => {
+    it('covers all remaining branches in validateHpaTargets, hasMonitorError, and getMetricsChannel', () => {
       // 1. getMetricsChannel returns the channel instance or null
       expect(getMetricsChannel()).toBeDefined();
 
@@ -473,22 +356,15 @@ describe('simulationManager', () => {
       const hpaEdge: Edge = { id: 'e-hpa', source: 'hpa-node', target: 'pod-standalone-limits' };
       expect(validateHpaTargets([hpaNode, standalonePodWithLimits], [hpaEdge])).toBe(true);
 
-      // 5. checkEmergencyStop: Pod with parentId not matching any activeWorkloads
-      const inactiveWorkloads: Node[] = [{ id: 'w-active', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'active' } }];
-      const mismatchedNodes: Node[] = [
-        { id: 'p-other', type: 'Pod', parentId: 'w-inactive-other', position: { x: 0, y: 0 }, data: { status: 'pending' } },
-        { id: 'p-standalone-other', type: 'Pod', parentId: undefined, position: { x: 0, y: 0 }, data: { status: 'pending' } },
+      // 5. hasMonitorError: pending pods are not an error, crashed pods are
+      const pendingNodes: Node[] = [
+        { id: 'p-pending', type: 'Pod', parentId: 'dep-plain', position: { x: 0, y: 0 }, data: { status: 'pending' } },
       ];
-      const activeMetrics = { 'w-active': [{ cpuValue: 10, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
-      const stopResult = checkEmergencyStop({
-        ticks: 10,
-        workloads: inactiveWorkloads,
-        nodes: mismatchedNodes,
-        metrics: activeMetrics,
-        set: vi.fn(),
-        simulationInterval: { current: null }
-      });
-      expect(stopResult).toBe(false);
+      const crashedNodes: Node[] = [
+        { id: 'p-crashed', type: 'Pod', parentId: 'dep-plain', position: { x: 0, y: 0 }, data: { status: 'crashing' } },
+      ];
+      expect(hasMonitorError({ metrics: {}, nodes: pendingNodes })).toBe(false);
+      expect(hasMonitorError({ metrics: {}, nodes: crashedNodes })).toBe(true);
     });
   });
 });

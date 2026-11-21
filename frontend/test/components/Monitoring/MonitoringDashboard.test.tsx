@@ -81,11 +81,15 @@ describe('MonitoringDashboard', () => {
     };
     useFlowStore.setState({ nodes: nodes as any, simulationMetrics: metrics as any });
 
-    render(<MonitoringDashboard />);
+    const { container } = render(<MonitoringDashboard />);
     expect(screen.getByText('my-dep')).toBeDefined();
     expect(screen.getByText('2 Replicas')).toBeDefined();
     expect(screen.getByText('Throttled')).toBeDefined();
     expect(screen.getByText('OOM Risk')).toBeDefined();
+    // Overloaded charts stay mounted and turn red instead of being closed
+    expect(screen.getByText('System Overloaded')).toBeDefined();
+    const strokes = Array.from(container.querySelectorAll('polyline')).map(el => el.getAttribute('stroke'));
+    expect(strokes).toEqual(['#ef4444', '#ef4444']);
   });
 
   it('handles BroadcastChannel messages and runtime events for detaching', () => {
