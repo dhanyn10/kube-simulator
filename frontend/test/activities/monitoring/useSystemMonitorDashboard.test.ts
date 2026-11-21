@@ -41,6 +41,7 @@ describe('useSystemMonitorDashboard hook', () => {
     });
     expect(pauseSpy).toHaveBeenCalled();
     expect(result.current.isPaused).toBe(true);
+    expect(result.current.isSimulating).toBe(false);
 
     await act(async () => {
       await result.current.sendControl('resume');

@@ -1,4 +1,3 @@
-import { logger } from '@/lib/logger';
 import { Node, Edge } from '@xyflow/react';
 import type { FlowState, SimulationMetricPoint } from '@/store/types';
 import { K8sNodeData } from '@/types';
@@ -7,7 +6,6 @@ import { getBackendGateway } from '@/gateway';
 
 // Centralize side-effect handlers
 let metricsChannel: BroadcastChannel | null = new BroadcastChannel('monitoring-data');
-let consecutiveUnreadyTicks = 0;
 
 /**
  * Retrieves the Wails runtime if available.
@@ -184,55 +182,30 @@ export const broadcastMetrics = (
   }
 };
 
+const ERROR_POD_STATUSES = new Set(['crashing', 'error', 'CrashLoopBackOff']);
+
 /**
- * Checks if simulation should be stopped due to critical errors (e.g., all pods pending).
- * Returns true if an emergency stop was triggered.
+ * Reports an error as soon as it is visible in the system monitor: a red metric point
+ * (OOM / CPU throttle) or a failed pod. No grace period and no speed-dependent delay, so
+ * the caller can pause the simulation on the very tick the chart turns red.
  *
- * @param params Object containing tick count, workloads, nodes, metrics, and state setters.
- * @returns boolean
+ * @param params Latest metrics and nodes from the current tick.
+ * @returns true when at least one monitored error is present.
  */
-export const checkEmergencyStop = (params: {
-  ticks: number,
-  workloads: Node[],
-  nodes: Node[],
+export const hasMonitorError = (params: {
   metrics: Record<string, SimulationMetricPoint[]>,
-  set: (state: Partial<FlowState>) => void,
-  simulationInterval: { current: ReturnType<typeof setInterval> | null }
-}) => {
-  const { ticks, workloads, nodes, metrics, set, simulationInterval } = params;
-  const activeWorkloads = workloads.filter(w => (metrics[w.id]?.at(-1)?.cpuValue || 0) > 0);
-  if (ticks <= 3 || activeWorkloads.length === 0) return false;
-
-  const allPods = nodes.filter(n => n.type === 'Pod' && (
-    (n.parentId && activeWorkloads.some(w => w.id === n.parentId)) || (!n.parentId && activeWorkloads.some(w => w.id === n.id))
-  ));
-  const readyPods = allPods.filter(p => (p.data as K8sNodeData).status === 'ready');
-
-  if (allPods.length > 0 && readyPods.length === 0) {
-    consecutiveUnreadyTicks++;
-    // Allow pod recovery grace period (~40 ticks = 6s) before emergency shutdown
-    if (consecutiveUnreadyTicks >= 40) {
-      consecutiveUnreadyTicks = 0;
-      logger.error('[Simulation] CRITICAL: All pods are in pending state after grace period. Emergency shutdown.');
-      if (simulationInterval.current) {
-          clearInterval(simulationInterval.current);
-          simulationInterval.current = null;
-      }
-      const resetNodes = resetSimulationNodes(nodes);
-      set({ isSimulating: false, isPaused: false, activeSimulationEdges: [], simulationMetrics: {}, nodes: resetNodes, isMonitoringOpen: false, isMonitoringDetached: false });
-
-      if (metricsChannel) {
-          metricsChannel.postMessage({ type: 'DETACHED_CLOSED' });
-      }
-
-      const runtime = getRuntime();
-      runtime?.EventsEmit?.('detached-closed');
-      return true;
-    }
-  } else {
-    consecutiveUnreadyTicks = 0;
+  nodes: Node[],
+}): boolean => {
+  const { metrics, nodes } = params;
+  // Ignore stale metric series from a previous run that are no longer on the canvas.
+  const activeIds = new Set(nodes.flatMap(n => [n.id, n.parentId].filter(Boolean)) as string[]);
+  for (const [workloadId, points] of Object.entries(metrics)) {
+    if (!activeIds.has(workloadId)) continue;
+    const last = points.at(-1);
+    if (last?.isOOM || last?.isThrottled) return true;
   }
-  return false;
+  return nodes.some(n => n.type === 'Pod' &&
+    ERROR_POD_STATUSES.has(String((n.data as K8sNodeData).status)));
 };
 
 /**

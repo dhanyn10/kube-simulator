@@ -143,10 +143,11 @@ export const SystemMonitorTimeSeriesPanel = memo(({
 
   const seriesData = useMemo(() => {
     return deployments.map((dep, idx) => {
-      const color = CHART_PALETTE[idx % CHART_PALETTE.length];
       const points = metrics[dep.id] || [];
-      const aggregated = aggregateMetricSeries(points, metricKey, interval, dynamicMax, 500, 140);
       const lastPoint = points.at(-1);
+      const isOverloaded = Boolean(lastPoint?.isThrottled || lastPoint?.isOOM);
+      const color = isOverloaded ? '#ef4444' : CHART_PALETTE[idx % CHART_PALETTE.length];
+      const aggregated = aggregateMetricSeries(points, metricKey, interval, dynamicMax, 500, 140);
       const stats = calculateSeriesStats(dep.id, dep.label, color, aggregated.data, lastPoint);
       return {
         ...stats,

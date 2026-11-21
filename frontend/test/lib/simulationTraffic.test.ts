@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Node } from '@xyflow/react';
 import {
   calculateIncomingTraffic,
+  isSimulationWorkload,
+  getReachableWorkloadCount,
   getInterpolatedProfileTraffic,
   updateInternetTraffic,
   calculateResourceMetrics,
@@ -14,6 +16,21 @@ import { K8sNodeData } from '@/types';
 describe('simulationTraffic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('isSimulationWorkload', () => {
+    it('correctly identifies workload node types', () => {
+      expect(isSimulationWorkload({ id: 'd1', type: 'Deployment', position: { x: 0, y: 0 }, data: {} })).toBe(true);
+      expect(isSimulationWorkload({ id: 'ss1', type: 'StatefulSet', position: { x: 0, y: 0 }, data: {} })).toBe(true);
+      expect(isSimulationWorkload({ id: 'rs1', type: 'ReplicaSet', position: { x: 0, y: 0 }, data: {} })).toBe(true);
+      expect(isSimulationWorkload({ id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: {} })).toBe(true);
+
+      // Child pods and infrastructure nodes are not top-level workloads
+      expect(isSimulationWorkload({ id: 'p2', type: 'Pod', parentId: 'd1', position: { x: 0, y: 0 }, data: {} })).toBe(false);
+      expect(isSimulationWorkload({ id: 'p3', type: 'Pod', position: { x: 0, y: 0 }, data: { parentId: 'd1' } })).toBe(false);
+      expect(isSimulationWorkload({ id: 'svc1', type: 'Service', position: { x: 0, y: 0 }, data: {} })).toBe(false);
+      expect(isSimulationWorkload({ id: 'ing1', type: 'Ingress', position: { x: 0, y: 0 }, data: {} })).toBe(false);
+    });
   });
 
   describe('calculateIncomingTraffic', () => {
@@ -42,6 +59,55 @@ describe('simulationTraffic', () => {
       const res = calculateIncomingTraffic(dep, ctx);
       // netNode1 (500) + netNode2 (fallback 0) + netNode3 (unreachable 0) = 500
       expect(res.traffic).toBe(500);
+    });
+
+    it('distributes incoming traffic evenly across multiple reachable workloads (Load Balancing)', () => {
+      const dep1: Node = { id: 'dep-1', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+      const dep2: Node = { id: 'dep-2', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+      const statefulSet: Node = { id: 'sts-1', type: 'StatefulSet', position: { x: 0, y: 0 }, data: {} };
+      const netNode: Node = { id: 'net-1', type: 'Internet', position: { x: 0, y: 0 }, data: { currentTraffic: 6000 } };
+
+      const internetReachableMap = new Map<string, Set<string>>();
+      internetReachableMap.set('net-1', new Set(['dep-1', 'dep-2', 'sts-1']));
+
+      const ctx: SimulationContext = {
+        nodes: [netNode, dep1, dep2, statefulSet],
+        internetNodes: [netNode],
+        internetReachableMap,
+        childPodMap: new Map(),
+      } as any;
+
+      // 6000 req/min divided equally among 3 reachable workloads = 2000 each
+      expect(calculateIncomingTraffic(dep1, ctx).traffic).toBe(2000);
+      expect(calculateIncomingTraffic(dep2, ctx).traffic).toBe(2000);
+      expect(calculateIncomingTraffic(statefulSet, ctx).traffic).toBe(2000);
+    });
+
+    it('considers reachable workloads via child pods when calculating load balance distribution', () => {
+      const dep1: Node = { id: 'dep-1', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+      const dep2: Node = { id: 'dep-2', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+      const childPod1: Node = { id: 'pod-dep-1', type: 'Pod', parentId: 'dep-1', position: { x: 0, y: 0 }, data: {} };
+      const childPod2: Node = { id: 'pod-dep-2', type: 'Pod', parentId: 'dep-2', position: { x: 0, y: 0 }, data: {} };
+      const netNode: Node = { id: 'net-1', type: 'Internet', position: { x: 0, y: 0 }, data: { currentTraffic: 4000 } };
+
+      // Reachability only contains the child pods, not the parent deployment IDs directly
+      const internetReachableMap = new Map<string, Set<string>>();
+      internetReachableMap.set('net-1', new Set(['pod-dep-1', 'pod-dep-2']));
+
+      const childPodMap = new Map<string, Node[]>([
+        ['dep-1', [childPod1]],
+        ['dep-2', [childPod2]],
+      ]);
+
+      const ctx: SimulationContext = {
+        nodes: [netNode, dep1, dep2, childPod1, childPod2],
+        internetNodes: [netNode],
+        internetReachableMap,
+        childPodMap,
+      } as any;
+
+      expect(calculateIncomingTraffic(dep1, ctx).traffic).toBe(2000);
+      expect(calculateIncomingTraffic(dep2, ctx).traffic).toBe(2000);
     });
   });
 

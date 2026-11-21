@@ -94,6 +94,10 @@ export const useMonitoringDashboardHandler = () => {
   });
   const clusterCpuAvg = activeCount > 0 ? Math.round(totalCpu / activeCount) : 0;
   const clusterMemAvg = activeCount > 0 ? Math.round(totalMem / activeCount) : 0;
+  const isOverloaded = workloads.some(w => {
+    const last = simulationMetrics[w.id]?.at(-1);
+    return Boolean(last?.isOOM || last?.isThrottled);
+  });
 
   return {
     isMonitoringOpen,
@@ -108,6 +112,7 @@ export const useMonitoringDashboardHandler = () => {
     simulationSpeed,
     clusterCpuAvg,
     clusterMemAvg,
+    isOverloaded,
     handleDetach,
     handleMouseDown,
   };

@@ -90,6 +90,8 @@ describe('DetachedMonitoring', () => {
     expect(screen.getAllByText('throttled-dep')[0]).toBeDefined();
     expect(screen.getAllByText('Throttled')[0]).toBeDefined();
     expect(screen.getAllByText('OOM Risk')[0]).toBeDefined();
+    // Detached monitor stays open and shows the overload state in red
+    expect(screen.getByRole('alert').textContent).toContain('Resource overload detected');
 
     // Trigger invalid json metrics-update
     await act(async () => {

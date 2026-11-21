@@ -56,6 +56,16 @@ describe('LineChart', () => {
     expect(purplePolyline).toHaveAttribute('stroke', '#a855f7');
   });
 
+  it('turns the chart red while overloaded without hiding it', () => {
+    const { container } = render(
+      <LineChart data={data} color="blue" label="CPU" isAlert />
+    );
+
+    expect(screen.getByText('CPU')).toBeInTheDocument();
+    expect(container.querySelector('polyline')).toHaveAttribute('stroke', '#ef4444');
+    expect(container.querySelector('path')).toHaveAttribute('fill', 'rgba(239, 68, 68, 0.15)');
+  });
+
   it('handles isPercent=false without limitValue and valueFormatter without limitValue', () => {
     const formatter = (v: number) => `${v} units`;
     const { container } = render(

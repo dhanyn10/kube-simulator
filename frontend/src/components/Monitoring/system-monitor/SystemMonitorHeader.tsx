@@ -34,15 +34,7 @@ const ClusterLogo = () => (
 );
 
 const getSimulationStatusInfo = (isSimulating: boolean, isPaused: boolean, isDark: boolean = true) => {
-  if (!isSimulating) {
-    return {
-      label: 'Idle',
-      badgeClass: isDark
-        ? 'bg-slate-800/60 text-slate-400 border-slate-700/50'
-        : 'bg-slate-100 text-slate-600 border-slate-200',
-      dotClass: isDark ? 'bg-slate-500' : 'bg-slate-400',
-    };
-  }
+  // A paused simulation is reported by the main window as isSimulating=false + isPaused=true.
   if (isPaused) {
     return {
       label: 'Paused',
@@ -50,6 +42,15 @@ const getSimulationStatusInfo = (isSimulating: boolean, isPaused: boolean, isDar
         ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
         : 'bg-amber-50 text-amber-800 border-amber-300',
       dotClass: isDark ? 'bg-amber-400' : 'bg-amber-500',
+    };
+  }
+  if (!isSimulating) {
+    return {
+      label: 'Idle',
+      badgeClass: isDark
+        ? 'bg-slate-800/60 text-slate-400 border-slate-700/50'
+        : 'bg-slate-100 text-slate-600 border-slate-200',
+      dotClass: isDark ? 'bg-slate-500' : 'bg-slate-400',
     };
   }
   return {
@@ -94,6 +95,13 @@ const getPrimaryButtonClass = (canStart: boolean, isDark: boolean): string => {
   return isDark
     ? "text-slate-500 opacity-40 cursor-not-allowed"
     : "text-slate-400 opacity-40 cursor-not-allowed";
+};
+
+const getPlaybackGroupClass = (isPaused: boolean, isDark: boolean): string => {
+  if (isPaused) {
+    return isDark ? "border-amber-500/40 bg-amber-500/5" : "border-amber-300 bg-amber-50";
+  }
+  return isDark ? "border-slate-700/60 bg-slate-900/60" : "border-slate-200 bg-slate-100";
 };
 
 const PlaybackStartResumeButton = ({
@@ -142,20 +150,6 @@ const SimulationPlaybackControls = ({
   isDark = true,
 }: SimulationPlaybackControlsProps) => {
   const renderPrimaryButton = () => {
-    if (!isSimulating) {
-      return (
-        <PlaybackStartResumeButton
-          action="start"
-          label="Start"
-          canStart={canStart}
-          isDark={isDark}
-          onClick={() => {
-            if (!canStart) return;
-            sendControl('start', { speed: simulationSpeed });
-          }}
-        />
-      );
-    }
     if (isPaused) {
       return (
         <PlaybackStartResumeButton
@@ -166,6 +160,20 @@ const SimulationPlaybackControls = ({
           onClick={() => {
             if (!canStart) return;
             sendControl('resume');
+          }}
+        />
+      );
+    }
+    if (!isSimulating) {
+      return (
+        <PlaybackStartResumeButton
+          action="start"
+          label="Start"
+          canStart={canStart}
+          isDark={isDark}
+          onClick={() => {
+            if (!canStart) return;
+            sendControl('start', { speed: simulationSpeed });
           }}
         />
       );
@@ -186,13 +194,15 @@ const SimulationPlaybackControls = ({
     );
   };
 
+  const playbackGroupClass = getPlaybackGroupClass(isPaused, isDark);
+
   return (
-    <div className={cn(
-      "flex items-center rounded border p-0.5",
-      isDark ? "border-slate-700/60 bg-slate-900/60" : "border-slate-200 bg-slate-100"
-    )}>
+    <div
+      data-testid="system-monitor-simulation-controls"
+      className={cn("flex items-center rounded border p-0.5", playbackGroupClass)}
+    >
       {renderPrimaryButton()}
-      {isSimulating && (
+      {(isSimulating || isPaused) && (
         <button
           type="button"
           onClick={() => sendControl('stop')}

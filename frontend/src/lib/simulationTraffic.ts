@@ -11,23 +11,59 @@ const canReachWorkload = (reachableNodes: Set<string>, depId: string, childPods?
   return children.some(child => reachableNodes.has(child.id));
 };
 
+export const isSimulationWorkload = (node: Node): boolean =>
+  node.type === 'Deployment' ||
+  node.type === 'StatefulSet' ||
+  node.type === 'ReplicaSet' ||
+  (node.type === 'Pod' && !node.parentId && !node.data?.parentId);
+
+export const getReachableWorkloadCount = (
+  internetNodeId: string,
+  ctx: SimulationContext
+): number => {
+  const reachableNodes = ctx.internetReachableMap?.get(internetNodeId);
+  if (!reachableNodes || reachableNodes.size === 0) return 1;
+
+  let candidateNodes = ctx.nodes;
+  if (!candidateNodes || candidateNodes.length === 0) {
+    candidateNodes = ctx.updatedNodes || [];
+  }
+
+  let count = 0;
+  for (const n of candidateNodes) {
+    if (isSimulationWorkload(n)) {
+      const children = ctx.childPodMap?.get(n.id);
+      if (canReachWorkload(reachableNodes, n.id, children)) {
+        count++;
+      }
+    }
+  }
+
+  return Math.max(1, count);
+};
+
 const getInternetNodeTraffic = (
   node: Node,
   depId: string,
   children: Node[] | undefined,
-  internetReachableMap: Map<string, Set<string>>
+  ctx: SimulationContext
 ): number => {
-  const reachableNodes = internetReachableMap.get(node.id);
+  const reachableNodes = ctx.internetReachableMap?.get(node.id);
   if (!reachableNodes) return 0;
 
   if (!canReachWorkload(reachableNodes, depId, children)) return 0;
 
   const nodeData = node.data as K8sNodeData;
-  return nodeData.currentTraffic || 0;
+  const currentTraffic = nodeData.currentTraffic || 0;
+  if (currentTraffic <= 0) return 0;
+
+  const reachableCount = getReachableWorkloadCount(node.id, ctx);
+  return Math.round(currentTraffic / reachableCount);
 };
 
 /**
  * Calculates total incoming web traffic reaching a workload from connected Internet nodes.
+ * Distributes incoming traffic across reachable workloads (Kubernetes Ingress & Service load balancing).
  */
 export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { traffic: number; hasChanges: boolean } => {
   if (!ctx.internetNodes || !ctx.internetReachableMap) return { traffic: 0, hasChanges: false };
@@ -36,7 +72,7 @@ export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { t
   let totalTraffic = 0;
 
   for (const node of ctx.internetNodes) {
-    totalTraffic += getInternetNodeTraffic(node, dep.id, children, ctx.internetReachableMap);
+    totalTraffic += getInternetNodeTraffic(node, dep.id, children, ctx);
   }
 
   return { traffic: totalTraffic, hasChanges: false };

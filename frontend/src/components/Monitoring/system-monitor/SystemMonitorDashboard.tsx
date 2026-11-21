@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, type MouseEvent } from 'react';
 import { cn } from '@/lib/utils';
-import { Cpu, Database, Server, Activity, AlertCircle, Radio } from 'lucide-react';
+import { Cpu, Database, Server, Activity, AlertCircle, AlertTriangle, Radio } from 'lucide-react';
 import { SimulationMetricPoint } from '@/store/types';
 import { useSystemMonitorDashboard } from '@/activities/monitoring';
 import { DeploymentSummary } from './types';
@@ -132,12 +132,17 @@ export const SystemMonitorDashboard = () => {
   const memThreshold = getUtilizationThreshold(clusterTotals.memoryPercent);
   const podThreshold = getPodThreshold(clusterTotals.readyPods, clusterTotals.totalPods);
   const errorThreshold = clusterTotals.errorRate > 0 ? 'critical' : 'normal';
+  const isOverloaded = deployments.some(dep => {
+    const last = metrics[dep.id]?.at(-1);
+    return Boolean(last?.isThrottled || last?.isOOM);
+  });
 
   return (
     <div
       onContextMenu={handleContextMenu}
       className={cn(
         'h-screen w-screen flex flex-col font-sans transition-colors overflow-hidden select-none',
+        isOverloaded && 'ring-1 ring-inset ring-red-500',
         isDark ? 'bg-[#111217] text-slate-200' : 'bg-slate-50 text-slate-800'
       )}
     >
@@ -155,6 +160,21 @@ export const SystemMonitorDashboard = () => {
         onClose={handleCloseWindow}
         onMaximize={handleMaximizeWindow}
       />
+
+      {isOverloaded && (
+        <div
+          role="alert"
+          className={cn(
+            'flex items-center gap-2 px-4 py-1.5 border-b text-[11px] font-mono font-bold uppercase tracking-wide',
+            isDark
+              ? 'bg-red-950/80 border-red-800 text-red-300'
+              : 'bg-red-50 border-red-300 text-red-700'
+          )}
+        >
+          <AlertTriangle size={13} className="shrink-0 animate-pulse" />
+          Resource overload detected - simulation paused, charts kept open in red
+        </div>
+      )}
 
       {/* Main Dashboard Body: scrollbar lives inside the window with a right gutter so the
           frameless window's right edge stays free for native resize */}
