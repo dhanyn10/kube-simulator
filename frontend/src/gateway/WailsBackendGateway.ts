@@ -513,18 +513,6 @@ export class WailsBackendGateway extends BaseBackendGateway {
     return '{}';
   }
 
-  async triggerTrafficSpike(multiplier: number = 2.0): Promise<boolean> {
-    if (typeof this.app?.TriggerTrafficSpike === 'function') {
-      try {
-        return await this.app.TriggerTrafficSpike(multiplier);
-      } catch (err) {
-        logger.warn('[WailsBackendGateway] TriggerTrafficSpike failed:', err);
-      }
-    }
-    this.emitEvent('simulation-traffic-spike', multiplier);
-    return true;
-  }
-
   // --- Logging Operations ---
 
   async writeLog(category: string, level: string, message: string): Promise<boolean> {

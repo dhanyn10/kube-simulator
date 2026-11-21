@@ -67,7 +67,6 @@ describe('useSimulationSync', () => {
     expect(wailsEvents['detached-open']).toBeDefined();
     expect(wailsEvents['detached-closed']).toBeDefined();
     expect(wailsEvents['simulation-speed-change']).toBeDefined();
-    expect(wailsEvents['simulation-traffic-spike']).toBeDefined();
     expect(wailsEvents['request-monitoring-snapshot']).toBeDefined();
 
     // Trigger DETACHED_OPEN via BroadcastChannel
@@ -110,7 +109,6 @@ describe('useSimulationSync', () => {
     expect(useFlowStore.getState().simulationSpeed).toBe(10);
 
     act(() => {
-      wailsEvents['simulation-traffic-spike']?.(2);
       wailsEvents['request-monitoring-snapshot']?.();
     });
 

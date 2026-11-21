@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useFlowStore } from '@/store';
 import { getBackendGateway } from '@/gateway';
 import { broadcastMetrics } from '@/store/slices/simulationManager';
-import { handleSimulationControl, applyTrafficSpike } from './simulationControlHelpers';
+import { handleSimulationControl } from './simulationControlHelpers';
 
 export interface SimulationSyncOptions {
   onDetachOpen?: () => void;
@@ -88,9 +88,6 @@ export const useSimulationSync = (options?: SimulationSyncOptions) => {
     const unsubSpeed = gw.onEvent('simulation-speed-change', (speed: number) => {
       useFlowStore.getState().setSimulationSpeed(speed as 1 | 5 | 10);
     });
-    const unsubSpike = gw.onEvent('simulation-traffic-spike', (mult: number) => {
-      applyTrafficSpike(useFlowStore.getState, mult);
-    });
     const unsubSnapReq = gw.onEvent('request-monitoring-snapshot', sendSnapshot);
     const unsubStore = useFlowStore.subscribe((state, prevState) => {
       if (!state.isSimulating && state.nodes !== prevState.nodes) {
@@ -104,7 +101,6 @@ export const useSimulationSync = (options?: SimulationSyncOptions) => {
       unsubOpen();
       unsubClose();
       unsubSpeed();
-      unsubSpike();
       unsubSnapReq();
     };
   }, [setMonitoringDetached]);

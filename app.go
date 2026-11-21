@@ -562,11 +562,6 @@ func (a *App) GetSimulationSnapshot() string {
 	return a.simulation.GetSimulationSnapshot()
 }
 
-// TriggerTrafficSpike triggers a traffic surge across all active ingress/internet nodes.
-func (a *App) TriggerTrafficSpike(multiplier float64) bool {
-	return a.simulation.TriggerTrafficSpike(multiplier)
-}
-
 // Greet returns a greeting for the given name
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)

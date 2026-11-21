@@ -64,7 +64,6 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   abstract setSimulationSpeed(speed: number): Promise<boolean>;
   abstract broadcastSimulationSnapshot(snapshotJson: string): Promise<boolean>;
   abstract getSimulationSnapshot(): Promise<string>;
-  abstract triggerTrafficSpike(multiplier?: number): Promise<boolean>;
 
   // Logging & diagnostics
   abstract writeLog(category: string, level: string, message: string): Promise<boolean>;
@@ -175,7 +174,6 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   StopSimulation() { return this.stopSimulation(); }
   BroadcastSimulationSnapshot(s: string) { return this.broadcastSimulationSnapshot(s); }
   GetSimulationSnapshot() { return this.getSimulationSnapshot(); }
-  TriggerTrafficSpike(m?: number) { return this.triggerTrafficSpike(m); }
   Undo() { return this.undo(); }
   UpdateProject(id: number, c: string) { return this.updateProject(id, c); }
   WriteLog(c: string, l: string, m: string) { return this.writeLog(c, l, m); }
