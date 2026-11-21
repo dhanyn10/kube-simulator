@@ -71,7 +71,6 @@ describe('ResourcePrecedenceView (Secret)', () => {
         accentColor="rose"
         onEditItem={mockOnEditItem}
         onDeleteItem={mockOnDeleteItem}
-        onAddNewItem={mockOnAddNew}
       />
     );
 

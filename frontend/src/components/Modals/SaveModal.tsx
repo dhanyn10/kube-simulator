@@ -7,10 +7,10 @@ import { useContextMenuPosition } from '@/lib/contextMenuUtils';
 import {
   formatDateModified,
   getHeaderProfileName,
+  RecentFileItem as RecentProjectItem,
 } from '@/activities/layout/fileBackstageHelpers';
 import { renderRecentProjectsBody } from '@/components/Layout/RecentProjectsRow';
 import { detectScenarioResources, ResourceBadgeList, DetectedResource } from '@/scenarios';
-import { RecentFileItem as RecentProjectItem } from '@/activities/layout/fileBackstageHelpers';
 
 export interface SaveModalProps {
   readonly isOpen: boolean;

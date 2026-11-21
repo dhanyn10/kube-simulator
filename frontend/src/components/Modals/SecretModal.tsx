@@ -326,7 +326,6 @@ export const SecretModal: React.FC<SecretModalProps> = ({
             isDark={isDark}
             onEditItem={handleEditFromList}
             onDeleteItem={handleDeleteFromList}
-            onAddNewItem={handleAddNewFromList}
           />
         </div>
       )}

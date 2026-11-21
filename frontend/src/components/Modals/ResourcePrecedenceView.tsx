@@ -18,7 +18,6 @@ export interface ResourcePrecedenceViewProps {
   readonly isDark: boolean;
   readonly onEditItem: (item: OverviewItem) => void;
   readonly onDeleteItem: (item: OverviewItem) => void;
-  readonly onAddNewItem?: () => void;
   readonly accentColor?: 'teal' | 'rose';
 }
 

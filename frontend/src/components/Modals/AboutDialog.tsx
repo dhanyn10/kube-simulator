@@ -32,7 +32,7 @@ const UpdateStatus: React.FC<{
 
   if (!updateInfo) {
     return (
-      <div className={containerClass} role="status">
+      <output className={cn(containerClass, "block")} aria-live="polite">
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <p className={cn(
@@ -53,7 +53,7 @@ const UpdateStatus: React.FC<{
             </button>
           )}
         </div>
-      </div>
+      </output>
     );
   }
 
