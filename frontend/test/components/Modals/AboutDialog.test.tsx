@@ -139,7 +139,7 @@ describe('AboutDialog', () => {
     expect(await screen.findByText('Checking for updates...')).toBeDefined();
   });
 
-  it('renders failed to check for updates message when updateInfo is null in light mode', async () => {
+  it('renders a neutral skipped message when updateInfo is null in light mode', async () => {
     useFlowStore.setState({ colorMode: 'light' });
     (globalThis as any).go.main.App.GetSystemInfo.mockResolvedValue({ version: '' });
     (globalThis as any).go.main.App.CheckForUpdates.mockResolvedValue(null);
@@ -148,7 +148,9 @@ describe('AboutDialog', () => {
       render(<AboutDialog isOpen={true} onClose={() => {}} />);
     });
 
-    expect(await screen.findByText('Failed to check for updates')).toBeDefined();
+    expect(await screen.findByText('Update check skipped')).toBeDefined();
+    expect(screen.getByText(/GitHub may be rate-limiting requests/)).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeDefined();
   });
 
   it('retries update check when Retry button is clicked after failure', async () => {
@@ -159,7 +161,7 @@ describe('AboutDialog', () => {
       render(<AboutDialog isOpen={true} onClose={() => {}} />);
     });
 
-    expect(await screen.findByText('Failed to check for updates')).toBeDefined();
+    expect(await screen.findByText('Update check skipped')).toBeDefined();
     const retryBtn = screen.getByRole('button', { name: 'Retry' });
     expect(retryBtn).toBeDefined();
 
