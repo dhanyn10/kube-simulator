@@ -491,7 +491,7 @@ const aggregateUnindexedTrafficMetrics = (
     const points = metrics[dep.id] || [];
     points.forEach((p, idx) => {
       const traffic = p.trafficRpm ?? 0;
-      const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
+      const lat = p.latencyMs ?? 0;
       trafficArr[idx] = (trafficArr[idx] || 0) + traffic;
       latArr[idx] = Math.max(latArr[idx] || 0, lat);
     });
@@ -520,7 +520,7 @@ const accumulateDeploymentTrafficBuckets = (
     const minIdx = ((rawMin % 1440) + 1440) % 1440;
     const bIdx = cycle * dayBuckets + Math.floor(minIdx / intervalMinutes);
     const traffic = p.trafficRpm ?? 0;
-    const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
+    const lat = p.latencyMs ?? 0;
 
     bucketTrafficSum.set(bIdx, (bucketTrafficSum.get(bIdx) || 0) + traffic);
     // tickIndex is shared by every workload in a tick, so counting distinct

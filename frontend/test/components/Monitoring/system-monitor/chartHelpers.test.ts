@@ -328,30 +328,30 @@ describe('chartHelpers', () => {
       [{ id: 'dep-1', label: 'api', replicas: 2 }],
       {
         'dep-1': [
-          { cpuPercent: 10, memoryPercent: 20, trafficRpm: 300 },
-          { cpuPercent: 20, memoryPercent: 30, trafficRpm: 600 },
+          { cpuPercent: 10, memoryPercent: 20, trafficRpm: 300, latencyMs: 12 },
+          { cpuPercent: 20, memoryPercent: 30, trafficRpm: 600, latencyMs: 25 },
         ],
       },
       '1h'
     );
-    // lat = 5 + cpuPercent * 0.4 = 5 + 8 = 13
     expect(unindexed.trafficData).toEqual([300, 600]);
     expect(unindexed.currentTrafficRpm).toBe(600);
-    expect(unindexed.currentLatency).toBe(13);
+    expect(unindexed.currentLatency).toBe(25);
 
     // 2. Bucketed data with minuteIndex
     const bucketed = calculateNetworkMetrics(
       [{ id: 'dep-1', label: 'api', replicas: 1 }],
       {
         'dep-1': [
-          { cpuPercent: 10, memoryPercent: 20, minuteIndex: 0, tickIndex: 0, trafficRpm: 100 },
-          { cpuPercent: 30, memoryPercent: 30, minuteIndex: 120, tickIndex: 120, trafficRpm: 200 },
+          { cpuPercent: 10, memoryPercent: 20, minuteIndex: 0, tickIndex: 0, trafficRpm: 100, latencyMs: 10 },
+          { cpuPercent: 30, memoryPercent: 30, minuteIndex: 120, tickIndex: 120, trafficRpm: 200, latencyMs: 40 },
         ],
       },
       '1h'
     );
     expect(bucketed.trafficData.length).toBeGreaterThan(1);
     expect(bucketed.currentTrafficRpm).toBe(200);
+    expect(bucketed.currentLatency).toBe(40);
 
     // 3. Total ingress is summed across workloads, not averaged per workload
     const twoWorkloads = calculateNetworkMetrics(
@@ -360,12 +360,13 @@ describe('chartHelpers', () => {
         { id: 'dep-2', label: 'web', replicas: 1 },
       ],
       {
-        'dep-1': [{ cpuPercent: 10, minuteIndex: 0, tickIndex: 0, trafficRpm: 2000 }],
-        'dep-2': [{ cpuPercent: 10, minuteIndex: 0, tickIndex: 0, trafficRpm: 2000 }],
+        'dep-1': [{ cpuPercent: 10, minuteIndex: 0, tickIndex: 0, trafficRpm: 2000, latencyMs: 20 }],
+        'dep-2': [{ cpuPercent: 10, minuteIndex: 0, tickIndex: 0, trafficRpm: 2000, latencyMs: 35 }],
       },
       '1h'
     );
     expect(twoWorkloads.currentTrafficRpm).toBe(4000);
+    expect(twoWorkloads.currentLatency).toBe(35);
   });
 
   it('extracts replica counts and calculates replica series correctly', () => {

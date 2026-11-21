@@ -215,6 +215,7 @@ export interface SimulationMetricPoint {
   isThrottled: boolean;
   isOOM: boolean;
   trafficRpm?: number;
+  latencyMs?: number;
   replicas?: number;
   minuteIndex?: number;
   tickIndex?: number;

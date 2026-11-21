@@ -3,10 +3,10 @@ import { Node } from '@xyflow/react';
 import {
   calculateIncomingTraffic,
   isSimulationWorkload,
-  getReachableWorkloadCount,
   getInterpolatedProfileTraffic,
   updateInternetTraffic,
   calculateResourceMetrics,
+  calculateResponseLatencyMs,
   handleHpaScaling,
   calculateDesiredReplicas,
 } from '@/lib/simulationTraffic';
@@ -255,6 +255,7 @@ describe('simulationTraffic', () => {
       expect(metrics.cpuPercent).toBeGreaterThan(0);
       expect(ctx.newMetrics['dep-1']).toHaveLength(1);
       expect(ctx.newMetrics['dep-1'][0].trafficRpm).toBe(1000);
+      expect(ctx.newMetrics['dep-1'][0].latencyMs).toBeGreaterThan(0);
 
       // Same minuteIndex (ticks = 5) replaces in place rather than duplicating
       calculateResourceMetrics(dep, 1200, ctx);
@@ -292,6 +293,31 @@ describe('simulationTraffic', () => {
       calculateResourceMetrics(dep, 1000, ctx);
 
       expect(ctx.newMetrics['dep-multi'][0].minuteIndex).toBe(95);
+    });
+  });
+
+  describe('calculateResponseLatencyMs', () => {
+    it('returns zero when there is no traffic to measure', () => {
+      expect(calculateResponseLatencyMs(0, 0, 1000, true, true)).toBe(0);
+    });
+
+    it('stays low under capacity and grows sharply past capacity', () => {
+      const low = calculateResponseLatencyMs(100, 100, 1000, false, false);
+      const high = calculateResponseLatencyMs(2000, 2000, 1000, false, false);
+
+      expect(low).toBe(5);
+      expect(high).toBeGreaterThan(100);
+    });
+
+    it('adds throttle and OOM penalties and caps extreme latency', () => {
+      const plain = calculateResponseLatencyMs(100, 100, 1000, false, false);
+      const throttled = calculateResponseLatencyMs(100, 100, 1000, true, false);
+      const oom = calculateResponseLatencyMs(100, 100, 1000, false, true);
+      const extreme = calculateResponseLatencyMs(1_000_000, 1_000_000, 100, true, true);
+
+      expect(throttled).toBe(plain + 80);
+      expect(oom).toBe(plain + 150);
+      expect(extreme).toBe(1000);
     });
   });
 
