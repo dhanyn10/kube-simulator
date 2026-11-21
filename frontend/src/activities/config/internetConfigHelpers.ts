@@ -1,3 +1,6 @@
+import { Edge, Node } from '@xyflow/react';
+import { isInternetConnectionUnhealthy } from '@/lib/simulationReachability';
+
 /**
  * Formats a number with compact units (e.g. 1k, 1.5M).
  *
@@ -41,25 +44,43 @@ export function generateTrafficRulerTicks(maxRange: number) {
   ];
 }
 
+const buildEdgeMap = (edges: any[]): Map<string, Edge[]> => {
+  const edgeMap = new Map<string, Edge[]>();
+  for (const edge of edges) {
+    const source = String(edge.source);
+    const outgoing = edgeMap.get(source) || [];
+    outgoing.push(edge as Edge);
+    edgeMap.set(source, outgoing);
+  }
+  return edgeMap;
+};
+
 /**
  * Checks whether an Internet node connection is disconnected or in an error state.
+ * Uses the same multi-hop health rules as the simulation engine.
  *
  * @param nodeId ID of the Internet node
  * @param edges Array of current flow edges
  * @param nodes Array of current flow nodes
+ * @param activeSimulationEdges Edge IDs currently carrying simulated traffic
  * @returns True if disconnected or downstream workloads are unready/errored
  */
 export function isInternetConnectionRed(
   nodeId: string | number,
   edges: any[],
-  nodes: any[]
+  nodes: any[],
+  activeSimulationEdges?: string[]
 ): boolean {
-  const outgoingEdges = edges.filter((e) => String(e.source) === String(nodeId));
-  if (outgoingEdges.length === 0) return true;
-  const hasEdgeError = outgoingEdges.some((e) => e.data?.validationError);
-  if (hasEdgeError) return true;
-  const targets = outgoingEdges.map((e) => nodes.find((n) => String(n.id) === String(e.target)));
-  return targets.some(
-    (t) => !t || ((t.type === 'Pod' || t.type === 'Deployment') && t.data?.status !== 'ready')
+  const graphNodes = nodes as Node[];
+  const internet = graphNodes.find((node) => String(node.id) === String(nodeId)) || ({
+    id: String(nodeId),
+    type: 'Internet',
+    position: { x: 0, y: 0 },
+    data: {},
+  } as Node);
+  return isInternetConnectionUnhealthy(
+    internet,
+    { nodes: graphNodes, edgeMap: buildEdgeMap(edges) },
+    activeSimulationEdges
   );
 }

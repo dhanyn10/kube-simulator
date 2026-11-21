@@ -220,8 +220,8 @@ export const SystemMonitorDashboard = () => {
 
           <SystemMonitorStatCard
             title="Throughput"
-            value={clusterTotals.totalRps.toLocaleString()}
-            unit="req/s"
+            value={clusterTotals.totalTrafficRpm.toLocaleString()}
+            unit="req/min"
             subtitle="Ingress Traffic"
             icon={<Activity size={15} />}
             threshold="normal"

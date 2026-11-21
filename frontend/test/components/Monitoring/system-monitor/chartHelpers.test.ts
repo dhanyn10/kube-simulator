@@ -322,22 +322,21 @@ describe('chartHelpers', () => {
     expect(getThresholdReferenceLines('unknown', 100)).toHaveLength(0);
   });
 
-  it('calculates network metrics correctly for unindexed and bucketed data', () => {
+  it('calculates network metrics from real ingress traffic for unindexed and bucketed data', () => {
     // 1. Unindexed data
     const unindexed = calculateNetworkMetrics(
       [{ id: 'dep-1', label: 'api', replicas: 2 }],
       {
         'dep-1': [
-          { cpuPercent: 10, memoryPercent: 20 },
-          { cpuPercent: 20, memoryPercent: 30 },
+          { cpuPercent: 10, memoryPercent: 20, trafficRpm: 300 },
+          { cpuPercent: 20, memoryPercent: 30, trafficRpm: 600 },
         ],
       },
       '1h'
     );
-    // rps = cpuPercent * 15 * replicas = 20 * 15 * 2 = 600
     // lat = 5 + cpuPercent * 0.4 = 5 + 8 = 13
-    expect(unindexed.rpsData).toEqual([300, 600]);
-    expect(unindexed.currentRps).toBe(600);
+    expect(unindexed.trafficData).toEqual([300, 600]);
+    expect(unindexed.currentTrafficRpm).toBe(600);
     expect(unindexed.currentLatency).toBe(13);
 
     // 2. Bucketed data with minuteIndex
@@ -345,14 +344,28 @@ describe('chartHelpers', () => {
       [{ id: 'dep-1', label: 'api', replicas: 1 }],
       {
         'dep-1': [
-          { cpuPercent: 10, memoryPercent: 20, minuteIndex: 0 },
-          { cpuPercent: 30, memoryPercent: 30, minuteIndex: 120 },
+          { cpuPercent: 10, memoryPercent: 20, minuteIndex: 0, tickIndex: 0, trafficRpm: 100 },
+          { cpuPercent: 30, memoryPercent: 30, minuteIndex: 120, tickIndex: 120, trafficRpm: 200 },
         ],
       },
       '1h'
     );
-    expect(bucketed.rpsData.length).toBeGreaterThan(1);
-    expect(bucketed.currentRps).toBe(450);
+    expect(bucketed.trafficData.length).toBeGreaterThan(1);
+    expect(bucketed.currentTrafficRpm).toBe(200);
+
+    // 3. Total ingress is summed across workloads, not averaged per workload
+    const twoWorkloads = calculateNetworkMetrics(
+      [
+        { id: 'dep-1', label: 'api', replicas: 1 },
+        { id: 'dep-2', label: 'web', replicas: 1 },
+      ],
+      {
+        'dep-1': [{ cpuPercent: 10, minuteIndex: 0, tickIndex: 0, trafficRpm: 2000 }],
+        'dep-2': [{ cpuPercent: 10, minuteIndex: 0, tickIndex: 0, trafficRpm: 2000 }],
+      },
+      '1h'
+    );
+    expect(twoWorkloads.currentTrafficRpm).toBe(4000);
   });
 
   it('extracts replica counts and calculates replica series correctly', () => {
@@ -430,14 +443,14 @@ describe('chartHelpers', () => {
       ],
     };
     const resRollover = calculateNetworkMetrics(deps, rolloverMetrics, '1h');
-    expect(resRollover.rpsData.length).toBeGreaterThan(0);
+    expect(resRollover.trafficData.length).toBeGreaterThan(0);
 
     const emptyDepsMetrics = {
       'dep-1': [],
     };
     const resEmpty = calculateNetworkMetrics(deps, emptyDepsMetrics, '1h');
-    expect(resEmpty.rpsData).toEqual([]);
-    expect(resEmpty.currentRps).toBe(0);
+    expect(resEmpty.trafficData).toEqual([]);
+    expect(resEmpty.currentTrafficRpm).toBe(0);
     expect(resEmpty.currentLatency).toBe(0);
   });
 });

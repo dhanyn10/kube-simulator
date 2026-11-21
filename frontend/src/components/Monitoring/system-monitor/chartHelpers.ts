@@ -476,40 +476,37 @@ export const aggregateMetricSeries = (
 };
 
 export interface NetworkMetricsResult {
-  rpsData: number[];
-  currentRps: number;
+  trafficData: number[];
+  currentTrafficRpm: number;
   currentLatency: number;
 }
 
-const aggregateUnindexedNetworkMetrics = (
+const aggregateUnindexedTrafficMetrics = (
   deployments: DeploymentSummary[],
   metrics: Record<string, SimulationMetricPoint[]>
 ) => {
-  const rpsArr: number[] = [];
+  const trafficArr: number[] = [];
   const latArr: number[] = [];
   deployments.forEach((dep) => {
     const points = metrics[dep.id] || [];
-    const replicas = dep.replicas || 1;
     points.forEach((p, idx) => {
-      const rps = Math.round((p.cpuPercent || 0) * 15 * replicas);
+      const traffic = p.trafficRpm ?? 0;
       const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
-      rpsArr[idx] = (rpsArr[idx] || 0) + rps;
+      trafficArr[idx] = (trafficArr[idx] || 0) + traffic;
       latArr[idx] = Math.max(latArr[idx] || 0, lat);
     });
   });
-  return { rpsArr, latArr };
+  return { trafficArr, latArr };
 };
 
-const accumulateDeploymentNetworkBuckets = (
-  dep: DeploymentSummary,
+const accumulateDeploymentTrafficBuckets = (
   points: SimulationMetricPoint[],
   intervalMinutes: number,
   dayBuckets: number,
-  bucketRpsSum: Map<number, number>,
-  bucketRpsCount: Map<number, number>,
+  bucketTrafficSum: Map<number, number>,
+  bucketSamples: Map<number, Set<string>>,
   bucketLat: Map<number, number>
 ) => {
-  const replicas = dep.replicas || 1;
   let cycle = 0;
   let lastRawMin = -1;
 
@@ -522,11 +519,16 @@ const accumulateDeploymentNetworkBuckets = (
 
     const minIdx = ((rawMin % 1440) + 1440) % 1440;
     const bIdx = cycle * dayBuckets + Math.floor(minIdx / intervalMinutes);
-    const rps = Math.round((p.cpuPercent || 0) * 15 * replicas);
+    const traffic = p.trafficRpm ?? 0;
     const lat = Math.round(5 + (p.cpuPercent || 0) * 0.4);
 
-    bucketRpsSum.set(bIdx, (bucketRpsSum.get(bIdx) || 0) + rps);
-    bucketRpsCount.set(bIdx, (bucketRpsCount.get(bIdx) || 0) + 1);
+    bucketTrafficSum.set(bIdx, (bucketTrafficSum.get(bIdx) || 0) + traffic);
+    // tickIndex is shared by every workload in a tick, so counting distinct
+    // samples keeps this a cluster total instead of a per-workload average.
+    const sampleKey = String(p.tickIndex ?? rawMin);
+    const samples = bucketSamples.get(bIdx) || new Set<string>();
+    samples.add(sampleKey);
+    bucketSamples.set(bIdx, samples);
 
     const existingLat = bucketLat.get(bIdx) || 0;
     if (lat > existingLat) {
@@ -535,7 +537,7 @@ const accumulateDeploymentNetworkBuckets = (
   }
 };
 
-const aggregateBucketNetworkMetrics = (
+const aggregateBucketTrafficMetrics = (
   deployments: DeploymentSummary[],
   metrics: Record<string, SimulationMetricPoint[]>,
   intervalMinutes: number,
@@ -543,44 +545,44 @@ const aggregateBucketNetworkMetrics = (
 ) => {
   const dayBuckets = Math.max(1, Math.round(1440 / intervalMinutes));
   const capacity = getIntervalCapacity(interval);
-  const bucketRpsSum = new Map<number, number>();
-  const bucketRpsCount = new Map<number, number>();
+  const bucketTrafficSum = new Map<number, number>();
+  const bucketSamples = new Map<number, Set<string>>();
   const bucketLat = new Map<number, number>();
 
   for (const dep of deployments) {
     const points = metrics[dep.id] || [];
-    accumulateDeploymentNetworkBuckets(dep, points, intervalMinutes, dayBuckets, bucketRpsSum, bucketRpsCount, bucketLat);
+    accumulateDeploymentTrafficBuckets(points, intervalMinutes, dayBuckets, bucketTrafficSum, bucketSamples, bucketLat);
   }
 
-  const allIndices = Array.from(bucketRpsSum.keys()).sort((a, b) => a - b);
+  const allIndices = Array.from(bucketTrafficSum.keys()).sort((a, b) => a - b);
   if (allIndices.length === 0) {
-    return { rpsArr: [], latArr: [] };
+    return { trafficArr: [], latArr: [] };
   }
 
   const firstB = allIndices[0];
   const maxB = allIndices.at(-1)!;
 
-  const fullRps: number[] = [];
+  const fullTraffic: number[] = [];
   const fullLat: number[] = [];
-  let lastRps = 0;
+  let lastTraffic = 0;
   let lastLat = 0;
 
   for (let b = firstB; b <= maxB; b++) {
-    const sum = bucketRpsSum.get(b);
-    const cnt = bucketRpsCount.get(b);
-    if (cnt && cnt > 0 && sum !== undefined) {
-      lastRps = Math.round(sum / cnt);
+    const sum = bucketTrafficSum.get(b);
+    const sampleCount = bucketSamples.get(b)?.size ?? 0;
+    if (sampleCount > 0 && sum !== undefined) {
+      lastTraffic = Math.round(sum / sampleCount);
     }
     const lat = bucketLat.get(b);
     if (lat !== undefined) {
       lastLat = lat;
     }
-    fullRps.push(lastRps);
+    fullTraffic.push(lastTraffic);
     fullLat.push(lastLat);
   }
 
   return {
-    rpsArr: fullRps.slice(-capacity),
+    trafficArr: fullTraffic.slice(-capacity),
     latArr: fullLat.slice(-capacity),
   };
 };
@@ -594,13 +596,13 @@ export const calculateNetworkMetrics = (
   const allPoints = Object.values(metrics).flat();
   const hasMinuteIndex = allPoints.some((p) => typeof p.minuteIndex === 'number');
 
-  const { rpsArr, latArr } = hasMinuteIndex
-    ? aggregateBucketNetworkMetrics(deployments, metrics, intervalMinutes, interval)
-    : aggregateUnindexedNetworkMetrics(deployments, metrics);
+  const { trafficArr, latArr } = hasMinuteIndex
+    ? aggregateBucketTrafficMetrics(deployments, metrics, intervalMinutes, interval)
+    : aggregateUnindexedTrafficMetrics(deployments, metrics);
 
   return {
-    rpsData: rpsArr,
-    currentRps: rpsArr.at(-1) || 0,
+    trafficData: trafficArr,
+    currentTrafficRpm: trafficArr.at(-1) || 0,
     currentLatency: latArr.at(-1) || 0,
   };
 };

@@ -114,11 +114,11 @@ const ReadOnlyProfileChart = ({
   let trafficStatsContent: React.ReactNode;
   if (hoverData) {
     trafficStatsContent = (
-      <>Traffic ({hoverData.hourStr}): <strong className="text-blue-400">{hoverData.val.toLocaleString()} visits</strong></>
+      <>Traffic ({hoverData.hourStr}): <strong className="text-blue-400">{hoverData.val.toLocaleString()} req/min</strong></>
     );
   } else if (isSimulating) {
     trafficStatsContent = (
-      <>Traffic ({currentPt.hour}): <strong className="text-emerald-400 font-bold">{currentPt.val.toLocaleString()} visits</strong></>
+      <>Traffic ({currentPt.hour}): <strong className="text-emerald-400 font-bold">{currentPt.val.toLocaleString()} req/min</strong></>
     );
   } else {
     trafficStatsContent = (
@@ -228,13 +228,14 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
 
   const edges = useFlowStore((state) => state.edges);
   const nodes = useFlowStore((state) => state.nodes);
+  const activeSimulationEdges = useFlowStore((state) => state.activeSimulationEdges);
   const colorMode = useFlowStore((state) => state.colorMode);
   const isDark = colorMode === 'dark';
 
   // Determine if internet connection is disconnected / has error / missing outgoing edge
   const isRed = useMemo(() => {
-    return isInternetConnectionRed(selectedNode.id, edges, nodes);
-  }, [selectedNode.id, edges, nodes]);
+    return isInternetConnectionRed(selectedNode.id, edges, nodes, activeSimulationEdges);
+  }, [selectedNode.id, edges, nodes, activeSimulationEdges]);
 
   // Calculate dynamic maxRange based on current traffic
   const maxRange = useMemo(() => {
@@ -289,7 +290,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
           ) : (
             <>
               <div className="flex justify-between items-center text-xs font-mono">
-                <span className={cn("text-[10px] uppercase font-bold", isDark ? "text-slate-400" : "text-slate-600")}>Visits / Duration</span>
+                <span className={cn("text-[10px] uppercase font-bold", isDark ? "text-slate-400" : "text-slate-600")}>Requests / Duration</span>
                 <div className="flex items-center gap-1">
                   <input
                     type="number"
@@ -304,7 +305,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
                         : "bg-white border-slate-300 text-blue-600 focus:border-blue-500"
                     )}
                   />
-                  <span className={cn("text-[9px] font-normal", isDark ? "text-slate-400" : "text-slate-500")}>visits</span>
+                  <span className={cn("text-[9px] font-normal", isDark ? "text-slate-400" : "text-slate-500")}>req/min</span>
                 </div>
               </div>
 

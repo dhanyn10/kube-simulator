@@ -23,40 +23,40 @@ export const SystemMonitorNetworkPanel = memo(({
 }: SystemMonitorNetworkPanelProps) => {
   const isDark = colorMode === 'dark';
 
-  const { rpsData, currentRps, currentLatency } = useMemo(
+  const { trafficData, currentTrafficRpm, currentLatency } = useMemo(
     () => calculateNetworkMetrics(deployments, metrics, interval),
     [deployments, metrics, interval]
   );
 
-  const dynamicMaxRps = useMemo(
-    () => calculateDynamicYMax(rpsData, 100, 1.2),
-    [rpsData]
+  const dynamicMaxRpm = useMemo(
+    () => calculateDynamicYMax(trafficData, 100, 1.2),
+    [trafficData]
   );
 
   const canvasSeries: CanvasSeriesItem[] = useMemo(() => [
     {
-      id: 'network-rps',
+      id: 'network-traffic',
       color: '#10b981',
-      data: rpsData,
+      data: trafficData,
       isArea: true,
       lineWidth: 1.75,
     },
-  ], [rpsData]);
+  ], [trafficData]);
 
   const buildNetworkScrubber = useCallback(
     (hoverPercent: number, capacity: number) => {
-      const val = resolveScrubberPointValue(rpsData, currentRps, hoverPercent, capacity);
+      const val = resolveScrubberPointValue(trafficData, currentTrafficRpm, hoverPercent, capacity);
       return [
         {
-          id: 'ingress-rps',
+          id: 'ingress-traffic',
           label: 'Ingress Traffic',
           color: '#10b981',
           value: val.toLocaleString('en-US'),
-          unit: ' req/s',
+          unit: ' req/min',
         },
       ];
     },
-    [rpsData, currentRps]
+    [trafficData, currentTrafficRpm]
   );
 
   return (
@@ -71,7 +71,7 @@ export const SystemMonitorNetworkPanel = memo(({
       headerRight={
         <div className="flex items-center gap-3 text-[10px] font-mono">
           <span className={cn("flex items-center gap-1 font-bold", isDark ? "text-emerald-400" : "text-emerald-700")}>
-            <Activity size={11} /> {currentRps.toLocaleString('en-US')} req/s
+            <Activity size={11} /> {currentTrafficRpm.toLocaleString('en-US')} req/min
           </span>
           <span className={cn("font-bold", isDark ? "text-blue-400" : "text-blue-600")}>{currentLatency} ms</span>
         </div>
@@ -79,15 +79,15 @@ export const SystemMonitorNetworkPanel = memo(({
       footer={
         <div className={cn("flex items-center justify-between text-[10px] font-mono pt-1", isDark ? "text-slate-400" : "text-slate-600")}>
           <span>Protocol: HTTP/2 (Cluster Ingress)</span>
-          <span>Peak Scale: {dynamicMaxRps.toLocaleString('en-US')} req/s</span>
+          <span>Peak Scale: {dynamicMaxRpm.toLocaleString('en-US')} req/min</span>
         </div>
       }
     >
       <SystemMonitorInteractiveChart
         isDark={isDark}
         interval={interval}
-        maxVal={dynamicMaxRps}
-        yUnit=" req/s"
+        maxVal={dynamicMaxRpm}
+        yUnit=" req/min"
         series={canvasSeries}
         buildScrubberValues={buildNetworkScrubber}
         isEmpty={deployments.length === 0}

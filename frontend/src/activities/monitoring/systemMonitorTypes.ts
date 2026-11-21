@@ -20,7 +20,7 @@ export interface SystemMonitorClusterTotals {
   memoryPercent: number;
   totalPods: number;
   readyPods: number;
-  totalRps: number;
+  totalTrafficRpm: number;
   errorRate: number;
 }
 

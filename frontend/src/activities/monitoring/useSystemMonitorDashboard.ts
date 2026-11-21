@@ -211,7 +211,7 @@ export const useSystemMonitorDashboard = () => {
     let memLimitMb = 0;
     let totalPods = 0;
     let readyPods = 0;
-    let totalRps = 0;
+    let totalTrafficRpm = 0;
     let throttledCount = 0;
 
     deployments.forEach((dep) => {
@@ -226,7 +226,7 @@ export const useSystemMonitorDashboard = () => {
         cpuLimit += (last.cpuLimit || 1000) * replicas;
         memMb += (last.memoryValue || 0) * replicas;
         memLimitMb += (last.memoryLimit || 1024) * replicas;
-        totalRps += Math.round((last.cpuPercent || 0) * 15 * replicas);
+        totalTrafficRpm += last.trafficRpm || 0;
         if (last.isThrottled || last.isOOM) {
           throttledCount += replicas;
         }
@@ -246,7 +246,7 @@ export const useSystemMonitorDashboard = () => {
       memoryPercent,
       totalPods,
       readyPods,
-      totalRps,
+      totalTrafficRpm,
       errorRate,
     };
   }, [deployments, metrics]);

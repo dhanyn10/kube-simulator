@@ -407,7 +407,7 @@ const handleTrafficThrottling = (
     emitSimulationLog(
       ctx,
       'warning',
-      `[ConfigMap Capacity Limit] HTTP 503 Service Unavailable: ${droppedCount} requests/sec dropped on "${dep.data?.label || dep.id}" (MAX_CONNECTIONS=${limit})`,
+      `[ConfigMap Capacity Limit] HTTP 503 Service Unavailable: ${droppedCount} req/min dropped on "${dep.data?.label || dep.id}" (MAX_CONNECTIONS=${limit})`,
       'Simulation',
       '[ConfigMap Simulation] Failed to add log'
     );

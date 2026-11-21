@@ -225,11 +225,10 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
   const cpuPercent = (cpuValue / cpuLimitMilli) * 100;
   const memoryPercent = (memValue / memLimitMiB) * 100;
 
-  const internetNode = ctx.internetNodes?.[0];
-  const minuteIndex =
-    typeof (internetNode?.data as K8sNodeData)?.currentMinuteIndex === 'number'
-      ? (internetNode!.data as K8sNodeData).currentMinuteIndex!
-      : ((ctx.ticks || 0) % 1440);
+  // Metric charts share one global 24h clock. Using the first Internet node's
+  // profile minute would mislabel every workload when multiple Internet nodes
+  // run different profiles at different times.
+  const minuteIndex = (ctx.ticks || 0) % 1440;
 
   const existing = ctx.newMetrics[dep.id] || [];
   const nextPoint = {
@@ -241,6 +240,7 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
     memoryLimit: memLimitMiB,
     isThrottled,
     isOOM,
+    trafficRpm: incomingTraffic,
     replicas,
     minuteIndex,
     tickIndex: ctx.ticks,

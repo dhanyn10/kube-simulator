@@ -144,7 +144,7 @@ describe('HPA Lifecycle & Pod Scaling Integration Tests', () => {
       childPodMap: new Map([[deploymentId, [initialPod]]]),
     };
 
-    // Incoming traffic of 800 req/sec generates ~80% CPU (> 50% target)
+    // Incoming traffic of 800 req/min generates ~80% CPU (> 50% target)
     const currentDepNode = simNodes.find((n) => n.id === deploymentId)!;
     currentDepNode.data = { ...currentDepNode.data, traffic: 800 };
 
@@ -344,7 +344,7 @@ describe('HPA Lifecycle & Pod Scaling Integration Tests', () => {
     };
 
     const currentDep = simNodes.find((n) => n.id === deploymentId)!;
-    // Very low traffic of 10 req/sec results in low CPU
+    // Very low traffic of 10 req/min results in low CPU
     currentDep.data = { ...currentDep.data, traffic: 10 };
 
     processWorkloadSimulation(currentDep, ctx);

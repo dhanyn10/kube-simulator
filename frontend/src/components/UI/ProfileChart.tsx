@@ -120,7 +120,7 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
               className={isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" : "fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125"}
               strokeWidth="1.5"
             />
-            <title>{`${currentHour} - ${currentVal.toLocaleString()} visits`}</title>
+            <title>{`${currentHour} - ${currentVal.toLocaleString()} req/min`}</title>
           </g>
         )}
 
@@ -134,7 +134,7 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
               className={getMiniHoverDotClass(hoverData.minuteIndex === minuteIdx, isRed)}
               strokeWidth="1.5"
             />
-            <title>{`${hoverData.hourStr} - ${hoverData.val.toLocaleString()} visits`}</title>
+            <title>{`${hoverData.hourStr} - ${hoverData.val.toLocaleString()} req/min`}</title>
           </g>
         )}
 
@@ -630,7 +630,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
               className={isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900" : "fill-emerald-400 stroke-white dark:stroke-slate-900"}
               strokeWidth="1.5"
             />
-            <title>{`${activeMinutePt.hour} - ${activeMinutePt.val.toLocaleString()} visits`}</title>
+            <title>{`${activeMinutePt.hour} - ${activeMinutePt.val.toLocaleString()} req/min`}</title>
           </g>
         )}
 

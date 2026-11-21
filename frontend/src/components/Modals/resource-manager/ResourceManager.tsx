@@ -183,7 +183,7 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
                     <Gauge size={12} className="text-emerald-400 shrink-0" />
                     <span className="text-slate-500">TRF:</span>
                     <span className="font-semibold text-emerald-400 truncate">
-                      {chars.maxTrafficRpm.toLocaleString()} rpm
+                      {chars.maxTrafficRpm.toLocaleString()} req/min
                     </span>
                   </div>
 

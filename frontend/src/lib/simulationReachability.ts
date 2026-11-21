@@ -268,16 +268,31 @@ const isControllerUnready = (node: Node, nodes: Node[]): boolean => {
   return node.data?.status !== 'ready';
 };
 
-const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolean => {
+/**
+ * Workload-only readiness rule shared by the reachability engine and canvas edge colors.
+ * A controller stays available while at least one replica Pod is ready.
+ */
+export const isWorkloadNodeUnready = (node: Node | undefined, nodes: Node[]): boolean => {
   if (!node) return true;
-
   if (node.type === 'Deployment' || node.type === 'StatefulSet') {
     return isControllerUnready(node, nodes);
   }
+  if (node.type === 'Pod' || node.type === 'ReplicaSet') {
+    return node.data?.status !== 'ready';
+  }
+  return false;
+};
 
-  // A standalone Pod or ReplicaSet has no controller redundancy to route around.
-  if ((node.type === 'Pod' || node.type === 'ReplicaSet') && node.data?.status !== 'ready') {
-    return true;
+const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolean => {
+  if (!node) return true;
+
+  if (
+    node.type === 'Deployment' ||
+    node.type === 'StatefulSet' ||
+    node.type === 'Pod' ||
+    node.type === 'ReplicaSet'
+  ) {
+    return isWorkloadNodeUnready(node, nodes);
   }
 
   if (node.type === 'Service') {
@@ -299,12 +314,19 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
   return false;
 };
 
+/** Minimal graph slice needed to evaluate downstream connection health. */
+export interface ReachabilityGraph {
+  nodes: Node[];
+  edgeMap?: Map<string, Edge[]>;
+  nodeMap?: Map<string, Node>;
+}
+
 /**
  * Traverses downstream paths starting from target ID to detect unready nodes or edge validation errors.
  */
 const hasUnreadyDownstreamPath = (
   startTargetId: string,
-  ctx: SimulationContext,
+  graph: ReachabilityGraph,
   activeEdgesSet: Set<string>
 ): boolean => {
   const visited = new Set<string>();
@@ -315,12 +337,12 @@ const hasUnreadyDownstreamPath = (
     if (visited.has(currentId)) continue;
     visited.add(currentId);
 
-    const targetNode = ctx.nodeMap?.get(currentId) || ctx.nodes.find(candidateNode => String(candidateNode.id) === currentId);
-    if (checkNodeUnreadyInternal(targetNode, ctx.nodes)) {
+    const targetNode = graph.nodeMap?.get(currentId) || graph.nodes.find(candidateNode => String(candidateNode.id) === currentId);
+    if (checkNodeUnreadyInternal(targetNode, graph.nodes)) {
       return true;
     }
 
-    const downstreamEdges = (ctx.edgeMap?.get(currentId) || []).filter(edge =>
+    const downstreamEdges = (graph.edgeMap?.get(currentId) || []).filter(edge =>
       activeEdgesSet.size === 0 || activeEdgesSet.has(String(edge.id))
     );
 
@@ -334,20 +356,33 @@ const hasUnreadyDownstreamPath = (
 };
 
 /**
- * Checks if outgoing edges from internet node or downstream workload paths have validation errors or unready nodes.
+ * Single source of truth for Internet connection health, shared by the simulation
+ * engine and the configuration UI so the chart dot matches the delivered traffic.
  */
-export const isInternetConnectionRed = (internet: Node, ctx: SimulationContext): boolean => {
-  const outgoingEdges = ctx.edgeMap?.get(internet.id) || [];
+export const isInternetConnectionUnhealthy = (
+  internet: Node | undefined,
+  graph: ReachabilityGraph,
+  activeSimulationEdges?: string[] | Set<string>
+): boolean => {
+  if (!internet) return true;
+
+  const outgoingEdges = graph.edgeMap?.get(internet.id) || [];
   if (outgoingEdges.length === 0) return true;
 
-  const activeEdgesSet = new Set(ctx.activeSimulationEdges);
+  const activeEdgesSet = new Set(activeSimulationEdges || []);
 
   for (const edge of outgoingEdges) {
     if (edge.data?.validationError) return true;
-    if (hasUnreadyDownstreamPath(String(edge.target), ctx, activeEdgesSet)) {
+    if (hasUnreadyDownstreamPath(String(edge.target), graph, activeEdgesSet)) {
       return true;
     }
   }
 
   return false;
 };
+
+/**
+ * Checks if outgoing edges from internet node or downstream workload paths have validation errors or unready nodes.
+ */
+export const isInternetConnectionRed = (internet: Node, ctx: SimulationContext): boolean =>
+  isInternetConnectionUnhealthy(internet, ctx, ctx.activeSimulationEdges);

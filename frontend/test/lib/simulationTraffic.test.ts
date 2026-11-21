@@ -254,6 +254,7 @@ describe('simulationTraffic', () => {
       const metrics = calculateResourceMetrics(dep, 1000, ctx);
       expect(metrics.cpuPercent).toBeGreaterThan(0);
       expect(ctx.newMetrics['dep-1']).toHaveLength(1);
+      expect(ctx.newMetrics['dep-1'][0].trafficRpm).toBe(1000);
 
       // Same minuteIndex (ticks = 5) replaces in place rather than duplicating
       calculateResourceMetrics(dep, 1200, ctx);
@@ -263,6 +264,34 @@ describe('simulationTraffic', () => {
       ctx.ticks = 6;
       calculateResourceMetrics(dep, 1200, ctx);
       expect(ctx.newMetrics['dep-1']).toHaveLength(2);
+    });
+
+    it('uses the global tick clock for metric minuteIndex with multiple Internet nodes', () => {
+      const dep: Node = {
+        id: 'dep-multi',
+        position: { x: 0, y: 0 },
+        data: { image: 'nginx:latest' },
+      };
+      const firstInternet: Node = {
+        id: 'net-1',
+        position: { x: 0, y: 0 },
+        data: { currentMinuteIndex: 720 },
+      };
+      const secondInternet: Node = {
+        id: 'net-2',
+        position: { x: 0, y: 0 },
+        data: { currentMinuteIndex: 30 },
+      };
+      const ctx: SimulationContext = {
+        ticks: 95,
+        newMetrics: {},
+        childPodMap: new Map(),
+        internetNodes: [firstInternet, secondInternet],
+      } as any;
+
+      calculateResourceMetrics(dep, 1000, ctx);
+
+      expect(ctx.newMetrics['dep-multi'][0].minuteIndex).toBe(95);
     });
   });
 

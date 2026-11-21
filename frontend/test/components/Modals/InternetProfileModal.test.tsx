@@ -43,7 +43,7 @@ describe('InternetProfileModal', () => {
     mockGetInternetProfiles.mockResolvedValue([]);
     mockSaveInternetProfile.mockResolvedValue(true);
     mockDeleteInternetProfile.mockResolvedValue(true);
-    useFlowStore.setState({ colorMode: 'dark', nodes: [], edges: [], isSimulating: false });
+    useFlowStore.setState({ colorMode: 'dark', nodes: [], edges: [], activeSimulationEdges: [], isSimulating: false });
   });
 
   it('renders modal when isOpen is true and handles label fallback when label is missing', async () => {
@@ -114,12 +114,12 @@ describe('InternetProfileModal', () => {
     const dot3 = screen.getByTestId('mini-active-traffic-dot');
     expect(dot3.querySelector('.fill-rose-500')).not.toBeNull();
 
-    // Case 4: Edge pointing to non-Pod/Deployment node (e.g. Service or Ingress) (isRed: false if healthy)
+    // Case 4: Edge pointing to a healthy non-workload node such as a NodePort Service (isRed: false)
     act(() => {
       useFlowStore.setState({
         nodes: [
           { id: 'node-internet-1', type: 'Internet', data: {} },
-          { id: 'svc-1', type: 'Service', data: {} }
+          { id: 'svc-1', type: 'Service', data: { serviceType: 'NodePort' } }
         ],
         edges: [{ id: 'e1', source: 'node-internet-1', target: 'svc-1', data: {} }]
       });
@@ -139,6 +139,21 @@ describe('InternetProfileModal', () => {
     });
     const dot5 = screen.getByTestId('mini-active-traffic-dot');
     expect(dot5.querySelector('.fill-blue-400')).not.toBeNull();
+
+    // Case 6: one ready replica keeps the connection healthy even when a sibling is unready
+    act(() => {
+      useFlowStore.setState({
+        nodes: [
+          { id: 'node-internet-1', type: 'Internet', data: {} },
+          { id: 'dep-1', type: 'Deployment', data: { label: 'web', status: 'ready' } },
+          { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { status: 'ready' } },
+          { id: 'pod-2', type: 'Pod', parentId: 'dep-1', data: { status: 'pending' } }
+        ],
+        edges: [{ id: 'e1', source: 'node-internet-1', target: 'dep-1', data: {} }]
+      });
+    });
+    const dot6 = screen.getByTestId('mini-active-traffic-dot');
+    expect(dot6.querySelector('.fill-blue-400')).not.toBeNull();
   });
 
   it('renders light mode styling, singular "1 Available Profile" label, and handles card background/button styling', async () => {
