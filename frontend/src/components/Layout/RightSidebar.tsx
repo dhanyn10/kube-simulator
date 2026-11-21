@@ -9,7 +9,8 @@ import {
   Check,
   ChevronDown,
   MousePointer2,
-  History
+  History,
+  ExternalLink,
 } from 'lucide-react';
 import { HistoryPanel } from '@/components/Monitoring/HistoryPanel';
 import { cn } from '@/lib/utils';
@@ -164,6 +165,7 @@ interface SidebarTabBarProps {
   visibleWidgets: string[];
   toggleWidget: (id: string) => void;
   onExportYaml: () => void;
+  onDetachSidebar?: () => void;
   colorMode: 'dark' | 'light';
 }
 
@@ -177,6 +179,7 @@ export const SidebarTabBar = ({
   visibleWidgets,
   toggleWidget,
   onExportYaml,
+  onDetachSidebar,
   colorMode
 }: SidebarTabBarProps) => {
   return (
@@ -281,6 +284,22 @@ export const SidebarTabBar = ({
         <span className="truncate">History</span>
       </button>
 
+      {onDetachSidebar && (
+        <button
+          type="button"
+          data-testid="right-sidebar-detach-btn"
+          onClick={onDetachSidebar}
+          title="Detach Configuration Window"
+          aria-label="Detach Configuration Window"
+          className={cn(
+            "flex items-center justify-center h-8 px-1.5 mx-0.5 rounded-md transition-colors text-slate-400 hover:text-slate-200",
+            colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100 hover:text-slate-700"
+          )}
+        >
+          <ExternalLink size={13} />
+        </button>
+      )}
+
     </div>
   );
 };
@@ -306,6 +325,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
     handleContextMenu,
     closeContextMenu,
     handleCloseSidebar,
+    handleDetachSidebar,
   } = useRightSidebar();
 
   return (
@@ -324,10 +344,12 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
           y={contextMenu.y}
           colorMode={colorMode}
           toggleColorMode={toggleColorMode}
+          onDetachSidebar={handleDetachSidebar}
           onCloseSidebar={handleCloseSidebar}
           onCloseContextMenu={closeContextMenu}
           testId="right-sidebar-context-menu"
           changeThemeTestId="context-menu-change-theme"
+          detachTestId="right-sidebar-detach"
           closeTestId="context-menu-close-sidebar"
         />
       )}
@@ -341,6 +363,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
         visibleWidgets={visibleWidgets}
         toggleWidget={toggleWidget}
         onExportYaml={onExportYaml}
+        onDetachSidebar={handleDetachSidebar}
         colorMode={colorMode}
       />
 

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Folder, Search, Globe, ChevronDown, ChevronRight, Activity, Database, HardDrive, Settings, Lock, ShieldCheck, UserCheck, Cpu, Route, Gauge } from 'lucide-react';
+import { Box, Layers, Network, Folder, Search, Globe, ChevronDown, ChevronRight, Activity, Database, HardDrive, Settings, Lock, ShieldCheck, UserCheck, Cpu, Route, Gauge, ExternalLink } from 'lucide-react';
 import { K8sResourceType } from '@/types';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
+import { getBackendGateway } from '@/gateway';
 import { SidebarContextMenu, useSidebarContextMenu } from '@/components/UI/SidebarContextMenu';
 import {
   ITEM_STYLES,
@@ -110,9 +111,15 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
   const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
+  const setSidebarDetached = useFlowStore((state) => state.setSidebarDetached);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
   const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
   const { contextMenu, handleContextMenu, closeContextMenu } = useSidebarContextMenu();
+
+  const handleDetachSidebar = () => {
+    setSidebarDetached(true);
+    getBackendGateway().openSidebarWindow('left');
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     'useful-resources': true,
@@ -195,10 +202,12 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
           y={contextMenu.y}
           colorMode={colorMode}
           toggleColorMode={toggleColorMode}
+          onDetachSidebar={handleDetachSidebar}
           onCloseSidebar={() => setSidebarVisible(false)}
           onCloseContextMenu={closeContextMenu}
           testId="left-sidebar-context-menu"
           changeThemeTestId="left-sidebar-change-theme"
+          detachTestId="left-sidebar-detach"
           closeTestId="left-sidebar-close"
         />
       )}
@@ -207,6 +216,19 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
           <p className={cn("text-[10px] font-bold uppercase tracking-widest", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>
             Components
           </p>
+          <button
+            type="button"
+            data-testid="left-sidebar-detach-btn"
+            onClick={handleDetachSidebar}
+            title="Detach Components Window"
+            aria-label="Detach Components Window"
+            className={cn(
+              "p-1 rounded transition-colors text-slate-400 hover:text-slate-200",
+              colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100 hover:text-slate-700"
+            )}
+          >
+            <ExternalLink size={12} />
+          </button>
         </div>
         <div className="relative">
           <Search className={cn("search-input-icon-sm", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} size={12} />

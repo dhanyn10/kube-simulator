@@ -52,6 +52,8 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   abstract closeWindow(): Promise<void>;
   abstract openSimulationWindow(): Promise<boolean>;
   abstract closeSimulationWindow(): Promise<boolean>;
+  abstract openSidebarWindow(side: 'left' | 'right'): Promise<boolean>;
+  abstract closeSidebarWindow(side: 'left' | 'right'): Promise<boolean>;
   abstract calculateAppHeight(screenHeight: number): Promise<number>;
   abstract getTargetScreen(screens: any[]): Promise<any>;
   abstract getTargetScreenHeight(screens: any[]): Promise<number | boolean>;
@@ -133,6 +135,8 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   CheckForUpdates(v: string) { return this.checkForUpdates(v); }
   ClearAllAutosaves() { return this.clearAllAutosaves(); }
   CloseSimulationWindow() { return this.closeSimulationWindow(); }
+  OpenSidebarWindow(side: 'left' | 'right') { return this.openSidebarWindow(side); }
+  CloseSidebarWindow(side: 'left' | 'right') { return this.closeSidebarWindow(side); }
   CloseWindow() { return this.closeWindow(); }
   DeleteInternetProfile(n: string) { return this.deleteInternetProfile(n); }
   DeleteProject(id: number) { return this.deleteProject(id); }

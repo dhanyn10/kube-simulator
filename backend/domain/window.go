@@ -7,4 +7,6 @@ type WindowController interface {
 	Close()
 	OpenSimulationWindow() bool
 	CloseSimulationWindow() bool
+	OpenSidebarWindow(side string) bool
+	CloseSidebarWindow(side string) bool
 }

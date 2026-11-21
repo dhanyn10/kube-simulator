@@ -7,6 +7,8 @@ export const MaximizeWindow = (): Promise<void> => Promise.resolve();
 export const CloseWindow = (): Promise<void> => Promise.resolve();
 export const OpenSimulationWindow = (): Promise<boolean> => Promise.resolve(false);
 export const CloseSimulationWindow = (): Promise<boolean> => Promise.resolve(false);
+export const OpenSidebarWindow = (_side: string): Promise<boolean> => Promise.resolve(false);
+export const CloseSidebarWindow = (_side: string): Promise<boolean> => Promise.resolve(false);
 export const StartSimulation = (_speed?: number): Promise<boolean> => Promise.resolve(true);
 export const PauseSimulation = (): Promise<boolean> => Promise.resolve(true);
 export const ResumeSimulation = (): Promise<boolean> => Promise.resolve(true);
