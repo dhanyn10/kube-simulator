@@ -35,6 +35,25 @@ describe('useCustomEdge & edge helpers', () => {
     expect(checkNodeUnready(deployWithUnreadyChild, [deployWithUnreadyChild, childPod])).toBe(true);
   });
 
+  it('keeps canvas edges healthy while at least one replica Pod is ready', () => {
+    const partialDeployment = { id: 'd-partial', type: 'Deployment', data: { status: 'ready' } };
+    const readyPod = { id: 'p-ready', parentId: 'd-partial', type: 'Pod', data: { status: 'ready' } };
+    const pendingPod = { id: 'p-pending', parentId: 'd-partial', type: 'Pod', data: { status: 'pending' } };
+    const partialNodes = [partialDeployment, readyPod, pendingPod];
+
+    expect(checkNodeUnready(partialDeployment, partialNodes)).toBe(false);
+    expect(checkDownstreamErrorState(true, null, 'd-partial', partialNodes, [], [])).toBe(false);
+
+    const allUnreadyNodes = [partialDeployment, { ...pendingPod, id: 'p-pending-2' }];
+    expect(checkNodeUnready(partialDeployment, allUnreadyNodes)).toBe(true);
+    expect(checkDownstreamErrorState(true, null, 'd-partial', allUnreadyNodes, [], [])).toBe(true);
+
+    const partialStatefulSet = { id: 'sts-1', type: 'StatefulSet', data: { status: 'ready' } };
+    const stsReadyPod = { id: 'sts-p1', parentId: 'sts-1', type: 'Pod', data: { status: 'ready' } };
+    const stsPendingPod = { id: 'sts-p2', parentId: 'sts-1', type: 'Pod', data: { status: 'pending' } };
+    expect(checkNodeUnready(partialStatefulSet, [partialStatefulSet, stsReadyPod, stsPendingPod])).toBe(false);
+  });
+
   it('checkDownstreamErrorState evaluates recursively', () => {
     const nodes = [
       { id: 'node-1', type: 'Pod', data: { status: 'ready' } },

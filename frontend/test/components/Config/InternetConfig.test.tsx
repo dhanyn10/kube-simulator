@@ -36,7 +36,7 @@ describe('InternetConfig', () => {
     expect(screen.getByText('Data Traffic')).toBeDefined();
     const numInput = screen.getByTestId('traffic-numeric-input') as HTMLInputElement;
     expect(numInput.value).toBe('5000');
-    expect(screen.getByText('visits')).toBeDefined();
+    expect(screen.getByText('req/min')).toBeDefined();
     expect(screen.queryByText('Data Duration')).toBeNull();
   });
 
@@ -182,7 +182,7 @@ describe('InternetConfig', () => {
     expect(screen.getByText('Custom Profile')).toBeDefined();
     expect(screen.getByTestId('active-traffic-dot')).toBeDefined();
     expect(screen.getAllByText('03:00').length).toBeGreaterThan(0);
-    expect(screen.getByText(/2[.,]000 visits/)).toBeDefined();
+    expect(screen.getByText(/2[.,]000 req\/min/)).toBeDefined();
     expect(screen.queryByTestId('traffic-numeric-input')).toBeNull();
 
     const chartSvg = container.querySelector('svg[viewBox="0 0 240 80"]')!;
@@ -494,7 +494,7 @@ describe('InternetConfig', () => {
     useFlowStore.setState({
       isSimulating: true,
       edges: [{ id: 'e1', source: 'int1', target: 'svc1' }] as any,
-      nodes: [{ id: 'svc1', type: 'Service', data: { label: 'my-svc' } }] as any
+      nodes: [{ id: 'svc1', type: 'Service', data: { label: 'my-svc', serviceType: 'NodePort' } }] as any
     });
 
     const profileNode = {

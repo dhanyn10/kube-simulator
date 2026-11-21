@@ -203,8 +203,37 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   return { traffic: nextTraffic, hasChanges };
 };
 
+const LATENCY_BASE_MS = 5;
+const LATENCY_QUEUE_MS = 20;
+const LATENCY_OVERLOAD_MS_PER_RATIO = 120;
+const LATENCY_THROTTLED_MS = 80;
+const LATENCY_OOM_MS = 150;
+const LATENCY_MAX_MS = 1000;
+
 /**
- * Computes CPU and Memory usage metrics and throttle/OOM flags for a workload node based on traffic load.
+ * Models response latency as queueing delay relative to the image's safe traffic
+ * capacity, plus throttling/OOM penalties. Zero traffic means no requests to measure.
+ */
+export const calculateResponseLatencyMs = (
+  incomingTraffic: number,
+  trafficPerReplica: number,
+  safeCapacityRpm: number,
+  isThrottled: boolean,
+  isOOM: boolean
+): number => {
+  if (incomingTraffic <= 0) return 0;
+
+  const utilization = safeCapacityRpm > 0 ? trafficPerReplica / safeCapacityRpm : 1;
+  const queueingMs = utilization <= 1
+    ? LATENCY_QUEUE_MS * utilization * utilization
+    : LATENCY_QUEUE_MS + (utilization - 1) * LATENCY_OVERLOAD_MS_PER_RATIO;
+  const penaltyMs = (isThrottled ? LATENCY_THROTTLED_MS : 0) + (isOOM ? LATENCY_OOM_MS : 0);
+
+  return Math.round(Math.min(LATENCY_MAX_MS, LATENCY_BASE_MS + queueingMs + penaltyMs));
+};
+
+/**
+ * Computes CPU, Memory, and response latency metrics for a workload node based on traffic load.
  */
 export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx: SimulationContext) => {
   const deploymentData = dep.data as K8sNodeData;
@@ -225,11 +254,21 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
   const cpuPercent = (cpuValue / cpuLimitMilli) * 100;
   const memoryPercent = (memValue / memLimitMiB) * 100;
 
-  const internetNode = ctx.internetNodes?.[0];
-  const minuteIndex =
-    typeof (internetNode?.data as K8sNodeData)?.currentMinuteIndex === 'number'
-      ? (internetNode!.data as K8sNodeData).currentMinuteIndex!
-      : ((ctx.ticks || 0) % 1440);
+  const characteristics = computed.characteristics;
+  const safeCapacityRpm = characteristics.maxTrafficRpm * characteristics.spikeToleranceRatio;
+  const trafficPerReplica = incomingTraffic / Math.max(1, replicas);
+  const latencyMs = calculateResponseLatencyMs(
+    incomingTraffic,
+    trafficPerReplica,
+    safeCapacityRpm,
+    isThrottled,
+    isOOM
+  );
+
+  // Metric charts share one global 24h clock. Using the first Internet node's
+  // profile minute would mislabel every workload when multiple Internet nodes
+  // run different profiles at different times.
+  const minuteIndex = (ctx.ticks || 0) % 1440;
 
   const existing = ctx.newMetrics[dep.id] || [];
   const nextPoint = {
@@ -241,6 +280,8 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
     memoryLimit: memLimitMiB,
     isThrottled,
     isOOM,
+    trafficRpm: incomingTraffic,
+    latencyMs,
     replicas,
     minuteIndex,
     tickIndex: ctx.ticks,

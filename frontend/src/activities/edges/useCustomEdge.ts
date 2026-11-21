@@ -1,20 +1,15 @@
 import { useReactFlow, getBezierPath } from '@xyflow/react';
 import { useFlowStore } from '@/store';
+import { isWorkloadNodeUnready } from '@/lib/simulationReachability';
 
 /**
  * Helper function to check if a node or its children are not ready.
+ * Workload readiness follows the same partial-readiness rule as the engine.
  */
 export const checkNodeUnready = (node: any, nodes: any[]): boolean => {
   if (!node) return false;
-  const isWorkload = node.type === 'Pod' || node.type === 'Deployment';
-  if (isWorkload && node.data?.status !== 'ready') return true;
   if (node.data?.status === 'error') return true;
-
-  if (node.type === 'Deployment') {
-    const childPods = nodes.filter((n: any) => String(n.parentId) === String(node.id) && n.type === 'Pod');
-    if (childPods.some((p: any) => p.data?.status !== 'ready')) return true;
-  }
-  return false;
+  return isWorkloadNodeUnready(node, nodes);
 };
 
 /**

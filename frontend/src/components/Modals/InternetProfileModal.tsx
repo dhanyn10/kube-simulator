@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Globe, Plus, Trash2, Check, Sparkles, LayoutGrid, ArrowLeft, Eye, Shuffle, Pause, Square, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
@@ -7,6 +7,7 @@ import {
   HOURS_OF_DAY,
   ECOMMERCE_PROFILE
 } from '@/activities/modals';
+import { isInternetConnectionRed } from '@/activities/config';
 import { useFlowStore } from '@/store/useFlowStore';
 import { MiniCurvePreview, InteractiveTrafficChart } from '@/components/UI/ProfileChart';
 
@@ -72,17 +73,12 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
 
   const edges = useFlowStore((state) => state.edges);
   const nodes = useFlowStore((state) => state.nodes);
+  const activeSimulationEdges = useFlowStore((state) => state.activeSimulationEdges);
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const pauseSimulation = useFlowStore((state) => state.pauseSimulation);
   const stopSimulation = useFlowStore((state) => state.stopSimulation);
 
-  const outgoingEdges = edges.filter((e) => String(e.source) === String(selectedNode?.id));
-  const isRed = useMemo(() => {
-    if (outgoingEdges.length === 0) return true;
-    if (outgoingEdges.some((e) => e.data?.validationError)) return true;
-    const targets = outgoingEdges.map((e) => nodes.find((n) => String(n.id) === String(e.target)));
-    return targets.some((t) => !t || (t.type === 'Pod' || t.type === 'Deployment') && t.data?.status !== 'ready');
-  }, [outgoingEdges, nodes]);
+  const isRed = isInternetConnectionRed(selectedNode?.id ?? '', edges, nodes, activeSimulationEdges);
 
   const {
     colorMode,

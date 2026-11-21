@@ -148,18 +148,20 @@ describe('useInternetProfileModal', () => {
     );
   });
 
-  it('handles apply profile and deselect toggle when active profile clicked again', () => {
+  it('restores the exact manual traffic value when the active profile is deselected', () => {
     const inactiveNode = {
       id: 'node-internet-1',
       data: {
         label: 'Internet Connection',
+        traffic: 5000,
         activeProfileName: '',
         connectionProfile: undefined
       }
     };
 
-    const { result } = renderHook(() =>
-      useInternetProfileModal(true, inactiveNode, mockPerformUpdate, mockOnClose)
+    const { result, rerender } = renderHook(
+      ({ node }) => useInternetProfileModal(true, node, mockPerformUpdate, mockOnClose),
+      { initialProps: { node: inactiveNode } }
     );
 
     act(() => {
@@ -168,11 +170,25 @@ describe('useInternetProfileModal', () => {
 
     expect(mockPerformUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        activeProfileName: ECOMMERCE_PROFILE.name
+        activeProfileName: ECOMMERCE_PROFILE.name,
+        preProfileTraffic: 5000
       })
     );
 
-    // Clicking again on active profile toggles it OFF (deselect)
+    // performUpdate writes to the store in production, and the parent passes the
+    // refreshed node back down. Simulate that before clicking the active profile again.
+    const appliedNode = {
+      ...inactiveNode,
+      data: {
+        ...inactiveNode.data,
+        activeProfileName: ECOMMERCE_PROFILE.name,
+        connectionProfile: ECOMMERCE_PROFILE,
+        traffic: ECOMMERCE_PROFILE.hourly['00:00'],
+        preProfileTraffic: 5000
+      }
+    };
+    rerender({ node: appliedNode });
+
     act(() => {
       result.current.handleApplyProfile(ECOMMERCE_PROFILE.name);
     });
@@ -180,8 +196,31 @@ describe('useInternetProfileModal', () => {
     expect(mockPerformUpdate).toHaveBeenLastCalledWith(
       expect.objectContaining({
         activeProfileName: '',
-        connectionProfile: undefined
+        connectionProfile: undefined,
+        preProfileTraffic: undefined,
+        traffic: 5000
       })
+    );
+  });
+
+  it('keeps the original manual traffic when switching between two profiles', () => {
+    const nodeWithProfile = {
+      ...dummyNode,
+      data: { ...dummyNode.data, traffic: 4200, preProfileTraffic: 4200 }
+    };
+    const { result } = renderHook(() =>
+      useInternetProfileModal(true, nodeWithProfile, mockPerformUpdate, mockOnClose)
+    );
+
+    act(() => {
+      result.current.handleApplyProfile('Another Profile', {
+        name: 'Another Profile',
+        hourly: { '00:00': 900 }
+      });
+    });
+
+    expect(mockPerformUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ preProfileTraffic: 4200, traffic: 900 })
     );
   });
 
@@ -803,12 +842,14 @@ describe('useInternetProfileModal', () => {
       expect(result.current.autoSaveStatus).toBe('idle');
     });
 
-    it('covers executeAutoSave clearing previous savedStatusTimerRef on rapid subsequent saves and fallback to 1000 for missing hourly 00:00', async () => {
+    it('covers executeAutoSave clearing previous savedStatusTimerRef on rapid subsequent saves without resetting traffic', async () => {
       const activeNodeNoHourlyZero = {
         ...dummyNode,
         data: {
           ...dummyNode.data,
-          activeProfileName: 'ProfileNoHourlyZero'
+          activeProfileName: 'ProfileNoHourlyZero',
+          traffic: 7777,
+          preProfileTraffic: 7777
         }
       };
 
@@ -823,17 +864,17 @@ describe('useInternetProfileModal', () => {
         });
       });
 
-      // First auto-save: triggers traffic fallback to 1000 and sets savedStatusTimerRef
+      // First auto-save updates the definition only and sets savedStatusTimerRef.
       await act(async () => {
         result.current.handleManualAutoSave();
       });
 
-      expect(mockPerformUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          activeProfileName: 'ProfileNoHourlyZero',
-          traffic: 1000
-        })
-      );
+      expect(mockPerformUpdate).toHaveBeenCalledWith({
+        connectionProfile: expect.objectContaining({ name: 'ProfileNoHourlyZero' }),
+        activeProfileName: 'ProfileNoHourlyZero'
+      });
+      const savedUpdates = mockPerformUpdate.mock.calls.map((call) => call[0] as Record<string, unknown>);
+      expect(savedUpdates.every((update) => !Object.prototype.hasOwnProperty.call(update, 'traffic'))).toBe(true);
       expect(result.current.autoSaveStatus).toBe('saved');
 
       // Second auto-save while savedStatusTimerRef is still running: triggers line 252 clearTimeout

@@ -106,6 +106,30 @@ describe('nodeHelpers', () => {
       expect(hydrated[0].data.yamlSettings).toBeDefined();
     });
 
+    it('preserves Internet profile state through autosave hydration', () => {
+      const connectionProfile = { name: 'Saved Profile', hourly: { '00:00': 1200 } };
+      const nodes = [{
+        id: 'internet-1',
+        type: 'Internet',
+        data: {
+          label: 'Internet Connection',
+          traffic: 5000,
+          activeProfileName: 'Saved Profile',
+          connectionProfile,
+          preProfileTraffic: 5000,
+          currentMinuteIndex: 95,
+        },
+      }];
+      const get = () => useFlowStore.getState();
+
+      const hydrated = hydrateNodes(nodes, get);
+
+      expect(hydrated[0].data.connectionProfile).toEqual(connectionProfile);
+      expect(hydrated[0].data.activeProfileName).toBe('Saved Profile');
+      expect(hydrated[0].data.preProfileTraffic).toBe(5000);
+      expect(hydrated[0].data.traffic).toBe(5000);
+    });
+
     it('migrates legacy standalone Secret cards into attached secret items on target nodes during hydration', () => {
       const nodes = [
         { id: 'd1', type: 'Deployment', data: { label: 'dep-1', secrets: [{ id: 's1', name: 'existing-s1' }] } },
