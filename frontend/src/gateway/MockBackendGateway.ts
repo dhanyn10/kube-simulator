@@ -254,11 +254,6 @@ export class MockBackendGateway extends BaseBackendGateway {
     return this.mockSimulationSnapshot;
   }
 
-  async triggerTrafficSpike(multiplier: number = 2.0): Promise<boolean> {
-    this.emitEvent('simulation-traffic-spike', multiplier > 0 ? multiplier : 2.0);
-    return true;
-  }
-
   // --- Logging Operations ---
 
   async writeLog(category: string, level: string, message: string): Promise<boolean> {

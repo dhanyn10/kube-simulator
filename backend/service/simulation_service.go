@@ -12,7 +12,6 @@ const (
 	EventSimulationStateChange    = "simulation-state-change"
 	EventSimulationSpeedChange    = "simulation-speed-change"
 	EventSimulationSnapshotUpdate = "simulation-snapshot-updated"
-	EventSimulationTrafficSpike   = "simulation-traffic-spike"
 )
 
 // SimulationState holds the current runtime state of the cluster simulation.
@@ -173,11 +172,3 @@ func (s *SimulationService) GetSimulationSnapshot() string {
 	return s.lastSnapshotJson
 }
 
-// TriggerTrafficSpike broadcasts a traffic spike multiplier event to simulate load surge.
-func (s *SimulationService) TriggerTrafficSpike(multiplier float64) bool {
-	if multiplier <= 0 {
-		multiplier = 2.0
-	}
-	s.emitEvent(EventSimulationTrafficSpike, multiplier)
-	return true
-}

@@ -149,15 +149,13 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(await mock.setSimulationSpeed(10)).toBe(true);
       expect(await mock.broadcastSimulationSnapshot('{"test":1}')).toBe(true);
       expect(await mock.getSimulationSnapshot()).toBe('{"test":1}');
-      expect(await mock.triggerTrafficSpike(2.0)).toBe(true);
       expect(await mock.stopSimulation()).toBe(true);
 
-      // Edge cases for non-positive speed, empty snapshot, non-positive spike multiplier
+      // Edge cases for non-positive speed and empty snapshot
       expect(await mock.startSimulation(0)).toBe(true);
       expect(await mock.setSimulationSpeed(-1)).toBe(true);
       expect(await mock.broadcastSimulationSnapshot('')).toBe(true);
       expect(await mock.getSimulationSnapshot()).toBe('{}');
-      expect(await mock.triggerTrafficSpike(-1)).toBe(true);
       expect(await mock.calculateAppHeight(1000)).toBe(850);
       expect(await mock.getTargetScreen([])).toBe(false);
       expect(await mock.getTargetScreenHeight([])).toBe(1080);
@@ -522,7 +520,6 @@ describe('Clean Architecture Backend Gateway', () => {
         SetSimulationSpeed: vi.fn().mockResolvedValue(true),
         BroadcastSimulationSnapshot: vi.fn().mockResolvedValue(true),
         GetSimulationSnapshot: vi.fn().mockResolvedValue('{"snap":true}'),
-        TriggerTrafficSpike: vi.fn().mockResolvedValue(true),
       };
       (globalThis as any).go = { main: { App: appMock } };
       const gw = new WailsBackendGateway();
@@ -539,8 +536,6 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(appMock.BroadcastSimulationSnapshot).toHaveBeenCalledWith('{}');
       expect(await gw.getSimulationSnapshot()).toBe('{"snap":true}');
       expect(appMock.GetSimulationSnapshot).toHaveBeenCalled();
-      expect(await gw.triggerTrafficSpike(2.5)).toBe(true);
-      expect(appMock.TriggerTrafficSpike).toHaveBeenCalledWith(2.5);
       expect(await gw.stopSimulation()).toBe(true);
       expect(appMock.StopSimulation).toHaveBeenCalled();
 
@@ -553,7 +548,6 @@ describe('Clean Architecture Backend Gateway', () => {
         SetSimulationSpeed: vi.fn().mockRejectedValue(new Error('fail speed')),
         BroadcastSimulationSnapshot: vi.fn().mockRejectedValue(new Error('fail snap')),
         GetSimulationSnapshot: vi.fn().mockRejectedValue(new Error('fail get snap')),
-        TriggerTrafficSpike: vi.fn().mockRejectedValue(new Error('fail spike')),
       };
       (globalThis as any).go = { main: { App: throwingApp } };
       const gwThrowing = new WailsBackendGateway();
@@ -564,7 +558,6 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(await gwThrowing.setSimulationSpeed(1)).toBe(true);
       expect(await gwThrowing.broadcastSimulationSnapshot('{}')).toBe(true);
       expect(await gwThrowing.getSimulationSnapshot()).toBe('{}');
-      expect(await gwThrowing.triggerTrafficSpike(2)).toBe(true);
       expect(await gwThrowing.stopSimulation()).toBe(true);
     });
 
@@ -863,7 +856,6 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(await mock.SetSimulationSpeed(10)).toBe(true);
       expect(await mock.BroadcastSimulationSnapshot('{"test":1}')).toBe(true);
       expect(await mock.GetSimulationSnapshot()).toBe('{"test":1}');
-      expect(await mock.TriggerTrafficSpike(2.0)).toBe(true);
       expect(await mock.StopSimulation()).toBe(true);
       await mock.SetInitialFile('/init');
       expect(await mock.WriteLog('cat', 'info', 'msg')).toBe(true);
@@ -890,7 +882,6 @@ describe('Clean Architecture Backend Gateway', () => {
       await expect(fallbackBindings.SetSimulationSpeed(1)).resolves.toBe(true);
       await expect(fallbackBindings.BroadcastSimulationSnapshot('')).resolves.toBe(true);
       await expect(fallbackBindings.GetSimulationSnapshot()).resolves.toBe('{}');
-      await expect(fallbackBindings.TriggerTrafficSpike()).resolves.toBe(true);
       await expect(fallbackBindings.Greet('Test')).resolves.toBe('');
       await expect(fallbackBindings.GetSystemResources()).resolves.toEqual({});
     });

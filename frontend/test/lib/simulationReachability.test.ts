@@ -510,7 +510,7 @@ describe('simulationReachability', () => {
     );
     expect(reachStateful.has('ss-1')).toBe(true);
 
-    // 3. StatefulSet child pod unready causes downstream path unready (isInternetConnectionRed = true)
+    // 3. One unready child pod must NOT mark the whole controller as unavailable.
     const internetNode: Node = {
       id: 'internet-1',
       type: 'Internet',
@@ -554,7 +554,28 @@ describe('simulationReachability', () => {
       simulationMetrics: {},
     };
 
-    expect(isInternetConnectionRed(internetNode, ctxUnready)).toBe(true);
+    // Partial readiness keeps the Service available — kube-proxy routes around the
+    // pending replica, so traffic must keep flowing.
+    expect(isInternetConnectionRed(internetNode, ctxUnready)).toBe(false);
+
+    // 3b. A total loss of ready endpoints is a genuine outage.
+    const allPodsUnready: Node = {
+      ...childPodReady,
+      id: 'pod-mysql-0-unready',
+      data: { ...childPodReady.data, status: 'pending' },
+    };
+    const ctxAllUnready: SimulationContext = {
+      ...ctxUnready,
+      nodes: [internetNode, lbSvc, ssNode, allPodsUnready, unreadyChildPod],
+      nodeMap: new Map([
+        ['internet-1', internetNode],
+        ['svc-lb-ss', lbSvc],
+        ['ss-1', ssNode],
+        ['pod-mysql-0-unready', allPodsUnready],
+        ['pod-mysql-1', unreadyChildPod],
+      ]),
+    };
+    expect(isInternetConnectionRed(internetNode, ctxAllUnready)).toBe(true);
 
     // 4. When all child pods are ready and StatefulSet is ready, downstream is healthy
     const ctxReady: SimulationContext = {

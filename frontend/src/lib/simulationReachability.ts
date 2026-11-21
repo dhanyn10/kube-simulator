@@ -249,13 +249,39 @@ export const calculateReachability = (
   return reachableNodes;
 };
 
+const getChildPodNodes = (node: Node, nodes: Node[]): Node[] =>
+  nodes.filter(candidate =>
+    candidate.type === 'Pod' &&
+    (String(candidate.parentId) === String(node.id) || String(candidate.data?.parentId) === String(node.id))
+  );
+
+/**
+ * A controller is available while at least one replica Pod is ready. A Service
+ * load-balances across ready endpoints and routes around unready ones, so a single
+ * unhealthy replica (rolling update, transient restart) is not a total outage.
+ */
+const isControllerUnready = (node: Node, nodes: Node[]): boolean => {
+  const childPods = getChildPodNodes(node, nodes);
+  if (childPods.length > 0) {
+    return !childPods.some(pod => pod.data?.status === 'ready');
+  }
+  return node.data?.status !== 'ready';
+};
+
 const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolean => {
   if (!node) return true;
-  const isWorkload = node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet' || node.type === 'StatefulSet';
-  if (isWorkload && node.data?.status !== 'ready') return true;
 
-  if (node?.type === 'Service') {
-    const serviceType = node?.data?.serviceType || 'ClusterIP';
+  if (node.type === 'Deployment' || node.type === 'StatefulSet') {
+    return isControllerUnready(node, nodes);
+  }
+
+  // A standalone Pod or ReplicaSet has no controller redundancy to route around.
+  if ((node.type === 'Pod' || node.type === 'ReplicaSet') && node.data?.status !== 'ready') {
+    return true;
+  }
+
+  if (node.type === 'Service') {
+    const serviceType = node.data?.serviceType || 'ClusterIP';
     const matchingWorkloads = nodes.filter(candidateWorkload =>
       (candidateWorkload.type === 'Pod' || candidateWorkload.type === 'Deployment' || candidateWorkload.type === 'ReplicaSet' || candidateWorkload.type === 'StatefulSet') &&
       isServiceSelectorMatching(node, candidateWorkload, nodes)
@@ -266,16 +292,10 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
     }
   }
 
-  if (node?.type === 'Ingress') {
-    if (!hasValidIngressBackend(node, nodes)) {
-      return true;
-    }
+  if (node.type === 'Ingress' && !hasValidIngressBackend(node, nodes)) {
+    return true;
   }
 
-  if (node?.type === 'Deployment' || node?.type === 'StatefulSet') {
-    const childPods = nodes.filter((candidatePod) => (String(candidatePod.parentId) === String(node.id) || String(candidatePod.data?.parentId) === String(node.id)) && candidatePod.type === 'Pod');
-    if (childPods.some((pod) => pod.data?.status !== 'ready')) return true;
-  }
   return false;
 };
 

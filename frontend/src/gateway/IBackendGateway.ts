@@ -106,7 +106,6 @@ export interface IBackendGateway {
   setSimulationSpeed(speed: number): Promise<boolean>;
   broadcastSimulationSnapshot(snapshotJson: string): Promise<boolean>;
   getSimulationSnapshot(): Promise<string>;
-  triggerTrafficSpike(multiplier?: number): Promise<boolean>;
 
   // Logging & diagnostics
   writeLog(category: string, level: string, message: string): Promise<boolean>;
@@ -175,7 +174,6 @@ export interface IBackendGateway {
   StopSimulation(): Promise<boolean>;
   BroadcastSimulationSnapshot(snapshotJson: string): Promise<boolean>;
   GetSimulationSnapshot(): Promise<string>;
-  TriggerTrafficSpike(multiplier?: number): Promise<boolean>;
   Undo(): Promise<string | null>;
   UpdateProject(id: number, content: string): Promise<boolean>;
   WriteLog(category: string, level: string, message: string): Promise<boolean>;

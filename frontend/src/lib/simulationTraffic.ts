@@ -149,21 +149,22 @@ export const getInterpolatedProfileTraffic = (profile: any, minuteIndex: number)
  */
 export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
   const internetData = internet.data as K8sNodeData;
-  let targetTraffic = internetData.traffic ?? 1000;
 
   const state = ctx.get?.();
   const speed = state?.simulationSpeed || 1;
 
-  // Track profileTicks to advance traffic cycle index only when connection is healthy
+  // The profile models external demand, so its clock keeps advancing even while the
+  // cluster has no ready endpoints. Only the delivered traffic is gated by isRed.
   const isRed = isInternetConnectionRed(internet, ctx);
   const prevProfileTicks = internetData.profileTicks ?? 0;
-  const currentProfileTicks = isRed ? prevProfileTicks : (prevProfileTicks + 1);
+  const currentProfileTicks = prevProfileTicks + 1;
 
   // Minute-level resolution across 1440 minutes in a 24-hour cycle
   const prevMinuteIndex = internetData.currentMinuteIndex ?? ((internetData.currentHourIndex ?? 0) * 60);
-  const currentMinuteIndex = isRed ? prevMinuteIndex : ((prevMinuteIndex + 1) % 1440);
+  const currentMinuteIndex = (prevMinuteIndex + 1) % 1440;
   const currentHourIndex = Math.floor(currentMinuteIndex / 60);
 
+  let targetTraffic = internetData.traffic ?? 1000;
   if (internetData.connectionProfile) {
     targetTraffic = getInterpolatedProfileTraffic(internetData.connectionProfile, currentMinuteIndex);
   }

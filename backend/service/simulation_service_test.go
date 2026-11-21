@@ -83,15 +83,6 @@ func testSimulationSnapshotCaching(t *testing.T, svc *SimulationService) {
 	}
 }
 
-func testSimulationTrafficSpike(t *testing.T, svc *SimulationService) {
-	if !svc.TriggerTrafficSpike(2.5) {
-		t.Error("TriggerTrafficSpike failed")
-	}
-	if !svc.TriggerTrafficSpike(-1.0) {
-		t.Error("TriggerTrafficSpike with fallback failed")
-	}
-}
-
 func TestSimulationService_Lifecycle(t *testing.T) {
 	svc := NewSimulationService()
 
@@ -101,5 +92,4 @@ func TestSimulationService_Lifecycle(t *testing.T) {
 	t.Run("SetSimulationSpeed", func(t *testing.T) { testSimulationSpeed(t, svc) })
 	t.Run("StopSimulation", func(t *testing.T) { testSimulationStop(t, svc) })
 	t.Run("SnapshotCaching", func(t *testing.T) { testSimulationSnapshotCaching(t, svc) })
-	t.Run("TrafficSpike", func(t *testing.T) { testSimulationTrafficSpike(t, svc) })
 }

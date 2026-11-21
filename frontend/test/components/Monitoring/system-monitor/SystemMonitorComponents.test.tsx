@@ -23,7 +23,7 @@ import {
 import { Activity } from 'lucide-react';
 
 describe('SystemMonitor UI Components', () => {
-  it('renders SystemMonitorHeader and triggers controls (start, pause, speed, spike, timeRange)', () => {
+  it('renders SystemMonitorHeader and triggers controls (start, pause, speed, timeRange)', () => {
     const sendControl = vi.fn();
     const setTimeRange = vi.fn();
 
@@ -66,9 +66,6 @@ describe('SystemMonitor UI Components', () => {
     // Click speed 5x
     fireEvent.click(screen.getByText('5x'));
     expect(sendControl).toHaveBeenCalledWith('speed', { speed: 5 });
-
-    // Spike button no longer exists in System Monitor
-    expect(screen.queryByTitle('Inject 2x Traffic Spike (Chaos Test)')).toBeNull();
 
     // Click Interval 1h
     fireEvent.click(screen.getByText('1h'));

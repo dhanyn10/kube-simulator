@@ -1010,7 +1010,6 @@ func TestApp_WindowActionsAndUpdates(t *testing.T) {
 	if app.GetSimulationSnapshot() != `{"metrics":{}}` {
 		t.Errorf("Unexpected snapshot from App: %s", app.GetSimulationSnapshot())
 	}
-	app.TriggerTrafficSpike(2.0)
 	app.StopSimulation()
 
 	// 2. SaveInternetProfile with empty name or empty profileJson

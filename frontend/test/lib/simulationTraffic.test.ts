@@ -206,7 +206,7 @@ describe('simulationTraffic', () => {
       expect(res.traffic).toBeLessThan(5000);
     });
 
-    it('returns false when no traffic changes and node is red with 0 traffic', () => {
+    it('keeps the profile clock advancing while a red connection delivers zero traffic', () => {
       const internetNode: Node = {
         id: 'net-red',
         position: { x: 0, y: 0 },
@@ -228,8 +228,11 @@ describe('simulationTraffic', () => {
 
       const res = updateInternetTraffic(internetNode, ctx);
       expect(res.traffic).toBe(0);
-      expect(res.hasChanges).toBe(false);
+      // Demand keeps moving with simulation time even though nothing is delivered.
+      expect(res.hasChanges).toBe(true);
+      expect(ctx.updatedNodes[0].data.currentMinuteIndex).toBe(1);
     });
+
   });
 
   describe('calculateResourceMetrics', () => {

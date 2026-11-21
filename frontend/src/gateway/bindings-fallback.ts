@@ -14,6 +14,5 @@ export const StopSimulation = (): Promise<boolean> => Promise.resolve(true);
 export const SetSimulationSpeed = (_speed: number): Promise<boolean> => Promise.resolve(true);
 export const BroadcastSimulationSnapshot = (_snapshot: string): Promise<boolean> => Promise.resolve(true);
 export const GetSimulationSnapshot = (): Promise<string> => Promise.resolve('{}');
-export const TriggerTrafficSpike = (_multiplier?: number): Promise<boolean> => Promise.resolve(true);
 export const Greet = (_name: string): Promise<string> => Promise.resolve('');
 export const GetSystemResources = (): Promise<any> => Promise.resolve({});
