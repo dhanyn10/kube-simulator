@@ -29,7 +29,7 @@ const ConfigMapDetails: React.FC<{ readonly item: any; readonly isDark: boolean 
         <span
           key={`cm-var-${entry.key}-${idx}`}
           className={cn(
-            "inline-flex items-center text-[10px] font-mono px-1.5 py-0.5 rounded border max-w-[200px] truncate",
+            "inline-flex items-center text-[10px] font-mono badge-chip max-w-[200px] truncate",
             isDark
               ? "bg-teal-500/10 text-teal-300 border-teal-500/20"
               : "bg-teal-50 text-teal-700 border-teal-200"
@@ -53,7 +53,7 @@ const SecretDetails: React.FC<{ readonly item: any; readonly isDark: boolean }> 
   return (
     <div className="flex flex-wrap items-center gap-1.5 mt-1">
       <span className={cn(
-        "text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border",
+        "text-[9px] uppercase font-bold tracking-wider badge-chip",
         isDark
           ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
           : "bg-amber-50 text-amber-700 border-amber-200"
@@ -64,7 +64,7 @@ const SecretDetails: React.FC<{ readonly item: any; readonly isDark: boolean }> 
         <span
           key={`sec-key-${entry.key}-${idx}`}
           className={cn(
-            "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+            "text-[10px] font-mono badge-chip",
             isDark
               ? "bg-slate-800 text-slate-300 border-slate-700"
               : "bg-slate-100 text-slate-700 border-slate-200"
@@ -106,13 +106,13 @@ const RoleDetails: React.FC<{ readonly item: any; readonly isDark: boolean }> = 
 
 const HpaDetails: React.FC<{ readonly item: any; readonly isDark: boolean }> = ({ item, isDark }) => (
   <div className={cn("flex items-center gap-2 mt-1 text-[11px] font-mono", isDark ? "text-purple-300" : "text-purple-700")}>
-    <span className={cn("px-1.5 py-0.5 rounded border", isDark ? "bg-purple-500/10 border-purple-500/20" : "bg-purple-50 border-purple-200")}>
+    <span className={cn("badge-chip", isDark ? "bg-purple-500/10 border-purple-500/20" : "bg-purple-50 border-purple-200")}>
       Min: {item.minReplicas ?? 1}
     </span>
-    <span className={cn("px-1.5 py-0.5 rounded border", isDark ? "bg-purple-500/10 border-purple-500/20" : "bg-purple-50 border-purple-200")}>
+    <span className={cn("badge-chip", isDark ? "bg-purple-500/10 border-purple-500/20" : "bg-purple-50 border-purple-200")}>
       Max: {item.maxReplicas ?? 10}
     </span>
-    <span className={cn("px-1.5 py-0.5 rounded border", isDark ? "bg-purple-500/10 border-purple-500/20" : "bg-purple-50 border-purple-200")}>
+    <span className={cn("badge-chip", isDark ? "bg-purple-500/10 border-purple-500/20" : "bg-purple-50 border-purple-200")}>
       Target CPU: {item.targetCPU ?? 80}%
     </span>
   </div>
@@ -132,13 +132,13 @@ const ResourceLimitDetails: React.FC<{ readonly item: any; readonly isDark: bool
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2 mt-1 text-[11px] font-mono", isDark ? "text-blue-300" : "text-blue-700")}>
-      <span className={cn("px-1.5 py-0.5 rounded border", isDark ? "bg-blue-500/10 border-blue-500/20" : "bg-blue-50 border-blue-200")}>
+      <span className={cn("badge-chip", isDark ? "bg-blue-500/10 border-blue-500/20" : "bg-blue-50 border-blue-200")}>
         CPU: {reqCpu} req / {limCpu} limit
       </span>
-      <span className={cn("px-1.5 py-0.5 rounded border", isDark ? "bg-blue-500/10 border-blue-500/20" : "bg-blue-50 border-blue-200")}>
+      <span className={cn("badge-chip", isDark ? "bg-blue-500/10 border-blue-500/20" : "bg-blue-50 border-blue-200")}>
         Mem: {reqMem} req / {limMem} limit
       </span>
-      <span className={cn("text-[9px] px-1.5 py-0.5 rounded border uppercase font-sans font-semibold", isDark ? "border-purple-500/30 text-purple-300 bg-purple-500/10" : "border-purple-200 text-purple-700 bg-purple-50")}>
+      <span className={cn("text-[9px] badge-chip uppercase font-sans font-semibold", isDark ? "border-purple-500/30 text-purple-300 bg-purple-500/10" : "border-purple-200 text-purple-700 bg-purple-50")}>
         {qos}
       </span>
     </div>
@@ -239,7 +239,7 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
 
   const footer = (
     <div className="flex items-center justify-between w-full">
-      <span className="text-[11px] text-slate-400 font-mono">
+      <span className="mono-muted">
         Showing {filteredItems.length} of {allItems.length} {meta.logResourceName}s
       </span>
       <div className="flex items-center gap-2">
@@ -377,7 +377,7 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
                     </span>
                     <span
                       className={cn(
-                        "text-[9px] px-1.5 py-0.5 rounded border font-medium",
+                        "text-[9px] badge-chip font-medium",
                         meta.badgeBgColorClass
                       )}
                     >

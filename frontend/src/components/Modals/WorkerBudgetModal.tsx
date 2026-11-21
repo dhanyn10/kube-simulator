@@ -179,7 +179,7 @@ const WorkerScaleSlider: React.FC<ScaleSliderProps> = ({ isDark, workerCount, on
             type="button"
             onClick={() => adjust(-10)}
             disabled={workerCount <= 1}
-            className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold border disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
+            className={cn("budget-chip disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
           >
             -10
           </button>
@@ -187,7 +187,7 @@ const WorkerScaleSlider: React.FC<ScaleSliderProps> = ({ isDark, workerCount, on
             type="button"
             onClick={() => adjust(-1)}
             disabled={workerCount <= 1}
-            className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold border disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
+            className={cn("budget-chip disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
           >
             -1
           </button>
@@ -195,7 +195,7 @@ const WorkerScaleSlider: React.FC<ScaleSliderProps> = ({ isDark, workerCount, on
             type="button"
             onClick={() => adjust(1)}
             disabled={workerCount >= 100}
-            className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold border disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
+            className={cn("budget-chip disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
           >
             +1
           </button>
@@ -203,7 +203,7 @@ const WorkerScaleSlider: React.FC<ScaleSliderProps> = ({ isDark, workerCount, on
             type="button"
             onClick={() => adjust(10)}
             disabled={workerCount >= 100}
-            className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold border disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
+            className={cn("budget-chip disabled:opacity-30", isDark ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}
           >
             +10
           </button>

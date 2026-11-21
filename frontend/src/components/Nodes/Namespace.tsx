@@ -86,14 +86,14 @@ export const NamespaceNode = memo((props: NodeProps) => {
 
       <AttachedResourcesFooter data={data} nodeId={props.id} />
 
-      <Handle type="target" position={Position.Top} id="top-t" className="!opacity-0 !pointer-events-none" />
-      <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0 !pointer-events-none" />
-      <Handle type="target" position={Position.Bottom} id="bottom-t" className="!opacity-0 !pointer-events-none" />
-      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!opacity-0 !pointer-events-none" />
-      <Handle type="target" position={Position.Left} id="left-t" className="!opacity-0 !pointer-events-none" />
-      <Handle type="source" position={Position.Left} id="left-s" className="!opacity-0 !pointer-events-none" />
-      <Handle type="target" position={Position.Right} id="right-t" className="!opacity-0 !pointer-events-none" />
-      <Handle type="source" position={Position.Right} id="right-s" className="!opacity-0 !pointer-events-none" />
+      <Handle type="target" position={Position.Top} id="top-t" className="node-handle-hidden" />
+      <Handle type="source" position={Position.Top} id="top-s" className="node-handle-hidden" />
+      <Handle type="target" position={Position.Bottom} id="bottom-t" className="node-handle-hidden" />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" className="node-handle-hidden" />
+      <Handle type="target" position={Position.Left} id="left-t" className="node-handle-hidden" />
+      <Handle type="source" position={Position.Left} id="left-s" className="node-handle-hidden" />
+      <Handle type="target" position={Position.Right} id="right-t" className="node-handle-hidden" />
+      <Handle type="source" position={Position.Right} id="right-s" className="node-handle-hidden" />
     </div>
   );
 });

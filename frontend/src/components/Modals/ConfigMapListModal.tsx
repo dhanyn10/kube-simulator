@@ -37,7 +37,7 @@ export const ConfigMapListModal: React.FC<ConfigMapListModalProps> = ({
       addLabel="Add ConfigMap"
       itemTypeName="ConfigMap"
       renderItemDetails={(cm) => (
-        <div className="text-[11px] text-slate-400 font-mono">
+        <div className="mono-muted">
           {cm.configData && cm.configData.length > 0 ? (
             <span>
               {cm.configData.length} key-value pair{cm.configData.length > 1 ? 's' : ''} ({cm.configData.map((d) => d.key).join(', ')})

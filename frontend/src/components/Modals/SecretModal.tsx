@@ -303,7 +303,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
 
       {mode === 'profile' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between pb-1 border-b border-slate-800/40">
+          <div className="section-header-bordered">
             <button
               type="button"
               data-testid="secret-profile-back-button"
@@ -313,7 +313,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
               <ArrowLeft size={13} />
               <span>Back to Secret list</span>
             </button>
-            <span className="text-[11px] text-slate-400 font-mono">
+            <span className="mono-muted">
               Profile: <strong className="text-rose-400">{selectedProfile}</strong>
             </span>
           </div>
@@ -333,7 +333,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
 
       {mode === 'form' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between pb-1 border-b border-slate-800/40">
+          <div className="section-header-bordered">
             <button
               type="button"
               data-testid="secret-header-back-button"

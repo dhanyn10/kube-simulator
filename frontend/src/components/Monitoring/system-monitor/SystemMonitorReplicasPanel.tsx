@@ -80,7 +80,7 @@ export const SystemMonitorReplicasPanel = memo(({
               <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: s.color }} />
               <span className={cn("font-medium", isDark ? "text-slate-300" : "text-slate-600")}>{s.label}:</span>
               <span className={cn(
-                "font-bold px-1.5 py-0.5 rounded border",
+                "font-bold badge-chip",
                 isDark ? "text-white bg-slate-800 border-slate-700" : "text-slate-800 bg-slate-100 border-slate-300"
               )}>
                 {s.current} Replicas

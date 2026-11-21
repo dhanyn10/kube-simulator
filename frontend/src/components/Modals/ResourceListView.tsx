@@ -169,7 +169,7 @@ const ResourceProfileCell: React.FC<{
           data-testid={`${rowPrefix}-profile-${item.id}`}
           onClick={() => onSelectProfile(profileText)}
           className={cn(
-            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium truncate max-w-[180px] cursor-pointer transition-colors text-left",
+            "inline-flex items-center gap-1 badge-chip text-[10px] font-medium truncate max-w-[180px] cursor-pointer transition-colors text-left",
             badgeStyle,
             isDark ? "hover:bg-indigo-500/20" : "hover:bg-indigo-100"
           )}
@@ -187,7 +187,7 @@ const ResourceProfileCell: React.FC<{
       <span
         data-testid={`${rowPrefix}-profile-${item.id}`}
         className={cn(
-          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium truncate max-w-[180px]",
+          "inline-flex items-center gap-1 badge-chip text-[10px] font-medium truncate max-w-[180px]",
           badgeStyle
         )}
         title={`Canvas Document: ${profileText}`}
@@ -224,7 +224,7 @@ const ResourceComponentCell: React.FC<{
       <span
         data-testid={`${rowPrefix}-resource-${item.id}`}
         className={cn(
-          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium truncate max-w-[200px]",
+          "inline-flex items-center gap-1 badge-chip text-[10px] font-medium truncate max-w-[200px]",
           badgeColor
         )}
         title={`${item.ownerNode.type}: ${item.ownerNode.label}`}

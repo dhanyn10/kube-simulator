@@ -477,6 +477,48 @@
     @apply absolute left-2.5 top-1/2 -translate-y-1/2;
   }
 
+  /* Batch C: remaining repeated primitives. Important rules stay plain CSS
+     so @apply does not need to handle Tailwind's ! modifier. */
+  .badge-chip {
+    @apply px-1.5 py-0.5 rounded border;
+  }
+
+  .mono-muted {
+    @apply text-[11px] text-slate-400 font-mono;
+  }
+
+  .context-menu-row {
+    @apply flex-1 flex justify-between items-center;
+  }
+
+  .form-label-sm {
+    @apply block text-[10px] font-medium text-slate-400 mb-1;
+  }
+
+  .section-header-bordered {
+    @apply flex items-center justify-between pb-1 border-b border-slate-800/40;
+  }
+
+  .budget-chip {
+    @apply px-2 py-0.5 rounded text-[10px] font-mono font-bold border;
+  }
+
+  .node-handle-dot,
+  .node-handle-dot-hidden {
+    width: calc(var(--spacing) * 2) !important;
+    height: calc(var(--spacing) * 2) !important;
+    border-style: none !important;
+  }
+
+  .node-handle-dot-hidden {
+    opacity: 0 !important;
+  }
+
+  .node-handle-hidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
   /* Node Attached Resources Footer Component Styles */
   .node-attached-footer {
     @apply mt-2 pt-1.5 border-t border-slate-500/20 flex flex-wrap items-center justify-center gap-1.5 z-20 pointer-events-auto shrink-0 w-full;

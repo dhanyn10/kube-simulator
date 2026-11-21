@@ -41,7 +41,7 @@ export const ResourceLimitNode = memo((props: NodeProps) => {
       {hasResourceError && (
         <div
           data-testid="resource-node-warning"
-          className="flex items-center gap-1 text-[8px] text-rose-400 bg-rose-500/15 px-1.5 py-0.5 rounded border border-rose-500/30 font-medium mb-1"
+          className="flex items-center gap-1 text-[8px] text-rose-400 bg-rose-500/15 badge-chip border-rose-500/30 font-medium mb-1"
           title="QoS Error: Resource requests must be <= limits"
         >
           <AlertTriangle size={10} className="shrink-0 text-rose-400" />

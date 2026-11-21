@@ -40,9 +40,9 @@ export const ResourceLimitListModal: React.FC<ResourceLimitListModalProps> = ({
       renderItemDetails={(item) => {
         const qos = getPodQoSClass(item);
         return (
-          <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+          <div className="flex items-center gap-2 mono-muted">
             <span>CPU: {item.cpuRequest || '500m'} / {item.cpuLimit || '1000m'} | Mem: {item.memoryRequest || '256Mi'} / {item.memoryLimit || '512Mi'}</span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded border uppercase border-purple-500/30 text-purple-300 font-sans font-semibold">
+            <span className="text-[9px] badge-chip uppercase border-purple-500/30 text-purple-300 font-sans font-semibold">
               {qos}
             </span>
           </div>
