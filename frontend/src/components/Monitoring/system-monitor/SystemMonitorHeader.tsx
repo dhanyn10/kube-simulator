@@ -97,6 +97,13 @@ const getPrimaryButtonClass = (canStart: boolean, isDark: boolean): string => {
     : "text-slate-400 opacity-40 cursor-not-allowed";
 };
 
+const getPlaybackGroupClass = (isPaused: boolean, isDark: boolean): string => {
+  if (isPaused) {
+    return isDark ? "border-amber-500/40 bg-amber-500/5" : "border-amber-300 bg-amber-50";
+  }
+  return isDark ? "border-slate-700/60 bg-slate-900/60" : "border-slate-200 bg-slate-100";
+};
+
 const PlaybackStartResumeButton = ({
   action,
   label,
@@ -187,19 +194,12 @@ const SimulationPlaybackControls = ({
     );
   };
 
+  const playbackGroupClass = getPlaybackGroupClass(isPaused, isDark);
+
   return (
     <div
       data-testid="system-monitor-simulation-controls"
-      className={cn(
-        "flex items-center rounded border p-0.5",
-        isPaused
-          ? isDark
-            ? "border-amber-500/40 bg-amber-500/5"
-            : "border-amber-300 bg-amber-50"
-          : isDark
-            ? "border-slate-700/60 bg-slate-900/60"
-            : "border-slate-200 bg-slate-100"
-      )}
+      className={cn("flex items-center rounded border p-0.5", playbackGroupClass)}
     >
       {renderPrimaryButton()}
       {(isSimulating || isPaused) && (

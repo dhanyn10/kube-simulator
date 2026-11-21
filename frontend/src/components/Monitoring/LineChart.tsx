@@ -11,6 +11,16 @@ const getTransitionClass = (speed: number): string => {
   return 'transition-all duration-[150ms] ease-linear';
 };
 
+const getSeriesColors = (color: string, isAlert: boolean): { stroke: string; fill: string } => {
+  if (isAlert) {
+    return { stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.15)' };
+  }
+  if (color === 'blue') {
+    return { stroke: '#3b82f6', fill: 'rgba(59, 130, 246, 0.1)' };
+  }
+  return { stroke: '#a855f7', fill: 'rgba(168, 85, 247, 0.1)' };
+};
+
 export const LineChart = ({
   data,
   color,
@@ -45,6 +55,7 @@ export const LineChart = ({
 
   // Fast real-time transition synced with simulation speed (eliminates sluggish 1-second CSS lag)
   const transitionClass = getTransitionClass(simulationSpeed);
+  const seriesColors = getSeriesColors(color, isAlert);
 
   return (
     <div className="flex flex-col gap-1 pointer-events-none select-none">
@@ -95,7 +106,7 @@ export const LineChart = ({
           {/* Real-time Polyline (red while the workload is overloaded) */}
           <polyline
             fill="none"
-            stroke={isAlert ? '#ef4444' : color === 'blue' ? '#3b82f6' : '#a855f7'}
+            stroke={seriesColors.stroke}
             strokeWidth="2"
             points={points}
             className={transitionClass}
@@ -103,9 +114,7 @@ export const LineChart = ({
           {/* Area under line */}
           <path
             d={areaPath}
-            fill={isAlert
-              ? 'rgba(239, 68, 68, 0.15)'
-              : color === 'blue' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(168, 85, 247, 0.1)'}
+            fill={seriesColors.fill}
             className={transitionClass}
           />
         </svg>

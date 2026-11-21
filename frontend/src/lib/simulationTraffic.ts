@@ -24,9 +24,10 @@ export const getReachableWorkloadCount = (
   const reachableNodes = ctx.internetReachableMap?.get(internetNodeId);
   if (!reachableNodes || reachableNodes.size === 0) return 1;
 
-  const candidateNodes = ctx.nodes && ctx.nodes.length > 0
-    ? ctx.nodes
-    : (ctx.updatedNodes && ctx.updatedNodes.length > 0 ? ctx.updatedNodes : []);
+  let candidateNodes = ctx.nodes;
+  if (!candidateNodes || candidateNodes.length === 0) {
+    candidateNodes = ctx.updatedNodes || [];
+  }
 
   let count = 0;
   for (const n of candidateNodes) {
