@@ -13,6 +13,7 @@ type mockWindowCtrl struct {
 	maximized    bool
 	closed       bool
 	simOpenState bool
+	sidebars     map[string]bool
 }
 
 var _ domain.WindowController = (*mockWindowCtrl)(nil)
@@ -36,6 +37,22 @@ func (m *mockWindowCtrl) OpenSimulationWindow() bool {
 
 func (m *mockWindowCtrl) CloseSimulationWindow() bool {
 	m.simOpenState = false
+	return true
+}
+
+func (m *mockWindowCtrl) OpenSidebarWindow(side string) bool {
+	if m.sidebars == nil {
+		m.sidebars = make(map[string]bool)
+	}
+	m.sidebars[side] = true
+	return true
+}
+
+func (m *mockWindowCtrl) CloseSidebarWindow(side string) bool {
+	if m.sidebars == nil {
+		m.sidebars = make(map[string]bool)
+	}
+	m.sidebars[side] = false
 	return true
 }
 
@@ -63,6 +80,22 @@ func TestWindowService_WithMockController(t *testing.T) {
 
 	if !ws.CloseSimulationWindow() || mock.simOpenState {
 		t.Error("Expected CloseSimulationWindow to be forwarded to mock controller")
+	}
+
+	if !ws.OpenSidebarWindow("left") || !mock.sidebars["left"] {
+		t.Error("Expected OpenSidebarWindow(left) to be forwarded to mock controller")
+	}
+
+	if !ws.CloseSidebarWindow("left") || mock.sidebars["left"] {
+		t.Error("Expected CloseSidebarWindow(left) to be forwarded to mock controller")
+	}
+
+	if !ws.OpenSidebarWindow("right") || !mock.sidebars["right"] {
+		t.Error("Expected OpenSidebarWindow(right) to be forwarded to mock controller")
+	}
+
+	if !ws.CloseSidebarWindow("right") || mock.sidebars["right"] {
+		t.Error("Expected CloseSidebarWindow(right) to be forwarded to mock controller")
 	}
 
 	ws.Close()

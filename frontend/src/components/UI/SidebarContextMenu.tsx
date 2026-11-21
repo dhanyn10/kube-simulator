@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Sun, Moon, X } from 'lucide-react';
+import { Sun, Moon, X, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useContextMenuPosition } from '@/lib/contextMenuUtils';
 
@@ -10,10 +10,12 @@ interface SidebarContextMenuProps {
   readonly y: number;
   readonly colorMode: 'dark' | 'light';
   readonly toggleColorMode: () => void;
+  readonly onDetachSidebar?: () => void;
   readonly onCloseSidebar?: () => void;
   readonly onCloseContextMenu: () => void;
   readonly testId?: string;
   readonly changeThemeTestId?: string;
+  readonly detachTestId?: string;
   readonly closeTestId?: string;
 }
 
@@ -22,10 +24,12 @@ export function SidebarContextMenu({
   y,
   colorMode,
   toggleColorMode,
+  onDetachSidebar,
   onCloseSidebar,
   onCloseContextMenu,
   testId = 'sidebar-context-menu',
   changeThemeTestId = 'context-menu-change-theme',
+  detachTestId = 'context-menu-detach-sidebar',
   closeTestId = 'context-menu-close-sidebar',
 }: SidebarContextMenuProps) {
   const isDark = colorMode === 'dark';
@@ -58,6 +62,24 @@ export function SidebarContextMenu({
         {isDark ? <Sun size={14} className="text-yellow-400" /> : <Moon size={14} className="text-blue-600" />}
         Change Theme
       </button>
+      {onDetachSidebar && (
+        <button
+          type="button"
+          data-testid={detachTestId}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDetachSidebar();
+            onCloseContextMenu();
+          }}
+          className={cn(
+            "w-full px-3 py-1.5 text-xs font-medium flex items-center gap-2 transition-colors text-left text-sky-500",
+            isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"
+          )}
+        >
+          <ExternalLink size={14} />
+          Detach Window
+        </button>
+      )}
       <div className={cn("h-px my-1", isDark ? "bg-slate-800" : "bg-slate-200")} />
       <button
         type="button"

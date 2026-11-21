@@ -4,6 +4,7 @@ export * from './sidebarHelpers';
 export * from './canvasBgHelpers';
 export * from './rightSidebarHelpers';
 export * from './useRightSidebar';
+export * from './useSidebarSync';
 export * from './useCanvasMiniMap';
 export * from './useModalOverlayState';
 export * from './canvasAlignmentHelpers';

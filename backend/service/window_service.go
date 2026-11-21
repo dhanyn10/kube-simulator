@@ -10,6 +10,12 @@ import (
 // SimulationWindowName is the unique identifier for the detached simulation monitoring window.
 const SimulationWindowName = "simulation-monitoring"
 
+// SidebarLeftWindowName is the unique identifier for the detached left sidebar window.
+const SidebarLeftWindowName = "sidebar-left"
+
+// SidebarRightWindowName is the unique identifier for the detached right sidebar window.
+const SidebarRightWindowName = "sidebar-right"
+
 // GetActiveWindow returns the current active window or the first available window.
 func GetActiveWindow() application.Window {
 	app := application.Get()
@@ -119,6 +125,80 @@ func (c *WailsWindowController) CloseSimulationWindow() bool {
 	return false
 }
 
+func getSidebarWindowConfig(side string) (name string, title string, width int, height int, minWidth int, minHeight int, url string) {
+	if side == "left" {
+		return SidebarLeftWindowName, "Kube Simulator - Components", 360, 720, 280, 400, "/?mode=sidebar-left"
+	}
+	return SidebarRightWindowName, "Kube Simulator - Configuration", 420, 720, 320, 400, "/?mode=sidebar-right"
+}
+
+// OpenSidebarWindow opens or focuses a detached sidebar window ("left" or "right").
+func (c *WailsWindowController) OpenSidebarWindow(side string) bool {
+	app := application.Get()
+	if app == nil || app.Window == nil {
+		return false
+	}
+
+	winName, title, width, height, minW, minH, url := getSidebarWindowConfig(side)
+	if win, exists := app.Window.GetByName(winName); exists && win != nil {
+		win.Show()
+		win.Focus()
+		if app.Event != nil {
+			app.Event.Emit("sidebar-detached-open", side)
+		}
+		return true
+	}
+
+	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:             winName,
+		Title:            title,
+		Width:            width,
+		Height:           height,
+		MinWidth:         minW,
+		MinHeight:        minH,
+		Frameless:        true,
+		URL:              url,
+		BackgroundColour: application.NewRGBA(15, 23, 42, 255),
+	})
+	if win == nil {
+		return false
+	}
+
+	win.OnWindowEvent(events.Common.WindowClosing, func(_ *application.WindowEvent) {
+		app.Window.Remove(win.ID())
+		if app.Event != nil {
+			app.Event.Emit("sidebar-detached-closed", side)
+		}
+	})
+
+	win.Show()
+	win.Focus()
+
+	if app.Event != nil {
+		app.Event.Emit("sidebar-detached-open", side)
+	}
+	return true
+}
+
+// CloseSidebarWindow closes a detached sidebar window if open ("left" or "right").
+func (c *WailsWindowController) CloseSidebarWindow(side string) bool {
+	app := application.Get()
+	if app == nil || app.Window == nil {
+		return false
+	}
+
+	winName, _, _, _, _, _, _ := getSidebarWindowConfig(side)
+	if win, exists := app.Window.GetByName(winName); exists && win != nil {
+		win.Close()
+		app.Window.Remove(win.ID())
+		if app.Event != nil {
+			app.Event.Emit("sidebar-detached-closed", side)
+		}
+		return true
+	}
+	return false
+}
+
 // WindowService handles window metrics, layout sizing, and window controls via an injected controller.
 type WindowService struct {
 	controller domain.WindowController
@@ -191,4 +271,14 @@ func (s *WindowService) OpenSimulationWindow() bool {
 // CloseSimulationWindow delegates simulation window closing to the injected controller.
 func (s *WindowService) CloseSimulationWindow() bool {
 	return s.controller.CloseSimulationWindow()
+}
+
+// OpenSidebarWindow delegates sidebar window opening to the injected controller.
+func (s *WindowService) OpenSidebarWindow(side string) bool {
+	return s.controller.OpenSidebarWindow(side)
+}
+
+// CloseSidebarWindow delegates sidebar window closing to the injected controller.
+func (s *WindowService) CloseSidebarWindow(side string) bool {
+	return s.controller.CloseSidebarWindow(side)
 }

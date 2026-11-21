@@ -527,6 +527,16 @@ func (a *App) CloseSimulationWindow() bool {
 	return a.window.CloseSimulationWindow()
 }
 
+// OpenSidebarWindow opens or focuses a detached sidebar window ("left" or "right").
+func (a *App) OpenSidebarWindow(side string) bool {
+	return a.window.OpenSidebarWindow(side)
+}
+
+// CloseSidebarWindow closes a detached sidebar window if open ("left" or "right").
+func (a *App) CloseSidebarWindow(side string) bool {
+	return a.window.CloseSidebarWindow(side)
+}
+
 // StartSimulation starts the cluster simulation with given speed.
 func (a *App) StartSimulation(speed int) bool {
 	return a.simulation.StartSimulation(speed)

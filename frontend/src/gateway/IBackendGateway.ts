@@ -94,6 +94,8 @@ export interface IBackendGateway {
   closeWindow(): Promise<void>;
   openSimulationWindow(): Promise<boolean>;
   closeSimulationWindow(): Promise<boolean>;
+  openSidebarWindow(side: 'left' | 'right'): Promise<boolean>;
+  closeSidebarWindow(side: 'left' | 'right'): Promise<boolean>;
   calculateAppHeight(screenHeight: number): Promise<number>;
   getTargetScreen(screens: any[]): Promise<any>;
   getTargetScreenHeight(screens: any[]): Promise<number | boolean>;
@@ -133,6 +135,8 @@ export interface IBackendGateway {
   CheckForUpdates(currentVersion: string): Promise<UpdateInfoData>;
   ClearAllAutosaves(): Promise<boolean>;
   CloseSimulationWindow(): Promise<boolean>;
+  OpenSidebarWindow(side: 'left' | 'right'): Promise<boolean>;
+  CloseSidebarWindow(side: 'left' | 'right'): Promise<boolean>;
   CloseWindow(): Promise<void>;
   DeleteInternetProfile(name: string): Promise<boolean>;
   DeleteProject(id: number): Promise<boolean>;

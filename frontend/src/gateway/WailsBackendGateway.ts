@@ -427,6 +427,45 @@ export class WailsBackendGateway extends BaseBackendGateway {
     return false;
   }
 
+  async openSidebarWindow(side: 'left' | 'right'): Promise<boolean> {
+    if (typeof this.app?.OpenSidebarWindow === 'function') {
+      try {
+        const res = await this.app.OpenSidebarWindow(side);
+        if (res) return true;
+      } catch {
+        // Fallback for browser popup
+      }
+    }
+    const width = side === 'left' ? 360 : 420;
+    const height = 720;
+    const screenW = globalThis.screen?.width || 1920;
+    const screenH = globalThis.screen?.height || 1080;
+    const left = side === 'left' ? 50 : Math.max(0, screenW - width - 50);
+    const top = Math.round((screenH - height) / 2);
+
+    try {
+      const win = globalThis.open?.(
+        `${globalThis.location.origin}${globalThis.location.pathname}?mode=sidebar-${side}`,
+        `sidebar-${side}`,
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      );
+      return Boolean(win);
+    } catch {
+      return false;
+    }
+  }
+
+  async closeSidebarWindow(side: 'left' | 'right'): Promise<boolean> {
+    if (typeof this.app?.CloseSidebarWindow === 'function') {
+      try {
+        return await this.app.CloseSidebarWindow(side);
+      } catch {
+        // Fallback
+      }
+    }
+    return false;
+  }
+
   // --- Simulation Broker Operations ---
 
   async startSimulation(speed: number = 1): Promise<boolean> {
