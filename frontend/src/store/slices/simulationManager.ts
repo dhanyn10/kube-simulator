@@ -29,6 +29,9 @@ export const resetSimulationNodes = (nodes: Node[]): Node[] => {
     if (n.type === 'Internet') {
       return { ...n, data: { ...n.data, currentHourIndex: 0, currentMinuteIndex: 0, profileTicks: 0 } };
     }
+    if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet') {
+      return { ...n, data: { ...n.data, lowCpuTicks: 0 } };
+    }
     if (n.type === 'Pod') {
       const podData = n.data as K8sNodeData;
       const initialStatus = podData.image ? 'ready' : 'pending';
@@ -216,7 +219,12 @@ export const hasMonitorError = (params: {
  * @returns boolean True if all HPA targets are valid.
  */
 export const validateHpaTargets = (nodes: Node[], edges: Edge[]): boolean => {
-    const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || (n.type === 'Pod' && !n.parentId));
+    const workloads = nodes.filter(n =>
+      n.type === 'Deployment' ||
+      n.type === 'StatefulSet' ||
+      n.type === 'ReplicaSet' ||
+      (n.type === 'Pod' && !n.parentId)
+    );
 
     for (const target of workloads) {
       const data = target.data as K8sNodeData;

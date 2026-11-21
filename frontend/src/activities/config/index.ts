@@ -10,3 +10,4 @@ export * from './useAttachedResourceSettings';
 export * from './internetConfigHelpers';
 export * from './pvcConfigHelpers';
 export * from './workloadConfigHelpers';
+export * from './hpaConfigHelpers';

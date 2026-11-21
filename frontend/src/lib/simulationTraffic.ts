@@ -299,7 +299,7 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
     ctx.newMetrics[dep.id] = [...existing, nextPoint].slice(-2880);
   }
 
-  return { cpuPercent, isOOM };
+  return { cpuPercent, memoryPercent, isOOM };
 };
 
 const findConnectedHPA = (depId: string, ctx: SimulationContext): Node | undefined => {
@@ -315,23 +315,49 @@ const findConnectedHPA = (depId: string, ctx: SimulationContext): Node | undefin
   return undefined;
 };
 
+/** Consecutive low-CPU ticks required before HPA removes a replica (~5 simulated minutes). */
+export const HPA_SCALE_DOWN_STABILIZATION_TICKS = 5;
+
+const HPA_DEADBAND_RATIO = 0.1;
+
+const desiredForMetric = (
+  replicas: number,
+  usagePercent: number,
+  targetPercent: number | undefined,
+  minReplicas: number,
+  maxReplicas: number
+): number => {
+  if (!targetPercent || targetPercent <= 0) return replicas;
+
+  const ratio = usagePercent / targetPercent;
+  if (Math.abs(1 - ratio) <= HPA_DEADBAND_RATIO) return replicas;
+
+  return Math.max(minReplicas, Math.min(maxReplicas, Math.ceil(replicas * ratio)));
+};
+
+/**
+ * Pure replica formula, matching HPA semantics: compute the desired replicas
+ * per configured metric and use the largest one. A missing metric/target is
+ * ignored, so existing CPU-only HPAs behave exactly as before.
+ * Timing policy (stabilization) is applied by handleHpaScaling, not here.
+ */
 export const calculateDesiredReplicas = (
   replicas: number,
   cpuPercent: number,
-  hpaData: K8sNodeData
+  hpaData: K8sNodeData,
+  memoryPercent?: number | null
 ): number => {
-  const targetCPU = hpaData.targetCPU || 50;
-  const cpuRatio = cpuPercent / targetCPU;
+  const minReplicas = hpaData.minReplicas || 1;
+  const maxReplicas = hpaData.maxReplicas || 10;
 
-  let desired = replicas;
-  if (Math.abs(1 - cpuRatio) > 0.1) {
-    desired = Math.max(hpaData.minReplicas || 1, Math.min(hpaData.maxReplicas || 10, Math.ceil(replicas * cpuRatio)));
-  }
+  const desiredCPU = desiredForMetric(replicas, cpuPercent, hpaData.targetCPU || 50, minReplicas, maxReplicas);
+  // An unconfigured/absent metric contributes 0 so it does not block a scale-down
+  // chosen by the other metric.
+  const desiredMemory = memoryPercent == null || !hpaData.targetMemory
+    ? 0
+    : desiredForMetric(replicas, memoryPercent, hpaData.targetMemory, minReplicas, maxReplicas);
 
-  if (desired < replicas && safeRandom() < 0.7) {
-    desired = replicas;
-  }
-  return desired;
+  return Math.max(desiredCPU, desiredMemory);
 };
 
 const resolveDirectHpaConfig = (depData: K8sNodeData) => {
@@ -341,6 +367,7 @@ const resolveDirectHpaConfig = (depData: K8sNodeData) => {
       minReplicas: first.minReplicas || 1,
       maxReplicas: first.maxReplicas || 10,
       targetCPU: first.targetCPU || 50,
+      targetMemory: first.targetMemory,
     };
   }
   return null;
@@ -355,6 +382,7 @@ const resolveConnectedHpaConfig = (depId: string, ctx: SimulationContext) => {
         minReplicas: hpaData.minReplicas || 1,
         maxReplicas: hpaData.maxReplicas || 10,
         targetCPU: hpaData.targetCPU || 50,
+        targetMemory: hpaData.targetMemory,
       },
       connectedHPA,
     };
@@ -368,12 +396,16 @@ const resolveNodeBoundHpaConfig = (depData: K8sNodeData) => {
       minReplicas: depData.minReplicas,
       maxReplicas: depData.maxReplicas,
       targetCPU: depData.targetCPU || 50,
+      targetMemory: depData.targetMemory,
     };
   }
   return null;
 };
 
-const resolveHpaConfig = (dep: Node, ctx: SimulationContext): { config: { minReplicas: number; maxReplicas: number; targetCPU: number } | null; connectedHPA: Node | undefined } => {
+const resolveHpaConfig = (dep: Node, ctx: SimulationContext): {
+  config: { minReplicas: number; maxReplicas: number; targetCPU: number; targetMemory?: number } | null;
+  connectedHPA: Node | undefined;
+} => {
   const depData = dep.data as K8sNodeData;
   const directConfig = resolveDirectHpaConfig(depData);
   if (directConfig) return { config: directConfig, connectedHPA: undefined };
@@ -385,6 +417,34 @@ const resolveHpaConfig = (dep: Node, ctx: SimulationContext): { config: { minRep
   if (nodeBoundConfig) return { config: nodeBoundConfig, connectedHPA: undefined };
 
   return { config: null, connectedHPA: undefined };
+};
+
+interface StabilizedReplicaDecision {
+  desiredReplicas: number;
+  lowCpuTicks: number;
+  counterChanged: boolean;
+}
+
+/**
+ * Applies the scale-down stabilization window as a pure decision.
+ * lowCpuTicks is the persisted counter name; it now counts consecutive ticks
+ * where all configured metrics agree that replicas can be reduced.
+ */
+const resolveStabilizedReplicas = (
+  replicas: number,
+  formulaReplicas: number,
+  deploymentData: K8sNodeData
+): StabilizedReplicaDecision => {
+  const wantsScaleDown = formulaReplicas < replicas;
+  const previousTicks = Number(deploymentData.lowCpuTicks) || 0;
+  const lowCpuTicks = wantsScaleDown ? previousTicks + 1 : 0;
+  const isStabilized = lowCpuTicks >= HPA_SCALE_DOWN_STABILIZATION_TICKS;
+
+  return {
+    desiredReplicas: wantsScaleDown && !isStabilized ? replicas : formulaReplicas,
+    lowCpuTicks,
+    counterChanged: lowCpuTicks !== previousTicks,
+  };
 };
 
 const scaleDeploymentReplicas = (dep: Node, diff: number, ctx: SimulationContext): boolean => {
@@ -445,7 +505,12 @@ const scaleDeploymentReplicas = (dep: Node, diff: number, ctx: SimulationContext
 /**
  * Evaluates connected HPA parameters and automatically scales workload replicas based on CPU load.
  */
-export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext): boolean => {
+export const handleHpaScaling = (
+  dep: Node,
+  cpuPercent: number,
+  ctx: SimulationContext,
+  memoryPercent?: number | null
+): boolean => {
   const deploymentData = dep.data as K8sNodeData;
   const { config: hpaConfig, connectedHPA } = resolveHpaConfig(dep, ctx);
 
@@ -453,7 +518,20 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
 
   let hasChanges = false;
   const replicas = deploymentData.replicas || 1;
-  const desiredReplicas = calculateDesiredReplicas(replicas, cpuPercent, hpaConfig as any);
+  const formulaReplicas = calculateDesiredReplicas(replicas, cpuPercent, hpaConfig as any, memoryPercent);
+
+  // Real HPA uses a stabilization window before scaling down so a short CPU dip
+  // does not remove replicas. Counting consecutive low-CPU ticks is deterministic
+  // and reproducible, unlike the previous random coin flip.
+  const { desiredReplicas, lowCpuTicks, counterChanged } = resolveStabilizedReplicas(
+    replicas,
+    formulaReplicas,
+    deploymentData
+  );
+
+  if (counterChanged && updateNodeData(ctx, dep.id, { lowCpuTicks })) {
+    hasChanges = true;
+  }
 
   if (desiredReplicas !== replicas) {
     hasChanges = scaleDeploymentReplicas(dep, desiredReplicas - replicas, ctx);

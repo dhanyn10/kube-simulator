@@ -253,6 +253,7 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
       return {
         ...base,
         minReplicas: 1,
+        // Initial value for a new HPA only; editing never re-applies it.
         maxReplicas: 10,
         targetCPU: 50,
         displaySettings: { replicas: false, targetCPU: false, targetMemory: false },

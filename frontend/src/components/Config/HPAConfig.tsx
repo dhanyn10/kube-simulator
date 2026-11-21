@@ -3,6 +3,13 @@ import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { Activity, Layers } from 'lucide-react';
 import { K8sNodeData } from '@/types';
+import {
+  clampReplicaRange,
+  HPA_DEFAULT_MAX_REPLICAS,
+  HPA_TARGET_MAX_PERCENT,
+  HPA_TARGET_MIN_PERCENT,
+  resolveMissingLimits,
+} from '@/activities/config/hpaConfigHelpers';
 import { ConfigSection, ConfigLabel, NumberStepper, RangeInput, AdvancedSection } from '@/components/UI/ConfigUI';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
 
@@ -31,20 +38,18 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
   const targetWorkload = isScaleWorkload ? targetNode : null;
 
   const workloadData = targetWorkload ? (targetWorkload.data as K8sNodeData) : undefined;
-  const hasRequests = Boolean(
-    (workloadData?.cpuRequest || workloadData?.cpuLimit) &&
-    (workloadData?.memoryRequest || workloadData?.memoryLimit)
-  );
+  // Keep in sync with validateHpaTargets(): Play requires limits on the target.
+  const hasLimits = Boolean(workloadData?.cpuLimit && workloadData?.memoryLimit);
 
   const getStatusInfo = () => {
-    if (!connectedEdge) {
+    if (!connectedEdge || !targetWorkload) {
       return {
         container: "bg-slate-500/10 border-slate-500/30 text-slate-500",
         dot: "bg-slate-500",
         text: "NOT CONNECTED"
       };
     }
-    if (hasRequests) {
+    if (hasLimits) {
       const label = ((targetWorkload?.data as K8sNodeData)?.label || targetWorkload?.id || '').toUpperCase();
       return {
         container: "bg-emerald-500/10 border-emerald-500/30 text-emerald-500",
@@ -55,11 +60,35 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
     return {
       container: "bg-amber-500/10 border-amber-500/30 text-amber-500",
       dot: "bg-amber-500",
-      text: "MISSING RESOURCE REQUESTS"
+      text: "MISSING RESOURCE LIMITS"
     };
   };
 
   const status = getStatusInfo();
+
+  const handleFixLimits = () => {
+    if (!targetWorkload) return;
+    const updates = resolveMissingLimits(workloadData);
+    if (Object.keys(updates).length > 0) {
+      useFlowStore.getState().updateNodeData(targetWorkload.id, updates);
+    }
+  };
+
+  // The default belongs to node creation (nodeUtils). Here it only covers
+  // legacy nodes that never stored a value; 0/empty input is never one of them.
+  const minReplicas = data.minReplicas ?? 1;
+  const maxReplicas = data.maxReplicas ?? HPA_DEFAULT_MAX_REPLICAS;
+
+  const handleMinChange = (val: number) => {
+    // NumberStepper emits 0 when the input is cleared; ignore that transient value.
+    if (val < 1) return;
+    performUpdate(clampReplicaRange(val, maxReplicas));
+  };
+
+  const handleMaxChange = (val: number) => {
+    if (val < 1) return;
+    performUpdate(clampReplicaRange(minReplicas, val, 'max'));
+  };
 
   return (
     <div className="space-y-4">
@@ -71,19 +100,12 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
         </span>
       </div>
 
-      {!hasRequests && connectedEdge && (
+      {!hasLimits && targetWorkload && (
         <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] text-amber-500 leading-relaxed">
-          <p>HPA requires CPU/Memory requests on the target {targetWorkload?.type || 'workload'} to function in real-world clusters.</p>
+          <p>HPA requires CPU/Memory limits on the target {targetWorkload?.type || 'workload'} to function in real-world clusters.</p>
           <button 
             type="button"
-            onClick={() => {
-              if (targetWorkload) {
-                useFlowStore.getState().updateNodeData(targetWorkload.id, {
-                  cpuRequest: '100m',
-                  memoryRequest: '128Mi'
-                });
-              }
-            }}
+            onClick={handleFixLimits}
             className="inline-flex items-center mt-2.5 px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 transition-all font-bold text-[8px] uppercase tracking-wider"
           >
             Fix automatically
@@ -106,16 +128,19 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
               <div className="space-y-1.5">
                 <ConfigLabel className="text-[8px] font-normal opacity-70 uppercase tracking-wider">Min</ConfigLabel>
                 <NumberStepper
-                  value={data.minReplicas || 1}
-                  onChange={(val: number) => performUpdate({ minReplicas: val })}
+                  value={minReplicas}
+                  onChange={handleMinChange}
+                  min={1}
+                  max={maxReplicas}
                   colorMode={colorMode}
                 />
               </div>
               <div className="space-y-1.5">
                 <ConfigLabel className="text-[8px] font-normal opacity-70 uppercase tracking-wider">Max</ConfigLabel>
                 <NumberStepper
-                  value={data.maxReplicas || 1}
-                  onChange={(val: number) => performUpdate({ maxReplicas: val })}
+                  value={maxReplicas}
+                  onChange={handleMaxChange}
+                  min={minReplicas}
                   colorMode={colorMode}
                 />
               </div>
@@ -151,7 +176,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
                 <RangeInput
                   value={data[item.field as keyof K8sNodeData] || 50}
                   onChange={(val: number) => performUpdate({ [item.field]: val })}
-                  min={10} max={90} step={5}
+                  min={HPA_TARGET_MIN_PERCENT} max={HPA_TARGET_MAX_PERCENT} step={1}
                 />
               </div>
             </ConfigSection>

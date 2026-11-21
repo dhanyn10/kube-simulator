@@ -191,7 +191,7 @@ describe('useSecretModal and useHpaModal', () => {
       id: 'existing-hpa-1',
       name: 'unnamed-hpa',
       minReplicas: 1,
-      maxReplicas: 10,
+      maxReplicas: 1,
       targetCPU: 80,
     });
     expect(onClose).toHaveBeenCalled();

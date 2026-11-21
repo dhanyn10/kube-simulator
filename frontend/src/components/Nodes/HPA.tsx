@@ -5,6 +5,8 @@ import { SimpleResourceNode } from './SimpleResourceNode';
 import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
+import { HPA_SCALE_DOWN_STABILIZATION_TICKS } from '@/lib/simulationTraffic';
+import { HPA_DEFAULT_MAX_REPLICAS } from '@/activities/config/hpaConfigHelpers';
 import { ProgressBar } from '@/components/Monitoring/ProgressBar';
 
 const SCALE_WORKLOAD_TYPES = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
@@ -21,8 +23,10 @@ export const HPANode = memo((props: NodeProps) => {
   const targetWorkload = targetNode && SCALE_WORKLOAD_TYPES.has(targetNode.type) ? targetNode : null;
 
   const targetData = targetWorkload?.data as K8sNodeData | undefined;
-  const hasRequests = Boolean((targetData?.cpuRequest || targetData?.cpuLimit) && (targetData?.memoryRequest || targetData?.memoryLimit));
-  const showWarning = Boolean(connectedEdge && !hasRequests);
+  // Must match validateHpaTargets(): the simulation requires limits, not requests.
+  const hasLimits = Boolean(targetData?.cpuLimit && targetData?.memoryLimit);
+  // Only a real scaleable workload can trigger the limits warning.
+  const showWarning = Boolean(targetWorkload && !hasLimits);
 
   const isValidConnection = useCallback(
     (connection: any) => {
@@ -31,6 +35,9 @@ export const HPANode = memo((props: NodeProps) => {
     },
     [nodes]
   );
+
+  const stabilizationTicks = Number(targetData?.lowCpuTicks) || 0;
+  const isStabilizing = stabilizationTicks > 0 && stabilizationTicks < HPA_SCALE_DOWN_STABILIZATION_TICKS;
 
   const currentCPU = data.currentCPU || 0;
   const targetCPU = data.targetCPU || 50;
@@ -51,7 +58,7 @@ export const HPANode = memo((props: NodeProps) => {
       {showWarning && (
         <div className="absolute -top-10 left-0 right-0 animate-bounce flex justify-center z-[1]">
           <div className="bg-amber-500 text-white text-[8px] font-bold px-2 py-1 rounded shadow-lg flex items-center gap-1 whitespace-nowrap">
-            <span className="text-xs">⚠️</span> Missing Resource Requests on Target
+            <span className="text-xs">⚠️</span> Missing Resource Limits on Target
           </div>
         </div>
       )}
@@ -64,8 +71,14 @@ export const HPANode = memo((props: NodeProps) => {
           </div>
           <div className="flex justify-between items-center text-[9px] font-mono">
             <span className={colorMode === 'dark' ? 'text-slate-500' : 'text-slate-400'}>max:</span>
-            <span className="text-fuchsia-500 font-bold">{data.maxReplicas || 10}</span>
+            <span className="text-fuchsia-500 font-bold">{data.maxReplicas ?? HPA_DEFAULT_MAX_REPLICAS}</span>
           </div>
+        </div>
+      )}
+
+      {isStabilizing && (
+        <div className="mt-1 text-[8px] font-mono font-bold text-amber-500">
+          Stabilizing {stabilizationTicks}/{HPA_SCALE_DOWN_STABILIZATION_TICKS}
         </div>
       )}
 
