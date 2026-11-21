@@ -56,6 +56,7 @@ describe('CanvasMiniMap Component', () => {
 
     const rightArrow = screen.getByTestId('minimap-arrow-right');
     expect(rightArrow).toBeInTheDocument();
+    expect(rightArrow).toHaveAttribute('aria-label', 'Move MiniMap right to Bottom Right');
 
     fireEvent.click(rightArrow);
     expect(useFlowStore.getState().minimapPosition).toBe('bottom-right');
@@ -72,6 +73,7 @@ describe('CanvasMiniMap Component', () => {
 
     const downArrow = screen.getByTestId('minimap-arrow-down');
     expect(downArrow).toBeInTheDocument();
+    expect(downArrow).toHaveAttribute('aria-label', 'Move MiniMap down to Bottom Right');
 
     fireEvent.click(downArrow);
     expect(useFlowStore.getState().minimapPosition).toBe('bottom-right');

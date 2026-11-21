@@ -112,7 +112,7 @@ export const NodeRenameInput = ({
         {errorMessage && (
           <div
             data-testid="canvas-duplicate-name-error"
-            className="absolute top-full left-0 mt-1 z-[100] px-1.5 py-0.5 rounded shadow-lg bg-rose-600 text-white dark:bg-rose-950 dark:border dark:border-rose-800 text-[10px] font-sans font-medium whitespace-nowrap flex items-center gap-1 pointer-events-none animate-in fade-in zoom-in-95 duration-100"
+            className="node-name-error-tooltip dark:bg-rose-950 dark:border dark:border-rose-800 animate-in fade-in zoom-in-95 duration-100"
           >
             <AlertCircle size={10} className="shrink-0" />
             <span>{errorMessage}</span>

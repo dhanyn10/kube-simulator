@@ -183,8 +183,8 @@ export const CanvasMiniMap: React.FC = () => {
             type="button"
             onClick={() => moveToPosition('bottom-right')}
             className={cn(arrowBtnClass, 'left-full ml-2 top-1/2 -translate-y-1/2')}
-            title="Move MiniMap to Bottom Right"
-            aria-label="Move MiniMap to Bottom Right"
+            title="Move MiniMap right to Bottom Right"
+            aria-label="Move MiniMap right to Bottom Right"
             data-testid="minimap-arrow-right"
           >
             <ChevronRight size={16} />
@@ -196,8 +196,8 @@ export const CanvasMiniMap: React.FC = () => {
             type="button"
             onClick={() => moveToPosition('bottom-right')}
             className={cn(arrowBtnClass, 'top-full mt-2 left-1/2 -translate-x-1/2')}
-            title="Move MiniMap to Bottom Right"
-            aria-label="Move MiniMap to Bottom Right"
+            title="Move MiniMap down to Bottom Right"
+            aria-label="Move MiniMap down to Bottom Right"
             data-testid="minimap-arrow-down"
           >
             <ChevronDown size={16} />

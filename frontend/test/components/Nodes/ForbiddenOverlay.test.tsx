@@ -31,6 +31,7 @@ describe('ForbiddenOverlay', () => {
 
     const overlay = screen.getByTestId('forbidden-overlay');
     expect(overlay).toBeDefined();
+    expect(overlay.className).toContain('node-forbidden-overlay');
     expect(overlay.tagName.toLowerCase()).toBe('section');
     expect(overlay.getAttribute('aria-label')).toBe('Access Restricted for user dev-user');
     expect(overlay.getAttribute('tabIndex')).toBeNull();
