@@ -113,8 +113,8 @@ describe('HPANode', () => {
     expect((window as any)._lastIsValidPod).toBe(false);
   });
 
-  it('covers connected edge to deployment target with requests, missing target node in isValidConnection, and normal load color when currentCPU <= targetCPU', () => {
-    const depNode = { id: 'd1', type: 'Deployment', data: { cpuRequest: '100m', memoryRequest: '128Mi' } };
+  it('covers connected edge to deployment target with limits, missing target node in isValidConnection, and normal load color when currentCPU <= targetCPU', () => {
+    const depNode = { id: 'd1', type: 'Deployment', data: { cpuLimit: '100m', memoryLimit: '128Mi' } };
     const edge = { id: 'e1', source: 'h1', target: 'd1' };
 
     useFlowStore.setState({
@@ -138,14 +138,14 @@ describe('HPANode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.queryByText(/Missing Resource Requests on Target/)).toBeNull();
+    expect(screen.queryByText(/Missing Resource Limits on Target/)).toBeNull();
 
     // Test handle isValidConnection when target is missing
     const handle = screen.getByTestId('handle-bottom-s');
     handle.click();
   });
 
-  it('shows warning when connected to deployment without resource requests', () => {
+  it('shows warning when connected to deployment without resource limits', () => {
     const deploymentNode = {
         id: 'd1',
         type: 'Deployment',
@@ -170,10 +170,10 @@ describe('HPANode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
+    expect(screen.getByText(/Missing Resource Limits on Target/)).toBeDefined();
   });
 
-  it('covers connected edge with missing target node and target deployment with cpuRequest but missing memoryRequest', () => {
+  it('covers connected edge with missing target node and target deployment with cpuLimit but missing memoryLimit', () => {
     // 1. Edge targets non-existent node (targetNode is null)
     const edgeOrphan = { id: 'e-orphan', source: 'h1', target: 'missing-node-id' };
     useFlowStore.setState({
@@ -193,18 +193,18 @@ describe('HPANode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
+    expect(screen.getByText(/Missing Resource Limits on Target/)).toBeDefined();
 
     // 2. Edge targets Deployment with cpuRequest set but missing memoryRequest
-    const depPartialRequests = {
+    const depPartialLimits = {
       id: 'd-partial',
       type: 'Deployment',
-      data: { label: 'Partial Requests Dep', cpuRequest: '100m' } // missing memoryRequest
+      data: { label: 'Partial Limits Dep', cpuLimit: '100m' } // missing memoryLimit
     };
     const edgePartial = { id: 'e-partial', source: 'h1', target: 'd-partial' };
 
     useFlowStore.setState({
-      nodes: [depPartialRequests],
+      nodes: [depPartialLimits],
       edges: [edgePartial]
     } as any);
 
@@ -214,7 +214,7 @@ describe('HPANode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
+    expect(screen.getByText(/Missing Resource Limits on Target/)).toBeDefined();
   });
 
   it('renders load color and bar color as red when currentCPU exceeds targetCPU', () => {
@@ -306,7 +306,7 @@ describe('HPANode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
+    expect(screen.getByText(/Missing Resource Limits on Target/)).toBeDefined();
   });
 
   it('handles edge targeting a Service node', () => {
@@ -324,7 +324,7 @@ describe('HPANode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
+    expect(screen.getByText(/Missing Resource Limits on Target/)).toBeDefined();
   });
 
   it('renders min and max replicas labels in light mode', () => {
@@ -339,8 +339,8 @@ describe('HPANode', () => {
   });
 
   it('supports StatefulSet and ReplicaSet as valid connection targets and handles connected edges', () => {
-    const ssTarget = { id: 'ss1', type: 'StatefulSet', data: { label: 'My StatefulSet', cpuRequest: '100m', memoryRequest: '128Mi' } };
-    const rsTarget = { id: 'rs1', type: 'ReplicaSet', data: { label: 'My ReplicaSet', cpuRequest: '100m', memoryRequest: '128Mi' } };
+    const ssTarget = { id: 'ss1', type: 'StatefulSet', data: { label: 'My StatefulSet', cpuLimit: '100m', memoryLimit: '128Mi' } };
+    const rsTarget = { id: 'rs1', type: 'ReplicaSet', data: { label: 'My ReplicaSet', cpuLimit: '100m', memoryLimit: '128Mi' } };
     const depTarget = { id: 'd1', type: 'Deployment', data: { label: 'My Deployment' } };
     const podTarget = { id: 'p1', type: 'Pod', data: { label: 'My Pod' } };
 
@@ -355,8 +355,8 @@ describe('HPANode', () => {
       </ReactFlowProvider>
     );
 
-    // Target StatefulSet has requests, so no warning
-    expect(screen.queryByText(/Missing Resource Requests on Target/)).toBeNull();
+    // Target StatefulSet has limits, so no warning
+    expect(screen.queryByText(/Missing Resource Limits on Target/)).toBeNull();
 
     // Test isValidConnection on handle
     const handle = screen.getByTestId('handle-bottom-s');

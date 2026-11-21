@@ -219,7 +219,12 @@ export const hasMonitorError = (params: {
  * @returns boolean True if all HPA targets are valid.
  */
 export const validateHpaTargets = (nodes: Node[], edges: Edge[]): boolean => {
-    const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || (n.type === 'Pod' && !n.parentId));
+    const workloads = nodes.filter(n =>
+      n.type === 'Deployment' ||
+      n.type === 'StatefulSet' ||
+      n.type === 'ReplicaSet' ||
+      (n.type === 'Pod' && !n.parentId)
+    );
 
     for (const target of workloads) {
       const data = target.data as K8sNodeData;

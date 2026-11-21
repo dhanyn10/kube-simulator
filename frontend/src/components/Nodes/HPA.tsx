@@ -5,6 +5,7 @@ import { SimpleResourceNode } from './SimpleResourceNode';
 import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
+import { HPA_DEFAULT_MAX_REPLICAS } from '@/activities/config/hpaConfigHelpers';
 import { ProgressBar } from '@/components/Monitoring/ProgressBar';
 
 const SCALE_WORKLOAD_TYPES = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
@@ -21,8 +22,9 @@ export const HPANode = memo((props: NodeProps) => {
   const targetWorkload = targetNode && SCALE_WORKLOAD_TYPES.has(targetNode.type) ? targetNode : null;
 
   const targetData = targetWorkload?.data as K8sNodeData | undefined;
-  const hasRequests = Boolean((targetData?.cpuRequest || targetData?.cpuLimit) && (targetData?.memoryRequest || targetData?.memoryLimit));
-  const showWarning = Boolean(connectedEdge && !hasRequests);
+  // Must match validateHpaTargets(): the simulation requires limits, not requests.
+  const hasLimits = Boolean(targetData?.cpuLimit && targetData?.memoryLimit);
+  const showWarning = Boolean(connectedEdge && !hasLimits);
 
   const isValidConnection = useCallback(
     (connection: any) => {
@@ -51,7 +53,7 @@ export const HPANode = memo((props: NodeProps) => {
       {showWarning && (
         <div className="absolute -top-10 left-0 right-0 animate-bounce flex justify-center z-[1]">
           <div className="bg-amber-500 text-white text-[8px] font-bold px-2 py-1 rounded shadow-lg flex items-center gap-1 whitespace-nowrap">
-            <span className="text-xs">⚠️</span> Missing Resource Requests on Target
+            <span className="text-xs">⚠️</span> Missing Resource Limits on Target
           </div>
         </div>
       )}
@@ -64,7 +66,7 @@ export const HPANode = memo((props: NodeProps) => {
           </div>
           <div className="flex justify-between items-center text-[9px] font-mono">
             <span className={colorMode === 'dark' ? 'text-slate-500' : 'text-slate-400'}>max:</span>
-            <span className="text-fuchsia-500 font-bold">{data.maxReplicas || 10}</span>
+            <span className="text-fuchsia-500 font-bold">{data.maxReplicas ?? HPA_DEFAULT_MAX_REPLICAS}</span>
           </div>
         </div>
       )}

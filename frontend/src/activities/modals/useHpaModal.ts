@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { K8sHpaItem } from '@/types';
 import { sanitizeSlug } from '@/lib/utils';
+import { HPA_DEFAULT_MAX_REPLICAS } from '@/activities/config/hpaConfigHelpers';
 
 /**
  * Custom hook managing form state and saving logic for HPA modal.
@@ -21,7 +22,7 @@ export function useHpaModal(
 ) {
   const [hpaName, setHpaName] = useState<string>('app-hpa');
   const [minReplicas, setMinReplicas] = useState<number>(1);
-  const [maxReplicas, setMaxReplicas] = useState<number>(10);
+  const [maxReplicas, setMaxReplicas] = useState<number>(HPA_DEFAULT_MAX_REPLICAS);
   const [targetCPU, setTargetCPU] = useState<number>(80);
   const [targetMemory, setTargetMemory] = useState<number | undefined>(undefined);
 
@@ -29,14 +30,14 @@ export function useHpaModal(
     if (initialHpa) {
       setHpaName(initialHpa.name || 'app-hpa');
       setMinReplicas(initialHpa.minReplicas ?? 1);
-      setMaxReplicas(initialHpa.maxReplicas ?? 10);
+      setMaxReplicas(initialHpa.maxReplicas ?? HPA_DEFAULT_MAX_REPLICAS);
       setTargetCPU(initialHpa.targetCPU ?? 80);
       setTargetMemory(initialHpa.targetMemory);
     } else {
       const randomSuffix = crypto.randomUUID().split('-')[0];
       setHpaName(`hpa-${randomSuffix}`);
       setMinReplicas(1);
-      setMaxReplicas(10);
+      setMaxReplicas(HPA_DEFAULT_MAX_REPLICAS);
       setTargetCPU(80);
       setTargetMemory(undefined);
     }
@@ -44,7 +45,8 @@ export function useHpaModal(
 
   const handleSave = () => {
     const minVal = Math.max(1, Number(minReplicas) || 1);
-    const maxVal = Math.max(minVal, Number(maxReplicas) || 10);
+    // An empty max field must not silently restore the creation default.
+    const maxVal = Math.max(minVal, Number(maxReplicas) || minVal);
     const cpuVal = Math.min(100, Math.max(1, Number(targetCPU) || 80));
     const memVal =
       targetMemory !== undefined && targetMemory !== null && targetMemory > 0

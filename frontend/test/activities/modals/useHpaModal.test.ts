@@ -96,7 +96,7 @@ describe('useHpaModal', () => {
     const saved = onSave.mock.calls[0][0];
     expect(saved.name).toBe('unnamed-hpa');
     expect(saved.minReplicas).toBe(1);
-    expect(saved.maxReplicas).toBe(10);
+    expect(saved.maxReplicas).toBe(1);
     expect(saved.targetCPU).toBe(100);
     expect(saved.targetMemory).toBeUndefined();
   });

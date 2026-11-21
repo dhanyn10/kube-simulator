@@ -62,6 +62,27 @@ describe('simulationManager', () => {
       expect(validateHpaTargets(nodes, edges)).toBe(true);
     });
 
+    it('validates ReplicaSet targets as well as Deployments and StatefulSets', () => {
+      const withLimits: Node[] = [
+        { id: 'hpa1', type: 'HPA', data: {}, position: { x: 0, y: 0 } } as Node,
+        {
+          id: 'rs1',
+          type: 'ReplicaSet',
+          data: { label: 'web', cpuLimit: '500m', memoryLimit: '512Mi' },
+          position: { x: 0, y: 0 },
+        } as Node,
+      ];
+      const edge: Edge[] = [{ id: 'e1', source: 'hpa1', target: 'rs1' } as Edge];
+
+      expect(validateHpaTargets(withLimits, edge)).toBe(true);
+
+      const withoutLimits: Node[] = [
+        { ...withLimits[0] },
+        { ...withLimits[1], data: { label: 'web' } } as Node,
+      ];
+      expect(validateHpaTargets(withoutLimits, edge)).toBe(false);
+    });
+
     it('returns false if limit < request', () => {
       const nodes: Node[] = [
         { id: 'hpa1', type: 'HPA', data: {}, position: { x: 0, y: 0 } } as Node,

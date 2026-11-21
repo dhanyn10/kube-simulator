@@ -62,14 +62,14 @@ describe('HPAConfig', () => {
         toggleYaml={toggleYaml}
       />
     );
-    expect(screen.getByText('MISSING RESOURCE REQUESTS')).toBeDefined();
+    expect(screen.getByText('MISSING RESOURCE LIMITS')).toBeDefined();
   });
 
-  it('renders LINKED status when connected to deployment with requests', () => {
+  it('renders LINKED status when connected to deployment with limits', () => {
     const depNode = {
       id: 'dep1',
       type: 'Deployment',
-      data: { label: 'My Dep', cpuRequest: '100m', memoryRequest: '128Mi' }
+      data: { label: 'My Dep', cpuLimit: '100m', memoryLimit: '128Mi' }
     };
     useFlowStore.setState({
       nodes: [selectedNode, depNode],
@@ -107,17 +107,17 @@ describe('HPAConfig', () => {
         toggleYaml={toggleYaml}
       />
     );
-    expect(screen.getByText('MISSING RESOURCE REQUESTS')).toBeDefined();
+    expect(screen.getByText('MISSING RESOURCE LIMITS')).toBeDefined();
     unmount1();
 
-    // 2. Target workload with requests but missing label (covers fallback to targetWorkload.id)
-    const depWithRequestsNoLabel = {
+    // 2. Target workload with limits but missing label (covers fallback to targetWorkload.id)
+    const depWithLimitsNoLabel = {
       id: 'dep-id-linked',
       type: 'Deployment',
-      data: { cpuRequest: '100m', memoryRequest: '128Mi' }
+      data: { cpuLimit: '100m', memoryLimit: '128Mi' }
     };
     useFlowStore.setState({
-      nodes: [selectedNode, depWithRequestsNoLabel],
+      nodes: [selectedNode, depWithLimitsNoLabel],
       edges: [{ id: 'e-id-only', source: 'hpa1', target: 'dep-id-linked' }]
     });
 
@@ -132,11 +132,11 @@ describe('HPAConfig', () => {
     expect(screen.getByText('LINKED TO DEP-ID-LINKED')).toBeDefined();
     unmount2();
 
-    // 3. Target workload with requests, empty label, and empty id (covers fallback to '')
+    // 3. Target workload with limits, empty label, and empty id (covers fallback to '')
     const depEmptyIdAndLabel = {
       id: '',
       type: 'Deployment',
-      data: { label: '', cpuRequest: '100m', memoryRequest: '128Mi' }
+      data: { label: '', cpuLimit: '100m', memoryLimit: '128Mi' }
     };
     useFlowStore.setState({
       nodes: [selectedNode, depEmptyIdAndLabel],
@@ -198,12 +198,36 @@ describe('HPAConfig', () => {
     const minContainer = screen.getByText('Min').parentElement;
     const minPlusBtn = minContainer?.querySelectorAll('button')[1];
     if (minPlusBtn) fireEvent.click(minPlusBtn);
-    expect(performUpdate).toHaveBeenCalledWith({ minReplicas: 3 });
+    expect(performUpdate).toHaveBeenCalledWith({ minReplicas: 3, maxReplicas: 5 });
 
     const maxContainer = screen.getByText('Max').parentElement;
     const maxPlusBtn = maxContainer?.querySelectorAll('button')[1];
     if (maxPlusBtn) fireEvent.click(maxPlusBtn);
-    expect(performUpdate).toHaveBeenCalledWith({ maxReplicas: 6 });
+    expect(performUpdate).toHaveBeenCalledWith({ minReplicas: 2, maxReplicas: 6 });
+  });
+
+  it('treats the creation default as editable and ignores a cleared replica input', () => {
+    render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    fireEvent.click(screen.getByText('Advanced Options'));
+
+    const maxInput = screen.getByText('Max').parentElement?.querySelector('input');
+    if (!maxInput) throw new Error('Max input not found');
+
+    fireEvent.change(maxInput, { target: { value: '' } });
+    expect(performUpdate).not.toHaveBeenCalled();
+
+    fireEvent.change(maxInput, { target: { value: '20' } });
+    expect(performUpdate).toHaveBeenLastCalledWith({ minReplicas: 2, maxReplicas: 20 });
+
+    fireEvent.change(maxInput, { target: { value: '10' } });
+    expect(performUpdate).toHaveBeenLastCalledWith({ minReplicas: 2, maxReplicas: 10 });
   });
 
   it('handles range input changes and missing data fields', () => {
@@ -236,11 +260,11 @@ describe('HPAConfig', () => {
     }
   });
 
-  it('handles partial requests (cpuRequest without memoryRequest) and missing requests warning', () => {
+  it('handles partial limits (cpuLimit without memoryLimit) and missing limits warning', () => {
     const depNodePartial = {
       id: 'dep1',
       type: 'Deployment',
-      data: { label: 'My Dep', cpuRequest: '100m' }
+      data: { label: 'My Dep', cpuLimit: '100m' }
     };
     useFlowStore.setState({
       nodes: [selectedNode, depNodePartial],
@@ -256,7 +280,7 @@ describe('HPAConfig', () => {
       />
     );
 
-    expect(screen.getByText('MISSING RESOURCE REQUESTS')).toBeDefined();
+    expect(screen.getByText('MISSING RESOURCE LIMITS')).toBeDefined();
     unmount();
 
     const depNode = {
@@ -278,12 +302,13 @@ describe('HPAConfig', () => {
       />
     );
 
-    expect(screen.getByText('MISSING RESOURCE REQUESTS')).toBeDefined();
+    expect(screen.getByText('MISSING RESOURCE LIMITS')).toBeDefined();
     const fixBtn = screen.getByText('Fix automatically');
     fireEvent.click(fixBtn);
 
     const updatedDep = useFlowStore.getState().nodes.find(n => n.id === 'dep1');
-    expect(updatedDep?.data.cpuRequest).toBe('100m');
+    expect(updatedDep?.data.cpuLimit).toBe('500m');
+    expect(updatedDep?.data.memoryLimit).toBe('256Mi');
   });
 
   it('handles Fix automatically when connected target is not a Deployment', () => {
@@ -306,12 +331,12 @@ describe('HPAConfig', () => {
       />
     );
 
-    expect(screen.getByText('MISSING RESOURCE REQUESTS')).toBeDefined();
+    expect(screen.getByText('MISSING RESOURCE LIMITS')).toBeDefined();
     const fixBtn = screen.getByText('Fix automatically');
     fireEvent.click(fixBtn);
 
     const updatedPod = useFlowStore.getState().nodes.find(n => n.id === 'pod1');
-    expect(updatedPod?.data.cpuRequest).toBeUndefined();
+    expect(updatedPod?.data.cpuLimit).toBeUndefined();
   });
 
   it('renders LINKED status and supports Fix automatically for StatefulSet targets', () => {
@@ -334,17 +359,17 @@ describe('HPAConfig', () => {
       />
     );
 
-    expect(screen.getByText('MISSING RESOURCE REQUESTS')).toBeDefined();
+    expect(screen.getByText('MISSING RESOURCE LIMITS')).toBeDefined();
     const fixBtn = screen.getByText('Fix automatically');
     fireEvent.click(fixBtn);
 
     const updatedSS = useFlowStore.getState().nodes.find(n => n.id === 'ss1');
-    expect(updatedSS?.data.cpuRequest).toBe('100m');
-    expect(updatedSS?.data.memoryRequest).toBe('128Mi');
+    expect(updatedSS?.data.cpuLimit).toBe('500m');
+    expect(updatedSS?.data.memoryLimit).toBe('256Mi');
 
     unmount();
 
-    // Re-render with requests configured
+    // Re-render with limits configured
     render(
       <HPAConfig
         selectedNode={selectedNode}
@@ -356,11 +381,11 @@ describe('HPAConfig', () => {
     expect(screen.getByText('LINKED TO MY STATEFULSET')).toBeDefined();
   });
 
-  it('renders LINKED status for ReplicaSet targets with requests', () => {
+  it('renders LINKED status for ReplicaSet targets with limits', () => {
     const rsNode = {
       id: 'rs1',
       type: 'ReplicaSet',
-      data: { label: 'My ReplicaSet', cpuRequest: '100m', memoryRequest: '128Mi' }
+      data: { label: 'My ReplicaSet', cpuLimit: '100m', memoryLimit: '128Mi' }
     };
     useFlowStore.setState({
       nodes: [selectedNode, rsNode],
