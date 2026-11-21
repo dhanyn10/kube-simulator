@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { HPANode } from '@/components/Nodes/HPA';
+import { HPA_SCALE_DOWN_STABILIZATION_TICKS } from '@/lib/simulationTraffic';
 import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
 
@@ -215,6 +216,58 @@ describe('HPANode', () => {
     );
 
     expect(screen.getByText(/Missing Resource Limits on Target/)).toBeDefined();
+  });
+
+  it('shows scale-down stabilization progress from the connected workload', () => {
+    const dep = {
+      id: 'd-stabilizing',
+      type: 'Deployment',
+      data: { label: 'Stabilizing Dep', lowCpuTicks: 3 }
+    };
+    useFlowStore.setState({
+      nodes: [dep],
+      edges: [{ id: 'e-stabilizing', source: 'h1', target: 'd-stabilizing' }]
+    } as any);
+
+    render(
+      <ReactFlowProvider>
+        <HPANode id="h1" type="HPA" data={{ label: 'My HPA' }} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText(`Stabilizing 3/${HPA_SCALE_DOWN_STABILIZATION_TICKS}`)).toBeDefined();
+  });
+
+  it('hides stabilization when the counter is zero or the window is already satisfied', () => {
+    const dep = {
+      id: 'd-stabilized',
+      type: 'Deployment',
+      data: { label: 'Stabilized Dep', lowCpuTicks: 0 }
+    };
+    useFlowStore.setState({
+      nodes: [dep],
+      edges: [{ id: 'e-stabilized', source: 'h1', target: 'd-stabilized' }]
+    } as any);
+
+    const { unmount } = render(
+      <ReactFlowProvider>
+        <HPANode id="h1" type="HPA" data={{ label: 'My HPA' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.queryByText(/Stabilizing/)).toBeNull();
+    unmount();
+
+    useFlowStore.setState({
+      nodes: [{ ...dep, data: { ...dep.data, lowCpuTicks: HPA_SCALE_DOWN_STABILIZATION_TICKS } }],
+      edges: [{ id: 'e-stabilized', source: 'h1', target: 'd-stabilized' }]
+    } as any);
+
+    render(
+      <ReactFlowProvider>
+        <HPANode id="h1" type="HPA" data={{ label: 'My HPA' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.queryByText(/Stabilizing/)).toBeNull();
   });
 
   it('renders load color and bar color as red when currentCPU exceeds targetCPU', () => {

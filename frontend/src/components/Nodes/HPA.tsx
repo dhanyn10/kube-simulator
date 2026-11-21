@@ -5,6 +5,7 @@ import { SimpleResourceNode } from './SimpleResourceNode';
 import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
+import { HPA_SCALE_DOWN_STABILIZATION_TICKS } from '@/lib/simulationTraffic';
 import { HPA_DEFAULT_MAX_REPLICAS } from '@/activities/config/hpaConfigHelpers';
 import { ProgressBar } from '@/components/Monitoring/ProgressBar';
 
@@ -33,6 +34,9 @@ export const HPANode = memo((props: NodeProps) => {
     },
     [nodes]
   );
+
+  const stabilizationTicks = Number(targetData?.lowCpuTicks) || 0;
+  const isStabilizing = stabilizationTicks > 0 && stabilizationTicks < HPA_SCALE_DOWN_STABILIZATION_TICKS;
 
   const currentCPU = data.currentCPU || 0;
   const targetCPU = data.targetCPU || 50;
@@ -68,6 +72,12 @@ export const HPANode = memo((props: NodeProps) => {
             <span className={colorMode === 'dark' ? 'text-slate-500' : 'text-slate-400'}>max:</span>
             <span className="text-fuchsia-500 font-bold">{data.maxReplicas ?? HPA_DEFAULT_MAX_REPLICAS}</span>
           </div>
+        </div>
+      )}
+
+      {isStabilizing && (
+        <div className="mt-1 text-[8px] font-mono font-bold text-amber-500">
+          Stabilizing {stabilizationTicks}/{HPA_SCALE_DOWN_STABILIZATION_TICKS}
         </div>
       )}
 
