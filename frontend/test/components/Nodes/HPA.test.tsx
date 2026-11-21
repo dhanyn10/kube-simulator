@@ -194,9 +194,9 @@ describe('HPANode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText(/Missing Resource Limits on Target/)).toBeDefined();
+    expect(screen.queryByText(/Missing Resource Limits on Target/)).toBeNull();
 
-    // 2. Edge targets Deployment with cpuRequest set but missing memoryRequest
+    // 2. Edge targets Deployment with cpuLimit set but missing memoryLimit
     const depPartialLimits = {
       id: 'd-partial',
       type: 'Deployment',
@@ -338,7 +338,7 @@ describe('HPANode', () => {
     expect(screen.getAllByTestId('progress-bar')).toHaveLength(3);
   });
 
-  it('shows warning when connected edge targets a non-Deployment node like a Pod or Service', () => {
+  it('does not warn when connected edge targets a non-scaleable node like a Pod', () => {
     const podTarget = { id: 'p1', type: 'Pod', data: { label: 'My Pod' } };
     const edgeToPod = { id: 'e-pod', source: 'h1', target: 'p1' };
 
@@ -359,7 +359,7 @@ describe('HPANode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText(/Missing Resource Limits on Target/)).toBeDefined();
+    expect(screen.queryByText(/Missing Resource Limits on Target/)).toBeNull();
   });
 
   it('handles edge targeting a Service node', () => {
@@ -377,7 +377,7 @@ describe('HPANode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText(/Missing Resource Limits on Target/)).toBeDefined();
+    expect(screen.queryByText(/Missing Resource Limits on Target/)).toBeNull();
   });
 
   it('renders min and max replicas labels in light mode', () => {

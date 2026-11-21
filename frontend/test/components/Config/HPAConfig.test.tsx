@@ -107,7 +107,8 @@ describe('HPAConfig', () => {
         toggleYaml={toggleYaml}
       />
     );
-    expect(screen.getByText('MISSING RESOURCE LIMITS')).toBeDefined();
+    expect(screen.getByText('NOT CONNECTED')).toBeDefined();
+    expect(screen.queryByText('Fix automatically')).toBeNull();
     unmount1();
 
     // 2. Target workload with limits but missing label (covers fallback to targetWorkload.id)
@@ -311,7 +312,7 @@ describe('HPAConfig', () => {
     expect(updatedDep?.data.memoryLimit).toBe('256Mi');
   });
 
-  it('handles Fix automatically when connected target is not a Deployment', () => {
+  it('hides the limits warning and Fix button for a non-scaleable target', () => {
     const podNode = {
       id: 'pod1',
       type: 'Pod',
@@ -331,9 +332,9 @@ describe('HPAConfig', () => {
       />
     );
 
-    expect(screen.getByText('MISSING RESOURCE LIMITS')).toBeDefined();
-    const fixBtn = screen.getByText('Fix automatically');
-    fireEvent.click(fixBtn);
+    expect(screen.getByText('NOT CONNECTED')).toBeDefined();
+    expect(screen.queryByText('MISSING RESOURCE LIMITS')).toBeNull();
+    expect(screen.queryByText('Fix automatically')).toBeNull();
 
     const updatedPod = useFlowStore.getState().nodes.find(n => n.id === 'pod1');
     expect(updatedPod?.data.cpuLimit).toBeUndefined();

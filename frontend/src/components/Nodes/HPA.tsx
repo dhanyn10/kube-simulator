@@ -25,7 +25,8 @@ export const HPANode = memo((props: NodeProps) => {
   const targetData = targetWorkload?.data as K8sNodeData | undefined;
   // Must match validateHpaTargets(): the simulation requires limits, not requests.
   const hasLimits = Boolean(targetData?.cpuLimit && targetData?.memoryLimit);
-  const showWarning = Boolean(connectedEdge && !hasLimits);
+  // Only a real scaleable workload can trigger the limits warning.
+  const showWarning = Boolean(targetWorkload && !hasLimits);
 
   const isValidConnection = useCallback(
     (connection: any) => {

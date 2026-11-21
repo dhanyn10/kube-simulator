@@ -42,7 +42,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
   const hasLimits = Boolean(workloadData?.cpuLimit && workloadData?.memoryLimit);
 
   const getStatusInfo = () => {
-    if (!connectedEdge) {
+    if (!connectedEdge || !targetWorkload) {
       return {
         container: "bg-slate-500/10 border-slate-500/30 text-slate-500",
         dot: "bg-slate-500",
@@ -100,7 +100,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
         </span>
       </div>
 
-      {!hasLimits && connectedEdge && (
+      {!hasLimits && targetWorkload && (
         <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] text-amber-500 leading-relaxed">
           <p>HPA requires CPU/Memory limits on the target {targetWorkload?.type || 'workload'} to function in real-world clusters.</p>
           <button 
