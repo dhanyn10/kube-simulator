@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useFlowStore } from '@/store';
-import { K8sNodeData } from '@/types';
+import { K8sNodeData, K8sConfigMapItem } from '@/types';
 
 export interface BaseResourceItem {
   id: string;
@@ -52,7 +52,7 @@ export function useAttachedResourceSettings<T extends BaseResourceItem>(
       );
       if (!isAttachedToThisNode) {
         const filtered = items.filter((i) => i.id !== item.id && i.name !== item.name);
-        updateNodeData(nodeId, { [resourceKey]: filtered });
+        updateNodeData(nodeId, { [resourceKey]: filtered as unknown as K8sConfigMapItem[] });
         addLog('info', `[${resourceName} Removed] Removed ${logLabel} "${item.name}" from node`, 'UI');
         setIsEditModalOpen(false);
         return;

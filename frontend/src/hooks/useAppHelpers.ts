@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { getBackendGateway } from '@/gateway';
 import { useFlowStore } from '@/store';
-import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem, K8sResourceLimitItem } from '@/types';
+import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem, K8sResourceLimitItem, K8sNodeData } from '@/types';
 import { logger } from '@/lib/logger';
 import { persistConfigMapItem } from '@/activities/modals/configMapStorageHelpers';
 import { persistSecretItem } from '@/activities/modals/secretStorageHelpers';
@@ -273,7 +273,7 @@ export function useAttachmentHandlers() {
     const target = nodes.find((n) => n.id === roleModalTargetNode.id);
     if (!target) return;
 
-    const existingRoles = target.data.roles || [];
+    const existingRoles = (target.data as K8sNodeData).roles || [];
     const existingIndex = existingRoles.findIndex((r: K8sRoleItem) => r.id === roleItem.id);
     let updatedRoles: K8sRoleItem[];
 
@@ -368,7 +368,7 @@ export function useAttachmentHandlers() {
     const target = nodes.find((n) => n.id === hpaModalTargetNode.id);
     if (!target) return;
 
-    const existingHpas = target.data.hpas || [];
+    const existingHpas = (target.data as K8sNodeData).hpas || [];
     const existingIndex = existingHpas.findIndex((h: K8sHpaItem) => h.id === hpaItem.id);
     let updatedHpas: K8sHpaItem[];
 
@@ -396,7 +396,7 @@ export function useAttachmentHandlers() {
       hpaModalTargetNode.label,
       hpaItem.minReplicas || 1,
       hpaItem.maxReplicas || 10,
-      hpaItem.targetCPUUtilizationPercentage || 80
+      hpaItem.targetCPU || 80
     );
   };
 
@@ -411,7 +411,7 @@ export function useAttachmentHandlers() {
     const target = nodes.find((n) => n.id === resourceLimitModalTargetNode.id);
     if (!target) return;
 
-    const existingLimits = target.data.resourceLimits || [];
+    const existingLimits = (target.data as K8sNodeData).resourceLimits || [];
     const existingIndex = existingLimits.findIndex((r: K8sResourceLimitItem) => r.id === resItem.id);
     let updatedLimits: K8sResourceLimitItem[];
 

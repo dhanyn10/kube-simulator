@@ -16,7 +16,7 @@ const parseConfigKeyValuePair = (
   key: string | undefined,
   val: string | undefined,
   cmName: string,
-  settings: { hasSimulatedFailure: boolean; failingCmName: string; cmPort: number | null; maxConnections: number | null; logLevel: string }
+  settings: { hasSimulatedFailure: boolean; failingCmName: string; cmPort: number | null; maxConnections: number | null; logLevel: string; requireSecret: boolean }
 ) => {
   const keyUpper = key?.trim().toUpperCase();
   const valueTrimmed = val?.trim();
@@ -175,15 +175,14 @@ const validateEdgePortMismatch = (
 
   if (cmPort !== srvTargetPort) {
     const portErr = `Port Mismatch: Service "${sData.label || sourceNode.id}" targets port ${srvTargetPort}, but container PORT is ${cmPort}`;
-    let hasChanges = false;
     if (edge.data?.validationError !== portErr) {
       edge.data = { ...edge.data, validationError: portErr };
-      logPortMismatchError(ctx, sData, sourceNode.id, srvTargetPort, dep.data?.label, dep.id, cmPort);
+      logPortMismatchError(ctx, sData, sourceNode.id, srvTargetPort, (dep.data as K8sNodeData)?.label, dep.id, cmPort);
     }
     return { hasChanges: true, isBlocked: true };
   }
 
-  if (edge.data?.validationError?.includes('Port Mismatch')) {
+  if ((edge.data as { validationError?: string } | undefined)?.validationError?.includes('Port Mismatch')) {
     edge.data = { ...edge.data, validationError: undefined };
     return { hasChanges: true, isBlocked: false };
   }
@@ -235,7 +234,7 @@ const getLogMessageForLevel = (logLevel: string, podLabel: string): { type: 'inf
 export const logLogLevelStream = (dep: Node, ctx: SimulationContext, logLevel: string) => {
   if (ctx.ticks % 3 !== 0 || safeRandom() <= 0.4) return;
 
-  const podLabel = dep.data?.label || dep.id;
+  const podLabel = (dep.data as K8sNodeData)?.label || dep.id;
   const { type, message } = getLogMessageForLevel(logLevel, podLabel);
   emitSimulationLog(ctx, type, message, 'App', '[ConfigMap Simulation] Failed to add log');
 };

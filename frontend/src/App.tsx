@@ -149,9 +149,9 @@ export default function App() {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
   const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
-  const isMonitoringDashboardOpen = useFlowStore((state) => state.isMonitoringDashboardOpen);
+  const isMonitoringDashboardOpen = useFlowStore((state) => state.isMonitoringOpen);
   const isLogModalOpen = useFlowStore((state) => state.isLogModalOpen);
-  const isKubeIamWizardOpen = useFlowStore((state) => state.isKubeIamWizardOpen);
+  const isKubeIamWizardOpen = useFlowStore((state) => state.isKubeIamModalOpen);
   const isWorkerBudgetModalOpen = useFlowStore((state) => state.isWorkerBudgetModalOpen);
   const isTerminalCommandTreeModalOpen = useFlowStore((state) => state.isTerminalCommandTreeModalOpen);
   const isResourceManagerOpen = useFlowStore((state) => state.isResourceManagerOpen);
@@ -291,11 +291,7 @@ export default function App() {
 
       <div className="flex flex-1 overflow-hidden">
         {isSidebarVisible && (
-          <Sidebar
-            onAddNode={addNode}
-            isProjectOpen={isProjectOpen}
-            setIsProjectOpen={setIsProjectOpen}
-          />
+          <Sidebar onAddNode={addNode} />
         )}
 
         <main id="canvas-main" className="flex-1 relative">

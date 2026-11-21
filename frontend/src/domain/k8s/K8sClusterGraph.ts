@@ -85,7 +85,6 @@ export class K8sClusterGraph {
       node =>
         node.type === 'Deployment' ||
         node.type === 'StatefulSet' ||
-        node.type === 'ReplicaSet' ||
         (node.type === 'Pod' && !node.parentId)
     );
   }

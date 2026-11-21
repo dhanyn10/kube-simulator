@@ -76,7 +76,7 @@ export const countConnectedPvcReplicas = (
 
 export const handlePvcMultiAttachError = (
   pvc: Node,
-  totalReplicas: number,
+  _totalReplicas: number,
   connectedEdges: Edge[],
   allPodsToUpdate: Node[],
   ctx: SimulationContext,
@@ -129,10 +129,11 @@ export const resolvePvcMultiAttachError = (
       hasChanges = true;
     }
     for (const edge of connectedEdges) {
+      const validationError = (edge.data as { validationError?: string } | undefined)?.validationError;
       if (
-        edge.data?.validationError?.includes('Multi-Attach Error') ||
-        edge.data?.validationError?.includes('Cross-Namespace Binding Error') ||
-        edge.data?.validationError?.includes('Volume Claim Template Conflict')
+        validationError?.includes('Multi-Attach Error') ||
+        validationError?.includes('Cross-Namespace Binding Error') ||
+        validationError?.includes('Volume Claim Template Conflict')
       ) {
         edge.data = { ...edge.data, validationError: undefined };
         hasChanges = true;

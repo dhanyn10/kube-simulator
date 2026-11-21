@@ -113,7 +113,7 @@ export interface UiSlice {
   systemResources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number } | null;
   visibleWidgets: string[];
   customImages: string[];
-  canvasBgVariant: 'dots' | 'lines';
+  canvasBgVariant: 'dots' | 'lines' | 'cross';
   canvasBgColor: string;
   canvasBgOpacity: number;
 
@@ -183,7 +183,7 @@ export interface UiSlice {
   toggleWidget: (widgetId: string) => void;
   addCustomImage: (image: string) => void;
   deleteCustomImage: (image: string) => void;
-  setCanvasBgVariant: (variant: 'dots' | 'lines') => void;
+  setCanvasBgVariant: (variant: 'dots' | 'lines' | 'cross') => void;
   setCanvasBgColor: (color: string) => void;
   setCanvasBgOpacity: (opacity: number) => void;
   saveSettingsJson: () => void;

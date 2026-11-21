@@ -168,7 +168,7 @@ export interface K8sNodeData {
   storageCapacity?: string;
   accessMode?: 'ReadWriteOnce' | 'ReadOnlyMany' | 'ReadWriteMany';
   storageClass?: string;
-  pvcStatus?: 'Pending' | 'Bound';
+  pvcStatus?: 'Pending' | 'Bound' | 'Multi-Attach Error';
 
   // ConfigMap & Secret specific fields
   configData?: Array<{ key: string; value: string }>;

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Lock } from 'lucide-react';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';

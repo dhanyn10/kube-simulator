@@ -4,7 +4,7 @@ export interface ResourceSettingItem {
   type?: string;
   field: string;
   label?: string;
-  options?: readonly string[];
+  options?: readonly { label: string; value: string }[];
   iconColor?: string;
   activeColor?: string;
   shadow?: string;

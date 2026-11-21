@@ -1,5 +1,6 @@
 import type { FlowState } from '@/store/types';
 import { Node } from '@xyflow/react';
+import { K8sNodeData } from '@/types';
 import { safeRandom } from '@/lib/utils';
 import { pickKubeProxyRoute, resolveServiceEndpointPods } from '@/lib/workerNodeHelpers';
 
@@ -251,7 +252,7 @@ export const createLogLineForResource = (
   }
 
   const timestamp = new Date().toISOString();
-  const name = node.data.label || node.id;
+  const name = (node.data as K8sNodeData).label || node.id;
 
   const allowWarningLogs = options?.allowWarningLogs ?? (options?.allowAccessLogs ?? true);
   if (allowWarningLogs) {

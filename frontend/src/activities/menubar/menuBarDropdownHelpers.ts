@@ -1,9 +1,9 @@
 import { cn } from '@/lib/utils';
 
 export interface MenuItem {
-  label: string;
+  label?: string;
   icon?: any;
-  onClick: () => void;
+  onClick?: () => void;
   shortcut?: string;
   type?: 'separator';
   checked?: boolean;

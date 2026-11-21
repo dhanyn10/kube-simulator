@@ -1,6 +1,7 @@
 import React from 'react';
 import { Node } from '@xyflow/react';
 import { cleanProjectName, sanitizeSlug } from '@/lib/utils';
+import { K8sNodeData } from '@/types';
 
 /**
  * Represents a single command entry in the execution history log.
@@ -27,7 +28,7 @@ export const findNodeByTargetName = (
   nodes: Node[],
   targetName: string,
   filterType?: string | string[]
-): Node | undefined => {
+): Node<K8sNodeData> | undefined => {
   const normalized = targetName.toLowerCase();
   let types: string[] | null = null;
   if (filterType) {
@@ -41,7 +42,7 @@ export const findNodeByTargetName = (
     if (n.id.toLowerCase() === normalized || label === normalized) return true;
     if (n.type === 'Pod' && podHash && normalized.includes(`-${podHash}-`)) return true;
     return false;
-  });
+  }) as Node<K8sNodeData> | undefined;
 };
 
 /**

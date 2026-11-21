@@ -9,6 +9,7 @@ export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResou
   Ingress: ['Service'],
   Service: ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress'],
   Deployment: ['Service', 'PVC', 'ConfigMap', 'Secret'],
+  ResourceLimit: [],
   StatefulSet: ['Service', 'PVC', 'ConfigMap', 'Secret'],
   Pod: ['Service', 'PVC', 'ConfigMap', 'Secret'],
   ReplicaSet: ['Service', 'PVC', 'ConfigMap', 'Secret'],
@@ -18,6 +19,8 @@ export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResou
   Secret: [],
   Namespace: [],
   Role: [],
+  IAM: [],
+  Worker: [],
 };
 
 /**

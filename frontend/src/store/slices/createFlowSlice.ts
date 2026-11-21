@@ -450,7 +450,7 @@ const syncNodeDimensionsOnChange = (allowedChanges: NodeChange[], nextNodes: Nod
   if (dimensionChanges.length === 0) return nextNodes;
 
   return nextNodes.map((n) => {
-    const dimChange = dimensionChanges.find((c) => c.id === n.id && (c as any).dimensions) as any;
+    const dimChange = dimensionChanges.find((c) => (c as any).id === n.id && (c as any).dimensions) as any;
     if (
       dimChange?.dimensions &&
       !n.data?.isManuallyResized &&

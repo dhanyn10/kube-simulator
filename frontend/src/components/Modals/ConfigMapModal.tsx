@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Modal } from './Modal';
 import { ConfigMapListView } from './ConfigMapListView';
 import { ConfigMapPrecedenceView } from './ConfigMapPrecedenceView';
-import { K8sConfigMapItem } from '@/types';
+import { K8sConfigMapItem, K8sNodeData } from '@/types';
 import { cn } from '@/lib/utils';
 import {
   useConfigMapModal,
@@ -18,7 +18,7 @@ import {
 } from '@/activities/modals';
 import { centerDropdownItem } from '@/lib/autocompleteUtils';
 import { useFlowStore } from '@/store';
-import { getActiveProfileName } from '@/store/useFlowStore';
+import { getActiveProfileName, getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
 import {
   OverviewItem,
   extractAllOverviewItems,
@@ -352,7 +352,7 @@ interface ConfigMapAutocompletePortalProps {
   readonly activeRowId: string | null;
   readonly isDark: boolean;
   readonly filteredKeys: Array<{ key: string; description?: string }>;
-  readonly filteredValues: Array<{ value: string; description?: string }>;
+  readonly filteredValues: readonly { value: string; description?: string }[];
   readonly portalContainerRef: React.RefObject<HTMLDivElement | null>;
   readonly setPortalSelectedIndex: (index: number) => void;
   readonly onSelectKey: (key: string) => void;
@@ -594,7 +594,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     });
 
     targetNodes.forEach((node) => {
-      const currentList: K8sConfigMapItem[] = node.data?.configMaps || [];
+      const currentList: K8sConfigMapItem[] = (node.data as K8sNodeData)?.configMaps || [];
       const updatedList = currentList.filter(
         (c) => !(targetCmId && c.id === targetCmId) && !(cmName && c.name === cmName) && !(oldCmName && c.name === oldCmName)
       );
@@ -650,7 +650,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     };
 
     targetNodes.forEach((node) => {
-      const currentCMs: K8sConfigMapItem[] = node.data?.configMaps || [];
+      const currentCMs: K8sConfigMapItem[] = (node.data as K8sNodeData)?.configMaps || [];
       const exists = currentCMs.some((c) => (targetId && c.id === targetId) || (cmName && c.name === cmName));
       const updatedCMs = exists
         ? currentCMs.map((c) => ((targetId && c.id === targetId) || (cmName && c.name === cmName) ? updatedCm : c))

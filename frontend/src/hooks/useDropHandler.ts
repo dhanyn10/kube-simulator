@@ -8,6 +8,7 @@ import { hasResourceLimitAttachedOrConnected } from '@/activities/nodes/resource
 const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
   Pod: { x: POD_MIN_DIMENSIONS.width / 2, y: POD_MIN_DIMENSIONS.height / 2 },
   Deployment: { x: 160, y: 80 },
+  StatefulSet: { x: 160, y: 80 },
   Service: { x: 90, y: 60 },
   Namespace: { x: 300, y: 200 },
   Internet: { x: 90, y: 60 },
@@ -19,6 +20,7 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
   Secret: { x: 80, y: 50 },
   Role: { x: 80, y: 50 },
   IAM: { x: 80, y: 50 },
+  Worker: { x: 90, y: 60 },
 };
 
 const isChildTypeAllowed = (nodeType: string | undefined, childType: K8sResourceType): boolean => {

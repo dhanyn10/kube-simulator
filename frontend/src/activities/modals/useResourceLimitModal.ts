@@ -8,7 +8,7 @@ import { parseCPU, parseMemory, generateRandomHash } from '@/lib/utils';
  */
 export const useResourceLimitModal = (
   isOpen: boolean,
-  targetNodeId: string | null,
+  _targetNodeId: string | null,
   initialResourceLimit: K8sResourceLimitItem | null | undefined,
   onSave: (resItem: K8sResourceLimitItem) => void,
   onClose: () => void

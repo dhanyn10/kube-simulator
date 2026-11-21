@@ -146,6 +146,7 @@ export const useTerminalCommandSubmit = (
       nodes,
       isSimulating,
       addActivityLog,
+      deleteNodes: (nodesToDelete) => useFlowStore.getState().deleteNodes(nodesToDelete),
       getStoreState: () => useFlowStore.getState(),
       setStoreState: (partial) => useFlowStore.setState(partial),
       updateNodeData: (id, data) => useFlowStore.getState().updateNodeData(id, data),

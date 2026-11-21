@@ -1,5 +1,6 @@
 import { useFlowStore } from '@/store';
-import { CommandContext, executeKubectlCommand } from '@/activities/terminal/useTerminalCommandSubmit';
+import { executeKubectlCommand } from '@/activities/terminal/useTerminalCommandSubmit';
+import { CommandContext } from '@/activities/terminal/terminalCommands';
 import { getBackendGateway } from '@/gateway';
 
 // Flag to prevent recursive dispatch loops when terminal commands themselves modify store
@@ -42,6 +43,8 @@ export const dispatchLiveCommand = (
 
     // 3. Build CommandContext and execute
     const ctx: CommandContext = {
+      cmd,
+      cmdLower: cmd.toLowerCase(),
       nodes: store.nodes,
       isSimulating: store.isSimulating,
       addActivityLog: store.addActivityLog,
@@ -204,7 +207,7 @@ export const emitLiveEdgeCreatedCommand = (
  * Emits live command when an edge connection is deleted.
  */
 export const emitLiveEdgeDeletedCommand = (
-  sourceLabel: string,
+  _sourceLabel: string,
   targetLabel: string
 ): void => {
   dispatchLiveCommand(`kubectl delete service ${targetLabel}-svc`);

@@ -105,7 +105,7 @@ export const useSimulationControls = (props: UseSimulationControlsProps) => {
   };
 
   const hasActiveProfile = useMemo(() => {
-    return nodes.some((n: { type: string; data?: { connectionProfile?: unknown } }) => (
+    return nodes.some((n) => (
       n.type === 'Internet' && Boolean(n.data?.connectionProfile)
     ));
   }, [nodes]);

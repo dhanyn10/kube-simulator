@@ -7,7 +7,6 @@ export interface CommandTreeNode {
 }
 
 type LeafSpec = [string, string, string, string?];
-type ParentSpec = [string, string, string, (LeafSpec | [string, string, string, undefined, LeafSpec[]])[]];
 
 export const makeLeaf = ([id, name, description, command]: LeafSpec): CommandTreeNode => ({
   id,

@@ -375,7 +375,7 @@ const WorkloadSetupTab: React.FC<WorkloadSetupTabProps> = ({
         <SelectorGroup
           options={WORKLOAD_TYPES}
           currentValue={data.workloadType || (controller.type === 'StatefulSet' ? 'StatefulSet' : 'Deployment')}
-          onSelect={(val) => updateNodeData(controller.id, { workloadType: val })}
+          onSelect={(val) => updateNodeData(controller.id, { workloadType: val as 'Deployment' | 'StatefulSet' | 'ReplicaSet' })}
           colorMode={colorMode}
         />
       </ConfigSection>

@@ -1,5 +1,5 @@
 import { Node, Edge } from '@xyflow/react';
-import { K8sResourceType } from '@/types';
+import { K8sNodeData, K8sResourceType } from '@/types';
 import { ClusterResourceNode, ClusterConnection } from './types';
 import { K8sClusterGraph } from './K8sClusterGraph';
 
@@ -10,7 +10,7 @@ import { K8sClusterGraph } from './K8sClusterGraph';
 export const toClusterNode = (node: Node): ClusterResourceNode => ({
   id: node.id,
   type: (node.type || 'Pod') as K8sResourceType,
-  data: { ...node.data },
+  data: { ...node.data } as K8sNodeData,
   parentId: node.parentId,
 });
 

@@ -336,7 +336,7 @@ const buildAttachedContainerYogaNode = (
 const buildPodYogaSubTree = (
   yoga: YogaEngine,
   pod: Node,
-  idx: number,
+  _idx: number,
   isLastPod: boolean,
   deployment?: Node
 ) => {

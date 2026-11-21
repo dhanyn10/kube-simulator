@@ -1,5 +1,6 @@
 import { Node, Edge } from '@xyflow/react';
 import { SimulationContext } from './simulationTypes';
+import { K8sNodeData } from '@/types';
 import { getAssignedWorker } from './workerNodeHelpers';
 import { resolveNodeNamespace } from './namespaceUtils';
 
@@ -22,7 +23,7 @@ export const isServiceSelectorMatching = (
     return false;
   }
   const targetLabel = workloadNode.data?.label || workloadNode.data?.baseName;
-  const matchLabels = workloadNode.data?.labels?.app;
+  const matchLabels = (workloadNode.data as K8sNodeData)?.labels?.app;
   return targetLabel === selector || matchLabels === selector;
 };
 
@@ -80,7 +81,7 @@ export const hasValidIngressBackend = (ingressNode: Node, nodes: Node[], edgeMap
   }
   const backendName = ingressNode.data?.backendServiceName || ingressNode.data?.serviceName;
   if (backendName) {
-    return nodes.some(candidateNode => matchesIngressRule(candidateNode, backendName, ingressNamespace, nodes));
+    return nodes.some(candidateNode => matchesIngressRule(candidateNode, String(backendName), ingressNamespace, nodes));
   }
   return false;
 };
@@ -133,7 +134,7 @@ const isLocalPolicyBlocked = (
   if (serviceType !== 'NodePort' && serviceType !== 'LoadBalancer') return false;
   if (currentNode.data?.externalTrafficPolicy !== 'Local') return false;
 
-  const entryNode = currentNode.data?.entryNode || 'worker-1';
+  const entryNode = (currentNode.data as K8sNodeData)?.entryNode || 'worker-1';
   return !isTargetOnEntryNode(target, nodes, entryNode);
 };
 

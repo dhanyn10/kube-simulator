@@ -459,7 +459,6 @@ export const ResourcePrecedenceView: React.FC<ResourcePrecedenceViewProps> = ({
   isDark,
   onEditItem,
   onDeleteItem,
-  onAddNewItem,
   accentColor,
 }) => {
   const isSecret = resourceType === 'Secret';

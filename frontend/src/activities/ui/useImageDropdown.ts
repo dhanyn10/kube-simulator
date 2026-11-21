@@ -7,7 +7,7 @@ export interface UseImageDropdownProps {
   onChange: (value: string) => void;
 }
 
-export const useImageDropdown = ({ value, onChange }: UseImageDropdownProps) => {
+export const useImageDropdown = ({ onChange }: UseImageDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);

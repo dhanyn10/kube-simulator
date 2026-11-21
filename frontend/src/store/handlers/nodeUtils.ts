@@ -156,9 +156,9 @@ const handleRenamePod = (node: Node, rawClean: string, get: () => FlowState) => 
     get().addLog?.('warn', `[Validation] Cannot rename: Pod '${cleanBase}' already exists in this namespace.`, 'UI');
     return;
   }
-  const podHash = node.data?.podHash;
-  const replicaSuffix = node.data?.replicaSuffix;
-  const replicas = node.data?.replicas || 1;
+  const podHash = (node.data as K8sNodeData)?.podHash;
+  const replicaSuffix = (node.data as K8sNodeData)?.replicaSuffix;
+  const replicas = (node.data as K8sNodeData)?.replicas || 1;
   const newLabel = formatPodName(cleanBase, podHash, replicaSuffix, replicas);
   get().updateNodeData(node.id, {
     baseName: cleanBase,

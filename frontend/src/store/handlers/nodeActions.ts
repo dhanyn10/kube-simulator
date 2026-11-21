@@ -129,7 +129,7 @@ const handlePodParentSync = (_target: Node, updatedNode: Node, newData: Partial<
   let updatedParent = parent;
   if (newData.label !== undefined || newData.baseName !== undefined) {
     const isStateful = parent.type === 'StatefulSet' || parent.data?.workloadType === 'StatefulSet';
-    const cleanBase = resolveCleanParentNameFromPod(parent.type || '', isStateful, updatedNode, newData) || parent.data?.label || 'workload';
+    const cleanBase = resolveCleanParentNameFromPod(parent.type || '', isStateful, updatedNode, newData) || (parent.data as K8sNodeData)?.label || 'workload';
     const uniqueParentName = ensureUniqueResourceName(cleanBase, parent.type || 'StatefulSet', parent.parentId, nodes, parent.id);
     updatedParent = {
       ...parent,
@@ -634,7 +634,7 @@ const getInitialCardSize = (type: K8sResourceType, initialData: K8sNodeData): { 
   if (type === 'Namespace') {
     return { width: 600, height: 400 };
   }
-  if (type === 'Deployment' || type === 'StatefulSet' || type === 'ReplicaSet') {
+  if (type === 'Deployment' || type === 'StatefulSet') {
     return { width: 320, height: 160 };
   }
   return calculateCardLayoutWithYoga({ type, data: initialData });
@@ -776,7 +776,7 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   const finalPos = position || getCanvasCenterPosition(cardSize);
   const topZIndex = position ? undefined : getNextTopZIndex(currentNodes);
 
-  const isContainer = type === 'Namespace' || type === 'Deployment' || type === 'StatefulSet' || type === 'ReplicaSet';
+  const isContainer = type === 'Namespace' || type === 'Deployment' || type === 'StatefulSet';
 
   const newNode: Node = {
     id, type, position: finalPos, parentId: targetParentId,

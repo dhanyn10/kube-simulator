@@ -1,4 +1,3 @@
-import React from 'react';
 import { Sliders, Eye, Grid, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
