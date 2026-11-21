@@ -100,7 +100,7 @@ export const fetchAboutData = async (
     const update = await fetchUpdateInfo(rawApp, gateway, effectiveVersion);
     setUpdateInfo(update);
   } catch (err) {
-    logger.error('Failed to check for updates:', err);
+    logger.warn('Update check skipped:', err);
     setUpdateInfo(null);
   }
 };

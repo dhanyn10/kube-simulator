@@ -164,6 +164,7 @@ describe('NodeUI', () => {
 
       const errorBadge = screen.getByTestId('canvas-duplicate-name-error');
       expect(errorBadge).toBeDefined();
+      expect(errorBadge.className).toContain('node-name-error-tooltip');
       expect(screen.getByText('Name already exists')).toBeDefined();
 
       const input = screen.getByRole('textbox');

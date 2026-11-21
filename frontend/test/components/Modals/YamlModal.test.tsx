@@ -29,6 +29,11 @@ describe('YamlModal', () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
+  it('labels the icon-only close button for assistive technology', () => {
+    render(<YamlModal content={content} colorMode="dark" onClose={mockOnClose} />);
+    expect(screen.getByRole('button', { name: 'Close YAML' })).toBeDefined();
+  });
+
   it('copies content to clipboard', async () => {
     render(<YamlModal content={content} colorMode="dark" onClose={mockOnClose} />);
     const copyBtn = screen.getByText('Copy');

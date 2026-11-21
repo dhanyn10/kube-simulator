@@ -18,7 +18,6 @@ export interface ResourcePrecedenceViewProps {
   readonly isDark: boolean;
   readonly onEditItem: (item: OverviewItem) => void;
   readonly onDeleteItem: (item: OverviewItem) => void;
-  readonly onAddNewItem?: () => void;
   readonly accentColor?: 'teal' | 'rose';
 }
 
@@ -459,7 +458,6 @@ export const ResourcePrecedenceView: React.FC<ResourcePrecedenceViewProps> = ({
   isDark,
   onEditItem,
   onDeleteItem,
-  onAddNewItem,
   accentColor,
 }) => {
   const isSecret = resourceType === 'Secret';

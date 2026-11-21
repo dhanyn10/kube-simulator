@@ -7,10 +7,10 @@ import { useContextMenuPosition } from '@/lib/contextMenuUtils';
 import {
   formatDateModified,
   getHeaderProfileName,
+  RecentFileItem as RecentProjectItem,
 } from '@/activities/layout/fileBackstageHelpers';
 import { renderRecentProjectsBody } from '@/components/Layout/RecentProjectsRow';
 import { detectScenarioResources, ResourceBadgeList, DetectedResource } from '@/scenarios';
-import { RecentProjectItem } from '@/activities/layout';
 
 export interface SaveModalProps {
   readonly isOpen: boolean;
@@ -19,7 +19,7 @@ export interface SaveModalProps {
 }
 
 interface SaveModalHeaderProps {
-  readonly currentProject: RecentProjectItem | null;
+  readonly currentProject: { id: number; name: string } | null;
   readonly newProjectName: string;
   readonly activeLocation: string;
   readonly currentCanvasResources: DetectedResource[];

@@ -3,7 +3,7 @@ import { Search, Edit2, Trash2 } from 'lucide-react';
 import { Modal } from './Modal';
 import { useFlowStore } from '@/store';
 import { cn, getPodQoSClass } from '@/lib/utils';
-import { K8sResourceType } from '@/types';
+import { K8sConfigMapItem, K8sNodeData, K8sResourceType, K8sSecretItem } from '@/types';
 import {
   OverviewItem,
   extractAllOverviewItems,
@@ -185,7 +185,10 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
     if (type === 'ResourceLimit') return savedResourceLimits;
     return [];
   }, [type, savedSecrets, savedConfigMaps, savedHpas, savedResourceLimits]);
-  const allItems = useMemo(() => (type ? extractAllOverviewItems(nodes, type, savedResources) : []), [nodes, type, savedResources]);
+  const allItems = useMemo(
+    () => (type ? extractAllOverviewItems(nodes, type, savedResources as (K8sConfigMapItem | K8sSecretItem)[]) : []),
+    [nodes, type, savedResources]
+  );
   const filteredItems = useMemo(
     () => (type ? filterOverviewItems(allItems, search, type) : []),
     [allItems, search, type]
@@ -214,7 +217,7 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
     if (item.ownerNode.id !== 'cluster-storage') {
       const owner = nodes.find((n) => n.id === item.ownerNode.id);
       if (owner) {
-        const currentList: any[] = owner.data?.[meta.resourceKey] || [];
+        const currentList: any[] = (owner.data as K8sNodeData)?.[meta.resourceKey] || [];
         const updatedList = currentList.filter((x) => x.id !== item.rawItem.id);
         updateNodeData(item.ownerNode.id, { [meta.resourceKey]: updatedList });
         addLog(

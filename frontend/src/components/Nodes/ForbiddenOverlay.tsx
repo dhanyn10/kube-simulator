@@ -1,4 +1,3 @@
-import React from 'react';
 import { Lock } from 'lucide-react';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
@@ -23,7 +22,7 @@ export const ForbiddenOverlay = ({ nodeType, data }: { readonly nodeType?: strin
     <section
       aria-label={`Access Restricted for user ${activeIdentity}`}
       data-testid="forbidden-overlay"
-      className="absolute inset-0 z-50 flex items-start justify-end p-1.5 rounded-lg bg-slate-950/20 backdrop-grayscale backdrop-contrast-50 border border-slate-500/30 cursor-not-allowed transition-all duration-200 select-none pointer-events-none outline-none"
+      className="node-forbidden-overlay"
       title={`Restricted Access for user "${activeIdentity}"`}
     >
       <div className={cn(

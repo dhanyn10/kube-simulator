@@ -38,7 +38,9 @@ describe('AttachedResourcesFooter', () => {
 
     expect(screen.getByTitle('Role: admin-role (Users: user1, user2)')).toBeInTheDocument();
     expect(screen.getByTitle('ConfigMaps (2): my-cm, cm-no-id')).toBeInTheDocument();
-    expect(screen.getByTestId('configmap-count-badge')).toHaveTextContent('2');
+    const countBadge = screen.getByTestId('configmap-count-badge');
+    expect(countBadge).toHaveTextContent('2');
+    expect(countBadge.className).toContain('node-attached-count-badge');
     expect(screen.getByTitle('Secret: my-secret')).toBeInTheDocument();
     expect(
       screen.getByTitle('Resource Limit: my-limit [QoS: Burstable] (CPU: 250m / 500m | Mem: 128Mi / 256Mi)')

@@ -243,7 +243,7 @@ export function useRoleModal({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target as Node)) {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target as globalThis.Node)) {
         setIsUserDropdownOpen(false);
       }
     };

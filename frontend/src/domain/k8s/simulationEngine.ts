@@ -6,6 +6,7 @@ import {
   SimulationLogEntry,
 } from './types';
 import { K8sClusterGraph } from './K8sClusterGraph';
+import { K8sNodeData } from '@/types';
 import {
   SimulationContext,
   processWorkloadSimulation,
@@ -151,7 +152,7 @@ export const runDomainSimulationStep = (
     const clusterNode: ClusterResourceNode = {
       id: n.id,
       type: n.type as any,
-      data: { ...n.data },
+      data: { ...n.data } as K8sNodeData,
       parentId: n.parentId,
     };
     graph.updateNodeData(n.id, n.data);

@@ -2,8 +2,13 @@ import { Node } from '@xyflow/react';
 import { syncDeployment } from '@/store/nodeHelpers';
 import { extractAttachedResources, findNodeByTargetName, getPodDisplayStatus, printNodeEnvironment, printContainerEnv } from './terminalLogUtils';
 import { APP_VERSION, getNextMinorVersion } from '@/constants/config';
+import { K8sNodeData } from '@/types';
+
+const getNodeData = (node: Node): K8sNodeData => (node.data ?? {}) as K8sNodeData;
 
 export interface CommandContext {
+  cmd: string;
+  cmdLower: string;
   nodes: Node[];
   isSimulating: boolean;
   updateNodeData: (id: string, data: any) => void;
@@ -117,7 +122,7 @@ export const handleDescribeSecretCommand = (
     if (Array.isArray(n.data?.secrets)) {
       n.data.secrets.forEach((s: any) => {
         if (s.name.toLowerCase() === targetName || s.id?.toLowerCase() === targetName) {
-          foundSecret = { name: s.name, type: s.type || 'Opaque', owner: n.data?.label || n.id, secretData: s.secretData || [] };
+          foundSecret = { name: s.name, type: s.type || 'Opaque', owner: getNodeData(n).label || n.id, secretData: s.secretData || [] };
         }
       });
     }
@@ -196,7 +201,7 @@ export const handleDescribeConfigMapCommand = (
     if (Array.isArray(n.data?.configMaps)) {
       n.data.configMaps.forEach((cm: any) => {
         if (cm.name.toLowerCase() === targetName || cm.id?.toLowerCase() === targetName) {
-          foundCM = { name: cm.name, owner: n.data?.label || n.id, configData: cm.configData || [] };
+          foundCM = { name: cm.name, owner: getNodeData(n).label || n.id, configData: cm.configData || [] };
         }
       });
     }
@@ -569,7 +574,7 @@ export const handleGetAllCommand = (
   const pods = ctx.nodes.filter(n => n.type === 'Pod');
   pods.forEach(p => {
     const name = p.data.label || p.id;
-    const { ready, displayStatus } = getPodDisplayStatus(p.data.status, ctx.isSimulating);
+    const { ready, displayStatus } = getPodDisplayStatus(getNodeData(p).status, ctx.isSimulating);
     ctx.addActivityLog(`pod/${String(name).padEnd(34)} ${ready.padEnd(7)} ${displayStatus.padEnd(19)} 0          1m`);
   });
 
@@ -599,7 +604,7 @@ export const handleGetAllCommand = (
     ctx.addActivityLog(`\n${"NAME".padEnd(38)} CLASS    HOSTS           ADDRESS   PORTS   AGE`);
     ingresses.forEach(i => {
       const name = i.data.label || i.id;
-      const host = i.data.ingressHost || 'example.local';
+      const host = getNodeData(i).ingressHost || 'example.local';
       ctx.addActivityLog(`ingress.networking.k8s.io/${String(name).padEnd(12)} nginx    ${host.padEnd(15)}           80      4m`);
     });
   }
@@ -611,7 +616,7 @@ export const handleGetAllCommand = (
       n.data.hpas.forEach((h: any) => {
         attachedHpas.push({
           name: h.name,
-          owner: n.data?.label || n.id,
+          owner: getNodeData(n).label || n.id,
           min: h.minReplicas || 1,
           max: h.maxReplicas || 10,
         });
@@ -769,7 +774,7 @@ export const handleDescribeRoleCommand = (
         const isRoleMatch = r.name.toLowerCase() === targetName || r.id?.toLowerCase() === targetName;
         const isBindingMatch = (r.name.toLowerCase() + '-binding') === targetName;
         if (isRoleMatch || isBindingMatch) {
-          foundRole = { name: r.name, owner: n.data?.label || n.id, rules: r.rules || [], assignedUsers: r.assignedUsers || [] };
+          foundRole = { name: r.name, owner: getNodeData(n).label || n.id, rules: r.rules || [], assignedUsers: r.assignedUsers || [] };
         }
       });
     }

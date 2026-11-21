@@ -543,6 +543,15 @@
 
   .text-mat-cyan { color: var(--color-mat-cyan); }
 
+  /* Node state presentation helpers */
+  .node-name-error-tooltip {
+    @apply absolute top-full left-0 mt-1 z-[100] px-1.5 py-0.5 rounded shadow-lg bg-rose-600 text-white text-[10px] font-sans font-medium whitespace-nowrap flex items-center gap-1 pointer-events-none;
+  }
+
+  .node-forbidden-overlay {
+    @apply absolute inset-0 z-50 flex items-start justify-end p-1.5 rounded-lg bg-slate-950/20 backdrop-grayscale backdrop-contrast-50 border border-slate-500/30 cursor-not-allowed transition-all duration-200 select-none pointer-events-none outline-none;
+  }
+
   /* Node Attached Resources Footer Component Styles */
   .node-attached-footer {
     @apply mt-2 pt-1.5 border-t border-slate-500/20 flex flex-wrap items-center justify-center gap-1.5 z-20 pointer-events-auto shrink-0 w-full;
@@ -570,6 +579,10 @@
 
   .node-attached-badge-hpa {
     @apply bg-fuchsia-600 hover:bg-fuchsia-500;
+  }
+
+  .node-attached-count-badge {
+    @apply absolute -top-1.5 -right-1.5 min-w-[13px] h-[13px] px-0.5 rounded-full bg-slate-900 text-teal-300 text-[8px] font-bold font-mono flex items-center justify-center shadow border border-teal-500/70 leading-none pointer-events-none;
   }
 
   /* ReplicaSet Node Component Styles */

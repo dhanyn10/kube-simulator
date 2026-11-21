@@ -118,7 +118,13 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
               Auto-Beautified
             </span>
           </div>
-          <button type="button" onClick={onClose} className={cn('p-1.5 rounded transition-colors', isDark ? 'hover:bg-slate-800 text-slate-500' : 'hover:bg-slate-200 text-slate-500')}>
+          <button
+            type="button"
+            onClick={onClose}
+            title="Close YAML"
+            aria-label="Close YAML"
+            className={cn('p-1.5 rounded transition-colors', isDark ? 'hover:bg-slate-800 text-slate-500' : 'hover:bg-slate-200 text-slate-500')}
+          >
             <X size={16} />
           </button>
         </div>

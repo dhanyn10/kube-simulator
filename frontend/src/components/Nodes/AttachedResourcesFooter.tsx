@@ -52,7 +52,7 @@ const ConfigMapBadge: React.FC<ConfigMapBadgeProps> = ({ configMaps, nodeId, nod
       <Settings size={11} />
       {isMultiple && (
         <span
-          className="absolute -top-1.5 -right-1.5 min-w-[13px] h-[13px] px-0.5 rounded-full bg-slate-900 text-teal-300 text-[8px] font-bold font-mono flex items-center justify-center shadow border border-teal-500/70 leading-none pointer-events-none"
+          className="node-attached-count-badge"
           data-testid="configmap-count-badge"
         >
           {count}

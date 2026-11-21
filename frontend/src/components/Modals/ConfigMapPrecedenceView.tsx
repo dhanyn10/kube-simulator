@@ -12,13 +12,12 @@ export interface ConfigMapPrecedenceViewProps {
 }
 
 export const ConfigMapPrecedenceView: React.FC<ConfigMapPrecedenceViewProps> = ({
-  onAddNewConfigMap,
+  onAddNewConfigMap: _onAddNewConfigMap,
   ...props
 }) => (
   <ResourcePrecedenceView
     {...props}
     resourceType="ConfigMap"
     accentColor="teal"
-    onAddNewItem={onAddNewConfigMap}
   />
 );

@@ -32,20 +32,28 @@ const UpdateStatus: React.FC<{
 
   if (!updateInfo) {
     return (
-      <div className={containerClass}>
-        <div className="flex items-center justify-between">
-          <p className="text-red-400">Failed to check for updates</p>
+      <output className={cn(containerClass, "block")} aria-live="polite">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <p className={cn(
+              "font-medium",
+              colorMode === 'dark' ? "text-amber-400" : "text-amber-600"
+            )}>
+              Update check skipped
+            </p>
+            <p className={textClass}>GitHub may be rate-limiting requests. Try again later.</p>
+          </div>
           {onRetry && (
             <button
               type="button"
               onClick={onRetry}
-              className="text-blue-400 hover:underline text-[12px] font-medium"
+              className="shrink-0 text-blue-400 hover:underline text-[12px] font-medium"
             >
               Retry
             </button>
           )}
         </div>
-      </div>
+      </output>
     );
   }
 
