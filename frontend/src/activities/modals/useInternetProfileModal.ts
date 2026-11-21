@@ -54,13 +54,16 @@ export const useInternetProfileModal = (
   isOpen: boolean,
   selectedNode: any,
   performUpdate: (updates: any) => void,
-  onClose: () => void
+  _onClose: () => void
 ) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const [profiles, setProfiles] = useState<InternetProfileItem[]>([ECOMMERCE_PROFILE]);
-  const [activeProfileName, setActiveProfileName] = useState<string>(
-    selectedNode?.data?.activeProfileName || ''
-  );
+
+  // The Internet node data is the single source of truth for the applied profile.
+  // selectedNode is derived from the store's nodes array, so it updates as soon as
+  // performUpdate writes to the node. No mirrored local state to drift out of sync.
+  const nodeData = selectedNode?.data || {};
+  const activeProfileName = String(nodeData.activeProfileName || '');
   const [viewMode, setViewMode] = useState<'grid' | 'details' | 'custom'>('grid');
   const [detailProfile, setDetailProfile] = useState<InternetProfileItem>(ECOMMERCE_PROFILE);
   const [isModifiedCustom, setIsModifiedCustom] = useState<boolean>(false);
@@ -113,7 +116,6 @@ export const useInternetProfileModal = (
   useEffect(() => {
     if (isOpen) {
       void fetchProfiles();
-      setActiveProfileName(selectedNode?.data?.activeProfileName || '');
       if (!prevIsOpenRef.current) {
         setViewMode('grid');
         setIsModifiedCustom(false);
@@ -147,22 +149,29 @@ export const useInternetProfileModal = (
   const activeProfile = profiles.find((p) => p.name === activeProfileName) || null;
 
   const handleApplyProfile = (profileName: string, profileObj?: InternetProfileItem) => {
-    // If clicking on already active profile, toggle OFF (deselect)
+    const hadProfile = Boolean(nodeData.connectionProfile || activeProfileName);
+    const savedTraffic = hadProfile && typeof nodeData.preProfileTraffic === 'number'
+      ? nodeData.preProfileTraffic
+      : Math.max(1, Number(nodeData.traffic) || 1000);
+
+    // Clicking the active profile again deselects it and restores the exact slider
+    // value from before the profile was applied.
     if (activeProfileName === profileName && !profileObj) {
-      setActiveProfileName('');
       performUpdate({
         connectionProfile: undefined,
         activeProfileName: '',
-        traffic: selectedNode?.data?.traffic || 1000
+        preProfileTraffic: undefined,
+        traffic: savedTraffic
       });
       return;
     }
 
     const profileToApply = profileObj || profiles.find((p) => p.name === profileName) || ECOMMERCE_PROFILE;
-    setActiveProfileName(profileToApply.name);
     performUpdate({
       connectionProfile: profileToApply,
       activeProfileName: profileToApply.name,
+      // Switching profile to profile must not overwrite the original manual value.
+      preProfileTraffic: hadProfile ? nodeData.preProfileTraffic : savedTraffic,
       traffic: profileToApply.hourly['00:00'] || 1000
     });
   };
@@ -241,11 +250,11 @@ export const useInternetProfileModal = (
 
     if (isNodeActive) {
       initialDetailProfileNameRef.current = profileToSave.name;
-      setActiveProfileName(profileToSave.name);
+      // Editing a profile updates its definition only. It must not re-apply the
+      // profile or reset traffic, otherwise the running profile clock jumps back.
       performUpdate({
         connectionProfile: profileToSave,
-        activeProfileName: profileToSave.name,
-        traffic: profileToSave.hourly['00:00'] || 1000
+        activeProfileName: profileToSave.name
       });
     }
 
