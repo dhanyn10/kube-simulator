@@ -13,6 +13,7 @@ import {
   executeSidebarAddNode,
   handleSidebarDragStart,
   handleSidebarDragEnd,
+  useSidebarSync,
 } from '@/activities/layout';
 
 interface SidebarProps {
@@ -107,6 +108,16 @@ const SidebarSection = ({
   );
 };
 
+const DETACHED_MODAL_REQUESTS: Partial<Record<K8sResourceType, string>> = {
+  IAM: 'KUBE_IAM',
+  Worker: 'WORKER_BUDGET',
+  ConfigMap: 'CONFIG_MAP_LIST',
+  Secret: 'SECRET_LIST',
+  HPA: 'OVERVIEW_HPA',
+  ResourceLimit: 'OVERVIEW_RESOURCE_LIMIT',
+};
+
+export { DETACHED_MODAL_REQUESTS };
 export const Sidebar = ({ onAddNode, isDetached = false }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
@@ -116,6 +127,8 @@ export const Sidebar = ({ onAddNode, isDetached = false }: SidebarProps) => {
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
   const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
   const { contextMenu, handleContextMenu, closeContextMenu } = useSidebarContextMenu();
+
+  const { broadcastModalRequest } = useSidebarSync();
 
   const handleDetachSidebar = () => {
     setSidebarDetached(true);
@@ -166,6 +179,11 @@ export const Sidebar = ({ onAddNode, isDetached = false }: SidebarProps) => {
   const addLog = useFlowStore((state) => state.addLog);
 
   const handleAddNode = (type: K8sResourceType) => {
+    if (isDetached) {
+      const modalId = DETACHED_MODAL_REQUESTS[type];
+      if (modalId) broadcastModalRequest(modalId);
+      return;
+    }
     executeSidebarAddNode(type, onAddNode, {
       nodes,
       configuringNodeId,

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Sidebar } from '@/components/Layout/Sidebar';
+import { Sidebar, DETACHED_MODAL_REQUESTS } from '@/components/Layout/Sidebar';
 import { useSidebarSync } from '@/activities/layout';
+import { getBackendGateway } from '@/gateway';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 import { ArrowDownLeft, X } from 'lucide-react';
@@ -11,11 +12,18 @@ import { K8sResourceType } from '@/types';
  * It provides a window title bar with drag handle and "Attach back to Main Window" control.
  */
 export const DetachedLeftSidebar: React.FC = () => {
-  const { broadcastAddNode, broadcastAttachSidebar } = useSidebarSync();
+  const { broadcastAddNode, broadcastAttachSidebar, broadcastModalRequest } = useSidebarSync();
   const colorMode = useFlowStore((state) => state.colorMode);
   const isDark = colorMode === 'dark';
 
   const handleAddNode = (type: K8sResourceType) => {
+    if (type === 'Role') return;
+    const modalId = DETACHED_MODAL_REQUESTS[type];
+    if (modalId) {
+      broadcastModalRequest(modalId);
+      void getBackendGateway().emitEvent('sidebar-modal-request', modalId);
+      return;
+    }
     broadcastAddNode(type);
   };
 

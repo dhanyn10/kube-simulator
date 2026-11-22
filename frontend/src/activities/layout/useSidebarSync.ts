@@ -13,10 +13,12 @@ export interface SidebarSyncMessage {
     | 'ATTACH_SIDEBAR'
     | 'DETACH_SIDEBAR'
     | 'UPDATE_NODE_DATA'
-    | 'SELECT_NODE';
+    | 'SELECT_NODE'
+    | 'MODAL_REQUEST';
   side?: 'left' | 'right';
   nodeType?: K8sResourceType;
   nodeId?: string;
+  modalId?: string;
   data?: any;
   state?: {
     colorMode?: 'dark' | 'light';
@@ -68,6 +70,25 @@ const handleMainWindowMessage = (
     store.updateNodeData(msg.nodeId, msg.data);
   } else if (msg.type === 'ATTACH_SIDEBAR' && msg.side) {
     attachSidebarToMainWindow(msg.side, store, gw);
+  } else if (msg.type === 'MODAL_REQUEST' && msg.modalId) {
+    openModalRequest(msg.modalId);
+  }
+};
+
+const openModalRequest = (modalId: string) => {
+  const store = useFlowStore.getState();
+  if (modalId === 'KUBE_IAM') {
+    store.setKubeIamModalOpen(true);
+  } else if (modalId === 'WORKER_BUDGET') {
+    store.setWorkerBudgetModalOpen(true);
+  } else if (modalId === 'CONFIG_MAP_LIST') {
+    store.setConfigMapModalTargetNode({ id: 'cluster-storage', label: 'Cluster ConfigMaps', initialViewMode: 'list' });
+  } else if (modalId === 'SECRET_LIST') {
+    store.setSecretModalTargetNode({ id: 'cluster-storage', label: 'Cluster Secrets', initialViewMode: 'list' });
+  } else if (modalId === 'OVERVIEW_HPA') {
+    store.setActiveOverviewModal('HPA');
+  } else if (modalId === 'OVERVIEW_RESOURCE_LIMIT') {
+    store.setActiveOverviewModal('ResourceLimit');
   }
 };
 
@@ -149,15 +170,27 @@ export const useSidebarSync = () => {
       }
     });
 
+    // Wails event transport (fallback when BroadcastChannel doesn't cross windows)
+    const unsubModalReq = gw.onEvent('sidebar-modal-request', (modalId: string) => {
+      if (!isDetachedSidebar && modalId) {
+        openModalRequest(modalId);
+      }
+    });
+
     return () => {
       channel.close();
       unsubClose();
       unsubOpen();
+      unsubModalReq();
     };
   }, []);
 
   const broadcastAddNode = (nodeType: K8sResourceType) => {
     channelRef.current?.postMessage({ type: 'ADD_NODE', nodeType });
+  };
+
+  const broadcastModalRequest = (modalId: string) => {
+    channelRef.current?.postMessage({ type: 'MODAL_REQUEST', modalId });
   };
 
   const broadcastAttachSidebar = (side: 'left' | 'right') => {
@@ -171,6 +204,7 @@ export const useSidebarSync = () => {
   return {
     broadcastAddNode,
     broadcastAttachSidebar,
+    broadcastModalRequest,
     broadcastUpdateNodeData,
   };
 };
