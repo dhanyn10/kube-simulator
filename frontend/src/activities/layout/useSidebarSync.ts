@@ -72,7 +72,7 @@ const attachSidebarToMainWindow = (side: 'left' | 'right', store: StoreState, gw
     store.setRightSidebarDetached(false);
     store.setRightSidebarVisible(true);
   }
-  gw.closeSidebarWindow(side);
+  void gw.closeSidebarWindow(side).catch(() => {});
 };
 
 const handleMainWindowMessage = (

@@ -2299,6 +2299,9 @@ describe('nodeActions', () => {
     };
     useFlowStore.setState({ nodes: [labeledParent, stsPod] as any });
     updateNodeData('sts-pod', { label: '', baseName: '' });
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.some(n => n.id === 'labeled-parent')).toBe(true);
   });
 
   it('covers Ingress target services and edge syncing edge cases (lines 314, 318, 334, 340)', () => {
@@ -2460,6 +2463,10 @@ describe('nodeActions', () => {
     });
 
     updateNodeData('svc-targets', { selector: 'workload-base,naked-pod-id,cand-base,cand-naked-id,no-type-tgt,cand-no-type' });
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.some(n => n.id === 'svc-targets')).toBe(true);
+    expect(state.nodes.some(n => n.id === 'cand-base-id')).toBe(true);
   });
 
   it('covers reference invalidation, renaming, and connection edge cases (lines 512, 539, 542, 545, 548, 572, 583)', () => {

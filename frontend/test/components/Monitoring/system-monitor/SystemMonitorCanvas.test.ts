@@ -315,6 +315,10 @@ describe('SystemMonitor Task Manager Architecture', () => {
           if (origHeightDesc) Object.defineProperty(HTMLCanvasElement.prototype, 'height', origHeightDesc);
         }
 
+        expect(mockCtx.clearRect).toHaveBeenCalled();
+        expect(mockCtx.moveTo).toHaveBeenCalled();
+        expect(mockCtx.stroke).toHaveBeenCalled();
+
         unmount();
       } finally {
         (globalThis as any).devicePixelRatio = origDpr;
