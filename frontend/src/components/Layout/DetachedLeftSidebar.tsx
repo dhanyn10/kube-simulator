@@ -21,7 +21,7 @@ export const DetachedLeftSidebar: React.FC = () => {
     const modalId = DETACHED_MODAL_REQUESTS[type];
     if (modalId) {
       broadcastModalRequest(modalId);
-      void getBackendGateway().emitEvent('sidebar-modal-request', modalId);
+      getBackendGateway().emitEvent('sidebar-modal-request', modalId);
       return;
     }
     broadcastAddNode(type);
@@ -29,7 +29,7 @@ export const DetachedLeftSidebar: React.FC = () => {
 
   const handleAttachBack = () => {
     broadcastAttachSidebar('left');
-    void getBackendGateway().emitEvent('sidebar-attach-request', 'left');
+    getBackendGateway().emitEvent('sidebar-attach-request', 'left');
   };
 
   return (

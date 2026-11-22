@@ -203,5 +203,127 @@ describe('SystemMonitor Task Manager Architecture', () => {
       unmount();
       getContextSpy.mockRestore();
     });
+
+    it('covers uncovered conditions in SystemMonitorCanvasRenderer (lines 48, 149, 154, 162)', () => {
+      const mockCtx = {
+        clearRect: vi.fn(),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        closePath: vi.fn(),
+        stroke: vi.fn(),
+        fill: vi.fn(),
+        createLinearGradient: vi.fn().mockReturnValue({ addColorStop: vi.fn() }),
+        save: vi.fn(),
+        scale: vi.fn(),
+        restore: vi.fn(),
+      };
+      const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(mockCtx as any);
+
+      // 1. Line 149: canvas is null
+      const lockedRef = {
+        get current() { return null; },
+        set current(_v: any) {},
+      };
+      const internals = (React as any).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+      let currentH = internals?.H;
+      if (internals) {
+        Object.defineProperty(internals, 'H', {
+          configurable: true,
+          get() { return currentH; },
+          set(newH) {
+            if (newH && newH.useRef) {
+              const origHUseRef = newH.useRef;
+              newH.useRef = (init: any) => {
+                origHUseRef(init);
+                return lockedRef;
+              };
+            }
+            currentH = newH;
+          }
+        });
+      }
+      const { unmount: unmountNull } = render(
+        React.createElement(SystemMonitorCanvasRenderer, { series: [], maxVal: 100, capacity: 5 })
+      );
+      unmountNull();
+      if (internals) {
+        Object.defineProperty(internals, 'H', {
+          configurable: true,
+          writable: true,
+          value: currentH,
+        });
+      }
+
+      // Line 152: ctx is null
+      getContextSpy.mockReturnValueOnce(null as any);
+      const { unmount: unmountNoCtx } = render(
+        React.createElement(SystemMonitorCanvasRenderer, { series: [], maxVal: 100, capacity: 5 })
+      );
+      unmountNoCtx();
+
+      // 2. Line 48 (data.length > capacity), Line 154 (devicePixelRatio falsy), Line 162 (rerender with same size)
+      const origDpr = globalThis.devicePixelRatio;
+      try {
+        (globalThis as any).devicePixelRatio = 0; // line 154: falls back to 1
+
+        const seriesWithOverflow: CanvasSeriesItem[] = [
+          {
+            id: 'overflow-series',
+            color: '#3b82f6',
+            data: [10, 20, 30, 40, 50, 60], // length 6 > capacity 3 (line 48)
+            isArea: true,
+          },
+        ];
+
+        const { rerender, unmount, container } = render(
+          React.createElement(SystemMonitorCanvasRenderer, { series: seriesWithOverflow, maxVal: 100, capacity: 3 })
+        );
+
+        // Rerender with identical dimensions (line 162: canvas.width === targetWidth && canvas.height === targetHeight)
+        const origWidthDesc = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'width');
+        const origHeightDesc = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'height');
+
+        try {
+          // Force canvas.width === targetWidth (500) so branch 16 evaluates canvas.height
+          Object.defineProperty(HTMLCanvasElement.prototype, 'width', {
+            get() { return 500; },
+            set(_v) {},
+            configurable: true,
+          });
+          // Case A: canvas.height matches targetHeight (140)
+          Object.defineProperty(HTMLCanvasElement.prototype, 'height', {
+            get() { return 140; },
+            set(_v) {},
+            configurable: true,
+          });
+          rerender(
+            React.createElement(SystemMonitorCanvasRenderer, { series: [...seriesWithOverflow], maxVal: 100, capacity: 3 })
+          );
+
+          // Case B: canvas.height does NOT match targetHeight (140)
+          Object.defineProperty(HTMLCanvasElement.prototype, 'height', {
+            get() { return 999; },
+            set(_v) {},
+            configurable: true,
+          });
+          rerender(
+            React.createElement(SystemMonitorCanvasRenderer, { series: [{ ...seriesWithOverflow[0] }], maxVal: 100, capacity: 3 })
+          );
+        } finally {
+          if (origWidthDesc) Object.defineProperty(HTMLCanvasElement.prototype, 'width', origWidthDesc);
+          if (origHeightDesc) Object.defineProperty(HTMLCanvasElement.prototype, 'height', origHeightDesc);
+        }
+
+        expect(mockCtx.clearRect).toHaveBeenCalled();
+        expect(mockCtx.moveTo).toHaveBeenCalled();
+        expect(mockCtx.stroke).toHaveBeenCalled();
+
+        unmount();
+      } finally {
+        (globalThis as any).devicePixelRatio = origDpr;
+        getContextSpy.mockRestore();
+      }
+    });
   });
 });

@@ -348,5 +348,28 @@ describe("initWailsMocks", () => {
         (globalThis as any).window = origWindow;
       }
     });
+
+    it('covers isWailsDesktop and initWailsMocks when globalThis is undefined', () => {
+      const origGlobalThis = (global as any).globalThis;
+      let res1: boolean | undefined;
+      let res2: any;
+      try {
+        Object.defineProperty(global, 'globalThis', {
+          value: undefined,
+          configurable: true,
+          writable: true,
+        });
+        res1 = isWailsDesktop();
+        res2 = initWailsMocks();
+      } finally {
+        Object.defineProperty(global, 'globalThis', {
+          value: origGlobalThis,
+          configurable: true,
+          writable: true,
+        });
+      }
+      expect(res1).toBe(false);
+      expect(res2).toBeUndefined();
+    });
   });
 });

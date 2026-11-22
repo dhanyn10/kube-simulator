@@ -72,7 +72,7 @@ const attachSidebarToMainWindow = (side: 'left' | 'right', store: StoreState, gw
     store.setRightSidebarDetached(false);
     store.setRightSidebarVisible(true);
   }
-  void gw.closeSidebarWindow(side);
+  void gw.closeSidebarWindow(side).catch(() => {});
 };
 
 const handleMainWindowMessage = (
@@ -156,7 +156,7 @@ const createSettingsSyncSubscriber = (channel: BroadcastChannel, gw: BackendGate
     if (!state.isRightSidebarDetached) return;
     // Broadcast so the detached right window switches to the Settings tab.
     sendStateToWindow(channel, state);
-    void gw.emitEvent('sidebar-settings-selected', state.configuringNodeId, state.configuringEdgeId);
+    gw.emitEvent('sidebar-settings-selected', state.configuringNodeId, state.configuringEdgeId);
   };
 };
 
@@ -191,7 +191,7 @@ export const useSidebarSync = () => {
 
     const handleMessage = (event: MessageEvent<SidebarSyncMessage>) => {
       const msg = event.data;
-      if (!msg || !msg.type) return;
+      if (!msg?.type) return;
 
       const store = useFlowStore.getState();
       if (isDetachedSidebar) {

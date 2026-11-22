@@ -5,6 +5,8 @@ import {
   hasValidServiceSelectorTarget,
   calculateReachability,
   isInternetConnectionRed,
+  isWorkloadNodeUnready,
+  isInternetConnectionUnhealthy,
 } from '@/lib/simulationReachability';
 import { SimulationContext } from '@/lib/simulation';
 
@@ -677,5 +679,14 @@ describe('simulationReachability', () => {
     // Dynamic ingress reachability: Ingress in staging reaches Service in staging
     const ingressReachableSame = calculateReachability([ingressStaging], ingressEdgeMap, [], [nsStaging, nsProd, ingressStaging, svcStaging]);
     expect(ingressReachableSame.has('svc-staging')).toBe(true);
+  });
+
+  it('covers uncovered conditions when node or internet is undefined in isWorkloadNodeUnready and isInternetConnectionUnhealthy', () => {
+    // Line 277: if (!node) return true; in isWorkloadNodeUnready
+    expect(isWorkloadNodeUnready(undefined, [])).toBe(true);
+
+    // Line 368: if (!internet) return true; in isInternetConnectionUnhealthy
+    const dummyGraph = { edgeMap: new Map(), nodeMap: new Map(), childPodsMap: new Map(), nodes: [] };
+    expect(isInternetConnectionUnhealthy(undefined, dummyGraph)).toBe(true);
   });
 });

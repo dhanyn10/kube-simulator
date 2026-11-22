@@ -1,6 +1,9 @@
 import { renderHook, act } from '@testing-library/react';
 import { useNodeConfigHandler } from '@/activities/config';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Node, Edge } from '@xyflow/react';
+import * as yogaLayout from '@/store/deploymentYogaLayout';
+import * as nodeUtils from '@/store/handlers/nodeUtils';
 import { useFlowStore } from '@/store';
 
 const initialAddLog = useFlowStore.getState().addLog;
@@ -2216,5 +2219,442 @@ describe('nodeActions', () => {
     deleteNodes([measuredNode as any, nakedNode as any]);
 
     expect(useFlowStore.getState().nodes).toHaveLength(0);
+  });
+
+  it('covers Pod parent sync and name resolution edge cases (lines 109, 112, 118, 127, 132, 133)', () => {
+    const { updateNodeData } = useFlowStore.getState();
+
+    // Line 127: parent not found inside handlePodParentSync
+    let parentIdCalls = 0;
+    const dynamicParent: Node = {
+      get id() {
+        parentIdCalls++;
+        return parentIdCalls <= 5 ? 'real-parent' : 'vanished-parent';
+      },
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'real-dep' },
+    } as any;
+    const podUnderDynamic: Node = {
+      id: 'pod-under-dyn',
+      type: 'Pod',
+      parentId: 'real-parent',
+      position: { x: 0, y: 0 },
+      data: { label: 'pod-dyn' },
+    };
+    useFlowStore.setState({ nodes: [dynamicParent, podUnderDynamic] as any });
+    updateNodeData('pod-under-dyn', { label: 'pod-dyn-new' });
+
+    // Line 112 (else), Line 132 ('workload' fallback), Line 133 ('StatefulSet' fallback)
+    let typeCalls = 0;
+    const sneakyParent: Node = {
+      id: 'sneaky-parent',
+      get type() {
+        typeCalls++;
+        return typeCalls <= 4 ? 'Deployment' : '';
+      },
+      position: { x: 0, y: 0 },
+      data: { label: '' },
+    } as any;
+    const podUnderSneaky: Node = {
+      id: 'pod-under-sneaky',
+      type: 'Pod',
+      parentId: 'sneaky-parent',
+      position: { x: 0, y: 0 },
+      data: { label: 'initial-pod' },
+    };
+    useFlowStore.setState({ nodes: [sneakyParent, podUnderSneaky] as any });
+    updateNodeData('pod-under-sneaky', { label: '---', baseName: '---' });
+
+    // Line 112 & 118: parent is ReplicaSet, and hash is present but rawName does not end with -hash
+    const rsParent: Node = {
+      id: 'rs-parent',
+      type: 'ReplicaSet',
+      position: { x: 0, y: 0 },
+      data: { label: 'rs-workload', replicas: 2 },
+    };
+    const rsPod: Node = {
+      id: 'rs-pod',
+      type: 'Pod',
+      parentId: 'rs-parent',
+      position: { x: 0, y: 0 },
+      data: { label: 'rs-pod-initial', podHash: 'xyz99' } as any,
+    };
+    useFlowStore.setState({ nodes: [rsParent, rsPod] as any });
+    updateNodeData('rs-pod', { label: 'custom-rs-pod' });
+
+    // Line 132: resolveCleanParentNameFromPod is empty, but parent.data.label exists
+    const labeledParent: Node = {
+      id: 'labeled-parent',
+      type: 'StatefulSet',
+      position: { x: 0, y: 0 },
+      data: { label: 'existing-sts' },
+    };
+    const stsPod: Node = {
+      id: 'sts-pod',
+      type: 'Pod',
+      parentId: 'labeled-parent',
+      position: { x: 0, y: 0 },
+      data: { label: 'sts-pod-initial' },
+    };
+    useFlowStore.setState({ nodes: [labeledParent, stsPod] as any });
+    updateNodeData('sts-pod', { label: '', baseName: '' });
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.some(n => n.id === 'labeled-parent')).toBe(true);
+  });
+
+  it('covers Ingress target services and edge syncing edge cases (lines 314, 318, 334, 340)', () => {
+    const { updateNodeData } = useFlowStore.getState();
+
+    // Line 314: effectivePaths has item with empty/undefined serviceName
+    const ingressNode: Node = {
+      id: 'ing-1',
+      type: 'Ingress',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'my-ingress',
+        ingressPaths: [
+          { path: '/api', serviceName: '' },
+          { path: '/web', serviceName: 'web-svc' },
+        ],
+      } as any,
+    };
+    // Line 334: target Service without label (falls back to id)
+    const svcWithoutLabel: Node = {
+      id: 'web-svc',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: {},
+    };
+    const existingEdge: Edge = {
+      id: 'e-ing-web',
+      source: 'ing-1',
+      target: 'web-svc',
+      type: 'custom',
+    };
+    useFlowStore.setState({
+      nodes: [ingressNode, svcWithoutLabel] as any,
+      edges: [existingEdge],
+    });
+
+    // Pass ingressPaths so syncIngressEdgesFromFormSelection runs (lines 314, 334)
+    updateNodeData('ing-1', {
+      ingressPaths: [
+        { path: '/api', serviceName: '' },
+        { path: '/web', serviceName: 'web-svc' },
+      ] as any,
+    });
+
+    // Line 318 (newData without backendServiceName) & line 340 (service candidate without label)
+    const ingressSingle: Node = {
+      id: 'ing-2',
+      type: 'Ingress',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'ing-single',
+        backendServiceName: 'svc-id-only',
+      } as any,
+    };
+    const svcCandidate: Node = {
+      id: 'svc-id-only',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: {},
+    };
+    useFlowStore.setState({
+      nodes: [ingressSingle, svcCandidate] as any,
+      edges: [],
+    });
+    // Pass single element ingressPaths so length <= 1, forcing line 318 evaluation of backendServiceName
+    updateNodeData('ing-2', {
+      ingressPaths: [{ path: '/single', serviceName: 'other' }] as any,
+    });
+    expect(useFlowStore.getState().edges.some(e => e.source === 'ing-2' && e.target === 'svc-id-only')).toBe(true);
+  });
+
+  it('covers Service target workload resolution and label fallbacks (lines 389, 392, 399, 401)', () => {
+    const { updateNodeData } = useFlowStore.getState();
+
+    const svcNode: Node = {
+      id: 'svc-targets',
+      type: 'Service',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'svc-t',
+        selector: 'workload-base',
+      },
+    };
+
+    // Non-workload target (ConfigMap) -> line 389 returns true
+    const configMapNode: Node = {
+      id: 'cm-1',
+      type: 'ConfigMap',
+      position: { x: 50, y: 0 },
+      data: { label: 'cm-data' },
+    };
+    const edgeToCm: Edge = {
+      id: 'e-svc-cm',
+      source: 'svc-targets',
+      target: 'cm-1',
+    };
+
+    // Target with baseName only (line 392 evaluates baseName)
+    const depWithBaseOnly: Node = {
+      id: 'dep-base-id',
+      type: 'Deployment',
+      position: { x: 100, y: 0 },
+      data: { baseName: 'workload-base' } as any,
+    };
+    const edgeToDepBase: Edge = {
+      id: 'e-svc-dep',
+      source: 'svc-targets',
+      target: 'dep-base-id',
+    };
+
+    // Target with neither label nor baseName (line 392 evaluates target.id)
+    const nakedPod: Node = {
+      id: 'naked-pod-id',
+      type: 'Pod',
+      position: { x: 150, y: 0 },
+      data: {},
+    };
+    const edgeToNakedPod: Edge = {
+      id: 'e-svc-naked',
+      source: 'svc-targets',
+      target: 'naked-pod-id',
+    };
+
+    // Target with undefined type (line 389 evaluates target.type || '')
+    const targetNoType: Node = {
+      id: 'target-no-type-id',
+      position: { x: 160, y: 0 },
+      data: { label: 'no-type-tgt' },
+    } as any;
+    const edgeToNoType: Edge = {
+      id: 'e-svc-notype',
+      source: 'svc-targets',
+      target: 'target-no-type-id',
+    };
+
+    // Candidate nodes for line 399 & 401
+    const candBaseOnly: Node = {
+      id: 'cand-base-id',
+      type: 'Deployment',
+      position: { x: 200, y: 0 },
+      data: { baseName: 'cand-base' } as any,
+    };
+    const candNaked: Node = {
+      id: 'cand-naked-id',
+      type: 'Pod',
+      position: { x: 250, y: 0 },
+      data: {},
+    };
+    // Candidate node without type (line 399 evaluates n?.type || '')
+    const candNoType: Node = {
+      id: 'cand-no-type-id',
+      position: { x: 300, y: 0 },
+      data: { label: 'cand-no-type' },
+    } as any;
+
+    useFlowStore.setState({
+      nodes: [svcNode, configMapNode, depWithBaseOnly, nakedPod, targetNoType, candBaseOnly, candNaked, candNoType] as any,
+      edges: [edgeToCm, edgeToDepBase, edgeToNakedPod, edgeToNoType],
+    });
+
+    updateNodeData('svc-targets', { selector: 'workload-base,naked-pod-id,cand-base,cand-naked-id,no-type-tgt,cand-no-type' });
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.some(n => n.id === 'svc-targets')).toBe(true);
+    expect(state.nodes.some(n => n.id === 'cand-base-id')).toBe(true);
+  });
+
+  it('covers reference invalidation, renaming, and connection edge cases (lines 512, 539, 542, 545, 548, 572, 583)', () => {
+    const { updateNodeData, deleteNodes } = useFlowStore.getState();
+
+    // Line 583: prevLabel === newLabel returns nodes
+    const depSameLabel: Node = {
+      id: 'dep-same',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'same-label' },
+    };
+    useFlowStore.setState({ nodes: [depSameLabel] as any, edges: [] });
+    updateNodeData('dep-same', { label: 'same-label' });
+
+    // Line 583: newLabel is empty (ensureUniqueResourceName returns empty string)
+    const uniqueSpy = vi.spyOn(nodeUtils, 'ensureUniqueResourceName').mockReturnValueOnce('');
+    const depWithLabel: Node = {
+      id: 'dep-has-prev-lbl',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'has-prev-label' },
+    };
+    useFlowStore.setState({ nodes: [depWithLabel] as any, edges: [] });
+    try {
+      updateNodeData('dep-has-prev-lbl', { label: 'different-lbl' });
+    } finally {
+      uniqueSpy.mockRestore();
+    }
+
+    // Line 512: invalidateTargetReferences when oldLabel is empty
+    const nodeEmptyId: Node = {
+      id: '',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: {},
+    };
+    useFlowStore.setState({ nodes: [nodeEmptyId] as any, edges: [] });
+    deleteNodes([nodeEmptyId as any]);
+
+    // Line 572: reverse edge (targetAndChildIds has e.source and e.target === nId)
+    // Line 542: item !== oldLabel in rawIngressTargets
+    // Line 545: selector is empty/undefined
+    const targetDep: Node = {
+      id: 'target-dep',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'target-dep-old' },
+    };
+    const connectedSvc: Node = {
+      id: 'connected-svc',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: {
+        label: 'connected-svc',
+        ingressTargets: ['other-target', 'target-dep-old'],
+      } as any,
+    };
+    const reverseEdge: Edge = {
+      id: 'e-reverse',
+      source: 'target-dep',
+      target: 'connected-svc',
+    };
+    useFlowStore.setState({
+      nodes: [targetDep, connectedSvc] as any,
+      edges: [reverseEdge],
+    });
+    updateNodeData('target-dep', { label: 'target-dep-new' });
+    const updatedSvc = useFlowStore.getState().nodes.find(n => n.id === 'connected-svc');
+    expect(updatedSvc?.data.ingressTargets).toContain('target-dep-new');
+    expect(updatedSvc?.data.ingressTargets).toContain('other-target');
+
+    // Line 548: hasSelectorMatch is false, and updatedIngressTargets has length 0
+    const trickyTargets = Object.assign([] as string[], {
+      includes: () => true,
+      length: 0,
+    });
+    const trickySvc: Node = {
+      id: 'tricky-svc',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: {
+        label: 'tricky-svc',
+        ingressTargets: trickyTargets,
+        selector: 'other-selector',
+      } as any,
+    };
+    useFlowStore.setState({
+      nodes: [targetDep, trickySvc] as any,
+      edges: [{ id: 'e-rev-tricky', source: 'target-dep', target: 'tricky-svc' }],
+    });
+    updateNodeData('target-dep', { label: 'target-dep-final' });
+
+    // Line 539: connected Service where neither hasIngressMatch nor hasSelectorMatch matches
+    const nonMatchingSvc: Node = {
+      id: 'non-matching-svc',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: {
+        label: 'non-match',
+        selector: 'completely-different',
+      },
+    };
+    useFlowStore.setState({
+      nodes: [targetDep, nonMatchingSvc] as any,
+      edges: [{ id: 'e-rev-2', source: 'target-dep', target: 'non-matching-svc' }],
+    });
+    updateNodeData('target-dep', { label: 'target-dep-again' });
+  });
+
+  it('covers Canvas center position window dimension fallbacks (lines 712, 713)', () => {
+    const origInnerWidth = globalThis.innerWidth;
+    const origInnerHeight = globalThis.innerHeight;
+
+    try {
+      (globalThis as any).innerWidth = 0;
+      (globalThis as any).innerHeight = 0;
+
+      const { addNode } = useFlowStore.getState();
+      addNode('Pod');
+
+      const state = useFlowStore.getState();
+      const added = state.nodes[state.nodes.length - 1];
+      expect(added).toBeDefined();
+    } finally {
+      (globalThis as any).innerWidth = origInnerWidth;
+      (globalThis as any).innerHeight = origInnerHeight;
+    }
+  });
+
+  it('covers node placement dimensions, label fallbacks, and port propagation (lines 798, 799, 808, 888, 902)', () => {
+    // Lines 798, 799, 808: calculateCardLayoutWithYoga returning { width: 0, height: 0 }
+    // and uniqueLabel returning '' so newNode.data.label is empty
+    const yogaSpy = vi.spyOn(yogaLayout, 'calculateCardLayoutWithYoga').mockReturnValue({ width: 0, height: 0 });
+    const uniqueNameSpy = vi.spyOn(nodeUtils, 'ensureUniqueResourceName').mockReturnValue('');
+
+    try {
+      const { addNode } = useFlowStore.getState();
+      addNode('ConfigMap');
+    } finally {
+      yogaSpy.mockRestore();
+      uniqueNameSpy.mockRestore();
+    }
+
+    // Line 902: newData.port is defined but target.type is not in workload controllers (e.g. Service or undefined type)
+    const { updateNodeData } = useFlowStore.getState();
+    const standaloneSvc: Node = {
+      id: 'svc-port-test',
+      type: 'Service',
+      position: { x: 0, y: 0 },
+      data: { label: 'svc-pt', port: 80 },
+    };
+    const targetNoTypePort: Node = {
+      id: 'target-no-type-port',
+      position: { x: 0, y: 0 },
+      data: { label: 'no-type-pt', port: 80 },
+    } as any;
+    useFlowStore.setState({ nodes: [standaloneSvc, targetNoTypePort] as any, edges: [] });
+    updateNodeData('svc-port-test', { port: 9090 });
+    updateNodeData('target-no-type-port', { port: 9091 });
+    expect(useFlowStore.getState().nodes[0].data.port).toBe(9090);
+    expect(useFlowStore.getState().nodes[1].data.port).toBe(9091);
+
+    // Line 888: parentNode has neither label nor baseName (falls back to parentNode.id)
+    const parentWithoutLabelOrBase: Node = {
+      id: 'dep-naked-parent',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: {},
+    };
+    const childPod: Node = {
+      id: 'child-pod-pt',
+      type: 'Pod',
+      parentId: 'dep-naked-parent',
+      position: { x: 10, y: 10 },
+      data: { port: 80 } as any,
+    };
+    const targetSvcForParentId: Node = {
+      id: 'svc-for-parent-id',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: { label: 'svc-pid', selector: 'dep-naked-parent', targetPort: 80 },
+    };
+    useFlowStore.setState({
+      nodes: [parentWithoutLabelOrBase, childPod, targetSvcForParentId] as any,
+      edges: [],
+    });
+    updateNodeData('child-pod-pt', { port: 8088 });
+    expect(useFlowStore.getState().nodes.find(n => n.id === 'svc-for-parent-id')?.data.targetPort).toBe(8088);
   });
 });

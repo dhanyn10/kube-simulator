@@ -907,4 +907,33 @@ describe('terminalCommands', () => {
       expect(logs.some(l => l.includes("HTTP_PORT:  <set to the key 'HTTP_PORT' of config map 'cfg'>"))).toBe(true);
       expect(logs.some(l => l.includes("API_KEY:  <set to the key 'API_KEY' in secret 'sec'>"))).toBe(true);
     });
+
+    it('covers getNodeData fallback on line 7 when node.data is undefined', () => {
+      const secretNode: any = {
+        id: 'secret-owner',
+        _called: false,
+        get data() {
+          if (!this._called) {
+            return {
+              secrets: [
+                {
+                  get name() {
+                    secretNode._called = true;
+                    return 'test-secret';
+                  },
+                  secretData: []
+                }
+              ]
+            };
+          }
+          return undefined;
+        }
+      };
+      mockCtx.nodes = [secretNode];
+      activityLogs = [];
+      const handled = handleDescribeSecretCommand('kubectl describe secret test-secret', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('Name:         test-secret'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('Attached To:  secret-owner'))).toBe(true);
+    });
 });

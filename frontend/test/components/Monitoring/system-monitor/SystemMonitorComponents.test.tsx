@@ -841,4 +841,88 @@ describe('SystemMonitor UI Components', () => {
       expect(screen.queryByText('Snapshot')).toBeNull();
     }
   });
+
+  it('covers uncovered conditions in SystemMonitorStatCard (lines 21, 25, 44)', () => {
+    const { rerender } = render(
+      <SystemMonitorStatCard
+        title="Warning Dark"
+        value={75}
+        icon={<Activity size={14} />}
+        threshold="warning"
+        colorMode="dark"
+        sparklineData={Array(35).fill(50)}
+      />
+    );
+    expect(screen.getByText('75')).toBeDefined();
+
+    rerender(
+      <SystemMonitorStatCard
+        title="Critical Light"
+        value={95}
+        icon={<Activity size={14} />}
+        threshold="critical"
+        colorMode="light"
+      />
+    );
+    expect(screen.getByText('95')).toBeDefined();
+  });
+
+  it('covers uncovered conditions in SystemMonitorHeader (lines 60, 61, 161, 175, 187, 310)', () => {
+    const sendControl = vi.fn();
+    const setTimeRange = vi.fn();
+
+    // 1. Live state in light mode (lines 60, 61, 187) and unknown speed fallback (line 310)
+    const { rerender } = render(
+      <SystemMonitorHeader
+        isSimulating={true}
+        isPaused={false}
+        simulationSpeed={99 as any}
+        timeRange="5m"
+        setTimeRange={setTimeRange}
+        sendControl={sendControl}
+        colorMode="light"
+      />
+    );
+    expect(screen.getByText('Live')).toBeDefined();
+    const pauseBtn = screen.getByRole('button', { name: /Pause/i });
+    expect(pauseBtn.className).toContain('text-amber-800');
+
+    // 2. Start button with canStart={false} (line 175)
+    rerender(
+      <SystemMonitorHeader
+        isSimulating={false}
+        isPaused={false}
+        simulationSpeed={1}
+        timeRange="5m"
+        setTimeRange={setTimeRange}
+        sendControl={sendControl}
+        canStart={false}
+      />
+    );
+    const startBtn = screen.getByRole('button', { name: /Start/i });
+    const startPropsKey = Object.keys(startBtn).find(k => k.startsWith('__reactProps$'));
+    if (startPropsKey) {
+      (startBtn as any)[startPropsKey].onClick();
+    }
+    expect(sendControl).not.toHaveBeenCalled();
+
+    // 3. Resume button with canStart={false} (line 161)
+    rerender(
+      <SystemMonitorHeader
+        isSimulating={true}
+        isPaused={true}
+        simulationSpeed={1}
+        timeRange="5m"
+        setTimeRange={setTimeRange}
+        sendControl={sendControl}
+        canStart={false}
+      />
+    );
+    const resumeBtn = screen.getByRole('button', { name: /Resume/i });
+    const resumePropsKey = Object.keys(resumeBtn).find(k => k.startsWith('__reactProps$'));
+    if (resumePropsKey) {
+      (resumeBtn as any)[resumePropsKey].onClick();
+    }
+    expect(sendControl).not.toHaveBeenCalled();
+  });
 });

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
   Settings,
   Activity,
@@ -109,6 +110,12 @@ interface SettingsPanelProps {
 }
 
 export const SettingsPanel = ({ selectedNode, selectedEdge, isElementSelected, colorMode }: SettingsPanelProps) => {
+  let elementConfig: ReactNode | null = null;
+  if (selectedEdge) {
+    elementConfig = <EdgeConfig selectedEdge={selectedEdge} />;
+  } else if (selectedNode) {
+    elementConfig = <NodeConfig selectedNode={selectedNode} />;
+  }
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
       {isElementSelected ? (
@@ -134,11 +141,7 @@ export const SettingsPanel = ({ selectedNode, selectedEdge, isElementSelected, c
             "right-sidebar-card min-h-[300px] overflow-visible",
             colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
           )}>
-            {selectedEdge ? (
-              <EdgeConfig selectedEdge={selectedEdge} />
-            ) : selectedNode ? (
-              <NodeConfig selectedNode={selectedNode} />
-            ) : null}
+            {elementConfig}
           </div>
 
         </>

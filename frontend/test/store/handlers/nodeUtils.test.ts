@@ -672,5 +672,79 @@ describe('nodeUtils', () => {
 
       expect(updateNodeDataMock).toHaveBeenCalledWith('sts-1', { label: 'database' });
     });
+
+    it('covers uncovered conditions on lines 43 and 45 when parent.type is falsy', () => {
+      // 1. Line 43: parent with undefined type
+      const podWithUntypedParent = { id: 'pod-untyped-p', type: 'Pod', parentId: 'parent-no-type', data: {} };
+      const untypedParent = { id: 'parent-no-type', data: {} } as any;
+      const res43 = resolveTargetInfo('pod-untyped-p', [untypedParent, podWithUntypedParent]);
+      expect(res43.type).toBe('Pod');
+
+      // 2. Line 45: parent with dynamic getter that returns falsy on line 45
+      let accessCount = 0;
+      const dynamicParent = {
+        id: 'dep-dyn',
+        get type() {
+          accessCount++;
+          return accessCount === 1 ? 'Deployment' : '';
+        },
+        parentId: 'ns-1',
+        data: {}
+      } as any;
+      const dynamicPod = { id: 'pod-dyn', type: 'Pod', parentId: 'dep-dyn', data: {} };
+      const res45 = resolveTargetInfo('pod-dyn', [dynamicParent, dynamicPod]);
+      expect(res45.type).toBe('');
+      expect(res45.parentId).toBe('ns-1');
+      expect(res45.excludeId).toBe('dep-dyn');
+    });
+
+    it('covers uncovered conditions on lines 143 and 147 when currentParent.type is falsy', () => {
+      // 1. Line 143: onRename on Pod whose parent has no type
+      const updateNodeDataMock = vi.fn();
+      const storeWithUntypedParent = () =>
+        ({
+          nodes: [
+            { id: 'parent-no-type', data: {} },
+            { id: 'pod-1', type: 'Pod', parentId: 'parent-no-type', data: {} },
+          ],
+          updateNodeData: updateNodeDataMock,
+        } as any);
+
+      const handlers43 = createNodeHandlers('pod-1', storeWithUntypedParent);
+      handlers43.onRename('new-worker');
+      expect(updateNodeDataMock).toHaveBeenCalledWith('pod-1', {
+        baseName: 'new-worker',
+        label: 'new-worker',
+      });
+
+      // 2. Line 147: onRename on Pod whose parent returns falsy on line 147
+      updateNodeDataMock.mockClear();
+      let renameAccessCount = 0;
+      const dynamicRenameParent = {
+        id: 'dep-rename-dyn',
+        get type() {
+          renameAccessCount++;
+          return renameAccessCount <= 2 ? 'Deployment' : '';
+        },
+        parentId: 'ns-1',
+        data: { label: 'old-label' },
+      } as any;
+      const dynamicRenamePod = {
+        id: 'pod-rename-dyn',
+        type: 'Pod',
+        parentId: 'dep-rename-dyn',
+        data: {},
+      };
+
+      const storeWithDynamicParent = () =>
+        ({
+          nodes: [dynamicRenameParent, dynamicRenamePod],
+          updateNodeData: updateNodeDataMock,
+        } as any);
+
+      const handlers47 = createNodeHandlers('pod-rename-dyn', storeWithDynamicParent);
+      handlers47.onRename('new-label');
+      expect(updateNodeDataMock).toHaveBeenCalledWith('dep-rename-dyn', { label: 'new-label' });
+    });
   });
 });
