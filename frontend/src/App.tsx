@@ -13,7 +13,7 @@ import { Sidebar, RightSidebar, MenuBar, TerminalPanel, FileBackstageView, Canva
 import { ContextMenu, ResourceManager, SidebarContextMenu } from './components/UI';
 import { DetachedMonitoring, LogToast } from './components/Monitoring';
 import { useSimulationSync } from './activities/monitoring';
-import { useSidebarSync } from './activities/layout';
+import { useSidebarSync, getFinalCanvasBgColor, isAnyModalOverlayOpen } from './activities/layout';
 import {
   YamlModal,
   ScenarioModal,
@@ -58,7 +58,6 @@ import { useThemeSync } from './hooks/useThemeSync';
 import { useCanvasHandlers } from './hooks/useCanvasHandlers';
 import { useAppInit, useAttachmentHandlers } from './hooks/useAppHelpers';
 import { useCanvasNodes } from './activities/nodes';
-import { getFinalCanvasBgColor, isAnyModalOverlayOpen } from './activities/layout';
 import { useGlobalContextMenu } from './activities/ui';
 import { getBackendGateway } from './gateway';
 

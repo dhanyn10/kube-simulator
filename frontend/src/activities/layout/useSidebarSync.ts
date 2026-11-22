@@ -27,6 +27,71 @@ export interface SidebarSyncMessage {
   };
 }
 
+type StoreState = ReturnType<typeof useFlowStore.getState>;
+type BackendGateway = ReturnType<typeof getBackendGateway>;
+
+const sendStateToWindow = (channel: BroadcastChannel, store: StoreState) => {
+  channel.postMessage({
+    type: 'STATE_UPDATE',
+    state: {
+      colorMode: store.colorMode,
+      configuringNodeId: store.configuringNodeId,
+      configuringEdgeId: store.configuringEdgeId,
+      nodes: store.nodes,
+      edges: store.edges,
+    },
+  });
+};
+
+const attachSidebarToMainWindow = (side: 'left' | 'right', store: StoreState, gw: BackendGateway) => {
+  if (side === 'left') {
+    store.setSidebarDetached(false);
+    store.setSidebarVisible(true);
+  } else if (side === 'right') {
+    store.setRightSidebarDetached(false);
+    store.setRightSidebarVisible(true);
+  }
+  void gw.closeSidebarWindow(side);
+};
+
+const handleMainWindowMessage = (
+  msg: SidebarSyncMessage,
+  channel: BroadcastChannel,
+  store: StoreState,
+  gw: BackendGateway,
+) => {
+  if (msg.type === 'SYNC_STATE') {
+    sendStateToWindow(channel, store);
+  } else if (msg.type === 'ADD_NODE' && msg.nodeType) {
+    store.addNode(msg.nodeType);
+  } else if (msg.type === 'UPDATE_NODE_DATA' && msg.nodeId && msg.data) {
+    store.updateNodeData(msg.nodeId, msg.data);
+  } else if (msg.type === 'ATTACH_SIDEBAR' && msg.side) {
+    attachSidebarToMainWindow(msg.side, store, gw);
+  }
+};
+
+const handleDetachedMessage = (msg: SidebarSyncMessage, store: StoreState) => {
+  if (msg.type !== 'STATE_UPDATE') return;
+  const state = msg.state ?? {};
+  const { colorMode, configuringNodeId, configuringEdgeId, nodes, edges } = state;
+  const updates: {
+    colorMode?: 'dark' | 'light';
+    configuringNodeId?: string | null;
+    configuringEdgeId?: string | null;
+    nodes?: any[];
+    edges?: any[];
+  } = {};
+  if (colorMode && colorMode !== store.colorMode) updates.colorMode = colorMode;
+  if (configuringNodeId !== undefined) updates.configuringNodeId = configuringNodeId;
+  if (configuringEdgeId !== undefined) updates.configuringEdgeId = configuringEdgeId;
+  if (nodes !== undefined) updates.nodes = nodes;
+  if (edges !== undefined) updates.edges = edges;
+  if (Object.keys(updates).length > 0) {
+    useFlowStore.setState(updates);
+  }
+};
+
 /**
  * Hook to manage two-way synchronization between the main window and
  * detached sidebar windows (left: Components, right: Configuration).
@@ -56,48 +121,12 @@ export const useSidebarSync = () => {
       if (!msg || !msg.type) return;
 
       const store = useFlowStore.getState();
-
-      if (!isDetachedSidebar) {
-        // --- Main Window Handlers ---
-        if (msg.type === 'SYNC_STATE') {
-          channel.postMessage({
-            type: 'STATE_UPDATE',
-            state: {
-              colorMode: store.colorMode,
-              configuringNodeId: store.configuringNodeId,
-              configuringEdgeId: store.configuringEdgeId,
-              nodes: store.nodes,
-              edges: store.edges,
-            },
-          });
-        } else if (msg.type === 'ADD_NODE' && msg.nodeType) {
-          store.addNode(msg.nodeType);
-        } else if (msg.type === 'UPDATE_NODE_DATA' && msg.nodeId && msg.data) {
-          store.updateNodeData(msg.nodeId, msg.data);
-        } else if (msg.type === 'ATTACH_SIDEBAR' && msg.side) {
-          if (msg.side === 'left') {
-            store.setSidebarDetached(false);
-            store.setSidebarVisible(true);
-          } else {
-            store.setRightSidebarDetached(false);
-            store.setRightSidebarVisible(true);
-          }
-          gw.closeSidebarWindow(msg.side);
-        }
-      } else {
+      if (isDetachedSidebar) {
         // --- Detached Window Handlers ---
-        if (msg.type === 'STATE_UPDATE' && msg.state) {
-          const { colorMode, configuringNodeId, configuringEdgeId, nodes, edges } = msg.state;
-          const updates: any = {};
-          if (colorMode && colorMode !== store.colorMode) updates.colorMode = colorMode;
-          if (configuringNodeId !== undefined) updates.configuringNodeId = configuringNodeId;
-          if (configuringEdgeId !== undefined) updates.configuringEdgeId = configuringEdgeId;
-          if (nodes !== undefined) updates.nodes = nodes;
-          if (edges !== undefined) updates.edges = edges;
-          if (Object.keys(updates).length > 0) {
-            useFlowStore.setState(updates);
-          }
-        }
+        handleDetachedMessage(msg, store);
+      } else {
+        // --- Main Window Handlers ---
+        handleMainWindowMessage(msg, channel, store, gw);
       }
     };
 

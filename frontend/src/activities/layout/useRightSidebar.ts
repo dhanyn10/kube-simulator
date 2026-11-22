@@ -73,7 +73,7 @@ export const useRightSidebar = () => {
 
   const handleDetachSidebar = () => {
     setRightSidebarDetached(true);
-    getBackendGateway().openSidebarWindow('right');
+    void getBackendGateway().openSidebarWindow('right');
   };
 
   const canvasWidgets = [

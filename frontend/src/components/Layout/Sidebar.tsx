@@ -119,7 +119,7 @@ export const Sidebar = ({ onAddNode, isDetached = false }: SidebarProps) => {
 
   const handleDetachSidebar = () => {
     setSidebarDetached(true);
-    getBackendGateway().openSidebarWindow('left');
+    void getBackendGateway().openSidebarWindow('left');
   };
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
