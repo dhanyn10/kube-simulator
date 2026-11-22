@@ -1254,4 +1254,343 @@ describe('manifestGenerator test suite', () => {
     expect(fallbackSecDoc.metadata.namespace).toBe('prod');
     expect(fallbackSecDoc.stringData.TOKEN).toBe('token-val');
   });
+
+  it('handles resource limits without requests', () => {
+    const nodes = [
+      {
+        id: 'pod-limits-only',
+        type: 'Pod',
+        data: {
+          label: 'limits-pod',
+          image: 'nginx',
+          cpuLimit: '500m',
+          memoryLimit: '256Mi',
+          resourceLimits: [{ cpu: '500m' }],
+        },
+      },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const podDoc = docs.find((d) => d?.kind === 'Pod');
+    expect(podDoc).toBeDefined();
+    expect(podDoc.spec.containers[0].resources.limits).toEqual({
+      cpu: '500m',
+      memory: '256Mi',
+    });
+    expect(podDoc.spec.containers[0].resources.requests).toEqual({
+      cpu: '500m',
+      memory: '256Mi',
+    });
+  });
+
+  it('handles attached ConfigMaps and Secrets with non-array data and empty/duplicate keys', () => {
+    const nodes = [
+      {
+        id: 'workload-edge-cases',
+        type: 'Deployment',
+        data: {
+          label: 'app-edge',
+          image: 'nginx',
+          configMaps: [
+            { id: 'cm-invalid', name: 'invalid-cm', configData: null },
+            { id: 'cm-valid', name: 'valid-cm', configData: [{ key: 'KEY1', value: null }] },
+          ],
+          secrets: [
+            { id: 'sec-invalid', name: 'invalid-sec', secretData: null, configData: null },
+            {
+              id: 'sec-valid',
+              name: 'valid-sec',
+              secretData: [
+                { key: '', value: 'ignored' },
+                { key: 'KEY1', value: 'duplicate-ignored' },
+                { key: 'SEC_KEY', value: undefined },
+              ],
+            },
+          ],
+        },
+      },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const cmDoc = docs.find((d) => d?.kind === 'ConfigMap' && d?.metadata?.name === 'valid-cm');
+    expect(cmDoc).toBeDefined();
+    expect(cmDoc.data.KEY1).toBe('');
+
+    const secDoc = docs.find((d) => d?.kind === 'Secret' && d?.metadata?.name === 'valid-sec');
+    expect(secDoc).toBeDefined();
+    expect(secDoc.stringData.SEC_KEY).toBe('');
+    expect(secDoc.stringData['']).toBeUndefined();
+  });
+
+  it('handles connected ConfigMap and Secret edge cases', () => {
+    const nodes = [
+      { id: 'pod1', type: 'Pod', data: { label: 'connected-pod', image: 'nginx' } },
+      {
+        id: 'cm-no-label',
+        type: 'ConfigMap',
+        data: {
+          label: '',
+          configData: [
+            { key: '', value: 'empty-key-ignored' },
+            { key: 'CM_KEY', value: 'cm-val' },
+            { key: 'CM_KEY', value: 'duplicate-key-ignored' },
+          ],
+        },
+      },
+      { id: 'sec-no-label', type: 'Secret', data: { label: '', secretData: null, configData: [{ key: 'SEC_KEY', value: 'sec-val' }] } },
+      { id: 'cm-invalid-items', type: 'ConfigMap', data: { label: 'invalid-cm', configData: 'not-an-array' } },
+    ];
+    const edges = [
+      { id: 'e-missing', source: 'non-existent-source', target: 'pod1' },
+      { id: 'e1', source: 'cm-no-label', target: 'pod1' },
+      { id: 'e2', source: 'sec-no-label', target: 'pod1' },
+      { id: 'e3', source: 'cm-invalid-items', target: 'pod1' },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const podDoc = docs.find((d) => d?.kind === 'Pod' && d?.metadata?.name === 'connected-pod');
+    expect(podDoc).toBeDefined();
+    const envVars = podDoc.spec.containers[0].env;
+    expect(envVars).toBeDefined();
+    expect(envVars.some((e: any) => e.valueFrom?.configMapKeyRef?.name === 'configmap')).toBe(true);
+    expect(envVars.some((e: any) => e.valueFrom?.secretKeyRef?.name === 'secret')).toBe(true);
+  });
+
+  it('handles StatefulSet service matching by sanitized selector', () => {
+    const nodes = [
+      {
+        id: 'ss-node-sanitized',
+        type: 'StatefulSet',
+        data: {
+          label: 'My-Stateful-App',
+          replicas: 1,
+          image: 'redis',
+        },
+      },
+      {
+        id: 'svc-sanitized',
+        type: 'Service',
+        data: {
+          label: 'svc-sanitized',
+          serviceType: 'Headless',
+          selector: 'My Stateful App',
+        },
+      },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const ssDoc = docs.find((d) => d?.kind === 'StatefulSet');
+    expect(ssDoc).toBeDefined();
+    expect(ssDoc.spec.serviceName).toBe('svc-sanitized');
+  });
+
+  it('handles StatefulSet service resolution fallbacks and selector matching branches', () => {
+    const nodes = [
+      {
+        id: 'ss-node',
+        type: 'StatefulSet',
+        data: {
+          label: 'stateful-worker',
+          baseName: 'my-stateful-base',
+          replicas: 1,
+          image: 'redis',
+        },
+      },
+      {
+        id: 'svc-headless',
+        type: 'Service',
+        data: {
+          label: '',
+          serviceType: 'Headless',
+          selector: 'my-stateful-base',
+        },
+      },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const ssDoc = docs.find((d) => d?.kind === 'StatefulSet');
+    expect(ssDoc).toBeDefined();
+    expect(ssDoc.spec.serviceName).toBe('svc-headless');
+  });
+
+  it('handles StatefulSet matching service with empty label and baseName fallback to name', () => {
+    const nodes = [
+      {
+        id: 'ss-node-bare',
+        type: 'StatefulSet',
+        data: {
+          label: 'bare-stateful',
+          baseName: '',
+          replicas: 1,
+          image: 'redis',
+        },
+      },
+      {
+        id: '',
+        type: 'Service',
+        data: {
+          label: '',
+          serviceType: 'Headless',
+          selector: 'bare-stateful',
+        },
+      },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const ssDoc = docs.find((d) => d?.kind === 'StatefulSet');
+    expect(ssDoc).toBeDefined();
+    expect(ssDoc.spec.serviceName).toBe('bare-stateful');
+  });
+
+  it('handles isServiceTargetingStatefulSet with missing edge node and selector baseName match', () => {
+    const nodes = [
+      {
+        id: 'svc-1',
+        type: 'Service',
+        data: {
+          label: 'stateful-svc',
+          serviceType: 'ClusterIP',
+          selector: 'matched-base',
+        },
+      },
+      {
+        id: 'ss-target',
+        type: 'StatefulSet',
+        data: {
+          label: '',
+          baseName: 'matched-base',
+          image: 'redis',
+        },
+      },
+    ];
+    const edges = [
+      { id: 'edge-to-missing', source: 'svc-1', target: 'non-existent' },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const svcDoc = docs.find((d) => d?.kind === 'Service' && d?.metadata?.name === 'stateful-svc');
+    expect(svcDoc).toBeDefined();
+    expect(svcDoc.spec.clusterIP).toBe('None');
+  });
+
+  it('handles isServiceTargetingStatefulSet with empty label and baseName', () => {
+    const nodes = [
+      {
+        id: 'svc-2',
+        type: 'Service',
+        data: {
+          label: 'unmatched-svc',
+          serviceType: 'ClusterIP',
+          selector: 'something-else',
+        },
+      },
+      {
+        id: 'ss-empty',
+        type: 'StatefulSet',
+        data: {
+          label: '',
+          baseName: '',
+          image: 'redis',
+        },
+      },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const svcDoc = docs.find((d) => d?.kind === 'Service' && d?.metadata?.name === 'unmatched-svc');
+    expect(svcDoc).toBeDefined();
+    expect(svcDoc.spec.clusterIP).toBeUndefined();
+  });
+
+  it('handles isStatefulSetVolumeClaimTemplate when PVC has outgoing edge to non-StatefulSet', () => {
+    const nodeMap = new Map<string, any>([
+      ['pvc-out', { id: 'pvc-out', type: 'PVC', data: { label: 'pvc-out' } }],
+      ['dep-target', { id: 'dep-target', type: 'Deployment', data: { label: 'dep-target' } }],
+    ]);
+    const targetEdgeMap = new Map<string, any[]>();
+    const sourceEdgeMap = new Map<string, any[]>([
+      ['pvc-out', [{ id: 'e1', source: 'pvc-out', target: 'dep-target' }]],
+    ]);
+    const isVct = isStatefulSetVolumeClaimTemplate('pvc-out', nodeMap, targetEdgeMap, sourceEdgeMap);
+    expect(isVct).toBe(false);
+  });
+
+  it('handles findHpaScaleTarget when target node is not a workload kind', () => {
+    const nodes = [
+      {
+        id: 'hpa-1',
+        type: 'HPA',
+        data: {
+          label: 'my-hpa',
+          targetCPU: 80,
+        },
+      },
+      {
+        id: 'svc-target',
+        type: 'Service',
+        data: {
+          label: 'svc-not-scalable',
+        },
+      },
+    ];
+    const edges = [
+      { id: 'hpa-to-svc', source: 'hpa-1', target: 'svc-target' },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    expect(yamlOutput).toContain('HorizontalPodAutoscaler');
+    expect(yamlOutput).toContain('name: tbd-deployment');
+  });
+
+  it('handles buildAttachedHpaManifest fallback branches', () => {
+    const nodes = [
+      {
+        id: 'pod-bare-id',
+        type: 'Pod',
+        data: {
+          label: '',
+          image: 'redis',
+          hpas: [
+            {
+              name: '',
+              minReplicas: 0,
+              maxReplicas: 0,
+              targetCPU: 0,
+            },
+          ],
+        },
+      },
+      {
+        id: 'deploy-with-label',
+        type: 'Deployment',
+        data: {
+          label: 'my-app',
+          image: 'nginx',
+          hpas: [
+            {
+              name: '',
+              minReplicas: 2,
+              maxReplicas: 5,
+              targetCPU: 75,
+            },
+          ],
+        },
+      },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const hpaDocs = docs.filter((d) => d?.kind === 'HorizontalPodAutoscaler');
+    expect(hpaDocs).toHaveLength(2);
+
+    const bareHpa = hpaDocs.find((d) => d?.metadata?.name === 'pod-bare-id-hpa');
+    expect(bareHpa).toBeDefined();
+    expect(bareHpa.spec.scaleTargetRef.kind).toBe('Deployment');
+    expect(bareHpa.spec.scaleTargetRef.name).toBe('pod-bare-id');
+    expect(bareHpa.spec.minReplicas).toBe(1);
+    expect(bareHpa.spec.maxReplicas).toBe(10);
+    expect(bareHpa.spec.metrics[0].resource.target.averageUtilization).toBe(80);
+
+    const appHpa = hpaDocs.find((d) => d?.metadata?.name === 'my-app-hpa');
+    expect(appHpa).toBeDefined();
+    expect(appHpa.spec.scaleTargetRef.kind).toBe('Deployment');
+    expect(appHpa.spec.scaleTargetRef.name).toBe('my-app');
+  });
 });

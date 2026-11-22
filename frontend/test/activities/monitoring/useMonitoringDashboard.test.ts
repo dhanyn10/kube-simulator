@@ -86,7 +86,7 @@ describe('useMonitoringDashboardHandler', () => {
     addSpy.mockRestore();
   });
 
-  it('handles window detach opening new popup window', () => {
+  it('handles window detach opening new popup window', async () => {
     const openSpy = vi.spyOn(globalThis, 'open').mockImplementation(() => null);
 
     // Mock globalThis.screen dimensions if undefined
@@ -98,8 +98,8 @@ describe('useMonitoringDashboardHandler', () => {
 
     const { result } = renderHook(() => useMonitoringDashboardHandler());
 
-    act(() => {
-      result.current.handleDetach();
+    await act(async () => {
+      await result.current.handleDetach();
     });
 
     expect(openSpy).toHaveBeenCalledWith(
@@ -218,5 +218,71 @@ describe('useMonitoringDashboardHandler', () => {
     expect(useFlowStore.getState().isMonitoringDetached).toBe(true);
 
     delete (globalThis as any).runtime;
+  });
+
+  it('computes clusterCpuAvg, clusterMemAvg, and isOverloaded based on simulationMetrics', () => {
+    // Test case 1: simulationMetrics with CPU, memory, OOM, and throttling
+    act(() => {
+      useFlowStore.setState({
+        simulationSpeed: 5,
+        simulationMetrics: {
+          dep1: [
+            { timestamp: 1, cpuPercent: 50, memoryPercent: 40 },
+            { timestamp: 2, cpuPercent: 70, memoryPercent: 60, isOOM: false, isThrottled: true },
+          ],
+          rs1: [
+            { timestamp: 1, cpuPercent: 30, memoryPercent: 20 },
+          ],
+          pod1: [], // empty pts array
+        } as any,
+      });
+    });
+
+    const { result, rerender } = renderHook(() => useMonitoringDashboardHandler());
+
+    // dep1 (70 cpu, 60 mem), rs1 (30 cpu, 20 mem), pod1 (empty pts) -> activeCount = 2
+    // clusterCpuAvg = (70 + 30) / 2 = 50
+    // clusterMemAvg = (60 + 20) / 2 = 40
+    expect(result.current.clusterCpuAvg).toBe(50);
+    expect(result.current.clusterMemAvg).toBe(40);
+    expect(result.current.isOverloaded).toBe(true);
+    expect(result.current.simulationSpeed).toBe(5);
+
+    // Test case 2: OOM triggered on a workload and missing cpu/mem properties + undefined last element
+    act(() => {
+      useFlowStore.setState({
+        simulationSpeed: 0 as any, // fallback to 1
+        simulationMetrics: {
+          dep1: [
+            { timestamp: 1, cpuPercent: 0, memoryPercent: 0, isOOM: true },
+          ],
+          rs1: [
+            // missing cpuPercent and memoryPercent (fallback to 0)
+            { timestamp: 1 } as any,
+          ],
+          pod1: [undefined as any], // pts has length 1, but pts.at(-1) is undefined
+        } as any,
+      });
+    });
+
+    rerender();
+
+    expect(result.current.clusterCpuAvg).toBe(0);
+    expect(result.current.clusterMemAvg).toBe(0);
+    expect(result.current.isOverloaded).toBe(true);
+    expect(result.current.simulationSpeed).toBe(1);
+
+    // Test case 3: empty simulationMetrics (activeCount === 0, not overloaded)
+    act(() => {
+      useFlowStore.setState({
+        simulationMetrics: {},
+      });
+    });
+
+    rerender();
+
+    expect(result.current.clusterCpuAvg).toBe(0);
+    expect(result.current.clusterMemAvg).toBe(0);
+    expect(result.current.isOverloaded).toBe(false);
   });
 });

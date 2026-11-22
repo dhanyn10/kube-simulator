@@ -66,4 +66,10 @@ describe('ReplicaSetNode', () => {
     const { container } = render(<ReplicaSetNode {...defaultProps} selected={true} />);
     expect(container.firstChild).toHaveClass('replicaset-node-selected-light');
   });
+
+  it('applies quick connect target ring classes when quickConnectTargetNodeId matches id', () => {
+    useFlowStore.setState({ quickConnectTargetNodeId: '1' });
+    const { container } = render(<ReplicaSetNode {...defaultProps} />);
+    expect(container.firstChild).toHaveClass('ring-4', 'ring-emerald-400/80', 'animate-pulse');
+  });
 });

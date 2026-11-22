@@ -759,4 +759,218 @@ describe('deploymentYogaLayout', () => {
     expect(layout.laidOutPods).toHaveLength(1);
     expect(layout.height).toBeGreaterThan(150);
   });
+
+  it('covers getNodeBaseDimensions fallback and calculatePodCardDimensions manual resize branches', () => {
+    // 1. Unknown node type fallback to default { minWidth: 168, minHeight: 80 }
+    const customCard = calculateCardLayoutWithYoga({ type: 'CustomType', data: {} }, yoga);
+    expect(customCard.width).toBeGreaterThanOrEqual(168);
+    expect(customCard.height).toBeGreaterThanOrEqual(80);
+
+    // 2. Pod card with isManuallyResized = true with defined width and height
+    const resizedPod = calculateCardLayoutWithYoga({
+      type: 'Pod',
+      width: 250,
+      height: 180,
+      data: { isManuallyResized: true, replicas: 1 },
+    });
+    expect(resizedPod.width).toBe(250);
+    expect(resizedPod.height).toBe(180);
+
+    // 3. Pod card with isManuallyResized = true without width and height (fallbacks to 0 then minSize)
+    const zeroResizedPod = calculateCardLayoutWithYoga({
+      type: 'Pod',
+      data: { isManuallyResized: true, replicas: 1 },
+    });
+    expect(zeroResizedPod.width).toBeGreaterThan(0);
+    expect(zeroResizedPod.height).toBeGreaterThan(0);
+  });
+
+  it('covers calculateCardContentExtraHeight fallback branches', () => {
+    // ResourceLimit with default requests and limits
+    const rlHeight = calculateCardContentExtraHeight('ResourceLimit', {});
+    expect(rlHeight).toBe(92);
+
+    // Role with undefined rules
+    const roleHeight = calculateCardContentExtraHeight('Role', { displaySettings: { rules: true } });
+    expect(roleHeight).toBe(0);
+
+    // ConfigMap with undefined configData and with > 3 items overflow
+    const cmEmptyHeight = calculateCardContentExtraHeight('ConfigMap', { displaySettings: { data: true } });
+    expect(cmEmptyHeight).toBe(0);
+
+    const cmOverflowHeight = calculateCardContentExtraHeight('ConfigMap', {
+      displaySettings: { data: true },
+      configData: [
+        { key: 'k1', value: 'v1' },
+        { key: 'k2', value: 'v2' },
+        { key: 'k3', value: 'v3' },
+        { key: 'k4', value: 'v4' },
+      ],
+    });
+    expect(cmOverflowHeight).toBe(24 + 3 * 18 + 18);
+
+    // ConfigMap with <= 3 items without overflow
+    const cmSmallHeight = calculateCardContentExtraHeight('ConfigMap', {
+      displaySettings: { data: true },
+      configData: [{ key: 'k1', value: 'v1' }],
+    });
+    expect(cmSmallHeight).toBe(24 + 1 * 18 + 0);
+
+    // Secret with undefined secretData and undefined configData
+    const secEmptyHeight = calculateCardContentExtraHeight('Secret', { displaySettings: { data: true } });
+    expect(secEmptyHeight).toBe(0);
+  });
+
+  it('covers calculateCardLayoutWithYoga type/data fallbacks and manual resize without Yoga', () => {
+    // Node with undefined data and undefined type
+    const emptyNodeCard = calculateCardLayoutWithYoga({}, null);
+    expect(emptyNodeCard.width).toBeGreaterThan(0);
+    expect(emptyNodeCard.height).toBeGreaterThan(0);
+
+    // Node with type on data object instead of node root
+    const dataTypeCard = calculateCardLayoutWithYoga({ data: { type: 'Service', label: '' } }, null);
+    expect(dataTypeCard.width).toBeGreaterThan(0);
+
+    // Node with manual resize without Yoga: defined vs undefined dimensions
+    const nonYogaResizedWithDims = calculateCardLayoutWithYoga(
+      { type: 'Service', width: 220, height: 110, data: { isManuallyResized: true } },
+      null
+    );
+    expect(nonYogaResizedWithDims.width).toBe(220);
+    expect(nonYogaResizedWithDims.height).toBe(110);
+
+    const nonYogaResizedNoDims = calculateCardLayoutWithYoga(
+      { type: 'Service', data: { isManuallyResized: true } },
+      null
+    );
+    expect(nonYogaResizedNoDims.width).toBeGreaterThan(0);
+    expect(nonYogaResizedNoDims.height).toBeGreaterThan(0);
+
+    // Yoga card layout with manual resize without width/height
+    const yogaCardNoDims = calculateCardLayoutWithYoga(
+      { type: 'Service', data: { isManuallyResized: true } }
+    );
+    expect(yogaCardNoDims.width).toBeGreaterThan(0);
+    expect(yogaCardNoDims.height).toBeGreaterThan(0);
+  });
+
+  it('covers fallback non-Yoga deployment layout manual resize branches', () => {
+    const depResizedWithDims: Node = {
+      id: 'dep-dims',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      width: 400,
+      height: 350,
+      data: { isManuallyResized: true },
+    };
+
+    const podWithMeasuredOnly: Node = {
+      id: 'pod-meas',
+      type: 'Pod',
+      parentId: 'dep-dims',
+      position: { x: 0, y: 0 },
+      measured: { width: 160, height: 90 },
+      data: { isManuallyResized: true },
+    };
+
+    const podWithNoDims: Node = {
+      id: 'pod-nodims',
+      type: 'Pod',
+      parentId: 'dep-dims',
+      position: { x: 0, y: 0 },
+      data: { isManuallyResized: true },
+    };
+
+    const nonYogaLayout = calculateDeploymentLayoutWithYoga(
+      depResizedWithDims,
+      [podWithMeasuredOnly, podWithNoDims],
+      null
+    );
+    expect(nonYogaLayout.width).toBe(400);
+    expect(nonYogaLayout.height).toBe(396);
+
+    // Deployment with isManuallyResized = true but without width/height
+    const depResizedNoDims: Node = {
+      id: 'dep-nodims',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { isManuallyResized: true },
+    };
+    const nonYogaLayoutNoDims = calculateDeploymentLayoutWithYoga(
+      depResizedNoDims,
+      [],
+      null
+    );
+    expect(nonYogaLayoutNoDims.width).toBeGreaterThan(0);
+    expect(nonYogaLayoutNoDims.height).toBeGreaterThan(0);
+  });
+
+  it('covers Yoga deployment layout manual resize branches without deployment dimensions', () => {
+    const depYogaNoDims: Node = {
+      id: 'dep-yoga-nodims',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { isManuallyResized: true },
+    };
+
+    const podWithMeasured: Node = {
+      id: 'pod-yoga-meas',
+      type: 'Pod',
+      parentId: 'dep-yoga-nodims',
+      position: { x: 0, y: 0 },
+      measured: { width: 170, height: 95 },
+      data: { isManuallyResized: true },
+    };
+
+    const podWithExplicitWidth: Node = {
+      id: 'pod-yoga-w',
+      type: 'Pod',
+      parentId: 'dep-yoga-nodims',
+      position: { x: 0, y: 0 },
+      width: 180,
+      data: { isManuallyResized: true },
+    };
+
+    const podBare: Node = {
+      id: 'pod-yoga-bare',
+      type: 'Pod',
+      parentId: 'dep-yoga-nodims',
+      position: { x: 0, y: 0 },
+      data: { isManuallyResized: true },
+    };
+
+    const yogaLayout = calculateDeploymentLayoutWithYoga(
+      depYogaNoDims,
+      [podWithMeasured, podWithExplicitWidth, podBare],
+      yoga
+    );
+    expect(yogaLayout.width).toBeGreaterThan(0);
+    expect(yogaLayout.height).toBeGreaterThan(0);
+    expect(yogaLayout.laidOutPods).toHaveLength(3);
+  });
+
+  it('covers deployment and pod with undefined data and default cached yoga instance', () => {
+    // 1. With default cached yoga instance (yogaSync omitted) and undefined data on deployment and pod
+    const bareDep: Node = {
+      id: 'dep-bare',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+    };
+    const barePod: Node = {
+      id: 'pod-bare',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+    };
+
+    const yogaDefaultLayout = calculateDeploymentLayoutWithYoga(bareDep, [barePod]);
+    expect(yogaDefaultLayout.width).toBeGreaterThan(0);
+    expect(yogaDefaultLayout.height).toBeGreaterThan(0);
+    expect(yogaDefaultLayout.laidOutPods).toHaveLength(1);
+
+    // 2. Non-yoga layout with undefined data on deployment and pod
+    const nonYogaDefaultLayout = calculateDeploymentLayoutWithYoga(bareDep, [barePod], null);
+    expect(nonYogaDefaultLayout.width).toBeGreaterThan(0);
+    expect(nonYogaDefaultLayout.height).toBeGreaterThan(0);
+    expect(nonYogaDefaultLayout.laidOutPods).toHaveLength(1);
+  });
 });

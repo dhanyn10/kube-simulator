@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
   getSimulationButtonTitle,
@@ -68,5 +68,99 @@ describe('useSimulationControls & helpers', () => {
       hasHpaValidationError: true,
     });
     expect(result.current.buttonClass).toContain('bg-emerald-600 animate-pulse');
+  });
+
+  it('handles start action early return when simulation cannot start', () => {
+    const storeStart = vi.fn();
+    useFlowStore.setState({ startSimulation: storeStart, isPaused: false });
+
+    const { result } = renderHook(() =>
+      useSimulationControls({
+        isSimulating: false,
+        canStart: false,
+        hasInternet: false,
+      })
+    );
+
+    expect(result.current.canStart).toBe(false);
+    result.current.handleStart();
+    expect(storeStart).not.toHaveBeenCalled();
+  });
+
+  it('handles start action fallback to storeStartSimulation or prop, and during paused/simulating states', () => {
+    const storeStart = vi.fn();
+    const propStart = vi.fn();
+    useFlowStore.setState({ startSimulation: storeStart });
+
+    // 1. Can start with propStart provided
+    const { result: r1 } = renderHook(() =>
+      useSimulationControls({
+        isSimulating: false,
+        canStart: true,
+        startSimulation: propStart,
+      })
+    );
+    r1.current.handleStart();
+    expect(propStart).toHaveBeenCalledTimes(1);
+
+    // 2. Can start without propStart (fallback to storeStart)
+    const { result: r2 } = renderHook(() =>
+      useSimulationControls({
+        isSimulating: false,
+        canStart: true,
+      })
+    );
+    r2.current.handleStart();
+    expect(storeStart).toHaveBeenCalledTimes(1);
+
+    // 3. canStart is false, but isPaused is true
+    const { result: r3 } = renderHook(() =>
+      useSimulationControls({
+        isSimulating: false,
+        isPaused: true,
+        canStart: false,
+        startSimulation: propStart,
+      })
+    );
+    r3.current.handleStart();
+    expect(propStart).toHaveBeenCalledTimes(2);
+
+    // 4. canStart is false, but isSimulating is true
+    const { result: r4 } = renderHook(() =>
+      useSimulationControls({
+        isSimulating: true,
+        isPaused: false,
+        canStart: false,
+        startSimulation: propStart,
+      })
+    );
+    r4.current.handleStart();
+    expect(propStart).toHaveBeenCalledTimes(3);
+  });
+
+  it('handles pause action fallback and canStart fallback when props are undefined', () => {
+    const storePause = vi.fn();
+    const propPause = vi.fn();
+    useFlowStore.setState({ pauseSimulation: storePause });
+
+    // 1. pauseSimulation provided and canStart fallback to false
+    const { result: r1 } = renderHook(() =>
+      useSimulationControls({
+        isSimulating: true,
+        pauseSimulation: propPause,
+      })
+    );
+    r1.current.handlePause();
+    expect(propPause).toHaveBeenCalledTimes(1);
+    expect(r1.current.canStart).toBe(false);
+
+    // 2. pauseSimulation undefined (fallback to storePause)
+    const { result: r2 } = renderHook(() =>
+      useSimulationControls({
+        isSimulating: true,
+      })
+    );
+    r2.current.handlePause();
+    expect(storePause).toHaveBeenCalledTimes(1);
   });
 });

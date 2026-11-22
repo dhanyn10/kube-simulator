@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { HPAConfig } from '@/components/Config/HPAConfig';
+import * as hpaConfigHelpers from '@/activities/config/hpaConfigHelpers';
 import { useFlowStore } from '@/store';
 
 describe('HPAConfig', () => {
@@ -221,6 +222,12 @@ describe('HPAConfig', () => {
     const maxInput = screen.getByText('Max').parentElement?.querySelector('input');
     if (!maxInput) throw new Error('Max input not found');
 
+    const minInput = screen.getByText('Min').parentElement?.querySelector('input');
+    if (!minInput) throw new Error('Min input not found');
+
+    fireEvent.change(minInput, { target: { value: '' } });
+    expect(performUpdate).not.toHaveBeenCalled();
+
     fireEvent.change(maxInput, { target: { value: '' } });
     expect(performUpdate).not.toHaveBeenCalled();
 
@@ -402,5 +409,65 @@ describe('HPAConfig', () => {
       />
     );
     expect(screen.getByText('LINKED TO MY REPLICASET')).toBeDefined();
+  });
+
+  it('does not update node data when resolveMissingLimits returns an empty object', () => {
+    const updateSpy = vi.spyOn(useFlowStore.getState(), 'updateNodeData');
+    const resolveSpy = vi.spyOn(hpaConfigHelpers, 'resolveMissingLimits').mockReturnValue({});
+
+    const depNode = {
+      id: 'dep-no-updates',
+      type: 'Deployment',
+      data: { label: 'My Dep' }
+    };
+    useFlowStore.setState({
+      nodes: [selectedNode, depNode],
+      edges: [{ id: 'e-fix-empty', source: 'hpa1', target: 'dep-no-updates' }]
+    });
+
+    render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    const fixBtn = screen.getByText('Fix automatically');
+    fireEvent.click(fixBtn);
+
+    expect(updateSpy).not.toHaveBeenCalled();
+
+    resolveSpy.mockRestore();
+    updateSpy.mockRestore();
+  });
+
+  it('falls back to "workload" in limits warning when targetWorkload type becomes undefined', () => {
+    let accessCount = 0;
+    const dynamicNode = {
+      id: 'dyn-dep',
+      get type() {
+        accessCount++;
+        return accessCount === 1 ? 'Deployment' : undefined;
+      },
+      data: { label: 'Dynamic Dep' }
+    };
+
+    useFlowStore.setState({
+      nodes: [selectedNode, dynamicNode as any],
+      edges: [{ id: 'e-dyn', source: 'hpa1', target: 'dyn-dep' }]
+    });
+
+    render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText(/target workload to function/i)).toBeDefined();
   });
 });

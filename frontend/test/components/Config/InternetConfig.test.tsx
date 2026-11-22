@@ -612,4 +612,95 @@ describe('InternetConfig', () => {
     fireEvent.change(slider);
     expect(performUpdate).toHaveBeenCalledWith({ traffic: 1 });
   });
+
+  it('renders in light mode with active profile and displays all light mode styles', () => {
+    useFlowStore.setState({ colorMode: 'light', isSimulating: false });
+    const profileNode = {
+      id: 'int-light',
+      type: 'Internet',
+      data: {
+        label: 'Internet Light',
+        traffic: 2000,
+        connectionProfile: {
+          name: 'E-Commerce Peak',
+          points: [500, 1000, 1500, 2000],
+        },
+        displaySettings: { traffic: true },
+      },
+    };
+
+    const { rerender } = render(
+      <InternetConfig
+        selectedNode={profileNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    expect(screen.getByText('E-Commerce Peak')).toBeDefined();
+    expect(screen.getByText(/Min:/)).toBeDefined();
+
+    // Rerender during simulation to cover simulating light-mode badge styling
+    useFlowStore.setState({ colorMode: 'light', isSimulating: true });
+    rerender(
+      <InternetConfig
+        selectedNode={profileNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+    expect(screen.getByText('E-Commerce Peak')).toBeDefined();
+
+    // Rerender without activeProfile in light mode to cover manual traffic light-mode slider & inputs
+    const manualNode = {
+      id: 'int-light-manual',
+      type: 'Internet',
+      data: {
+        label: 'Internet Manual Light',
+        traffic: 2000,
+        displaySettings: { traffic: true },
+      },
+    };
+    rerender(
+      <InternetConfig
+        selectedNode={manualNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+    expect(screen.getByText('Requests / Duration')).toBeDefined();
+    expect(screen.getByText('req/min')).toBeDefined();
+  });
+
+  it('broadcasts modal request when in detached right sidebar window mode', async () => {
+    try {
+      globalThis.history.pushState({}, '', '?mode=sidebar-right');
+      const detachedNode = {
+        id: 'int-detached',
+        type: 'Internet',
+        data: {
+          label: 'Internet Detached',
+          traffic: 1000,
+          displaySettings: { traffic: true },
+        },
+      };
+
+      render(
+        <InternetConfig
+          selectedNode={detachedNode}
+          performUpdate={performUpdate}
+          toggleVisibility={toggleVisibility}
+        />
+      );
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Explore More'));
+      });
+
+      // In detached mode, modal is broadcasted via channel, local modal does not open
+      expect(screen.queryByText('24-Hour Connection Simulation Profile Templates (00:00 - 23:00)')).toBeNull();
+    } finally {
+      globalThis.history.pushState({}, '', '/');
+    }
+  });
 });

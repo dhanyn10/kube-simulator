@@ -80,6 +80,23 @@ describe('useMenuBarDropdown', () => {
     expect(setActiveMenu).toHaveBeenCalledWith('File');
   });
 
+  it('does not trigger mouse enter when activeMenu is null', () => {
+    const setActiveMenu = vi.fn();
+    const { result } = renderHook(() =>
+      useMenuBarDropdown({
+        ...defaultProps,
+        activeMenu: null,
+        setActiveMenu,
+      })
+    );
+
+    act(() => {
+      result.current.handleMouseEnter();
+    });
+
+    expect(setActiveMenu).not.toHaveBeenCalled();
+  });
+
   it('handles item click for non-toggle item and closes menu', () => {
     const setActiveMenu = vi.fn();
     const onClick = vi.fn();

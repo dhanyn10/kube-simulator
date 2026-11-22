@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { NODE_TYPES, INITIAL_NODES, INITIAL_EDGES, APP_VERSION, getNextMinorVersion } from '@/constants';
 import { LAYOUT, DEFAULT_DIMENSIONS } from '@/constants/layout';
 import packageJson from '../package.json';
@@ -8,6 +8,21 @@ describe('constants', () => {
     expect(APP_VERSION).toBe(packageJson.version);
     expect(getNextMinorVersion('1.2.3')).toBe('1.3.0');
     expect(getNextMinorVersion(APP_VERSION)).toBe(getNextMinorVersion());
+    expect(getNextMinorVersion('1')).toBe('1.1.0');
+    expect(getNextMinorVersion('v2')).toBe('2.1.0');
+    expect(getNextMinorVersion('')).toBe('0.1.0');
+    expect(getNextMinorVersion('invalid.text')).toBe('0.1.0');
+  });
+
+  it('falls back to default version when package.json version is missing', async () => {
+    vi.resetModules();
+    vi.doMock('../package.json', () => ({ default: {} }));
+    vi.doMock('../../package.json', () => ({ default: {} }));
+    const { APP_VERSION: fallbackVersion } = await import('@/constants/config');
+    expect(fallbackVersion).toBe('0.16.0');
+    vi.doUnmock('../package.json');
+    vi.doUnmock('../../package.json');
+    vi.resetModules();
   });
   it('contains valid NODE_TYPES definition for all resource types', () => {
     expect(NODE_TYPES).toBeDefined();
