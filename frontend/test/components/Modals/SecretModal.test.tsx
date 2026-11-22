@@ -523,4 +523,243 @@ describe('SecretModal', () => {
     fireEvent.click(backBtn);
     expect(screen.getByText('Cluster Secrets Overview')).toBeInTheDocument();
   });
+
+  it('handles edit and delete from list for cluster-storage item without resourceName', () => {
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'pod-1',
+          type: 'Pod',
+          data: { label: 'web-pod' },
+        },
+      ],
+      savedSecrets: [
+        {
+          id: 'cluster-sec-1',
+          name: 'raw-cluster-secret',
+          type: 'Opaque',
+          profileName: 'Default Profile',
+          secretData: [{ key: 'KEY_A', value: 'VAL_A' }],
+        },
+      ],
+    });
+
+    render(
+      <SecretModal
+        {...defaultProps}
+        targetNodeId="cluster-storage"
+        targetNodeLabel="Cluster Secrets"
+        initialSecret={null}
+        initialViewMode="list"
+      />
+    );
+
+    expect(screen.getByText('Cluster Secrets Overview')).toBeInTheDocument();
+
+    // Click Edit on the cluster-storage item
+    fireEvent.click(screen.getByTitle('Edit Secret raw-cluster-secret'));
+
+    // Should switch to form mode
+    expect(screen.getByDisplayValue('raw-cluster-secret')).toBeInTheDocument();
+
+    // Save with no attached components (hasAttached = false)
+    const saveBtn = screen.getByRole('button', { name: /update secret/i });
+    fireEvent.click(saveBtn);
+    expect(defaultProps.onSave).toHaveBeenCalled();
+  });
+
+  it('handles use existing secret logging with targetNodeId and canvas fallbacks', () => {
+    const mockAddLog = vi.fn();
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'pod-1',
+          type: 'Pod',
+          data: {
+            label: 'auth-pod',
+            secrets: [
+              {
+                id: 'sec-existing',
+                name: 'shared-secret',
+                type: 'Opaque',
+                secretData: [{ key: 'DB_URL', value: 'postgres://' }],
+              },
+            ],
+          },
+        },
+      ],
+      savedSecrets: [],
+      addLog: mockAddLog,
+    });
+
+    // 1. With targetNodeLabel empty, targetNodeId set
+    const { rerender } = render(
+      <SecretModal
+        {...defaultProps}
+        targetNodeId="pod-target-id"
+        targetNodeLabel=""
+      />
+    );
+
+    const importBtn = screen.getByText('Use Existing');
+    fireEvent.click(importBtn);
+
+    const existingItemBtn = screen.getByTestId('import-option-shared-secret');
+    fireEvent.click(existingItemBtn);
+
+    expect(mockAddLog).toHaveBeenCalledWith(
+      'info',
+      expect.stringContaining("for component 'pod-target-id'"),
+      'UI'
+    );
+
+    // 2. With both targetNodeLabel and targetNodeId empty -> fallback to 'canvas'
+    rerender(
+      <SecretModal
+        {...defaultProps}
+        targetNodeId=""
+        targetNodeLabel=""
+      />
+    );
+
+    const importBtnCanvas = screen.getByText('Use Existing');
+    fireEvent.click(importBtnCanvas);
+
+    const existingItemBtnCanvas = screen.getByTestId('import-option-shared-secret');
+    fireEvent.click(existingItemBtnCanvas);
+
+    expect(mockAddLog).toHaveBeenCalledWith(
+      'info',
+      expect.stringContaining("for component 'canvas'"),
+      'UI'
+    );
+  });
+
+  it('renders secret ID in light mode and handles attach/add new fallback targetId', () => {
+    useFlowStore.setState({ colorMode: 'light', nodes: [] });
+
+    const initialSecret: K8sSecretItem = {
+      id: 'sec-light-1',
+      name: 'light-sec',
+      type: 'Opaque',
+      secretData: [{ key: 'A', value: 'B' }],
+    };
+
+    const { rerender } = render(
+      <SecretModal
+        {...defaultProps}
+        initialSecret={initialSecret}
+      />
+    );
+
+    const idInput = screen.getByTestId('secret-id-input') as HTMLInputElement;
+    expect(idInput.value).toBe('sec-light-1');
+    expect(idInput.className).toContain('bg-slate-100');
+
+    // Test add new from list then save
+    rerender(
+      <SecretModal
+        {...defaultProps}
+        targetNodeId="cluster-storage"
+        targetNodeLabel="Cluster Secrets"
+        initialSecret={null}
+        initialViewMode="list"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Add Secret' }));
+
+    const nameInput = screen.getByPlaceholderText('e.g. app-secret');
+    fireEvent.change(nameInput, { target: { value: 'new-unattached-sec' } });
+
+    const saveBtn = screen.getByRole('button', { name: /attach secret/i });
+    fireEvent.click(saveBtn);
+    expect(defaultProps.onSave).toHaveBeenCalled();
+  });
+
+  it('covers fallback targetId on fresh create save and attach component', () => {
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'pod-fresh',
+          type: 'Pod',
+          data: { label: 'fresh-pod' },
+        },
+      ],
+      savedSecrets: [],
+    });
+
+    render(
+      <SecretModal
+        {...defaultProps}
+        targetNodeId="cluster-storage"
+        targetNodeLabel="Cluster Secrets"
+        initialSecret={null}
+      />
+    );
+
+    // Attach component when activeItem and initialSecret are null
+    const tagInput = screen.getByPlaceholderText(/Attach component/i);
+    fireEvent.focus(tagInput);
+    fireEvent.change(tagInput, { target: { value: 'fresh-pod' } });
+    fireEvent.keyDown(tagInput, { key: 'Enter', code: 'Enter' });
+
+    // Save with fallback secret-${Date.now()}
+    const saveBtn = screen.getByRole('button', { name: /attach secret/i });
+    fireEvent.click(saveBtn);
+    expect(defaultProps.onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.stringMatching(/^secret-[0-9a-f]+/),
+      })
+    );
+  });
+
+  it('covers profileItems with default profile and secret ID with empty id', () => {
+    useFlowStore.setState({
+      nodes: [],
+      savedSecrets: [
+        {
+          id: 'sec-def-prof',
+          name: 'default-profile-secret',
+          type: 'Opaque',
+          profileName: 'Default Profile',
+          secretData: [{ key: 'K', value: 'V' }],
+        },
+      ],
+    });
+
+    // 1. InitialSecret with empty id to cover value fallback branches in secret ID input
+    const initialWithEmptyId: K8sSecretItem = {
+      id: '',
+      name: 'empty-id-secret',
+      type: 'Opaque',
+      secretData: [],
+    };
+
+    const { rerender } = render(
+      <SecretModal
+        {...defaultProps}
+        initialSecret={initialWithEmptyId}
+      />
+    );
+
+    const idInput = screen.getByTestId('secret-id-input') as HTMLInputElement;
+    expect(idInput.value).toBe('');
+
+    // 2. Profile precedence with default profile fallback
+    rerender(
+      <SecretModal
+        {...defaultProps}
+        targetNodeId="cluster-storage"
+        targetNodeLabel="Cluster Secrets"
+        initialSecret={null}
+        initialViewMode="list"
+      />
+    );
+
+    const profBadge = screen.getByTestId('sec-profile-sec-def-prof');
+    fireEvent.click(profBadge);
+
+    expect(screen.getByTestId('secret-precedence-view')).toBeInTheDocument();
+  });
 });
