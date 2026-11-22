@@ -444,4 +444,112 @@ describe('uiHelpers', () => {
       expect((updated.data.roles as any[])[0].assignedUsers).toBeUndefined();
     });
   });
+
+  describe('edge cases for log deduplication, service logs, and simulateAllResourceLogs', () => {
+    it('covers bracket index > 40 and repeat count boundaries in parseLogLine', () => {
+      // closeBracketIdx > 40
+      const longBracket = '[' + 'a'.repeat(45) + '] message';
+      expect(parseLogLine(longBracket)).toEqual({
+        timestamp: null,
+        coreMessage: longBracket,
+        count: 1,
+      });
+
+      // Repeat count suffix with parsedNum <= 1 or >= 1_000_000 or invalid number
+      const x1 = parseLogLine('hello (x1)');
+      expect(x1.count).toBe(1);
+      expect(x1.coreMessage).toBe('hello (x1)');
+
+      const xBig = parseLogLine('hello (x1000000)');
+      expect(xBig.count).toBe(1);
+
+      const xNaN = parseLogLine('hello (xABC)');
+      expect(xNaN.count).toBe(1);
+
+      // Ends with ')' but does not contain ' (x'
+      const nonCountParen = parseLogLine('hello (world)');
+      expect(nonCountParen.count).toBe(1);
+      expect(nonCountParen.coreMessage).toBe('hello (world)');
+    });
+
+    it('covers deduplicateOrAppendLogLine fallback to lastParsed timestamp when newParsed has no timestamp', () => {
+      const existing = ['[12:00:00] Task executed'];
+      const updated = deduplicateOrAppendLogLine(existing, 'Task executed');
+      expect(updated).toEqual(['[12:00:00] Task executed (x2)']);
+    });
+
+    it('covers createLogLineForResource returning null for Service when allNodes is missing', () => {
+      const svcNode: Node = { id: 'svc1', type: 'Service', position: { x: 0, y: 0 }, data: {} };
+      expect(createLogLineForResource(svcNode, undefined, undefined)).toBeNull();
+    });
+
+    it('covers simulateAllResourceLogs early return when no loggable nodes are present', () => {
+      const set = vi.fn();
+      const nsNode: Node = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+      simulateAllResourceLogs([nsNode], {}, set);
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    it('covers simulateAllResourceLogs activity log filtering with Service packet drop or node hop, sample tick, and non-crucial skip', () => {
+      let state: any = { terminalLogs: {}, activityLogs: [] };
+      const set = (updater: any) => {
+        state = { ...state, ...updater(state) };
+      };
+
+      const droppedPod: Node = {
+        id: 'p1',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: { label: 'app', assignedNode: 'worker-2' },
+      };
+
+      const droppedSvc: Node = {
+        id: 's-drop',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { serviceType: 'NodePort', selector: 'app', entryNode: 'worker-1', externalTrafficPolicy: 'Local' },
+      };
+
+      // 1. Crucial log: Packet dropped (with ticks = 10 so allowAccessLogs is true)
+      simulateAllResourceLogs([droppedSvc, droppedPod], {}, set, { ticks: 10 });
+      expect(state.activityLogs.some((l: string) => l.includes('Packet dropped'))).toBe(true);
+
+      // 2. Crucial log: Node Hop
+      const hopSvc: Node = {
+        id: 's-hop',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { serviceType: 'NodePort', selector: 'app', entryNode: 'worker-1', externalTrafficPolicy: 'Cluster' },
+      };
+      simulateAllResourceLogs([hopSvc, droppedPod], {}, set, { ticks: 10 });
+      expect(state.activityLogs.some((l: string) => l.includes('[Node Hop]'))).toBe(true);
+
+      // 3. Direct local routing: not crucial
+      const localPod: Node = {
+        id: 'p-local',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: { label: 'app-local', assignedNode: 'worker-1' },
+      };
+      const localSvc: Node = {
+        id: 's-local',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        data: { serviceType: 'NodePort', selector: 'app-local', entryNode: 'worker-1' },
+      };
+
+      // 3a. Sample tick where ticks % 20 === 0 -> activity log added
+      simulateAllResourceLogs([localSvc, localPod], {}, set, { ticks: 20 });
+      expect(state.activityLogs.some((l: string) => l.includes('Direct local routing'))).toBe(true);
+
+      // 3b. Non-sample tick (ticks = 10) -> not crucial and not sample tick -> svcActivity is null
+      let state2: any = { terminalLogs: {}, activityLogs: [] };
+      const set2 = (updater: any) => {
+        state2 = { ...state2, ...updater(state2) };
+      };
+      simulateAllResourceLogs([localSvc, localPod], {}, set2, { ticks: 10 });
+      expect(state2.terminalLogs['s-local']).toBeDefined();
+      expect(state2.activityLogs).toHaveLength(0);
+    });
+  });
 });

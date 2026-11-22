@@ -680,5 +680,107 @@ describe('fileBackstageHelpers', () => {
         resetBackendGateway();
       }
     });
+
+    it('covers edge cases for clearAllAutosaves, openRecentFileFolder, fetchAutosaves, and corrupted payloads', async () => {
+      // 1. Backend unavailable early returns
+      delete (globalThis as any).go;
+      const reloadFn = vi.fn();
+      await clearAllAutosaves(reloadFn);
+      expect(reloadFn).not.toHaveBeenCalled();
+
+      const item: RecentFileItem = {
+        id: 'item-1',
+        name: 'Item 1',
+        location: '/path/to/folder',
+        fullPath: '/path/to/folder',
+        updatedAt: '',
+      };
+      await openRecentFileFolder(item);
+      expect(item.id).toBe('item-1');
+
+      // 2. Autosaves sorting with undefined timestamps and content already present under a.key
+      const mockGetAutosaves = vi.fn().mockResolvedValue([
+        { key: 'session-a', location: '/path/a', timestamp: undefined },
+        { key: 'session-b', location: '/path/b', timestamp: 0 },
+        { key: 'session-c', location: '/path/c', timestamp: 1000 },
+      ]);
+      const mockGetSetting = vi.fn().mockImplementation((k: string) => {
+        if (k === 'session-c') return Promise.resolve('{"nodes":[],"edges":[]}');
+        return Promise.resolve(null);
+      });
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GetAutosaveProfiles: mockGetAutosaves,
+            GetSetting: mockGetSetting,
+            GetProjects: vi.fn().mockResolvedValue([]),
+            OpenFileFolder: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+      };
+
+      const files = await fetchRecentFiles();
+      expect(files).toHaveLength(1);
+      expect(files[0].name).toBe('session-c');
+
+      // Test openRecentFileFolder when backend is available
+      await openRecentFileFolder(item);
+      expect((globalThis as any).go.main.App.OpenFileFolder).toHaveBeenCalledWith('/path/to/folder');
+
+      // 3. restoreRecentFile with non-object autosave content and error without message
+      const autosaveItem: RecentFileItem = {
+        id: 'autosave-session-c',
+        name: 'session-c',
+        location: '/path/c',
+        fullPath: '/path/c',
+        updatedAt: '',
+        isAutosave: true,
+      };
+
+      // Non-object autosave (e.g. primitive string in JSON)
+      (globalThis as any).go.main.App.GetSetting = vi.fn().mockResolvedValue('"primitive-string"');
+      await restoreRecentFile(autosaveItem, vi.fn(), vi.fn());
+      expect(useFlowStore.getState().logs.some((l) => l.message.includes('Corrupted autosave payload'))).toBe(true);
+
+      // Autosave error with no message string
+      const originalParse = JSON.parse;
+      JSON.parse = vi.fn().mockImplementation(() => {
+        throw {}; // error without message property
+      });
+      await restoreRecentFile(autosaveItem, vi.fn(), vi.fn());
+      expect(useFlowStore.getState().logs.some((l) => l.message.includes('Corrupted data format'))).toBe(true);
+      JSON.parse = originalParse;
+
+      // 4. restoreRecentFile for project with primitive content, empty nodes/edges, and error without message
+      const projectItem: RecentFileItem = {
+        id: 123,
+        name: 'Project 123',
+        location: '',
+        fullPath: '',
+        updatedAt: '',
+      };
+
+      // Primitive project content
+      (globalThis as any).go.main.App.LoadProject = vi.fn().mockResolvedValue({ content: '"primitive"' });
+      await restoreRecentFile(projectItem, vi.fn(), vi.fn());
+      expect(useFlowStore.getState().logs.some((l) => l.message.includes('Corrupted project payload'))).toBe(true);
+
+      // Project content with missing nodes and missing edges
+      (globalThis as any).go.main.App.LoadProject = vi.fn().mockResolvedValue({ content: '{}' });
+      const onClose = vi.fn();
+      const fitView = vi.fn();
+      await restoreRecentFile(projectItem, onClose, fitView);
+      expect(onClose).toHaveBeenCalled();
+      expect(useFlowStore.getState().nodes).toEqual([]);
+      expect(useFlowStore.getState().edges).toEqual([]);
+
+      // Project error with no message string
+      JSON.parse = vi.fn().mockImplementation(() => {
+        throw {};
+      });
+      await restoreRecentFile(projectItem, vi.fn(), vi.fn());
+      expect(useFlowStore.getState().logs.some((l) => l.message.includes('Corrupted project data'))).toBe(true);
+      JSON.parse = originalParse;
+    });
   });
 });

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateSeriesStats,
   buildSvgPoints,
+  buildAreaPath,
   CHART_PALETTE,
   parseIntervalMinutes,
   aggregateMetricSeries,
@@ -453,5 +454,172 @@ describe('chartHelpers', () => {
     expect(resEmpty.trafficData).toEqual([]);
     expect(resEmpty.currentTrafficRpm).toBe(0);
     expect(resEmpty.currentLatency).toBe(0);
+  });
+
+  it('covers scrubber, ceiling, dynamic Y-max, and stats edge cases', () => {
+    // resolveScrubberPointValue fallback with sparse array
+    const sparseArr: number[] = [];
+    sparseArr[10] = 50;
+    expect(resolveScrubberPointValue(sparseArr, 999, 10, 10)).toBe(999);
+
+    // getNiceCeiling when fraction <= 1
+    expect(getNiceCeiling(100)).toBe(100);
+    expect(getNiceCeiling(10)).toBe(10);
+    expect(getNiceCeiling(1)).toBe(1);
+
+    // calculateDynamicYMax with undefined or null values
+    expect(calculateDynamicYMax(undefined as any)).toBe(100);
+
+    // calculateSeriesStats with descending array and ending with 0
+    const statsDesc = calculateSeriesStats('s1', 'Label', '#fff', [50, 20, 10, 0]);
+    expect(statsDesc.min).toBe(0);
+    expect(statsDesc.max).toBe(50);
+    expect(statsDesc.current).toBe(0);
+  });
+
+  it('covers buildAreaPath edge cases', () => {
+    expect(buildAreaPath('', 500, 140)).toBe('M0,140 L500,140 Z');
+    expect(buildAreaPath('100', 500, 140)).toBe('M0,140 L100 L500,140 Z');
+    expect(buildAreaPath(',100', 500, 140)).toBe('M0,140 L,100 L500,140 Z');
+  });
+
+  it('covers aggregateMetricSeries unindexed, bucketed, zero metrics and custom iterators', () => {
+    // Unindexed with undefined/zero values and last point 0
+    const unindexedPoints: SimulationMetricPoint[] = [
+      { cpuPercent: 0 },
+      { cpuPercent: 0 },
+    ];
+    const unindexedRes = aggregateMetricSeries(unindexedPoints, 'cpuPercent', '1h');
+    expect(unindexedRes.currentVal).toBe(0);
+    expect(unindexedRes.data).toEqual([0, 0]);
+
+    // Bucketed with undefined minuteIndex and zero metric
+    const bucketedPoints: SimulationMetricPoint[] = [
+      { minuteIndex: 0, cpuPercent: 0 },
+      { minuteIndex: undefined as any, cpuPercent: 0 },
+    ];
+    const bucketedRes = aggregateMetricSeries(bucketedPoints, 'cpuPercent', '1h');
+    expect(bucketedRes.currentVal).toBe(0);
+
+    // Empty bucket indices via empty-yielding iterator
+    const customEmptyPoints = Object.assign([], {
+      length: 1,
+      some: () => true,
+      [Symbol.iterator]: function* () {},
+    });
+    const emptyAgg = aggregateMetricSeries(customEmptyPoints as any, 'cpuPercent', '1h');
+    expect(emptyAgg.data).toEqual([]);
+    expect(emptyAgg.currentVal).toBe(0);
+  });
+
+  it('covers calculateNetworkMetrics missing metrics, undefined rpm/latency, and empty deployments', () => {
+    const deps = [
+      { id: 'dep-a', label: 'dep-a' },
+      { id: 'dep-b', label: 'dep-b' },
+    ];
+    // Unindexed metrics with missing dep and undefined values
+    const unindexedNetMetrics: Record<string, SimulationMetricPoint[]> = {
+      'dep-a': [
+        { trafficRpm: undefined, latencyMs: undefined },
+      ],
+    };
+    const unindexedNet = calculateNetworkMetrics(deps, unindexedNetMetrics, '1h');
+    expect(unindexedNet.trafficData).toHaveLength(1);
+    expect(unindexedNet.trafficData[0]).toBe(0);
+
+    // Bucketed metrics with missing metrics entry and undefined minuteIndex
+    const bucketedNetMetrics: Record<string, SimulationMetricPoint[]> = {
+      'dep-a': [
+        { minuteIndex: 0, trafficRpm: 10, latencyMs: 20 },
+        { minuteIndex: undefined as any, trafficRpm: undefined, latencyMs: undefined },
+      ],
+    };
+    const bucketedNet = calculateNetworkMetrics(deps, bucketedNetMetrics, '1h');
+    expect(bucketedNet.trafficData.length).toBeGreaterThan(0);
+
+    // Empty deployments with bucketed metrics triggers aggregateBucketTrafficMetrics early return
+    const emptyNet = calculateNetworkMetrics([], { 'unmatched-dep': [{ minuteIndex: 0 }] }, '1h');
+    expect(emptyNet.trafficData).toEqual([]);
+    expect(emptyNet.currentTrafficRpm).toBe(0);
+  });
+
+  it('covers replica series and extractReplicaCounts fallback branches', () => {
+    const deps = [
+      { id: 'dep-no-rep', label: 'dep-no-rep', replicas: 0 },
+    ];
+    // extractReplicaCounts with fallback to 1 and non-numeric replica in point
+    const counts = extractReplicaCounts(deps, {
+      'dep-no-rep': [{ replicas: undefined as any }],
+    });
+    expect(counts).toEqual([1]);
+
+    // extractReplicaCounts with missing metrics entry taking || [] fallback
+    const countsMissing = extractReplicaCounts(deps, {});
+    expect(countsMissing).toEqual([1]);
+
+    // calculateReplicaSeries unindexed with 0 replicas fallback to 1, non-empty points, and missing metrics
+    const depsWithMissing = [
+      { id: 'dep-no-rep', label: 'dep-no-rep', replicas: 0 },
+      { id: 'dep-missing', label: 'dep-missing', replicas: 2 },
+    ];
+    const unindexedReplica = calculateReplicaSeries(depsWithMissing, { 'dep-no-rep': [{ cpuPercent: 10 }] }, '1h', 10);
+    expect(unindexedReplica[0].current).toBe(1);
+    expect(unindexedReplica[0].data).toEqual([1]);
+    expect(unindexedReplica[1].current).toBe(2);
+    expect(unindexedReplica[1].data).toEqual([]);
+
+    // calculateReplicaSeries bucketed with 0 replicas and 0 currentVal fallback to 1
+    const bucketedMetrics: Record<string, SimulationMetricPoint[]> = {
+      'dep-no-rep': [
+        { minuteIndex: 0, replicas: 0 },
+      ],
+    };
+    const bucketedReplica = calculateReplicaSeries(deps, bucketedMetrics, '1h', 10);
+    expect(bucketedReplica[0].current).toBe(1);
+  });
+
+  it('covers getThresholdReferenceLines memory and HPA branches', () => {
+    // Memory threshold with memoryLimit missing or <= 0
+    const depMem = [{ id: 'dep-m', label: 'dep-m' }];
+    const metricsMem: Record<string, SimulationMetricPoint[]> = {
+      'dep-m': [{ memoryLimit: 0 }],
+    };
+    // softLimit and memLimit exceed dynamicMax
+    const memLinesExceed = getThresholdReferenceLines('memoryValue', 100, depMem, metricsMem, 256);
+    expect(memLinesExceed).toEqual([]);
+
+    // CPU threshold with custom hpaTarget !== 80
+    const cpuCustomTarget = getThresholdReferenceLines('cpuPercent', 100, [], {}, 100, true, 60);
+    expect(cpuCustomTarget.some((l) => l.label.includes('60%'))).toBe(true);
+
+    // CPU threshold with deployment hasHpa = false and hpas array with targetCPU
+    const depWithHpa = [
+      {
+        id: 'dep-hpa',
+        label: 'dep-hpa',
+        hasHpa: false,
+        hpas: [{ targetCPU: 70 }],
+      },
+    ];
+    const cpuLinesHpa = getThresholdReferenceLines('cpuPercent', 100, depWithHpa, {}, 100, false, 80);
+    expect(cpuLinesHpa.some((l) => l.label.includes('70%'))).toBe(true);
+
+    // CPU threshold with empty hpas array and '0' string targetCPU fallback to 80
+    const depEmptyHpa = [
+      {
+        id: 'dep-empty-hpa',
+        label: 'dep-empty-hpa',
+        hasHpa: false,
+        hpas: [],
+      },
+      {
+        id: 'dep-zero-hpa',
+        label: 'dep-zero-hpa',
+        hasHpa: false,
+        hpas: [{ targetCPU: '0' as any }],
+      },
+    ];
+    const cpuLinesFallback = getThresholdReferenceLines('cpuPercent', 100, depEmptyHpa, {}, 100, false, 80);
+    expect(cpuLinesFallback.some((l) => l.label.includes('80%'))).toBe(true);
   });
 });
