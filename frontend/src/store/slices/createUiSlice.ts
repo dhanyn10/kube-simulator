@@ -73,6 +73,12 @@ export interface UiSlice {
   activeIdentity: string;
   setActiveIdentity: (identity: string) => void;
 
+  // Internet Profile Modal state & actions
+  isInternetProfileModalOpen: boolean;
+  setInternetProfileModalOpen: (open: boolean) => void;
+  internetProfileTargetId: string | null;
+  setInternetProfileTargetId: (id: string | null) => void;
+
   // Kube IAM Modal state & actions
   isKubeIamModalOpen: boolean;
   setKubeIamModalOpen: (open: boolean) => void;
@@ -906,6 +912,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   isRightSidebarVisible: true,
   isSidebarDetached: false,
   isRightSidebarDetached: false,
+  isInternetProfileModalOpen: false,
+  internetProfileTargetId: null,
   isSimulating: false,
   isPaused: false,
   simulationSpeed: 1,
@@ -1160,6 +1168,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   },
   setSidebarDetached: (detached) => set({ isSidebarDetached: detached }),
   setRightSidebarDetached: (detached) => set({ isRightSidebarDetached: detached }),
+  setInternetProfileModalOpen: (open) => set({ isInternetProfileModalOpen: open }),
+  setInternetProfileTargetId: (id) => set({ internetProfileTargetId: id }),
   setMonitoringOpen: (open) => {
     set({ isMonitoringOpen: open });
     get().saveSettingsJson();

@@ -24,6 +24,14 @@ export const useRightSidebar = () => {
   const selectedEdge = edges.find((e) => e.id === configuringEdgeId);
   const isElementSelected = Boolean(selectedNode || selectedEdge);
 
+  // In detached right window, switch to the Settings tab when a node is selected on canvas.
+  const isDetachedRight = new URLSearchParams(globalThis.location?.search || '').get('mode') === 'sidebar-right';
+  useEffect(() => {
+    if (isDetachedRight && configuringNodeId) {
+      handleTabChange('settings');
+    }
+  }, [isDetachedRight, configuringNodeId, configuringEdgeId]);
+
   const [activeTab, setActiveTab] = useState<TabType>('canvas');
   const [isCanvasDropdownOpen, setIsCanvasDropdownOpen] = useState(false);
   const canvasDropdownRef = useRef<HTMLDivElement>(null);

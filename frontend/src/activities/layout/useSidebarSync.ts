@@ -32,6 +32,25 @@ export interface SidebarSyncMessage {
 type StoreState = ReturnType<typeof useFlowStore.getState>;
 type BackendGateway = ReturnType<typeof getBackendGateway>;
 
+/**
+ * Removes function-valued properties so nodes/edges can cross the BroadcastChannel.
+ */
+const sanitizeForBroadcast = (value: any): any => {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeForBroadcast);
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, any> = {};
+    for (const [key, val] of Object.entries(value)) {
+      if (typeof val !== 'function') {
+        out[key] = sanitizeForBroadcast(val);
+      }
+    }
+    return out;
+  }
+  return value;
+};
+
 const sendStateToWindow = (channel: BroadcastChannel, store: StoreState) => {
   channel.postMessage({
     type: 'STATE_UPDATE',
@@ -39,8 +58,8 @@ const sendStateToWindow = (channel: BroadcastChannel, store: StoreState) => {
       colorMode: store.colorMode,
       configuringNodeId: store.configuringNodeId,
       configuringEdgeId: store.configuringEdgeId,
-      nodes: store.nodes,
-      edges: store.edges,
+      nodes: sanitizeForBroadcast(store.nodes),
+      edges: sanitizeForBroadcast(store.edges),
     },
   });
 };
@@ -71,13 +90,22 @@ const handleMainWindowMessage = (
   } else if (msg.type === 'ATTACH_SIDEBAR' && msg.side) {
     attachSidebarToMainWindow(msg.side, store, gw);
   } else if (msg.type === 'MODAL_REQUEST' && msg.modalId) {
-    openModalRequest(msg.modalId);
+    openModalRequest(msg.modalId, msg.nodeId ?? null);
   }
 };
 
-const openModalRequest = (modalId: string) => {
+/** Returns true when running inside the detached right sidebar window. */
+export const isDetachedRightWindow = (): boolean => {
+  const searchParams = new URLSearchParams(globalThis.location?.search || '');
+  return searchParams.get('mode') === 'sidebar-right';
+};
+
+const openModalRequest = (modalId: string, nodeId: string | null = null) => {
   const store = useFlowStore.getState();
-  if (modalId === 'KUBE_IAM') {
+  if (modalId === 'INTERNET_PROFILE_MODAL') {
+    if (nodeId) store.setInternetProfileTargetId(nodeId);
+    store.setInternetProfileModalOpen(true);
+  } else if (modalId === 'KUBE_IAM') {
     store.setKubeIamModalOpen(true);
   } else if (modalId === 'WORKER_BUDGET') {
     store.setWorkerBudgetModalOpen(true);
@@ -111,6 +139,30 @@ const handleDetachedMessage = (msg: SidebarSyncMessage, store: StoreState) => {
   if (Object.keys(updates).length > 0) {
     useFlowStore.setState(updates);
   }
+};
+
+/** Tracks the last broadcasted selecting state so we only broadcast real changes. */
+const createSettingsSyncSubscriber = (channel: BroadcastChannel, gw: BackendGateway) => {
+  const prev = {
+    configuringNodeId: useFlowStore.getState().configuringNodeId,
+    configuringEdgeId: useFlowStore.getState().configuringEdgeId,
+  };
+
+  return (state: StoreState) => {
+    const changed = state.configuringNodeId !== prev.configuringNodeId || state.configuringEdgeId !== prev.configuringEdgeId;
+    if (!changed) return;
+    prev.configuringNodeId = state.configuringNodeId;
+    prev.configuringEdgeId = state.configuringEdgeId;
+    if (!state.isRightSidebarDetached) return;
+    // Broadcast so the detached right window switches to the Settings tab.
+    sendStateToWindow(channel, state);
+    void gw.emitEvent('sidebar-settings-selected', state.configuringNodeId, state.configuringEdgeId);
+  };
+};
+
+/** Applies a selecting change reported by the main window to the detached window's store. */
+const applyDetachedSettings = (nodeId: string | null, edgeId: string | null) => {
+  useFlowStore.setState({ configuringNodeId: nodeId, configuringEdgeId: edgeId });
 };
 
 /**
@@ -153,6 +205,16 @@ export const useSidebarSync = () => {
 
     channel.onmessage = handleMessage;
 
+    // Broadcast selecting changes (Settings etc.) to detached windows when needed.
+    const unsubStore = isDetachedSidebar ? () => {} : useFlowStore.subscribe(createSettingsSyncSubscriber(channel, gw));
+
+    // In detached windows, apply selecting changes reported by the main window.
+    const unsubSettings = gw.onEvent('sidebar-settings-selected', (nodeId: string | null, edgeId: string | null) => {
+      if (isDetachedSidebar) {
+        applyDetachedSettings(nodeId ?? null, edgeId ?? null);
+      }
+    });
+
     // Listen to native window close event from backend
     const unsubClose = gw.onEvent('sidebar-detached-closed', (side: any) => {
       if (side === 'left') {
@@ -182,6 +244,8 @@ export const useSidebarSync = () => {
       unsubClose();
       unsubOpen();
       unsubModalReq();
+      unsubStore();
+      unsubSettings();
     };
   }, []);
 
@@ -189,8 +253,8 @@ export const useSidebarSync = () => {
     channelRef.current?.postMessage({ type: 'ADD_NODE', nodeType });
   };
 
-  const broadcastModalRequest = (modalId: string) => {
-    channelRef.current?.postMessage({ type: 'MODAL_REQUEST', modalId });
+  const broadcastModalRequest = (modalId: string, nodeId?: string | null) => {
+    channelRef.current?.postMessage({ type: 'MODAL_REQUEST', modalId, nodeId: nodeId ?? undefined });
   };
 
   const broadcastAttachSidebar = (side: 'left' | 'right') => {

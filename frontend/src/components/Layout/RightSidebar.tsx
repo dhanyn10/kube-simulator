@@ -136,9 +136,9 @@ export const SettingsPanel = ({ selectedNode, selectedEdge, isElementSelected, c
           )}>
             {selectedEdge ? (
               <EdgeConfig selectedEdge={selectedEdge} />
-            ) : (
+            ) : selectedNode ? (
               <NodeConfig selectedNode={selectedNode} />
-            )}
+            ) : null}
           </div>
 
         </>

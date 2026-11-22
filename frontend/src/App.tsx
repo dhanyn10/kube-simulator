@@ -30,6 +30,7 @@ import {
   SaveModal,
   TerminalCommandTreeModal,
   AttachedResourceOverviewModal,
+  InternetProfileModal,
 } from './components/Modals';
 import {
   PodNode,
@@ -160,6 +161,11 @@ export default function App() {
   const isKubeIamWizardOpen = useFlowStore((state) => state.isKubeIamModalOpen);
   const isWorkerBudgetModalOpen = useFlowStore((state) => state.isWorkerBudgetModalOpen);
   const isTerminalCommandTreeModalOpen = useFlowStore((state) => state.isTerminalCommandTreeModalOpen);
+  const isInternetProfileModalOpen = useFlowStore((state) => state.isInternetProfileModalOpen);
+  const internetProfileTargetId = useFlowStore((state) => state.internetProfileTargetId);
+  const internetProfileNode = useFlowStore((state) =>
+    internetProfileTargetId ? state.nodes.find((n) => n.id === internetProfileTargetId) : null
+  );
   const isResourceManagerOpen = useFlowStore((state) => state.isResourceManagerOpen);
   const resourceManagerTargetImage = useFlowStore((state) => state.resourceManagerTargetImage);
   const setResourceManagerOpen = useFlowStore((state) => state.setResourceManagerOpen);
@@ -443,6 +449,19 @@ export default function App() {
 
           <KubeIAMModal />
           <WorkerBudgetModal />
+
+          <InternetProfileModal
+            isOpen={isInternetProfileModalOpen}
+            onClose={() => {
+              useFlowStore.getState().setInternetProfileModalOpen(false);
+              useFlowStore.getState().setInternetProfileTargetId(null);
+            }}
+            selectedNode={internetProfileNode}
+            performUpdate={(updates: any) => {
+              const id = useFlowStore.getState().internetProfileTargetId;
+              if (id) useFlowStore.getState().updateNodeData(id, updates);
+            }}
+          />
 
           <AttachedResourceOverviewModal
             type={activeOverviewModal}
