@@ -69,7 +69,7 @@ export const DetachedRightSidebar: React.FC = () => {
 
       {/* Main RightSidebar View */}
       <main className="flex-1 overflow-hidden relative">
-        <RightSidebar onExportYaml={() => {}} />
+        <RightSidebar onExportYaml={() => {}} isDetached />
       </main>
     </div>
   );

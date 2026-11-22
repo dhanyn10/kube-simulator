@@ -304,7 +304,7 @@ export const SidebarTabBar = ({
   );
 };
 
-export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => {
+export const RightSidebar = ({ onExportYaml, isDetached = false }: { onExportYaml: () => void; isDetached?: boolean }) => {
   const {
     colorMode,
     toggleColorMode,
@@ -333,9 +333,10 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       id="right-sidebar"
       onContextMenu={handleContextMenu}
       className={cn(
-        "right-sidebar-container w-72 border-l relative transition-all duration-300",
+        "right-sidebar-container relative transition-all duration-300",
+        isDetached ? "w-full h-full border-0" : "w-72 border-l",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200",
-        isTerminalOpen ? "h-[calc(100vh-2.5rem-16rem)]" : "h-[calc(100vh-2.5rem)]"
+        !isDetached && (isTerminalOpen ? "h-[calc(100vh-2.5rem-16rem)]" : "h-[calc(100vh-2.5rem)]")
       )}
     >
       {contextMenu && (

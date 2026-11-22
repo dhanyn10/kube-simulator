@@ -74,7 +74,7 @@ export const DetachedLeftSidebar: React.FC = () => {
 
       {/* Main Sidebar View */}
       <main className="flex-1 overflow-hidden relative">
-        <Sidebar onAddNode={handleAddNode} />
+        <Sidebar onAddNode={handleAddNode} isDetached />
       </main>
     </div>
   );

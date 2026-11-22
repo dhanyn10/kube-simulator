@@ -17,6 +17,7 @@ import {
 
 interface SidebarProps {
   readonly onAddNode: (type: K8sResourceType, position?: { x: number; y: number }) => void;
+  readonly isDetached?: boolean;
 }
 
 const SidebarSection = ({ 
@@ -106,7 +107,7 @@ const SidebarSection = ({
   );
 };
 
-export const Sidebar = ({ onAddNode }: SidebarProps) => {
+export const Sidebar = ({ onAddNode, isDetached = false }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
@@ -191,9 +192,10 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
       id="sidebar-components"
       onContextMenu={handleContextMenu}
       className={cn(
-        "sidebar-container w-64 border-r relative transition-all duration-300",
+        "sidebar-container relative transition-all duration-300",
+        isDetached ? "w-full h-full border-0" : "w-64 border-r",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200",
-        isTerminalOpen ? "h-[calc(100vh-2.5rem-16rem)]" : "h-[calc(100vh-2.5rem)]"
+        !isDetached && (isTerminalOpen ? "h-[calc(100vh-2.5rem-16rem)]" : "h-[calc(100vh-2.5rem)]")
       )}
     >
       {contextMenu && (
