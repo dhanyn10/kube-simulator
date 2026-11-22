@@ -63,4 +63,55 @@ describe('useThemeSync', () => {
     expect(useFlowStore.getState().colorMode).toBe('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
+
+  it('ignores invalid or duplicate BroadcastChannel messages and non-string or invalid gateway events', async () => {
+    useFlowStore.setState({ colorMode: 'dark' });
+    renderHook(() => useThemeSync());
+
+    const channel = new BroadcastChannel('monitoring-data');
+
+    // 1. Unrelated event type
+    await act(async () => {
+      channel.postMessage({ type: 'LOG_MESSAGE', colorMode: 'light' });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(useFlowStore.getState().colorMode).toBe('dark');
+
+    // 2. THEME_SYNC without colorMode
+    await act(async () => {
+      channel.postMessage({ type: 'THEME_SYNC' });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(useFlowStore.getState().colorMode).toBe('dark');
+
+    // 3. THEME_SYNC with unsupported mode (neither 'dark' nor 'light')
+    await act(async () => {
+      channel.postMessage({ type: 'THEME_SYNC', colorMode: 'sepia' });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(useFlowStore.getState().colorMode).toBe('dark');
+
+    // 4. THEME_SYNC with identical mode already in store
+    await act(async () => {
+      channel.postMessage({ type: 'THEME_SYNC', colorMode: 'dark' });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(useFlowStore.getState().colorMode).toBe('dark');
+
+    channel.close();
+
+    // 5. Backend gateway event with non-string payload
+    await act(async () => {
+      getBackendGateway().emitEvent('theme-sync', 999);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    expect(useFlowStore.getState().colorMode).toBe('dark');
+
+    // 6. Backend gateway event with invalid mode string
+    await act(async () => {
+      getBackendGateway().emitEvent('theme-sync', 'high-contrast');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    expect(useFlowStore.getState().colorMode).toBe('dark');
+  });
 });

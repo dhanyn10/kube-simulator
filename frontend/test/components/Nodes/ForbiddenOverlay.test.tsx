@@ -44,4 +44,13 @@ describe('ForbiddenOverlay', () => {
 
     expect(screen.queryByTestId('forbidden-overlay')).toBeNull();
   });
+
+  it('applies light mode styling when colorMode is light', () => {
+    useFlowStore.setState({ activeIdentity: 'dev-user', colorMode: 'light' });
+    render(<ForbiddenOverlay nodeType="Service" data={{ label: 'my-service' } as any} />);
+
+    const badge = screen.getByText('Restricted').parentElement;
+    expect(badge).toBeDefined();
+    expect(badge?.className).toContain('bg-white/95 text-slate-700 border-slate-300');
+  });
 });

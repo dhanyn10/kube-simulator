@@ -69,11 +69,24 @@ describe('Clean Architecture Domain Layer (K8s Cluster Graph & Simulation Engine
       };
       graph.addEdge(edge);
 
+      // Add a second edge with the same source and target to hit the existing buckets branches
+      const edge2: ClusterConnection = {
+        id: 'e-net-dep-2',
+        source: 'net-1',
+        target: 'dep-1',
+      };
+      graph.addEdge(edge2);
+
       expect(graph.getEdge('e-net-dep')?.target).toBe('dep-1');
-      expect(graph.getAllEdges()).toHaveLength(1);
-      expect(graph.getOutgoingEdges('net-1')).toHaveLength(1);
-      expect(graph.getIncomingEdges('dep-1')).toHaveLength(1);
+      expect(graph.getAllEdges()).toHaveLength(2);
+      expect(graph.getOutgoingEdges('net-1')).toHaveLength(2);
+      expect(graph.getIncomingEdges('dep-1')).toHaveLength(2);
       expect(graph.getIncomingEdges('net-1')).toHaveLength(0);
+
+      // Fallback branches when querying non-existent node ids
+      expect(graph.getOutgoingEdges('non-existent-id')).toEqual([]);
+      expect(graph.getIncomingEdges('non-existent-id')).toEqual([]);
+      expect(graph.getChildPods('non-existent-parent')).toEqual([]);
 
       const updated = graph.updateNodeData('dep-1', { replicas: 4 });
       expect(updated).toBe(true);
@@ -84,7 +97,7 @@ describe('Clean Architecture Domain Layer (K8s Cluster Graph & Simulation Engine
 
       const cloned = graph.clone();
       expect(cloned.getAllNodes()).toHaveLength(4);
-      expect(cloned.getAllEdges()).toHaveLength(1);
+      expect(cloned.getAllEdges()).toHaveLength(2);
     });
   });
 
