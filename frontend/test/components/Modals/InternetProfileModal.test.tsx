@@ -588,4 +588,19 @@ describe('InternetProfileModal', () => {
     // Low Range Profile has maxVal = 500 < 1000 -> displays "500" (line 240)
     expect(screen.getAllByText('500').length).toBeGreaterThan(0);
   });
+
+  it('handles selectedNode without id, covering empty string fallback on line 81', async () => {
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={{ data: { label: 'No ID Internet' } }}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
+
+    expect(screen.getByText('No ID Internet')).toBeDefined();
+  });
 });

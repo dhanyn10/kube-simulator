@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { RightSidebar } from '@/components/Layout/RightSidebar';
+import { RightSidebar, SettingsPanel } from '@/components/Layout/RightSidebar';
 import { useFlowStore } from '@/store';
 
 // Mock Config components to avoid deep rendering issues
@@ -219,5 +219,27 @@ describe('RightSidebar', () => {
     fireEvent.click(screen.getByTestId('canvas-dropdown-toggle'));
 
     expect(screen.getByTestId('open-yaml-inspector')).toBeDefined();
+  });
+
+  it('covers uncovered conditions: SettingsPanel without node/edge (line 139) and context menu when isDetached is true (line 348)', () => {
+    // 1. Line 139: SettingsPanel with isElementSelected true but neither edge nor node
+    const { container } = render(
+      <SettingsPanel
+        selectedNode={null}
+        selectedEdge={null}
+        isElementSelected={true}
+        colorMode="dark"
+      />
+    );
+    expect(container.querySelector('.right-sidebar-card')).toBeDefined();
+    expect(screen.queryByTestId('node-config')).toBeNull();
+    expect(screen.queryByTestId('edge-config')).toBeNull();
+
+    // 2. Line 348: RightSidebar with isDetached=true triggering context menu
+    render(<RightSidebar onExportYaml={vi.fn()} isDetached={true} />);
+    const sidebarContainer = document.getElementById('right-sidebar')!;
+    fireEvent.contextMenu(sidebarContainer);
+    expect(screen.getByTestId('right-sidebar-context-menu')).toBeDefined();
+    expect(screen.queryByTestId('right-sidebar-detach')).toBeNull();
   });
 });
