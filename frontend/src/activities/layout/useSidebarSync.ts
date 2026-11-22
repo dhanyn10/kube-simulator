@@ -239,11 +239,19 @@ export const useSidebarSync = () => {
       }
     });
 
+    // Wails event transport for attach: detached windows reattach through the main window.
+    const unsubAttachReq = gw.onEvent('sidebar-attach-request', (side: string | null) => {
+      if (!isDetachedSidebar && side) {
+        attachSidebarToMainWindow(side as 'left' | 'right', useFlowStore.getState(), gw);
+      }
+    });
+
     return () => {
       channel.close();
       unsubClose();
       unsubOpen();
       unsubModalReq();
+      unsubAttachReq();
       unsubStore();
       unsubSettings();
     };

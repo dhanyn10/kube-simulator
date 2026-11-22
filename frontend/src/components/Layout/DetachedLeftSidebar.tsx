@@ -29,6 +29,7 @@ export const DetachedLeftSidebar: React.FC = () => {
 
   const handleAttachBack = () => {
     broadcastAttachSidebar('left');
+    void getBackendGateway().emitEvent('sidebar-attach-request', 'left');
   };
 
   return (
