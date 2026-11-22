@@ -3,6 +3,8 @@ export * from './MenuBar';
 export * from './MenuBarDropdown';
 export * from './RightSidebar';
 export * from './Sidebar';
+export * from './DetachedLeftSidebar';
+export * from './DetachedRightSidebar';
 export * from './SimulationControls';
 export * from './WindowControls';
 export * from './CanvasControlsPanel';

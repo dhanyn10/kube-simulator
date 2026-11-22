@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Folder, Search, Globe, ChevronDown, ChevronRight, Activity, Database, HardDrive, Settings, Lock, ShieldCheck, UserCheck, Cpu, Route, Gauge } from 'lucide-react';
+import { Box, Layers, Network, Folder, Search, Globe, ChevronDown, ChevronRight, Activity, Database, HardDrive, Settings, Lock, ShieldCheck, UserCheck, Cpu, Route, Gauge, ExternalLink } from 'lucide-react';
 import { K8sResourceType } from '@/types';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
+import { getBackendGateway } from '@/gateway';
 import { SidebarContextMenu, useSidebarContextMenu } from '@/components/UI/SidebarContextMenu';
 import {
   ITEM_STYLES,
@@ -12,10 +13,12 @@ import {
   executeSidebarAddNode,
   handleSidebarDragStart,
   handleSidebarDragEnd,
+  useSidebarSync,
 } from '@/activities/layout';
 
 interface SidebarProps {
   readonly onAddNode: (type: K8sResourceType, position?: { x: number; y: number }) => void;
+  readonly isDetached?: boolean;
 }
 
 const SidebarSection = ({ 
@@ -105,14 +108,32 @@ const SidebarSection = ({
   );
 };
 
-export const Sidebar = ({ onAddNode }: SidebarProps) => {
+const DETACHED_MODAL_REQUESTS: Partial<Record<K8sResourceType, string>> = {
+  IAM: 'KUBE_IAM',
+  Worker: 'WORKER_BUDGET',
+  ConfigMap: 'CONFIG_MAP_LIST',
+  Secret: 'SECRET_LIST',
+  HPA: 'OVERVIEW_HPA',
+  ResourceLimit: 'OVERVIEW_RESOURCE_LIMIT',
+};
+
+export { DETACHED_MODAL_REQUESTS };
+export const Sidebar = ({ onAddNode, isDetached = false }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
   const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
+  const setSidebarDetached = useFlowStore((state) => state.setSidebarDetached);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
   const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
   const { contextMenu, handleContextMenu, closeContextMenu } = useSidebarContextMenu();
+
+  const { broadcastModalRequest } = useSidebarSync();
+
+  const handleDetachSidebar = () => {
+    setSidebarDetached(true);
+    void getBackendGateway().openSidebarWindow('left');
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     'useful-resources': true,
@@ -158,6 +179,11 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const addLog = useFlowStore((state) => state.addLog);
 
   const handleAddNode = (type: K8sResourceType) => {
+    if (isDetached) {
+      const modalId = DETACHED_MODAL_REQUESTS[type];
+      if (modalId) broadcastModalRequest(modalId);
+      return;
+    }
     executeSidebarAddNode(type, onAddNode, {
       nodes,
       configuringNodeId,
@@ -184,9 +210,10 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
       id="sidebar-components"
       onContextMenu={handleContextMenu}
       className={cn(
-        "sidebar-container w-64 border-r relative transition-all duration-300",
+        "sidebar-container relative transition-all duration-300",
+        isDetached ? "w-full h-full border-0" : "w-64 border-r",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200",
-        isTerminalOpen ? "h-[calc(100vh-2.5rem-16rem)]" : "h-[calc(100vh-2.5rem)]"
+        !isDetached && (isTerminalOpen ? "h-[calc(100vh-2.5rem-16rem)]" : "h-[calc(100vh-2.5rem)]")
       )}
     >
       {contextMenu && (
@@ -195,10 +222,12 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
           y={contextMenu.y}
           colorMode={colorMode}
           toggleColorMode={toggleColorMode}
+          onDetachSidebar={isDetached ? undefined : handleDetachSidebar}
           onCloseSidebar={() => setSidebarVisible(false)}
           onCloseContextMenu={closeContextMenu}
           testId="left-sidebar-context-menu"
           changeThemeTestId="left-sidebar-change-theme"
+          detachTestId="left-sidebar-detach"
           closeTestId="left-sidebar-close"
         />
       )}
@@ -207,6 +236,21 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
           <p className={cn("text-[10px] font-bold uppercase tracking-widest", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>
             Components
           </p>
+          {!isDetached && (
+            <button
+              type="button"
+              data-testid="left-sidebar-detach-btn"
+              onClick={handleDetachSidebar}
+              title="Detach Components Window"
+              aria-label="Detach Components Window"
+              className={cn(
+                "p-1 rounded transition-colors text-slate-400 hover:text-slate-200",
+                colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100 hover:text-slate-700"
+              )}
+            >
+              <ExternalLink size={12} />
+            </button>
+          )}
         </div>
         <div className="relative">
           <Search className={cn("search-input-icon-sm", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} size={12} />

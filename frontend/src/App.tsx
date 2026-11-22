@@ -9,10 +9,11 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { logger } from './lib/logger';
-import { Sidebar, RightSidebar, MenuBar, TerminalPanel, FileBackstageView, CanvasControlsPanel, CanvasMiniMap, AlignmentGuideOverlay } from './components/Layout';
+import { Sidebar, RightSidebar, MenuBar, TerminalPanel, FileBackstageView, CanvasControlsPanel, CanvasMiniMap, AlignmentGuideOverlay, DetachedLeftSidebar, DetachedRightSidebar } from './components/Layout';
 import { ContextMenu, ResourceManager, SidebarContextMenu } from './components/UI';
 import { DetachedMonitoring, LogToast } from './components/Monitoring';
 import { useSimulationSync } from './activities/monitoring';
+import { useSidebarSync, getFinalCanvasBgColor, isAnyModalOverlayOpen } from './activities/layout';
 import {
   YamlModal,
   ScenarioModal,
@@ -29,6 +30,7 @@ import {
   SaveModal,
   TerminalCommandTreeModal,
   AttachedResourceOverviewModal,
+  InternetProfileModal,
 } from './components/Modals';
 import {
   PodNode,
@@ -57,7 +59,6 @@ import { useThemeSync } from './hooks/useThemeSync';
 import { useCanvasHandlers } from './hooks/useCanvasHandlers';
 import { useAppInit, useAttachmentHandlers } from './hooks/useAppHelpers';
 import { useCanvasNodes } from './activities/nodes';
-import { getFinalCanvasBgColor, isAnyModalOverlayOpen } from './activities/layout';
 import { useGlobalContextMenu } from './activities/ui';
 import { getBackendGateway } from './gateway';
 
@@ -103,12 +104,16 @@ const getCanvasBackgroundSize = (variant: string): number => {
 export default function App() {
   useThemeSync();
   useSimulationSync();
+  useSidebarSync();
   const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
-  const isDetachedMode = searchParams.get('mode') === 'monitoring';
+  const mode = searchParams.get('mode');
+  const isDetachedMode = mode === 'monitoring';
+  const isDetachedLeftSidebar = mode === 'sidebar-left';
+  const isDetachedRightSidebar = mode === 'sidebar-right';
 
   useEffect(() => {
-    logger.info('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
-  }, [isDetachedMode]);
+    logger.info('[App] Render mode:', mode || 'canvas');
+  }, [mode]);
 
   if (typeof globalThis !== 'undefined') (globalThis as any).useFlowStore = useFlowStore;
 
@@ -128,6 +133,8 @@ export default function App() {
   const colorMode = useFlowStore((state) => state.colorMode);
   const isSidebarVisible = useFlowStore((state) => state.isSidebarVisible);
   const isRightSidebarVisible = useFlowStore((state) => state.isRightSidebarVisible);
+  const isSidebarDetached = useFlowStore((state) => state.isSidebarDetached);
+  const isRightSidebarDetached = useFlowStore((state) => state.isRightSidebarDetached);
   const setGlobalEdgeColors = useFlowStore((state) => state.setGlobalEdgeColors);
   const activeOverviewModal = useFlowStore((state) => state.activeOverviewModal);
   const setActiveOverviewModal = useFlowStore((state) => state.setActiveOverviewModal);
@@ -154,6 +161,11 @@ export default function App() {
   const isKubeIamWizardOpen = useFlowStore((state) => state.isKubeIamModalOpen);
   const isWorkerBudgetModalOpen = useFlowStore((state) => state.isWorkerBudgetModalOpen);
   const isTerminalCommandTreeModalOpen = useFlowStore((state) => state.isTerminalCommandTreeModalOpen);
+  const isInternetProfileModalOpen = useFlowStore((state) => state.isInternetProfileModalOpen);
+  const internetProfileTargetId = useFlowStore((state) => state.internetProfileTargetId);
+  const internetProfileNode = useFlowStore((state) =>
+    internetProfileTargetId ? state.nodes.find((n) => n.id === internetProfileTargetId) : null
+  );
   const isResourceManagerOpen = useFlowStore((state) => state.isResourceManagerOpen);
   const resourceManagerTargetImage = useFlowStore((state) => state.resourceManagerTargetImage);
   const setResourceManagerOpen = useFlowStore((state) => state.setResourceManagerOpen);
@@ -270,6 +282,14 @@ export default function App() {
     return <DetachedMonitoring />;
   }
 
+  if (isDetachedLeftSidebar) {
+    return <DetachedLeftSidebar />;
+  }
+
+  if (isDetachedRightSidebar) {
+    return <DetachedRightSidebar />;
+  }
+
   return (
     <div
       className={cn(
@@ -290,7 +310,7 @@ export default function App() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {isSidebarVisible && (
+        {isSidebarVisible && !isSidebarDetached && (
           <Sidebar onAddNode={addNode} />
         )}
 
@@ -430,6 +450,19 @@ export default function App() {
           <KubeIAMModal />
           <WorkerBudgetModal />
 
+          <InternetProfileModal
+            isOpen={isInternetProfileModalOpen}
+            onClose={() => {
+              useFlowStore.getState().setInternetProfileModalOpen(false);
+              useFlowStore.getState().setInternetProfileTargetId(null);
+            }}
+            selectedNode={internetProfileNode}
+            performUpdate={(updates: any) => {
+              const id = useFlowStore.getState().internetProfileTargetId;
+              if (id) useFlowStore.getState().updateNodeData(id, updates);
+            }}
+          />
+
           <AttachedResourceOverviewModal
             type={activeOverviewModal}
             onClose={() => setActiveOverviewModal(null)}
@@ -451,7 +484,7 @@ export default function App() {
           <TerminalPanel />
         </main>
 
-        {isRightSidebarVisible && <RightSidebar onExportYaml={handleExport} />}
+        {isRightSidebarVisible && !isRightSidebarDetached && <RightSidebar onExportYaml={handleExport} />}
       </div>
 
       {defaultContextMenu && (

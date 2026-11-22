@@ -57,7 +57,7 @@ test.describe('ConfigMap and Secret', () => {
   });
 
   test('can open Cluster Secrets Overview from sidebar', async ({ page }) => {
-    await page.getByRole('button', { name: 'Configuration' }).click();
+    await page.getByRole('button', { name: 'Configuration', exact: true }).click();
     await page.getByRole('button', { name: 'Secret' }).click();
     await expect(page.getByText('Cluster Secrets Overview')).toBeVisible();
   });

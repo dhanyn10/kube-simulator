@@ -13,6 +13,7 @@ type mockWindowCtrl struct {
 	maximized    bool
 	closed       bool
 	simOpenState bool
+	sidebars     map[string]bool
 }
 
 var _ domain.WindowController = (*mockWindowCtrl)(nil)
@@ -39,6 +40,22 @@ func (m *mockWindowCtrl) CloseSimulationWindow() bool {
 	return true
 }
 
+func (m *mockWindowCtrl) OpenSidebarWindow(side string) bool {
+	if m.sidebars == nil {
+		m.sidebars = make(map[string]bool)
+	}
+	m.sidebars[side] = true
+	return true
+}
+
+func (m *mockWindowCtrl) CloseSidebarWindow(side string) bool {
+	if m.sidebars == nil {
+		m.sidebars = make(map[string]bool)
+	}
+	m.sidebars[side] = false
+	return true
+}
+
 func TestWindowService_WithMockController(t *testing.T) {
 	mock := &mockWindowCtrl{}
 	ws := NewWindowService(mock)
@@ -57,6 +74,18 @@ func TestWindowService_WithMockController(t *testing.T) {
 		t.Error("Expected Maximize to be forwarded to mock controller")
 	}
 
+	assertSimulationWindowForwards(t, ws, mock)
+	assertSidebarWindowForwards(t, ws, mock)
+
+	ws.Close()
+	if !mock.closed {
+		t.Error("Expected Close to be forwarded to mock controller")
+	}
+}
+
+func assertSimulationWindowForwards(t *testing.T, ws *WindowService, mock *mockWindowCtrl) {
+	t.Helper()
+
 	if !ws.OpenSimulationWindow() || !mock.simOpenState {
 		t.Error("Expected OpenSimulationWindow to be forwarded to mock controller")
 	}
@@ -64,10 +93,33 @@ func TestWindowService_WithMockController(t *testing.T) {
 	if !ws.CloseSimulationWindow() || mock.simOpenState {
 		t.Error("Expected CloseSimulationWindow to be forwarded to mock controller")
 	}
+}
 
-	ws.Close()
-	if !mock.closed {
-		t.Error("Expected Close to be forwarded to mock controller")
+func assertSidebarWindowForwards(t *testing.T, ws *WindowService, mock *mockWindowCtrl) {
+	t.Helper()
+
+	checks := []struct {
+		name   string
+		open   bool
+		side   string
+		expect bool
+	}{
+		{"OpenSidebarWindow(left)", true, "left", true},
+		{"CloseSidebarWindow(left)", false, "left", false},
+		{"OpenSidebarWindow(right)", true, "right", true},
+		{"CloseSidebarWindow(right)", false, "right", false},
+	}
+
+	for _, tc := range checks {
+		var got bool
+		if tc.open {
+			got = ws.OpenSidebarWindow(tc.side)
+		} else {
+			got = ws.CloseSidebarWindow(tc.side)
+		}
+		if !got || mock.sidebars[tc.side] != tc.expect {
+			t.Errorf("%s not forwarded to mock controller as expected", tc.name)
+		}
 	}
 }
 

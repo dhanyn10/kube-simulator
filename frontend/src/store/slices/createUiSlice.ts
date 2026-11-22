@@ -73,6 +73,12 @@ export interface UiSlice {
   activeIdentity: string;
   setActiveIdentity: (identity: string) => void;
 
+  // Internet Profile Modal state & actions
+  isInternetProfileModalOpen: boolean;
+  setInternetProfileModalOpen: (open: boolean) => void;
+  internetProfileTargetId: string | null;
+  setInternetProfileTargetId: (id: string | null) => void;
+
   // Kube IAM Modal state & actions
   isKubeIamModalOpen: boolean;
   setKubeIamModalOpen: (open: boolean) => void;
@@ -101,6 +107,8 @@ export interface UiSlice {
   toggleTerminalAutoOpenOnPlay: () => void;
   isSidebarVisible: boolean;
   isRightSidebarVisible: boolean;
+  isSidebarDetached: boolean;
+  isRightSidebarDetached: boolean;
   isSimulating: boolean;
   isPaused: boolean;
   simulationSpeed: 1 | 5 | 10;
@@ -173,6 +181,8 @@ export interface UiSlice {
   toggleAutofocus: () => void;
   setSidebarVisible: (visible: boolean) => void;
   setRightSidebarVisible: (visible: boolean) => void;
+  setSidebarDetached: (detached: boolean) => void;
+  setRightSidebarDetached: (detached: boolean) => void;
   startSimulation: (internetNodeIds?: string[]) => void;
   pauseSimulation: () => void;
   stopSimulation: () => void;
@@ -900,6 +910,10 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   isTerminalAutoOpenOnPlay: false,
   isSidebarVisible: true,
   isRightSidebarVisible: true,
+  isSidebarDetached: false,
+  isRightSidebarDetached: false,
+  isInternetProfileModalOpen: false,
+  internetProfileTargetId: null,
   isSimulating: false,
   isPaused: false,
   simulationSpeed: 1,
@@ -1152,6 +1166,10 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     saveSettingIfAvailable('isRightSidebarVisible', String(visible));
     get().saveSettingsJson();
   },
+  setSidebarDetached: (detached) => set({ isSidebarDetached: detached }),
+  setRightSidebarDetached: (detached) => set({ isRightSidebarDetached: detached }),
+  setInternetProfileModalOpen: (open) => set({ isInternetProfileModalOpen: open }),
+  setInternetProfileTargetId: (id) => set({ internetProfileTargetId: id }),
   setMonitoringOpen: (open) => {
     set({ isMonitoringOpen: open });
     get().saveSettingsJson();

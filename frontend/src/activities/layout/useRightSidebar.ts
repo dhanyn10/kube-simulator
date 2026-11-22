@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Activity, Info } from 'lucide-react';
 import { useFlowStore } from '@/store';
+import { getBackendGateway } from '@/gateway';
 import { useSidebarContextMenu } from '@/components/UI/SidebarContextMenu';
 import { TabType } from './rightSidebarHelpers';
 
@@ -9,6 +10,7 @@ export const useRightSidebar = () => {
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
   const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
+  const setRightSidebarDetached = useFlowStore((state) => state.setRightSidebarDetached);
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
 
@@ -21,6 +23,14 @@ export const useRightSidebar = () => {
   const selectedNode = nodes.find((n) => n.id === configuringNodeId);
   const selectedEdge = edges.find((e) => e.id === configuringEdgeId);
   const isElementSelected = Boolean(selectedNode || selectedEdge);
+
+  // In detached right window, switch to the Settings tab when a node is selected on canvas.
+  const isDetachedRight = new URLSearchParams(globalThis.location?.search || '').get('mode') === 'sidebar-right';
+  useEffect(() => {
+    if (isDetachedRight && configuringNodeId) {
+      handleTabChange('settings');
+    }
+  }, [isDetachedRight, configuringNodeId, configuringEdgeId]);
 
   const [activeTab, setActiveTab] = useState<TabType>('canvas');
   const [isCanvasDropdownOpen, setIsCanvasDropdownOpen] = useState(false);
@@ -69,6 +79,11 @@ export const useRightSidebar = () => {
     setRightSidebarVisible(false);
   };
 
+  const handleDetachSidebar = () => {
+    setRightSidebarDetached(true);
+    void getBackendGateway().openSidebarWindow('right');
+  };
+
   const canvasWidgets = [
     { id: 'hardware-budget', label: 'Hardware Budget', icon: Activity },
     { id: 'object-stats', label: 'Object Statistics', icon: Info },
@@ -94,5 +109,6 @@ export const useRightSidebar = () => {
     handleContextMenu,
     closeContextMenu,
     handleCloseSidebar,
+    handleDetachSidebar,
   };
 };

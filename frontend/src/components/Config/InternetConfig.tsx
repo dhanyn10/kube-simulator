@@ -5,6 +5,7 @@ import { ConfigSection } from '@/components/UI/ConfigUI';
 import { InternetProfileModal } from '@/components/Modals/InternetProfileModal';
 import { calculateMinutePoint, calculateMinuteIndexFromX, calculateProfileHoverData, computeChartLayout, detectProfileInterval, ProfileHoverData } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
+import { isDetachedRightWindow, useSidebarSync } from '@/activities/layout';
 import {
   calculateMaxTrafficRange,
   generateTrafficRulerTicks,
@@ -225,6 +226,8 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
   const activeProfile = data.connectionProfile;
   const currentHourIndex = data.currentHourIndex;
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const isDetached = isDetachedRightWindow();
+  const { broadcastModalRequest } = useSidebarSync();
 
   const edges = useFlowStore((state) => state.edges);
   const nodes = useFlowStore((state) => state.nodes);
@@ -247,6 +250,16 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
     performUpdate({ traffic: val });
   };
 
+  // In detached mode, "Explore More" should open the Internet Profile modal in
+  // the main window, where the Internet node lives and other modals already do.
+  const handleExploreMore = () => {
+    if (isDetached) {
+      broadcastModalRequest('INTERNET_PROFILE_MODAL', selectedNode.id);
+    } else {
+      setIsModalOpen(true);
+    }
+  };
+
   const rulerTicks = useMemo(() => {
     return generateTrafficRulerTicks(maxRange);
   }, [maxRange]);
@@ -257,7 +270,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
       <div className="flex justify-end">
         <button
           type="button"
-          onClick={() => setIsModalOpen(true)}
+          onClick={handleExploreMore}
           className="py-1 px-2.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center gap-1.5 transition-colors shadow-sm"
         >
           <Sparkles size={12} />
@@ -377,7 +390,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
 
       {/* Modal for Internet Connection Profiles */}
       <InternetProfileModal
-        isOpen={isModalOpen}
+        isOpen={!isDetached && isModalOpen}
         onClose={() => setIsModalOpen(false)}
         selectedNode={selectedNode}
         performUpdate={performUpdate}

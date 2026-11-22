@@ -205,6 +205,14 @@ export class MockBackendGateway extends BaseBackendGateway {
     return true;
   }
 
+  async openSidebarWindow(_side: 'left' | 'right'): Promise<boolean> {
+    return true;
+  }
+
+  async closeSidebarWindow(_side: 'left' | 'right'): Promise<boolean> {
+    return true;
+  }
+
   private mockSimulationSnapshot: string = '{}';
   private mockSimulationSpeed: number = 1;
   private mockIsSimulating: boolean = false;
