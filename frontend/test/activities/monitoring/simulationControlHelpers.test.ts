@@ -32,4 +32,21 @@ describe('simulationControlHelpers', () => {
     handleSimulationControl({ action: 'speed', speed: 10 }, getState);
     expect(setSimulationSpeed).toHaveBeenCalledWith(10);
   });
+
+  it('ignores speed action when speed is missing or invalid, and ignores unknown action', () => {
+    const setSimulationSpeed = vi.fn();
+    const mockState = {
+      startSimulation: vi.fn(),
+      pauseSimulation: vi.fn(),
+      stopSimulation: vi.fn(),
+      setSimulationSpeed,
+    } as any;
+    const getState = () => mockState;
+
+    handleSimulationControl({ action: 'speed' }, getState);
+    expect(setSimulationSpeed).not.toHaveBeenCalled();
+
+    handleSimulationControl({ action: 'unknown' }, getState);
+    expect(setSimulationSpeed).not.toHaveBeenCalled();
+  });
 });

@@ -199,4 +199,43 @@ describe('quickConnectHelpers', () => {
     const invalidDirCheck = checkValidConnectionDirection(sourceNode, nsNode, allNodes);
     expect(invalidDirCheck).toBeNull();
   });
+
+  it('handles edge cases in canConnectRule for untyped nodes and source Namespace or Internet', () => {
+    const untypedNode: Node = { id: 'untyped', position: { x: 0, y: 0 }, data: {} };
+    const nsNode: Node = { id: 'ns-1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+    const internetNode: Node = { id: 'inet-1', type: 'Internet', position: { x: 0, y: 0 }, data: {} };
+
+    expect(canConnectRule(untypedNode, rightPod, allNodes)).toBe(false);
+    expect(canConnectRule(sourceNode, untypedNode, allNodes)).toBe(false);
+    expect(canConnectRule(nsNode, rightPod, allNodes)).toBe(false);
+    expect(canConnectRule(internetNode, sourceNode, allNodes)).toBe(true);
+  });
+
+  it('handles edge cases in isNodeInDirection for untyped, Namespace, and child Pod nodes', () => {
+    const untypedNode: Node = { id: 'untyped', position: { x: 400, y: 100 }, data: {} };
+    const nsTarget: Node = { id: 'ns-target', type: 'Namespace', position: { x: 400, y: 100 }, data: {} };
+    const childPod: Node = { id: 'child-pod', type: 'Pod', parentId: 'parent-dep', position: { x: 400, y: 100 }, data: {} };
+    const childNonPod: Node = { id: 'child-svc', type: 'Service', parentId: 'parent-ns', position: { x: 400, y: 100 }, data: {} };
+
+    expect(isNodeInDirection(untypedNode, rightPod, 'right', allNodes)).toBe(false);
+    expect(isNodeInDirection(sourceNode, untypedNode, 'right', allNodes)).toBe(false);
+    expect(isNodeInDirection(sourceNode, nsTarget, 'right', allNodes)).toBe(false);
+    expect(isNodeInDirection(sourceNode, childPod, 'right', allNodes)).toBe(false);
+    expect(isNodeInDirection(sourceNode, childNonPod, 'right', allNodes)).toBe(false);
+  });
+
+  it('handles findBestCandidateInDirection when no candidates match or all candidates are already connected', () => {
+    // When no candidate is in that direction
+    const emptyResult = findBestCandidateInDirection(sourceNode, 'right', [sourceNode], []);
+    expect(emptyResult).toBeNull();
+
+    // When reverse edge exists: e.source is candidate and e.target is sourceNode
+    const reverseEdges: Edge[] = [
+      { id: 'e-rev', source: 'pod-right', target: 'src-1' }
+    ];
+    // With only one candidate rightPod, since it is connected via reverse edge, sorted.find returns undefined
+    // and fallback sorted[0] is selected
+    const fallbackResult = findBestCandidateInDirection(sourceNode, 'right', [sourceNode, rightPod], reverseEdges);
+    expect(fallbackResult?.targetNode.id).toBe('pod-right');
+  });
 });

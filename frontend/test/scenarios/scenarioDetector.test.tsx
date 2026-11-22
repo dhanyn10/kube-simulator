@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import {
   Folder,
   Route,
@@ -18,6 +19,8 @@ import {
   detectScenarioResources,
   getResourceBadgeClasses,
   getResourceIcon,
+  ResourceBadge,
+  ResourceBadgeList,
 } from '@/scenarios/scenarioDetector';
 
 describe('scenarioDetector', () => {
@@ -178,6 +181,147 @@ describe('scenarioDetector', () => {
         expect(icon).toBeDefined();
         expect(icon.props.size).toBe(12);
       });
+    });
+  });
+
+  describe('detectScenarioResources edge cases', () => {
+    it('handles untyped nodes, null node data, duplicate subtypes, and attachedResources with resourceType', () => {
+      const scenario = {
+        data: {
+          nodes: [
+            { id: 'n1', type: undefined, data: undefined },
+            { id: 'n2', type: 123 as any, data: undefined },
+            {
+              id: 's1',
+              type: 'Service',
+              data: { serviceType: 'ClusterIP' },
+            },
+            {
+              id: 's2',
+              type: 'Service',
+              data: { serviceType: 'ClusterIP' },
+            },
+            {
+              id: 'n3',
+              type: 'Deployment',
+              data: {
+                attachedResources: [
+                  { resourceType: 'HPA' },
+                  { invalid: true } as any,
+                ],
+              },
+            },
+            {
+              id: 'n4',
+              type: 'Deployment',
+              data: {
+                serviceType: undefined,
+              },
+            },
+          ],
+        },
+      };
+
+      const result = detectScenarioResources(scenario);
+      expect(result.totalCards).toBe(4);
+      expect(result.totalItems).toBe(1);
+      const svc = result.resources.find((r) => r.name === 'Service');
+      expect(svc?.count).toBe(2);
+      expect(svc?.subtypes).toEqual(['ClusterIP']);
+      const dep = result.resources.find((r) => r.name === 'Deployment');
+      expect(dep?.count).toBe(2);
+      const hpa = result.resources.find((r) => r.name === 'HPA');
+      expect(hpa?.count).toBe(1);
+    });
+  });
+
+  describe('ResourceBadge', () => {
+    it('renders with subtypes and size sm', () => {
+      const resource = {
+        name: 'Service',
+        count: 1,
+        cardCount: 1,
+        itemCount: 0,
+        subtypes: ['ClusterIP', 'NodePort'],
+      };
+
+      const { container } = render(
+        <ResourceBadge resource={resource} colorMode="light" size="sm" />
+      );
+
+      const badge = screen.getByTitle('Service (ClusterIP, NodePort)');
+      expect(badge).toBeDefined();
+      expect(badge.className).toContain('text-[9px]');
+      expect(container.textContent).toContain('Service');
+    });
+
+    it('renders with default props and no subtypes', () => {
+      const resource = {
+        name: 'Pod',
+        count: 1,
+        cardCount: 1,
+        itemCount: 0,
+      };
+
+      render(<ResourceBadge resource={resource} />);
+      const badge = screen.getByTitle('Pod');
+      expect(badge).toBeDefined();
+      expect(badge.className).toContain('text-[10px]');
+    });
+  });
+
+  describe('ResourceBadgeList', () => {
+    it('returns null when resources is empty or null', () => {
+      const { container: c1 } = render(
+        <ResourceBadgeList resources={[]} prefixKey="empty" />
+      );
+      expect(c1.firstChild).toBeNull();
+
+      const { container: c2 } = render(
+        <ResourceBadgeList resources={undefined as any} prefixKey="null" />
+      );
+      expect(c2.firstChild).toBeNull();
+    });
+
+    it('renders badge list with custom size, className, and testId', () => {
+      const resources = [
+        { name: 'Deployment', count: 1, cardCount: 1, itemCount: 0 },
+      ];
+
+      render(
+        <ResourceBadgeList
+          resources={resources}
+          prefixKey="test"
+          size="sm"
+          testId="badge-list"
+          className="my-custom-class"
+        />
+      );
+
+      const list = screen.getByTestId('badge-list');
+      expect(list).toBeDefined();
+      expect(list.className).toContain('gap-1');
+      expect(list.className).toContain('my-custom-class');
+      expect(screen.getByText('Deployment')).toBeDefined();
+    });
+
+    it('renders badge list with default size and colorMode', () => {
+      const resources = [
+        { name: 'Pod', count: 1, cardCount: 1, itemCount: 0 },
+      ];
+
+      render(
+        <ResourceBadgeList
+          resources={resources}
+          prefixKey="test-def"
+          testId="badge-list-def"
+        />
+      );
+
+      const list = screen.getByTestId('badge-list-def');
+      expect(list).toBeDefined();
+      expect(list.className).toContain('gap-1.5');
+      expect(screen.getByText('Pod')).toBeDefined();
     });
   });
 });
