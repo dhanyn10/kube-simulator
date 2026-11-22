@@ -204,7 +204,7 @@ export const Sidebar = ({ onAddNode, isDetached = false }: SidebarProps) => {
           y={contextMenu.y}
           colorMode={colorMode}
           toggleColorMode={toggleColorMode}
-          onDetachSidebar={handleDetachSidebar}
+          onDetachSidebar={isDetached ? undefined : handleDetachSidebar}
           onCloseSidebar={() => setSidebarVisible(false)}
           onCloseContextMenu={closeContextMenu}
           testId="left-sidebar-context-menu"
@@ -218,19 +218,21 @@ export const Sidebar = ({ onAddNode, isDetached = false }: SidebarProps) => {
           <p className={cn("text-[10px] font-bold uppercase tracking-widest", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>
             Components
           </p>
-          <button
-            type="button"
-            data-testid="left-sidebar-detach-btn"
-            onClick={handleDetachSidebar}
-            title="Detach Components Window"
-            aria-label="Detach Components Window"
-            className={cn(
-              "p-1 rounded transition-colors text-slate-400 hover:text-slate-200",
-              colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100 hover:text-slate-700"
-            )}
-          >
-            <ExternalLink size={12} />
-          </button>
+          {!isDetached && (
+            <button
+              type="button"
+              data-testid="left-sidebar-detach-btn"
+              onClick={handleDetachSidebar}
+              title="Detach Components Window"
+              aria-label="Detach Components Window"
+              className={cn(
+                "p-1 rounded transition-colors text-slate-400 hover:text-slate-200",
+                colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100 hover:text-slate-700"
+              )}
+            >
+              <ExternalLink size={12} />
+            </button>
+          )}
         </div>
         <div className="relative">
           <Search className={cn("search-input-icon-sm", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} size={12} />

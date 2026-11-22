@@ -345,7 +345,7 @@ export const RightSidebar = ({ onExportYaml, isDetached = false }: { onExportYam
           y={contextMenu.y}
           colorMode={colorMode}
           toggleColorMode={toggleColorMode}
-          onDetachSidebar={handleDetachSidebar}
+          onDetachSidebar={isDetached ? undefined : handleDetachSidebar}
           onCloseSidebar={handleCloseSidebar}
           onCloseContextMenu={closeContextMenu}
           testId="right-sidebar-context-menu"
@@ -364,7 +364,7 @@ export const RightSidebar = ({ onExportYaml, isDetached = false }: { onExportYam
         visibleWidgets={visibleWidgets}
         toggleWidget={toggleWidget}
         onExportYaml={onExportYaml}
-        onDetachSidebar={handleDetachSidebar}
+        onDetachSidebar={isDetached ? undefined : handleDetachSidebar}
         colorMode={colorMode}
       />
 
