@@ -181,7 +181,11 @@ export const Sidebar = ({ onAddNode, isDetached = false }: SidebarProps) => {
   const handleAddNode = (type: K8sResourceType) => {
     if (isDetached) {
       const modalId = DETACHED_MODAL_REQUESTS[type];
-      if (modalId) broadcastModalRequest(modalId);
+      if (modalId) {
+        broadcastModalRequest(modalId);
+      } else {
+        onAddNode(type);
+      }
       return;
     }
     executeSidebarAddNode(type, onAddNode, {
