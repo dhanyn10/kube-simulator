@@ -293,6 +293,24 @@ describe('useAppHelpers', () => {
       });
 
       expect(setSystemResources).not.toHaveBeenCalled();
+
+      // 3. GetSystemInfo resolves with empty object (no version) vs with version
+      (globalThis as any).window.go.main.App.GetSystemInfo = vi.fn().mockResolvedValue({});
+      renderHook(() =>
+        useAppInit(false, loadSettingsJson, setGlobalEdgeColors, setSystemResources, setIsAboutDialogOpen)
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      (globalThis as any).window.go.main.App.GetSystemInfo = vi.fn().mockResolvedValue({ version: '2.0.0' });
+      renderHook(() =>
+        useAppInit(false, loadSettingsJson, setGlobalEdgeColors, setSystemResources, setIsAboutDialogOpen)
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(useFlowStore.getState().appVersion).toBe('2.0.0');
     });
   });
 
@@ -553,6 +571,15 @@ describe('useAppHelpers', () => {
         result.current.handleHpaSave({ id: 'hpa-1', name: 'my-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 80 });
       });
 
+      // Cluster-storage target saves cluster HPA profile and resets target node
+      act(() => {
+        result.current.setHpaModalTargetNode({ id: 'cluster-storage', label: 'Cluster HPAs' });
+      });
+      act(() => {
+        result.current.handleHpaSave({ id: 'hpa-cluster', name: 'cluster-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 80 });
+      });
+      expect(result.current.hpaModalTargetNode).toBeNull();
+
       act(() => {
         result.current.setHpaModalTargetNode({ id: 'non-existent', label: 'NonExistent' });
       });
@@ -620,6 +647,15 @@ describe('useAppHelpers', () => {
       act(() => {
         result.current.handleResourceLimitSave(resItem);
       });
+
+      // Cluster-storage target saves cluster ResourceLimit profile and resets target node
+      act(() => {
+        result.current.setResourceLimitModalTargetNode({ id: 'cluster-storage', label: 'Cluster Limits' });
+      });
+      act(() => {
+        result.current.handleResourceLimitSave(resItem);
+      });
+      expect(result.current.resourceLimitModalTargetNode).toBeNull();
 
       // Return early when target node not found
       act(() => {

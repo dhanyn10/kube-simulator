@@ -186,20 +186,12 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
     }
   }
 
-  let hasChanges = false;
-  if (
-    nextTraffic !== currentTraffic ||
-    internetData.currentHourIndex !== currentHourIndex ||
-    internetData.currentMinuteIndex !== currentMinuteIndex ||
-    internetData.profileTicks !== currentProfileTicks
-  ) {
-    hasChanges = updateNodeData(ctx, internet.id, {
-      currentTraffic: nextTraffic,
-      currentHourIndex,
-      currentMinuteIndex,
-      profileTicks: currentProfileTicks
-    });
-  }
+  const hasChanges = updateNodeData(ctx, internet.id, {
+    currentTraffic: nextTraffic,
+    currentHourIndex,
+    currentMinuteIndex,
+    profileTicks: currentProfileTicks
+  });
   return { traffic: nextTraffic, hasChanges };
 };
 
@@ -323,11 +315,11 @@ const HPA_DEADBAND_RATIO = 0.1;
 const desiredForMetric = (
   replicas: number,
   usagePercent: number,
-  targetPercent: number | undefined,
+  targetPercent: number,
   minReplicas: number,
   maxReplicas: number
 ): number => {
-  if (!targetPercent || targetPercent <= 0) return replicas;
+  if (targetPercent <= 0) return replicas;
 
   const ratio = usagePercent / targetPercent;
   if (Math.abs(1 - ratio) <= HPA_DEADBAND_RATIO) return replicas;
@@ -537,7 +529,7 @@ export const handleHpaScaling = (
     hasChanges = scaleDeploymentReplicas(dep, desiredReplicas - replicas, ctx);
     if (hasChanges) {
       const depLabel = dep.data?.label || dep.id;
-      const targetCpu = hpaConfig.targetCPU || 50;
+      const targetCpu = hpaConfig.targetCPU;
       const direction = desiredReplicas > replicas ? 'up' : 'down';
       const logMsg = `[HPA Autoscaler] Scaled ${direction} deployment/${depLabel} from ${replicas} to ${desiredReplicas} replicas (CPU: ${Math.round(cpuPercent)}%, Target: ${targetCpu}%)`;
       ctx.get?.()?.addActivityLog?.(logMsg);
