@@ -178,6 +178,25 @@ describe('useNodeConfig', () => {
       });
     });
 
+    it('syncs baseName to parent deployment label and baseName when updates.baseName is provided', () => {
+      const parentNode = { id: 'dep-1', type: 'Deployment', data: {} };
+      const selectedPod = { id: 'pod-1', type: 'Pod', parentId: 'dep-1' };
+
+      useFlowStore.setState({
+        nodes: [parentNode] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      syncParentPodUpdates(selectedPod, {
+        baseName: 'new-base-app',
+      });
+
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('dep-1', {
+        label: 'new-base-app',
+        baseName: 'new-base-app',
+      });
+    });
+
     it('does not call updateNodeData if updates contain no synced keys', () => {
       const parentNode = { id: 'dep-1', type: 'Deployment', data: {} };
       const selectedPod = { id: 'pod-1', type: 'Pod', parentId: 'dep-1' };
@@ -432,6 +451,56 @@ describe('useNodeConfig', () => {
       });
 
       expect(mockUpdateNodeData).not.toHaveBeenCalled();
+    });
+
+    it('updatePodBaseName returns early for standalone Pod when duplicate name exists in same namespace', () => {
+      const existingPod = {
+        id: 'pod-existing',
+        type: 'Pod',
+        data: { label: 'taken-pod-name' },
+      };
+      const currentPod = {
+        id: 'pod-current',
+        type: 'Pod',
+        data: { label: 'my-pod' },
+      };
+
+      useFlowStore.setState({
+        nodes: [existingPod, currentPod] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result } = renderHook(() => useNodeConfigHandler(currentPod));
+      act(() => {
+        result.current.updatePodBaseName('taken-pod-name');
+      });
+
+      expect(mockUpdateNodeData).not.toHaveBeenCalled();
+    });
+
+    it('returns empty podHash for StatefulSet workload and handles trailing hyphen in fallbackHash', () => {
+      // StatefulSet has empty podHash
+      const statefulNode = {
+        id: 'sts-1',
+        type: 'StatefulSet',
+        data: { label: 'redis-cluster' },
+      };
+      useFlowStore.setState({
+        nodes: [statefulNode] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result: resSts } = renderHook(() => useNodeConfigHandler(statefulNode));
+      expect(resSts.current.podHash).toBe('');
+
+      // Label with trailing hyphen
+      const podTrailingHyphen = {
+        id: 'pod-hyphen',
+        type: 'Pod',
+        data: { label: 'my-app-' },
+      };
+      const { result: resHyphen } = renderHook(() => useNodeConfigHandler(podTrailingHyphen));
+      expect(resHyphen.current.podHash).toBeDefined();
     });
 
     it('covers podHash / podBaseName fallbacks and standalone pod updatePodBaseName / randomizePodHash', () => {
