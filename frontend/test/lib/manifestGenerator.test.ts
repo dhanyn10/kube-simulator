@@ -1593,4 +1593,85 @@ describe('manifestGenerator test suite', () => {
     expect(appHpa.spec.scaleTargetRef.kind).toBe('Deployment');
     expect(appHpa.spec.scaleTargetRef.name).toBe('my-app');
   });
+
+  it('handles null items in attached configMaps, secrets, and hpas gracefully', () => {
+    const nodes = [
+      {
+        id: 'pod-with-null-attachments',
+        type: 'Pod',
+        data: {
+          label: 'app-with-nulls',
+          image: 'nginx',
+          configMaps: [null, { name: 'valid-cm', configData: [{ key: 'k1', value: 'v1' }] }],
+          secrets: [null, { name: 'valid-sec', secretData: [{ key: 's1', value: 'secret' }] }],
+          hpas: [null, { name: 'valid-hpa', minReplicas: 1, maxReplicas: 3, targetCPU: 60 }],
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+
+    expect(docs.some((d) => d?.kind === 'ConfigMap' && d?.metadata?.name === 'valid-cm')).toBe(true);
+    expect(docs.some((d) => d?.kind === 'Secret' && d?.metadata?.name === 'valid-sec')).toBe(true);
+    expect(docs.some((d) => d?.kind === 'HorizontalPodAutoscaler' && d?.metadata?.name === 'valid-hpa')).toBe(true);
+  });
+
+  it('handles StatefulSet service selector matching when selector targets baseName, sanitized label, or node id', () => {
+    const nodes = [
+      // StatefulSet with baseName
+      {
+        id: 'ss-basename-node',
+        type: 'StatefulSet',
+        data: {
+          label: 'custom-sts-app',
+          baseName: 'custom-sts-base',
+          replicas: 1,
+          image: 'redis',
+        },
+      },
+      // Service targeting the baseName
+      {
+        id: 'svc-target-base',
+        type: 'Service',
+        data: {
+          label: 'svc-base',
+          serviceType: 'Headless',
+          selector: 'custom-sts-base',
+        },
+      },
+      // StatefulSet with sanitized label target
+      {
+        id: 'ss-sanitized-target-node',
+        type: 'StatefulSet',
+        data: {
+          label: 'My Special App',
+          replicas: 1,
+          image: 'redis',
+        },
+      },
+      // Service targeting the sanitized label
+      {
+        id: 'svc-target-sanitized',
+        type: 'Service',
+        data: {
+          label: 'svc-sanitized-label',
+          serviceType: 'Headless',
+          selector: 'my-special-app',
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const ssDocs = docs.filter((d) => d?.kind === 'StatefulSet');
+
+    const ssWithBase = ssDocs.find((d) => d?.metadata?.name === 'custom-sts-app');
+    expect(ssWithBase).toBeDefined();
+    expect(ssWithBase?.spec?.serviceName).toBe('svc-base');
+
+    const ssWithSanitized = ssDocs.find((d) => d?.metadata?.name === 'my-special-app');
+    expect(ssWithSanitized).toBeDefined();
+    expect(ssWithSanitized?.spec?.serviceName).toBe('svc-sanitized-label');
+  });
 });

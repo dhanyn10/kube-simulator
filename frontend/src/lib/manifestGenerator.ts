@@ -71,8 +71,7 @@ const createResourceObject = (data: any) => {
     return undefined;
   }
 
-  const res: any = {};
-  if (Object.keys(requests).length > 0) res.requests = requests;
+  const res: any = { requests };
   if (Object.keys(limits).length > 0) res.limits = limits;
   return res;
 };
@@ -102,6 +101,7 @@ const getEnvFromAttachedConfigMaps = (
   env: any[]
 ) => {
   configMaps.forEach((cm: any) => {
+    if (!cm) return;
     const cmName = sanitizeName(cm.name) || 'configmap';
     if (!Array.isArray(cm.configData)) return;
     cm.configData.forEach((item: any) => {
@@ -127,6 +127,7 @@ const getEnvFromAttachedSecrets = (
   env: any[]
 ) => {
   secrets.forEach((sec: any) => {
+    if (!sec) return;
     const secName = sanitizeName(sec.name) || 'secret';
     const items = sec.secretData || sec.configData;
     if (!Array.isArray(items)) return;
@@ -247,22 +248,21 @@ const createPodSpec = (
   return spec;
 };
 
-const isMatchingServiceSelector = (svc: any, node: any, name: string): boolean => {
+const isMatchingServiceSelector = (svc: any, node: any): boolean => {
   const sel = svc?.data?.selector;
   if (!sel) return false;
-  const nodeLabel = node.data?.label || node.data?.baseName || name;
+  const nodeLabel = node.data?.label;
   return (
     sel === node.id ||
-    sel === node.data?.label ||
+    sel === nodeLabel ||
     sel === node.data?.baseName ||
-    sanitizeName(sel) === sanitizeName(nodeLabel) ||
-    sanitizeName(sel) === sanitizeName(name)
+    sanitizeName(sel) === sanitizeName(nodeLabel)
   );
 };
 
 const findCandidateServicesForStatefulSet = (
   node: any,
-  name: string,
+  _name: string,
   targetEdgeMap: Map<string, any[]>,
   sourceEdgeMap: Map<string, any[]>,
   nodeMap: Map<string, any>
@@ -284,7 +284,7 @@ const findCandidateServicesForStatefulSet = (
     addCandidate(nodeMap.get(e.target));
   }
   for (const n of nodeMap.values()) {
-    if (n?.type === 'Service' && isMatchingServiceSelector(n, node, name)) {
+    if (n?.type === 'Service' && isMatchingServiceSelector(n, node)) {
       addCandidate(n);
     }
   }
@@ -929,6 +929,7 @@ const buildAttachedConfigMapManifest = (
   node: any,
   nodeMap: Map<string, any>
 ) => {
+  if (!cmItem) return null;
   const name = sanitizeName(cmItem.name) || 'configmap';
   const namespace = getNamespace(node, nodeMap);
   const metadata: Record<string, string> = { name };
@@ -958,6 +959,7 @@ const buildAttachedSecretManifest = (
   node: any,
   nodeMap: Map<string, any>
 ) => {
+  if (!secretItem) return null;
   const name = sanitizeName(secretItem.name) || 'secret';
   const namespace = getNamespace(node, nodeMap);
   const metadata: Record<string, string> = { name };
@@ -989,6 +991,7 @@ const buildAttachedHpaManifest = (
   node: any,
   nodeMap: Map<string, any>
 ) => {
+  if (!hpaItem) return null;
   const hpaName = sanitizeName(hpaItem.name) || `${sanitizeName(node.data?.label || node.id)}-hpa`;
   const namespace = getNamespace(node, nodeMap);
   const metadata: Record<string, string> = { name: hpaName };

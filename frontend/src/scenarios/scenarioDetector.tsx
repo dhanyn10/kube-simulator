@@ -22,7 +22,7 @@ export interface DetectedResource {
   count: number;
   cardCount: number;
   itemCount: number;
-  subtypes?: string[];
+  subtypes: string[];
 }
 
 export interface ScenarioDetectionResult {
@@ -58,7 +58,7 @@ interface ResourceConfig {
   color: keyof typeof PALETTE;
 }
 
-const RESOURCE_CONFIG: Record<string, ResourceConfig> = {
+export const RESOURCE_CONFIG: Record<string, ResourceConfig> = {
   Internet: { order: 1, icon: Globe, color: 'blue' },
   Namespace: { order: 2, icon: Folder, color: 'emerald' },
   Ingress: { order: 3, icon: Route, color: 'rose' },
@@ -141,8 +141,8 @@ export const detectScenarioResources = (
       totalCards += 1;
     }
 
-    if (subtype && !existing.subtypes?.includes(subtype)) {
-      existing.subtypes = [...(existing.subtypes || []), subtype];
+    if (subtype && !existing.subtypes.includes(subtype)) {
+      existing.subtypes.push(subtype);
     }
 
     resourceMap.set(type, existing);

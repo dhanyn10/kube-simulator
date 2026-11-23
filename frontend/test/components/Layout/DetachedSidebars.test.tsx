@@ -43,6 +43,17 @@ describe('Detached Sidebars', () => {
     expect(screen.getByTestId('close-right-sidebar-window-btn')).toBeDefined();
   });
 
+  it('renders DetachedRightSidebar in light mode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    render(<DetachedRightSidebar />);
+
+    expect(screen.getByText('Configuration & Inspector')).toBeDefined();
+    const closeBtn = screen.getByTestId('close-right-sidebar-window-btn');
+    expect(closeBtn).toBeDefined();
+    fireEvent.click(closeBtn);
+    expect(mockBroadcastAttachSidebar).toHaveBeenCalledWith('right');
+  });
+
   it('triggers attach action on click', () => {
     render(<DetachedLeftSidebar />);
     const attachBtn = screen.getByTestId('attach-left-sidebar-btn');

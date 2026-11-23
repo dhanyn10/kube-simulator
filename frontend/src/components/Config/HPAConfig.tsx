@@ -2,6 +2,7 @@
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { Activity, Layers } from 'lucide-react';
+import { Node } from '@xyflow/react';
 import { K8sNodeData } from '@/types';
 import {
   clampReplicaRange,
@@ -66,11 +67,10 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
 
   const status = getStatusInfo();
 
-  const handleFixLimits = () => {
-    if (!targetWorkload) return;
+  const handleFixLimits = (workload: Node) => {
     const updates = resolveMissingLimits(workloadData);
     if (Object.keys(updates).length > 0) {
-      useFlowStore.getState().updateNodeData(targetWorkload.id, updates);
+      useFlowStore.getState().updateNodeData(workload.id, updates);
     }
   };
 
@@ -105,7 +105,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
           <p>HPA requires CPU/Memory limits on the target {targetWorkload?.type || 'workload'} to function in real-world clusters.</p>
           <button 
             type="button"
-            onClick={handleFixLimits}
+            onClick={() => handleFixLimits(targetWorkload)}
             className="inline-flex items-center mt-2.5 px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 transition-all font-bold text-[8px] uppercase tracking-wider"
           >
             Fix automatically
