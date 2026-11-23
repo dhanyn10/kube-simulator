@@ -38,6 +38,13 @@ export const getYogaEngine = async (): Promise<YogaEngine> => {
 };
 
 /**
+ * Resets the cached Yoga instance (for test coverage).
+ */
+export const _resetCachedYogaEngineForTesting = () => {
+  cachedYogaInstance = null;
+};
+
+/**
  * Returns the currently cached Yoga Layout engine instance synchronously if available.
  *
  * @returns Cached Yoga instance or null if not yet initialized.
@@ -85,7 +92,6 @@ const calculateYogaCardLayout = (
   yoga: YogaEngine,
   computedWidth: number,
   baseMinHeight: number,
-  attachedHeight: number,
   data: K8sNodeData,
   node: { width?: number; height?: number }
 ): { width: number; height: number } => {
@@ -104,11 +110,9 @@ const calculateYogaCardLayout = (
   bodyNode.setMinHeight(baseMinHeight - 48);
   rootNode.insertChild(bodyNode, 1);
 
-  if (attachedHeight > 0) {
-    const attachedNode = buildAttachedContainerYogaNode(yoga, data, computedWidth - 24);
-    if (attachedNode) {
-      rootNode.insertChild(attachedNode, 2);
-    }
+  const attachedNode = buildAttachedContainerYogaNode(yoga, data, computedWidth - 24);
+  if (attachedNode) {
+    rootNode.insertChild(attachedNode, 2);
   }
 
   rootNode.calculateLayout(computedWidth, undefined, yoga.DIRECTION_LTR);
@@ -274,7 +278,7 @@ export const calculateCardLayoutWithYoga = (
     return { width, height };
   }
 
-  return calculateYogaCardLayout(yoga, computedWidth, baseMinHeight, attachedHeight, data, node);
+  return calculateYogaCardLayout(yoga, computedWidth, baseMinHeight, data, node);
 };
 
 /**
@@ -338,10 +342,10 @@ const buildPodYogaSubTree = (
   pod: Node,
   _idx: number,
   isLastPod: boolean,
-  deployment?: Node
+  deployment: Node
 ) => {
   const podData = (pod.data as unknown as K8sNodeData) || ({} as K8sNodeData);
-  const parentData = deployment ? (deployment.data as unknown as K8sNodeData) : undefined;
+  const parentData = deployment.data as unknown as K8sNodeData;
   const visibleBadges = getPodVisibleBadges(podData);
 
   const { isMegaPod } = getPodReplicaInfo(podData);

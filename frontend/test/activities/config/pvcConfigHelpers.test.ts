@@ -877,5 +877,37 @@ describe('pvcConfigHelpers test suite', () => {
       const updatedPvc = synced.nodes.find((n) => n.id === 'pvc-resolved');
       expect(updatedPvc?.data?.pvcStatus).toBe('Bound');
     });
+
+    it('resolves controller workers for missing child pods using assignedNode or worker index fallback', () => {
+      const pvcNode: Node = { id: 'pvc-worker-test', type: 'PVC', data: {}, position: { x: 0, y: 0 } };
+
+      // Case 1: assignedNode is a valid worker string matching /^worker-\d+$/
+      const depPinned: Node = {
+        id: 'dep-pinned',
+        type: 'Deployment',
+        data: { replicas: 2, assignedNode: 'worker-2' },
+        position: { x: 0, y: 0 },
+      };
+      const analysisPinned = analyzePvcWorkloadConnections(
+        pvcNode,
+        [pvcNode, depPinned],
+        [{ id: 'e1', source: 'dep-pinned', target: 'pvc-worker-test' }]
+      );
+      expect(Array.from(analysisPinned.distinctWorkerNodes)).toEqual(['worker-2']);
+
+      // Case 2: assignedNode is a string but not matching /^worker-\d+$/
+      const depNonWorker: Node = {
+        id: 'dep-non-worker',
+        type: 'Deployment',
+        data: { replicas: 2, assignedNode: 'custom-pool' },
+        position: { x: 0, y: 0 },
+      };
+      const analysisNonWorker = analyzePvcWorkloadConnections(
+        pvcNode,
+        [pvcNode, depNonWorker],
+        [{ id: 'e2', source: 'dep-non-worker', target: 'pvc-worker-test' }]
+      );
+      expect(Array.from(analysisNonWorker.distinctWorkerNodes)).toEqual(['worker-1', 'worker-2']);
+    });
   });
 });

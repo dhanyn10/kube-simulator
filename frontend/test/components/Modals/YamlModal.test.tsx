@@ -9,6 +9,7 @@ describe('YamlModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
     // Mock navigator.clipboard
     Object.assign(navigator, {
       clipboard: {
@@ -221,6 +222,18 @@ spec:
       expect(screen.queryByTestId('yaml-search-count')).not.toBeInTheDocument();
       // Modal should not close when Escape is used to clear search input
       expect(mockOnClose).not.toHaveBeenCalled();
+    });
+
+    it('scrolls active match into view when active match changes', () => {
+      const scrollMock = vi.fn();
+      window.HTMLElement.prototype.scrollIntoView = scrollMock;
+
+      render(<YamlModal content={yamlSample} colorMode="dark" onClose={mockOnClose} />);
+
+      const searchInput = screen.getByTestId('yaml-search-input');
+      fireEvent.change(searchInput, { target: { value: 'web-app' } });
+
+      expect(scrollMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
     });
   });
 });
