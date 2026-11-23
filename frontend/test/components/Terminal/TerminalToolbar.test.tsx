@@ -223,4 +223,29 @@ describe('TerminalToolbar', () => {
     fireEvent.click(exportOption);
     expect(setShowExportLogs).toHaveBeenCalledWith(true);
   });
+
+  it('calls prop onContextMenu when provided', () => {
+    const handleContextMenu = vi.fn();
+    const { container } = render(
+      <TerminalToolbar {...defaultProps} onContextMenu={handleContextMenu} />
+    );
+    const toolbar = container.querySelector('.terminal-toolbar')!;
+    fireEvent.contextMenu(toolbar, { clientX: 100, clientY: 50 });
+
+    expect(handleContextMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to default true when store values are undefined and no props are provided', () => {
+    useFlowStore.setState({
+      terminalShowAuth: undefined as any,
+      terminalShowFilterLogs: undefined as any,
+      terminalShowExportLogs: undefined as any,
+    });
+
+    render(<TerminalToolbar {...defaultProps} />);
+
+    expect(screen.getByTestId('terminal-auth-section')).toBeInTheDocument();
+    expect(screen.getByTestId('terminal-filter-section')).toBeInTheDocument();
+    expect(screen.getByTestId('terminal-export-log-btn')).toBeInTheDocument();
+  });
 });

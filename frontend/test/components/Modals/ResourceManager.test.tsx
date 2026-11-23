@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { ResourceManager } from '@/components/Modals/resource-manager/ResourceManager';
 import { useFlowStore } from '@/store';
 
@@ -102,5 +103,37 @@ describe('ResourceManager', () => {
       status: 'ready',
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('handles image selection when configuringNodeId is null', () => {
+    const onClose = vi.fn();
+    const updateNodeData = vi.fn();
+    const addCustomImage = vi.fn();
+
+    useFlowStore.setState({
+      configuringNodeId: null,
+      updateNodeData,
+      addCustomImage,
+    });
+
+    render(<ResourceManager isOpen={true} onClose={onClose} />);
+
+    const applyBtns = screen.getAllByRole('button', { name: /Apply Image/i });
+    fireEvent.click(applyBtns[0]);
+
+    expect(addCustomImage).toHaveBeenCalled();
+    expect(updateNodeData).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('renders empty state when search matches no images', () => {
+    render(<ResourceManager isOpen={true} onClose={vi.fn()} />);
+
+    const searchInput = screen.getByPlaceholderText(/Filter runtime setup images/i);
+    fireEvent.change(searchInput, { target: { value: 'nonexistent-custom-image-xyz' } });
+
+    expect(
+      screen.getByText('No runtime images matched "nonexistent-custom-image-xyz"')
+    ).toBeInTheDocument();
   });
 });

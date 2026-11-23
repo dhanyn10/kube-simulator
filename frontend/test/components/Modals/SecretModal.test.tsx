@@ -716,7 +716,13 @@ describe('SecretModal', () => {
 
   it('covers profileItems with default profile and secret ID with empty id', () => {
     useFlowStore.setState({
-      nodes: [],
+      nodes: [
+        {
+          id: 'pod-attach',
+          type: 'Pod',
+          data: { label: 'pod-attach' },
+        },
+      ],
       savedSecrets: [
         {
           id: 'sec-def-prof',
@@ -745,6 +751,21 @@ describe('SecretModal', () => {
 
     const idInput = screen.getByTestId('secret-id-input') as HTMLInputElement;
     expect(idInput.value).toBe('');
+
+    // Attach component to cover line 193 targetId fallback
+    const tagInput = screen.getByLabelText(/Related Components/i);
+    fireEvent.focus(tagInput);
+    const suggestion = screen.getByTestId('tagify-suggestion-pod-attach');
+    fireEvent.mouseDown(suggestion);
+
+    // Save to cover line 226 targetId fallback
+    const saveBtn = screen.getByRole('button', { name: 'Update Secret' });
+    fireEvent.click(saveBtn);
+    expect(defaultProps.onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.stringMatching(/^secret-\d+/),
+      })
+    );
 
     // 2. Profile precedence with default profile fallback
     rerender(

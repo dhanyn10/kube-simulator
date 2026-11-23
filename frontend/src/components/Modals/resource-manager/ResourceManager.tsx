@@ -131,7 +131,7 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
         {/* Setup Images Grid */}
         <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar max-h-[50vh]">
           {filteredImages.map((item) => {
-            const chars = item.characteristics || getImageCharacteristics(item.name);
+            const chars = item.characteristics;
             const isTarget = activeTargetImage === item.name;
 
             return (

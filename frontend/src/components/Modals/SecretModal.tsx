@@ -82,7 +82,6 @@ export const SecretModal: React.FC<SecretModalProps> = ({
     handleRemoveField,
     handleUpdateField,
     loadSecret,
-    getValidData,
   } = useSecretModal(isOpen, targetNodeId, initialSecret, onSave, onClose) as any;
 
   const [attachedComponents, setAttachedComponents] = useState<ComponentOption[]>([]);
@@ -110,12 +109,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
 
   const profileItems = useMemo(() => {
     const targetProfile = selectedProfile || currentProfileName;
-    return allItems.filter((item) => {
-      const pName = item.profileName && item.profileName !== 'Default Profile'
-        ? item.profileName
-        : currentProfileName;
-      return pName === targetProfile;
-    });
+    return allItems.filter((item) => item.profileName === targetProfile);
   }, [allItems, selectedProfile, currentProfileName]);
 
   const availableComponents = useMemo(() => getAvailableWorkloadComponents(nodes), [nodes]);
@@ -196,7 +190,9 @@ export const SecretModal: React.FC<SecretModalProps> = ({
 
   const handleAttachComponent = (comp: ComponentOption) => {
     const targetId = activeItem?.id || initialSecret?.id || secretId || `secret-${Date.now()}`;
-    const validData = typeof getValidData === 'function' ? getValidData() : [];
+    const validData = dataItems
+      .filter((item: any) => item.key.trim() !== '')
+      .map((item: any) => ({ key: item.key.trim(), value: item.value }));
     attachSecretComponent({
       nodes,
       comp,
@@ -211,9 +207,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
   };
 
   const handleUseExistingSecret = (sourceSec: K8sSecretItem) => {
-    if (typeof loadSecret === 'function') {
-      loadSecret(sourceSec);
-    }
+    loadSecret(sourceSec);
     const nextAttached = mergeAttachedSecretComponents(attachedComponents, sourceSec, nodes);
     setAttachedComponents(nextAttached);
     setIsImportDropdownOpen(false);
@@ -321,7 +315,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
           <ResourcePrecedenceView
             resourceType="Secret"
             accentColor="rose"
-            profileName={selectedProfile || currentProfileName}
+            profileName={selectedProfile!}
             items={profileItems}
             isDark={isDark}
             onEditItem={handleEditFromList}
