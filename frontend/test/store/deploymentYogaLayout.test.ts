@@ -6,6 +6,7 @@ import {
   getYogaEngine,
   getYogaInstanceSync,
   calculateCardContentExtraHeight,
+  _resetCachedYogaEngineForTesting,
 } from '@/store/deploymentYogaLayout';
 import type { YogaEngine } from '@/store/deploymentYogaLayout';
 
@@ -972,5 +973,13 @@ describe('deploymentYogaLayout', () => {
     expect(nonYogaDefaultLayout.width).toBeGreaterThan(0);
     expect(nonYogaDefaultLayout.height).toBeGreaterThan(0);
     expect(nonYogaDefaultLayout.laidOutPods).toHaveLength(1);
+  });
+
+  it('loads Yoga engine when cached instance is reset to null', async () => {
+    _resetCachedYogaEngineForTesting();
+    expect(getYogaInstanceSync()).toBeNull();
+    const engine = await getYogaEngine();
+    expect(engine).toBeDefined();
+    expect(getYogaInstanceSync()).toBe(engine);
   });
 });

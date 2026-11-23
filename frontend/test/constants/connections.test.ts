@@ -5,6 +5,7 @@ import {
   isStatefulSetResource,
   checkPvcTemplateTopologyConflict,
   checkNamespaceIsolation,
+  getNodeConnectionGuidance,
 } from '@/constants/connections';
 
 describe('connections constants', () => {
@@ -329,6 +330,32 @@ describe('connections constants', () => {
     expect(
       checkNamespaceIsolation('Deployment', 'HPA', {}, {}, 'ns-a', 'ns-b')
     ).toContain('Cross-namespace scaling is not allowed: HPA in namespace "ns-a" cannot scale workload in namespace "ns-b".');
+    expect(
+      checkNamespaceIsolation('Service', 'Ingress', { serviceType: 'LoadBalancer' }, {}, 'ns-a', 'ns-b')
+    ).toBeNull();
+  });
+
+  describe('getNodeConnectionGuidance', () => {
+    it('returns appropriate architectural guidance for all resource types and service types', () => {
+      expect(getNodeConnectionGuidance('Internet')).toContain('LoadBalancer or NodePort');
+      expect(getNodeConnectionGuidance('Ingress')).toContain('ClusterIP');
+      expect(getNodeConnectionGuidance('Service')).toContain('Workload');
+      expect(getNodeConnectionGuidance('Service', {})).toContain('Workload');
+      expect(getNodeConnectionGuidance('Service', { serviceType: 'ClusterIP' })).toContain('Workload');
+      expect(getNodeConnectionGuidance('Service', { serviceType: 'LoadBalancer' })).toContain('Ingress Controller');
+      expect(getNodeConnectionGuidance('Service', { serviceType: 'NodePort' })).toContain('Ingress Controller');
+      expect(getNodeConnectionGuidance('Service', { serviceType: 'Headless' })).toContain('Workload endpoints');
+      expect(getNodeConnectionGuidance('Deployment')).toContain('Storage (PVC)');
+      expect(getNodeConnectionGuidance('StatefulSet')).toContain('Storage (PVC)');
+      expect(getNodeConnectionGuidance('Pod')).toContain('Storage (PVC)');
+      expect(getNodeConnectionGuidance('ReplicaSet')).toContain('Storage (PVC)');
+      expect(getNodeConnectionGuidance('HPA')).toContain('Resource Limits');
+      expect(getNodeConnectionGuidance('ResourceLimit')).toContain('Workload');
+      expect(getNodeConnectionGuidance('ConfigMap')).toContain('volume mounts');
+      expect(getNodeConnectionGuidance('Secret')).toContain('volume mounts');
+      expect(getNodeConnectionGuidance('PVC')).toContain('volume mounts');
+      expect(getNodeConnectionGuidance('Unknown')).toBe('Compatible Kubernetes resource');
+    });
   });
 
   describe('PVC Volume Claim Template topology rules', () => {

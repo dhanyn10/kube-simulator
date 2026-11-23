@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   getNodeAbsCenter,
   isNodeInDirection,
@@ -8,6 +8,7 @@ import {
   checkValidConnectionDirection,
   canConnectRule,
 } from '@/activities/nodes/quickConnectHelpers';
+import * as connections from '@/constants/connections';
 import { getNodeConnectionGuidance } from '@/constants/connections';
 import { Node, Edge } from '@xyflow/react';
 
@@ -237,5 +238,22 @@ describe('quickConnectHelpers', () => {
     // and fallback sorted[0] is selected
     const fallbackResult = findBestCandidateInDirection(sourceNode, 'right', [sourceNode, rightPod], reverseEdges);
     expect(fallbackResult?.targetNode.id).toBe('pod-right');
+  });
+
+  it('returns null when validDirection is not found for the best candidate', () => {
+    const spy = vi.spyOn(connections, 'getConnectionError');
+    let callCount = 0;
+    spy.mockImplementation(() => {
+      callCount++;
+      // First call is during isNodeInDirection candidates filtering -> return null (valid)
+      if (callCount === 1) return null;
+      // Subsequent calls during checkValidConnectionDirection -> return error (invalid)
+      return 'Connection not permitted';
+    });
+
+    const res = findBestCandidateInDirection(sourceNode, 'right', [sourceNode, rightPod], []);
+    expect(res).toBeNull();
+
+    spy.mockRestore();
   });
 });

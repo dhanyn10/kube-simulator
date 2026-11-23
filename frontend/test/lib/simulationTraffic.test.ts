@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Node } from '@xyflow/react';
 import {
   calculateIncomingTraffic,
+  getReachableWorkloadCount,
   isSimulationWorkload,
   getInterpolatedProfileTraffic,
   updateInternetTraffic,
@@ -109,6 +110,30 @@ describe('simulationTraffic', () => {
 
       expect(calculateIncomingTraffic(dep1, ctx).traffic).toBe(2000);
       expect(calculateIncomingTraffic(dep2, ctx).traffic).toBe(2000);
+    });
+
+    it('covers getReachableWorkloadCount fallbacks and unreachable workloads in calculateIncomingTraffic', () => {
+      const dep1: Node = { id: 'dep-1', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+      const depUnreachable: Node = { id: 'dep-unreach', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+      const netNode: Node = { id: 'net-1', type: 'Internet', position: { x: 0, y: 0 }, data: { currentTraffic: 1000 } };
+
+      // 1. Empty reachable set returns 1
+      const emptyMap = new Map<string, Set<string>>([['net-empty', new Set()]]);
+      expect(getReachableWorkloadCount('net-missing', { internetReachableMap: emptyMap } as any)).toBe(1);
+      expect(getReachableWorkloadCount('net-empty', { internetReachableMap: emptyMap } as any)).toBe(1);
+
+      // 2. Uses updatedNodes when nodes is empty, and ignores unreachable workloads (without childPodMap)
+      const reachMap = new Map<string, Set<string>>([['net-1', new Set(['dep-1'])]]);
+      const ctxWithUpdated: SimulationContext = {
+        nodes: [],
+        updatedNodes: [dep1, depUnreachable],
+        internetNodes: [netNode],
+        internetReachableMap: reachMap,
+      } as any;
+
+      expect(getReachableWorkloadCount('net-1', ctxWithUpdated)).toBe(1);
+      // depUnreachable is not in reachable set -> getInternetNodeTraffic returns 0
+      expect(calculateIncomingTraffic(depUnreachable, ctxWithUpdated).traffic).toBe(0);
     });
   });
 
@@ -234,6 +259,50 @@ describe('simulationTraffic', () => {
       expect(ctx.updatedNodes[0].data.currentMinuteIndex).toBe(1);
     });
 
+    it('ramps up traffic when currentTraffic is below targetTraffic and handles connectionProfile when active', () => {
+      const edge = { id: 'e1', source: 'net-1', target: 'svc-1', data: {} } as any;
+      const svcNode = { id: 'svc-1', type: 'Service', data: { serviceType: 'NodePort' } } as any;
+      const edgeMap = new Map([['net-1', [edge]]]);
+
+      // 1. Ramping up from undefined currentTraffic (0) towards default traffic (1000) with default simulationSpeed (1)
+      const rampNode: Node = {
+        id: 'net-1',
+        position: { x: 0, y: 0 },
+        data: {},
+      };
+      const rampCtx: SimulationContext = {
+        ticks: 10,
+        nodes: [rampNode, svcNode],
+        updatedNodes: [rampNode],
+        nodeMap: new Map([['net-1', rampNode], ['svc-1', svcNode]]),
+        edgeMap,
+        nodeIndexMap: new Map([['net-1', 0]]),
+      } as any;
+
+      const rampRes = updateInternetTraffic(rampNode, rampCtx);
+      expect(rampRes.traffic).toBe(1000);
+
+      // 2. Using connectionProfile when ticks > 3 and not red
+      const profileNode: Node = {
+        id: 'net-1',
+        position: { x: 0, y: 0 },
+        data: {
+          currentMinuteIndex: 0,
+          connectionProfile: { hourly: { '00:01': 2500 } },
+        },
+      };
+      const profileCtx: SimulationContext = {
+        ticks: 10,
+        nodes: [profileNode, svcNode],
+        updatedNodes: [profileNode],
+        nodeMap: new Map([['net-1', profileNode], ['svc-1', svcNode]]),
+        edgeMap,
+        nodeIndexMap: new Map([['net-1', 0]]),
+      } as any;
+
+      const profileRes = updateInternetTraffic(profileNode, profileCtx);
+      expect(profileRes.traffic).toBe(2500);
+    });
   });
 
   describe('calculateResourceMetrics', () => {
@@ -295,12 +364,22 @@ describe('simulationTraffic', () => {
       calculateResourceMetrics(dep, 1000, ctx);
 
       expect(ctx.newMetrics['dep-multi'][0].minuteIndex).toBe(95);
+
+      // Also test fallback image ('nginx:latest') and ticks fallback (0)
+      const bareDep: Node = { id: 'dep-bare', position: { x: 0, y: 0 }, data: {} };
+      const zeroTickCtx: SimulationContext = {
+        ticks: 0,
+        newMetrics: {},
+      } as any;
+      calculateResourceMetrics(bareDep, 500, zeroTickCtx);
+      expect(zeroTickCtx.newMetrics['dep-bare'][0].minuteIndex).toBe(0);
     });
   });
 
   describe('calculateResponseLatencyMs', () => {
-    it('returns zero when there is no traffic to measure', () => {
+    it('returns zero when there is no traffic to measure and falls back to utilization 1 when safeCapacityRpm <= 0', () => {
       expect(calculateResponseLatencyMs(0, 0, 1000, true, true)).toBe(0);
+      expect(calculateResponseLatencyMs(100, 100, 0, false, false)).toBe(25);
     });
 
     it('stays low under capacity and grows sharply past capacity', () => {
@@ -458,6 +537,88 @@ describe('simulationTraffic', () => {
       const resPresent = handleHpaScaling(dep, 90, ctxPresent);
       expect(resPresent).toBe(true);
     });
+
+    it('returns false when no HPA is configured and handles non-HPA incoming edges, syncDeployment, and child pod scaling', () => {
+      // 1. No HPA configured (minReplicas set without maxReplicas, and non-HPA incoming edge)
+      const plainDep: Node = {
+        id: 'dep-plain',
+        position: { x: 0, y: 0 },
+        data: { replicas: 1, minReplicas: 1 },
+      };
+      const svcNode: Node = { id: 'svc-1', type: 'Service', position: { x: 0, y: 0 }, data: {} };
+      const ctxNoHpa: SimulationContext = {
+        updatedNodes: [plainDep, svcNode],
+        nodeMap: new Map([['dep-plain', plainDep], ['svc-1', svcNode]]),
+        targetEdgeMap: new Map([['dep-plain', [{ id: 'e1', source: 'svc-1', target: 'dep-plain' }]]]),
+      } as any;
+      expect(handleHpaScaling(plainDep, 90, ctxNoHpa)).toBe(false);
+
+      // 2. Uses ctx.syncDeployment when provided
+      const syncDep: Node = {
+        id: 'dep-sync',
+        position: { x: 0, y: 0 },
+        data: {
+          label: 'sync-app',
+          replicas: 1,
+          hpas: [{ id: 'h1', minReplicas: 1, maxReplicas: 5, targetCPU: 50 }],
+        },
+      };
+      const oldChildPod: Node = { id: 'dep-sync-pod-0', type: 'Pod', parentId: 'dep-sync', position: { x: 0, y: 0 }, data: {} };
+      const unrelatedNode: Node = { id: 'other-node', type: 'Service', position: { x: 0, y: 0 }, data: {} };
+      const syncDeployment = vi.fn().mockReturnValue({
+        updatedDeployment: { ...syncDep, data: { ...syncDep.data, replicas: 2 } },
+        laidOut: [oldChildPod],
+      });
+      const ctxSync: SimulationContext = {
+        updatedNodes: [syncDep, oldChildPod, unrelatedNode],
+        nodeIndexMap: new Map([['dep-sync', 0]]),
+        syncDeployment,
+        get: () => ({ addActivityLog: vi.fn() }) as any,
+      } as any;
+      expect(handleHpaScaling(syncDep, 100, ctxSync)).toBe(true);
+      expect(syncDeployment).toHaveBeenCalled();
+
+      // 3. Standalone child pod template cloning on scale-up (with and without templatePod.data.label)
+      const depWithChild: Node = {
+        id: 'dep-children',
+        position: { x: 0, y: 0 },
+        data: {
+          replicas: 1,
+          hpas: [{ id: 'h1', minReplicas: 1, maxReplicas: 5, targetCPU: 50 }],
+        },
+      };
+      const childWithLabel: Node = {
+        id: 'dep-children-pod-0',
+        type: 'Pod',
+        parentId: 'dep-children',
+        position: { x: 0, y: 0 },
+        data: { label: 'web' },
+      };
+      const ctxChildLabel: SimulationContext = {
+        updatedNodes: [depWithChild, childWithLabel, unrelatedNode],
+        nodeIndexMap: new Map([['dep-children', 0]]),
+        get: () => ({}) as any,
+      } as any;
+      expect(handleHpaScaling(depWithChild, 100, ctxChildLabel)).toBe(true);
+      expect(ctxChildLabel.updatedNodes.filter(n => n.type === 'Pod')).toHaveLength(2);
+
+      // Child pod matched via data.parentId and without data.label
+      const childViaDataParent: Node = {
+        id: 'dep-children-pod-0',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: { parentId: 'dep-children' },
+      };
+      const ctxChildNoLabel: SimulationContext = {
+        updatedNodes: [depWithChild, childViaDataParent],
+        nodeIndexMap: new Map([['dep-children', 0]]),
+        get: () => ({}) as any,
+      } as any;
+      expect(handleHpaScaling(depWithChild, 100, ctxChildNoLabel)).toBe(true);
+      const createdPods = ctxChildNoLabel.updatedNodes.filter(n => n.type === 'Pod');
+      expect(createdPods).toHaveLength(2);
+      expect(createdPods[1].data.label).toBe('pod-1');
+    });
   });
 
   describe('calculateDesiredReplicas', () => {
@@ -466,6 +627,8 @@ describe('simulationTraffic', () => {
       expect(calculateDesiredReplicas(2, 50, {})).toBe(2);
       // ratio = 100 / 50 = 2 => scales up to 2, min/max fallback to 1 and 10
       expect(calculateDesiredReplicas(1, 100, {})).toBe(2);
+      // negative targetCPU returns current replicas unchanged
+      expect(calculateDesiredReplicas(3, 100, { targetCPU: -10 })).toBe(3);
     });
 
     it('returns the lower replica count directly without any randomness', () => {

@@ -132,9 +132,6 @@ const checkServiceSourceRules = (
     if (targetType === 'Ingress') return null;
     if (targetType === 'Service') return checkLoadBalancerTargetService(targetData);
   }
-  if (targetType === 'Ingress') {
-    return `${sourceServiceType} Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
-  }
   return null;
 };
 

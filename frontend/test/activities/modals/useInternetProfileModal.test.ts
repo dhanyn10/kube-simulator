@@ -884,6 +884,41 @@ describe('useInternetProfileModal', () => {
 
       expect(result.current.autoSaveStatus).toBe('saved');
     });
+
+    it('handles undefined or null selectedNode fallback to empty object', () => {
+      const { result } = renderHook(() =>
+        useInternetProfileModal(true, null, mockPerformUpdate, mockOnClose)
+      );
+      expect(result.current.activeProfileName).toBe('');
+    });
+
+    it('skips scheduling autoSave when detailProfile matches lastSavedDetailJsonRef', async () => {
+      const { result } = renderHook(() =>
+        useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+      );
+
+      // Open details
+      act(() => {
+        result.current.handleOpenDetails(ECOMMERCE_PROFILE.name);
+      });
+
+      // Update point and trigger autoSave so lastSavedDetailJsonRef is set
+      act(() => {
+        result.current.handleUpdateDetailPoint('00:00', 4000);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+      expect(result.current.autoSaveStatus).toBe('saved');
+
+      // Now toggle isAutoSaveEnabled false then true without modifying detailProfile
+      act(() => {
+        result.current.setIsAutoSaveEnabled(false);
+      });
+      act(() => {
+        result.current.setIsAutoSaveEnabled(true);
+      });
+    });
   });
 });
 

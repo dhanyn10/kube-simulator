@@ -42,6 +42,20 @@ describe('useBaseNode activity helpers and hook', () => {
         label: 'web-app-abc12',
       };
       expect(extractPodBaseName(dataHashOnly)).toBe('web-app');
+
+      const dataSuffixOnly: K8sNodeData = {
+        type: 'Pod',
+        replicaSuffix: '0',
+        label: 'redis-0',
+      };
+      expect(extractPodBaseName(dataSuffixOnly)).toBe('redis');
+
+      const dataSuffixNonMatching: K8sNodeData = {
+        type: 'Pod',
+        replicaSuffix: '0',
+        label: 'redis-custom',
+      };
+      expect(extractPodBaseName(dataSuffixNonMatching)).toBe('redis-custom');
     });
 
     it('falls back to label or "pod" when pattern does not match', () => {

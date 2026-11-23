@@ -510,6 +510,12 @@ describe('chartHelpers', () => {
     const emptyAgg = aggregateMetricSeries(customEmptyPoints as any, 'cpuPercent', '1h');
     expect(emptyAgg.data).toEqual([]);
     expect(emptyAgg.currentVal).toBe(0);
+
+    // Points where at(-1) returns undefined
+    const pointsWithUndefinedAt: SimulationMetricPoint[] = [{ minuteIndex: 0, cpuPercent: 50 }];
+    (pointsWithUndefinedAt as any).at = () => undefined;
+    const undefAtRes = aggregateMetricSeries(pointsWithUndefinedAt, 'cpuPercent', '1h');
+    expect(undefAtRes.currentVal).toBe(0);
   });
 
   it('covers calculateNetworkMetrics missing metrics, undefined rpm/latency, and empty deployments', () => {

@@ -21,6 +21,7 @@ import {
   getResourceIcon,
   ResourceBadge,
   ResourceBadgeList,
+  RESOURCE_CONFIG,
 } from '@/scenarios/scenarioDetector';
 
 describe('scenarioDetector', () => {
@@ -135,6 +136,13 @@ describe('scenarioDetector', () => {
         expect(lightClass).toBeDefined();
         expect(darkClass).not.toBe(lightClass);
       });
+    });
+
+    it('falls back to PALETTE.slate when resource color does not exist in PALETTE', () => {
+      RESOURCE_CONFIG['UnmappedColorResource'] = { order: 99, icon: Box, color: 'nonexistent' as any };
+      expect(getResourceBadgeClasses('UnmappedColorResource', 'dark')).toContain('bg-slate-500/10');
+      expect(getResourceBadgeClasses('UnmappedColorResource', 'light')).toContain('bg-slate-100');
+      delete RESOURCE_CONFIG['UnmappedColorResource'];
     });
   });
 
