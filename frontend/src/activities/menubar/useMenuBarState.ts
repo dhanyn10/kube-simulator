@@ -74,13 +74,13 @@ export const useMenuBarState = ({
     let isMounted = true;
     const checkForUpdatesBg = async () => {
       try {
-        const rawApp = (globalThis as any).go?.main?.App || (globalThis as any).window?.go?.main?.App;
+        const rawApp = (globalThis as any).go?.main?.App;
         const gateway = getBackendGateway();
 
         let sysInfo: any = null;
         if (rawApp?.GetSystemInfo) {
           sysInfo = await rawApp.GetSystemInfo();
-        } else if (gateway?.getSystemInfo) {
+        } else {
           sysInfo = await gateway.getSystemInfo();
         }
 
@@ -89,7 +89,7 @@ export const useMenuBarState = ({
         let update: any = null;
         if (rawApp?.CheckForUpdates) {
           update = await rawApp.CheckForUpdates(currentVer);
-        } else if (gateway?.checkForUpdates) {
+        } else {
           update = await gateway.checkForUpdates(currentVer);
         }
 

@@ -6,6 +6,10 @@ import { useFlowStore } from '@/store';
 describe('useMenuBarState', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete (globalThis as any).go;
+    if ((globalThis as any).window) {
+      delete (globalThis as any).window.go;
+    }
     (globalThis as any).BrowserOpenURL = vi.fn();
     (window as any).BrowserOpenURL = vi.fn();
     useFlowStore.setState({
@@ -195,13 +199,11 @@ describe('useMenuBarState', () => {
   });
 
   it('checks for updates in background and catches background check errors', async () => {
-    (globalThis as any).window = {
-      go: {
-        main: {
-          App: {
-            GetSystemInfo: vi.fn().mockResolvedValue({ version: '' }),
-            CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '1.1.0' }),
-          },
+    (globalThis as any).go = {
+      main: {
+        App: {
+          GetSystemInfo: vi.fn().mockResolvedValue({ version: '' }),
+          CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '1.1.0' }),
         },
       },
     };
@@ -230,13 +232,11 @@ describe('useMenuBarState', () => {
   });
 
   it('handles update check returning updateAvailable false or null sysInfo version or custom releaseUrl', async () => {
-    (globalThis as any).window = {
-      go: {
-        main: {
-          App: {
-            GetSystemInfo: vi.fn().mockResolvedValue(null),
-            CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: false }),
-          },
+    (globalThis as any).go = {
+      main: {
+        App: {
+          GetSystemInfo: vi.fn().mockResolvedValue(null),
+          CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: false }),
         },
       },
     };
@@ -261,13 +261,11 @@ describe('useMenuBarState', () => {
     expect(result.current.effectiveUpdateInfo).toBeNull();
 
     // Check with custom releaseUrl from update check
-    (globalThis as any).window = {
-      go: {
-        main: {
-          App: {
-            GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
-            CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '2.0.0', releaseUrl: 'https://custom-release-url.com' }),
-          },
+    (globalThis as any).go = {
+      main: {
+        App: {
+          GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
+          CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '2.0.0', releaseUrl: 'https://custom-release-url.com' }),
         },
       },
     };
@@ -344,12 +342,10 @@ describe('useMenuBarState', () => {
 
   it('handles partial App object without CheckForUpdates and simulatedUpdateInfo override', async () => {
     // 1. Partial App object without CheckForUpdates
-    (globalThis as any).window = {
-      go: {
-        main: {
-          App: {
-            GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
-          },
+    (globalThis as any).go = {
+      main: {
+        App: {
+          GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
         },
       },
     };
@@ -374,12 +370,10 @@ describe('useMenuBarState', () => {
     expect(partialAppResult.current.effectiveUpdateInfo).toBeNull();
 
     // 2. Background update check error catch with rejected promise
-    (globalThis as any).window = {
-      go: {
-        main: {
-          App: {
-            GetSystemInfo: vi.fn().mockRejectedValue(new Error('Network error')),
-          },
+    (globalThis as any).go = {
+      main: {
+        App: {
+          GetSystemInfo: vi.fn().mockRejectedValue(new Error('Network error')),
         },
       },
     };
@@ -442,9 +436,6 @@ describe('useMenuBarState', () => {
       UpdateProject: vi.fn().mockResolvedValue(true),
     };
     (globalThis as any).go = { main: { App: appMock } };
-    (globalThis as any).window = {
-      go: { main: { App: appMock } },
-    };
 
     const defaultProps = {
       onExportYaml: vi.fn(),
@@ -544,8 +535,8 @@ describe('useMenuBarState', () => {
       onOpenSettings: vi.fn(),
     };
 
-    // 1. window.go is undefined
-    (globalThis as any).window = {};
+    // 1. globalThis.go is undefined
+    delete (globalThis as any).go;
     const { result: noGoResult } = renderHook(() => useMenuBarState(defaultProps));
     await act(async () => {
       await new Promise((r) => setTimeout(r, 10));
@@ -553,12 +544,10 @@ describe('useMenuBarState', () => {
     expect(noGoResult.current.effectiveUpdateInfo).toBeNull();
 
     // 2. App object exists with GetSystemInfo but missing CheckForUpdates
-    (globalThis as any).window = {
-      go: {
-        main: {
-          App: {
-            GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
-          },
+    (globalThis as any).go = {
+      main: {
+        App: {
+          GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
         },
       },
     };
@@ -569,13 +558,11 @@ describe('useMenuBarState', () => {
     expect(noCheckUpdatesResult.current.effectiveUpdateInfo).toBeNull();
 
     // 3. CheckForUpdates returns updateAvailable: true but latestVersion is empty/undefined
-    (globalThis as any).window = {
-      go: {
-        main: {
-          App: {
-            GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
-            CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '' }),
-          },
+    (globalThis as any).go = {
+      main: {
+        App: {
+          GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
+          CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '' }),
         },
       },
     };
@@ -586,13 +573,11 @@ describe('useMenuBarState', () => {
     expect(noVersionResult.current.effectiveUpdateInfo).toBeNull();
 
     // 4. CheckForUpdates returns updateAvailable: true, latestVersion: '2.0.0', but releaseUrl is undefined -> falls back to default URL
-    (globalThis as any).window = {
-      go: {
-        main: {
-          App: {
-            GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
-            CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '2.0.0', releaseUrl: undefined }),
-          },
+    (globalThis as any).go = {
+      main: {
+        App: {
+          GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
+          CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '2.0.0', releaseUrl: undefined }),
         },
       },
     };
@@ -604,5 +589,116 @@ describe('useMenuBarState', () => {
       version: '2.0.0',
       releaseUrl: 'https://github.com/dhanyn10/kube-simulator/releases',
     });
+  });
+
+  it('handles New Architecture action with and without onNewArchitecture callback', () => {
+    const onNewArchitecture = vi.fn();
+    const defaultProps = {
+      onExportYaml: vi.fn(),
+      onImportFile: vi.fn(),
+      onSave: vi.fn(),
+      onSaveAs: vi.fn(),
+      onOpenProjects: vi.fn(),
+      onOpenScenarios: vi.fn(),
+      onOpenAbout: vi.fn(),
+      onOpenSettings: vi.fn(),
+      onNewArchitecture,
+    };
+
+    const { result, rerender } = renderHook((props) => useMenuBarState(props), {
+      initialProps: defaultProps,
+    });
+
+    const fileMenu = result.current.menuItems.find((m) => m.label === 'File')!;
+    const newArchItem = fileMenu.items.find((i) => i.label === 'New Architecture')!;
+
+    // 1. With callback
+    act(() => {
+      newArchItem.onClick?.();
+    });
+    expect(onNewArchitecture).toHaveBeenCalledTimes(1);
+
+    // 2. Without callback (resets state)
+    useFlowStore.setState({
+      nodes: [{ id: 'test-node', type: 'Pod', data: {} } as any],
+      edges: [{ id: 'test-edge', source: 'a', target: 'b' } as any],
+      currentProject: { id: 5, name: 'Proj' },
+      lastSavedSnapshot: 'something',
+    });
+
+    rerender({ ...defaultProps, onNewArchitecture: undefined });
+    const updatedFileMenu = result.current.menuItems.find((m) => m.label === 'File')!;
+    const updatedNewArchItem = updatedFileMenu.items.find((i) => i.label === 'New Architecture')!;
+
+    act(() => {
+      updatedNewArchItem.onClick?.();
+    });
+    expect(useFlowStore.getState().nodes).toEqual([]);
+    expect(useFlowStore.getState().edges).toEqual([]);
+    expect(useFlowStore.getState().currentProject).toBeNull();
+    expect(useFlowStore.getState().lastSavedSnapshot).toBe('');
+  });
+
+  it('handles save error exceptions with error message and fallback string', async () => {
+    const defaultProps = {
+      onExportYaml: vi.fn(),
+      onImportFile: vi.fn(),
+      onSave: vi.fn(),
+      onSaveAs: vi.fn(),
+      onOpenProjects: vi.fn(),
+      onOpenScenarios: vi.fn(),
+      onOpenAbout: vi.fn(),
+      onOpenSettings: vi.fn(),
+    };
+
+    useFlowStore.setState({
+      currentProject: { id: 10, name: 'Faulty Project' },
+      nodes: [],
+      edges: [],
+    });
+
+    // 1. UpdateProject throws Error with message
+    (globalThis as any).go = {
+      main: {
+        App: {
+          UpdateProject: vi.fn().mockRejectedValue(new Error('Disk write error')),
+        },
+      },
+    };
+
+    const { result, rerender } = renderHook(() => useMenuBarState(defaultProps));
+    const resourceMenu = result.current.menuItems.find((m) => m.label === 'Resource')!;
+    const saveItem = resourceMenu.items.find((i) => i.label === 'Save')!;
+
+    await act(async () => {
+      await saveItem.onClick?.();
+    });
+
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(
+      useFlowStore.getState().logs.some(
+        (l) => l.level === 'error' && l.message.includes('Disk write error')
+      )
+    ).toBe(true);
+
+    // 2. UpdateProject throws non-Error without message
+    (globalThis as any).go = {
+      main: {
+        App: {
+          UpdateProject: vi.fn().mockRejectedValue('network failure string'),
+        },
+      },
+    };
+    rerender();
+
+    await act(async () => {
+      await saveItem.onClick?.();
+    });
+
+    expect(
+      useFlowStore.getState().logs.some(
+        (l) => l.level === 'error' && l.message.includes('Unknown error occurred while saving')
+      )
+    ).toBe(true);
   });
 });
