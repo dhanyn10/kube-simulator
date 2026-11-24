@@ -11,7 +11,8 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:wails": "playwright test -c playwright.wails.config.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

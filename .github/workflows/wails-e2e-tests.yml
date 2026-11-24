@@ -1,0 +1,61 @@
+name: Wails Full-Stack E2E Tests
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  wails-e2e:
+    timeout-minutes: 15
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install pnpm globally via npm
+        shell: bash
+        run: npm install -g pnpm@10.30.3
+
+      - name: Set up pnpm cache
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install
+
+      - name: Build frontend assets
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Build Wails binary
+        run: go build -o bin/kube-simulator.exe .
+
+      - name: Run Wails Full-Stack E2E tests (manual / interactive runner only)
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: frontend
+        env:
+          WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--remote-debugging-port=9222 --disable-gpu'
+        run: pnpm run test:e2e:wails
+
+      - name: Upload Wails E2E Report
+        if: always() && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: wails-playwright-report
+          path: frontend/playwright-report/
+          retention-days: 30

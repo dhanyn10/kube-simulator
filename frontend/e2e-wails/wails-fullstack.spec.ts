@@ -1,0 +1,82 @@
+import { test, expect, chromium } from '@playwright/test';
+import { spawn, type ChildProcess } from 'node:child_process';
+import path from 'node:path';
+import fs from 'node:fs';
+
+const CDP_PORT = process.env.WAILS_CDP_PORT || '9222';
+const CDP_URL = process.env.WAILS_CDP_URL || `http://127.0.0.1:${CDP_PORT}`;
+const BINARY_PATH =
+  process.env.WAILS_BINARY_PATH ||
+  path.resolve(process.cwd(), '../bin/kube-simulator.exe');
+
+test.describe('Wails Full-Stack E2E (Go Backend + WebView2)', () => {
+  let appProcess: ChildProcess | undefined;
+
+  test.beforeAll(async () => {
+    if (process.env.WAILS_CDP_URL) {
+      return;
+    }
+    if (!fs.existsSync(BINARY_PATH)) {
+      throw new Error(
+        `Wails binary not found at ${BINARY_PATH}. Build it first (e.g. 'go build -o bin/kube-simulator.exe .') or set WAILS_CDP_URL.`
+      );
+    }
+
+    appProcess = spawn(BINARY_PATH, [], {
+      env: {
+        ...process.env,
+        WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${CDP_PORT}`,
+      },
+      stdio: 'ignore',
+    });
+
+    // Poll WebView2 CDP endpoint until ready (up to 20s)
+    const deadline = Date.now() + 20_000;
+    let cdpReady = false;
+    while (Date.now() < deadline) {
+      if (appProcess.exitCode !== null) {
+        throw new Error(`Wails process exited early with code ${appProcess.exitCode}`);
+      }
+      try {
+        const res = await fetch(`${CDP_URL}/json/version`);
+        if (res.ok) {
+          cdpReady = true;
+          break;
+        }
+      } catch {
+        // CDP not ready yet
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    if (!cdpReady) {
+      throw new Error(`WebView2 CDP endpoint ${CDP_URL} did not become ready within 20s`);
+    }
+  });
+
+  test.afterAll(async () => {
+    if (appProcess && !appProcess.killed) {
+      appProcess.kill();
+    }
+  });
+
+  test('connects to Wails WebView2 and verifies app + Go backend bridge', async () => {
+    const browser = await chromium.connectOverCDP(CDP_URL);
+    try {
+      const context = browser.contexts()[0];
+      const page = context.pages()[0];
+      expect(page).toBeDefined();
+
+      await expect(page.getByTestId('app-title')).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('#canvas-main')).toBeVisible();
+
+      // Verify Wails v3 runtime is injected in the desktop window
+      const hasWailsRuntime = await page.evaluate(() => {
+        return typeof (globalThis as Record<string, unknown>)._wails !== 'undefined' ||
+          typeof (globalThis as Record<string, unknown>).wails !== 'undefined';
+      });
+      expect(hasWailsRuntime).toBe(true);
+    } finally {
+      await browser.close();
+    }
+  });
+});

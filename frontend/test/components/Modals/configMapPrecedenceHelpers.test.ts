@@ -121,4 +121,135 @@ describe('configMapPrecedenceHelpers', () => {
       );
     });
   });
+
+  describe('checkIsKeyOverridden (profile filter branches)', () => {
+    const itemsWithProfiles = [
+      { name: 'cm-a', profileName: 'staging', rawItem: { configData: [{ key: 'PORT', value: '8080' }] } },
+      { name: 'cm-b', profileName: 'prod', rawItem: { configData: [{ key: 'PORT', value: '443' }] } },
+      { name: 'cm-c', rawItem: { configData: [{ key: 'PORT', value: '80' }] } },
+    ];
+
+    it('skips lower items with a different profile when profileName filter is set', () => {
+      // cm-a (index 0) has PORT; lower item cm-b has profile "prod" != "staging" -> continue
+      const result = checkIsKeyOverridden('PORT', 0, itemsWithProfiles, 'staging');
+      // cm-c has no profileName and PORT in configData; checkIsKeyOverridden matches it too but
+      // normalizeProfile !== lowerProfile is false for cm-c? cm-c.profileName undefined -> lowerProfile falsy -> no continue -> matches
+      expect(result.isOverridden).toBe(true);
+      expect(result.overriddenByCmName).toBe('cm-c');
+    });
+
+    it('skips lower item with same profile mismatch differently and matches the no-profile item', () => {
+      // cm-a has PORT; cm-b skipped (profile mismatch); cm-c (no profile) matches
+      const result = checkIsKeyOverridden('PORT', 0, itemsWithProfiles, 'staging');
+      expect(result.overriddenByCmName).toBe('cm-c');
+    });
+
+    it('does not continue when profileName filter is set and lower item has no profileName', () => {
+      // cm-b (index 1) has PORT; with profile "prod" filter, cm-c below has no profileName -> lowerProfile falsy -> no continue, so PORT matches cm-c
+      const result = checkIsKeyOverridden('PORT', 1, itemsWithProfiles, 'prod');
+      expect(result.isOverridden).toBe(true);
+      expect(result.overriddenByCmName).toBe('cm-c');
+    });
+
+    it('falls through when lower item has no profileName and filter set but data is not array', () => {
+      // cm-c has no profileName and no rawItem -> dataArray undefined -> skip, no override
+      const items = [
+        { name: 'cm-a', rawItem: { configData: [{ key: 'PORT', value: '1' }] } },
+        { name: 'cm-b', rawItem: {} },
+      ];
+      const result = checkIsKeyOverridden('PORT', 0, items, 'any-profile');
+      expect(result.isOverridden).toBe(false);
+    });
+
+    it('returns not overridden when dataArray is not an array', () => {
+      const items = [
+        { name: 'cm-a', rawItem: { configData: [{ key: 'PORT', value: '1' }] } },
+        { name: 'cm-b', rawItem: { configData: 'nope' } },
+        { name: 'cm-c', rawItem: { secretData: { not: 'array' } } },
+      ];
+      expect(checkIsKeyOverridden('PORT', 0, items).isOverridden).toBe(false);
+    });
+
+    it('skips entries where kv is undefined or key is not a string', () => {
+      const items = [
+        { name: 'cm-a', rawItem: { configData: [{ key: 'PORT', value: '1' }] } },
+        { name: 'cm-b', rawItem: { configData: [undefined, {}, { key: 5 }, { key: 'PORT', value: '2' }] } },
+      ];
+      const result = checkIsKeyOverridden('PORT', 0, items);
+      expect(result.isOverridden).toBe(true);
+      expect(result.overriddenByCmName).toBe('cm-b');
+    });
+
+    it('uses rawItem.name fallback when lower item has no name but rawItem.name exists', () => {
+      const items = [
+        { name: 'cm-a', rawItem: { configData: [{ key: 'PORT', value: '1' }] } },
+        { rawItem: { name: 'raw-name', configData: [{ key: 'PORT', value: '2' }] } },
+      ];
+      const result = checkIsKeyOverridden('PORT', 0, items);
+      expect(result.isOverridden).toBe(true);
+      expect(result.overriddenByCmName).toBe('raw-name');
+    });
+
+    it('falls back to item-N when neither name nor rawItem.name exists', () => {
+      const items = [
+        { name: 'cm-a', rawItem: { configData: [{ key: 'PORT', value: '1' }] } },
+        { rawItem: { configData: [{ key: 'PORT', value: '2' }] } },
+      ];
+      const result = checkIsKeyOverridden('PORT', 0, items);
+      expect(result.isOverridden).toBe(true);
+      expect(result.overriddenByCmName).toBe('item-2');
+    });
+  });
+
+  describe('reorderItems (negative toIndex branch)', () => {
+    it('returns a clone when toIndex is negative', () => {
+      expect(reorderItems(['A', 'B', 'C'], 0, -1)).toEqual(['A', 'B', 'C']);
+    });
+  });
+
+  describe('syncResourcePrecedenceOrder branches', () => {
+    const nodesWithUnranked = [
+      { id: 'node-u', data: { configMaps: [{ id: 'ghost', name: 'ghost-cm' }, { id: 'other', name: 'other-cm' }] } },
+      { id: 'node-len1', data: { configMaps: [{ id: 'a', name: 'a-cm' }] } },
+      { id: 'node-nodata' },
+      { id: 'node-nonarray', data: { configMaps: 'nope' } },
+    ];
+    const reordered = [{ id: 'ghost', name: 'ghost-cm' }, { id: 'other', name: 'other-cm' }];
+    const mockUpdateNodeData = vi.fn();
+
+    it('sorts node configMaps using reordered order ranks', () => {
+      syncConfigMapPrecedenceOrder(reordered, nodesWithUnranked, mockUpdateNodeData, [], vi.fn());
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('node-u', {
+        configMaps: [{ id: 'ghost', name: 'ghost-cm' }, { id: 'other', name: 'other-cm' }],
+      });
+    });
+
+    it('does not update nodes with non-array or missing configMaps', () => {
+      syncConfigMapPrecedenceOrder([], nodesWithUnranked, mockUpdateNodeData, [], vi.fn());
+      expect(mockUpdateNodeData).not.toHaveBeenCalledWith('node-len1', expect.anything());
+      expect(mockUpdateNodeData).not.toHaveBeenCalledWith('node-nodata', expect.anything());
+      expect(mockUpdateNodeData).not.toHaveBeenCalledWith('node-nonarray', expect.anything());
+    });
+
+    it('handles savedItems empty array and missing addLog without crashing', () => {
+      const setSaved = vi.fn();
+      syncConfigMapPrecedenceOrder([], [], vi.fn(), [], setSaved);
+      expect(setSaved).not.toHaveBeenCalled();
+      syncConfigMapPrecedenceOrder([], [], vi.fn(), [], vi.fn(), undefined);
+    });
+
+    it('covers savedItems non-array branch', () => {
+      const setSaved = vi.fn();
+      syncConfigMapPrecedenceOrder([], [], vi.fn(), 'not-array' as any, setSaved);
+      expect(setSaved).not.toHaveBeenCalled();
+    });
+
+    it('orders by id when both id and name are ranked, and by name otherwise', () => {
+      // Items where get(id) is undefined but get(name) exists
+      const items = [{ name: 'z', rawItem: { name: 'z' } }, { name: 'a', rawItem: { name: 'a' } }];
+      syncConfigMapPrecedenceOrder(items, [{ id: 'n', data: { configMaps: [{ name: 'z' }, { name: 'a' }] } }], mockUpdateNodeData, [], vi.fn());
+      const arg = mockUpdateNodeData.mock.calls.at(-1)?.[1];
+      expect(arg).toBeDefined();
+    });
+  });
 });

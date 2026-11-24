@@ -216,4 +216,259 @@ describe('useSystemMonitorDashboard hook', () => {
     });
     expect(maxSpy).toHaveBeenCalled();
   });
+
+  it('applyData: handles payload without metrics/deployments/canStart/speed/hpa', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      return () => {};
+    });
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      metricsCallback?.(JSON.stringify({ isSimulating: false, isPaused: true }));
+    });
+    expect(result.current.deployments).toHaveLength(0);
+    expect(result.current.isSimulating).toBe(false);
+    expect(result.current.isPaused).toBe(true);
+  });
+
+  it('applyData: falls back to deployments array for canStart and hasHpa when fields are missing', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      return () => {};
+    });
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      metricsCallback?.(JSON.stringify({
+        deployments: [{ id: 'dep-1', label: 'web' }],
+        isSimulating: true,
+      }));
+    });
+    expect(result.current.canStart).toBe(true);
+    expect(result.current.hasHpa).toBe(false);
+  });
+
+  it('applyData: marks hasHpa from deployments when data.hasHpa is not boolean', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      return () => {};
+    });
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      metricsCallback?.(JSON.stringify({
+        deployments: [{ id: 'dep-1', label: 'web', hasHpa: true }],
+      }));
+    });
+    expect(result.current.hasHpa).toBe(true);
+  });
+
+  it('applyData: skips hpaTarget when not a finite number', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      return () => {};
+    });
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      metricsCallback?.(JSON.stringify({ hpaTarget: 'abc' as any }));
+    });
+    expect(result.current.hpaTarget).toBe(80);
+  });
+
+  it('handleUpdate returns early for falsy data', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      return () => {};
+    });
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+    act(() => {
+      metricsCallback?.(JSON.stringify(null));
+    });
+    expect(result.current.deployments).toHaveLength(0);
+  });
+
+  it('handleUpdate applies data without timestamp immediately', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      return () => {};
+    });
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      metricsCallback?.(JSON.stringify({ deployments: [{ id: 'dep-1', label: 'web', replicas: 2 }] }));
+    });
+    expect(result.current.deployments[0].replicas).toBe(2);
+  });
+
+  it('sendControl speed without a speed option is a no-op', async () => {
+    const gw = getBackendGateway();
+    const speedSpy = vi.spyOn(gw, 'setSimulationSpeed');
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+    await act(async () => {
+      await result.current.sendControl('speed');
+    });
+    expect(speedSpy).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.sendControl('speed', {});
+    });
+    expect(speedSpy).not.toHaveBeenCalled();
+  });
+
+  it('sendControl resume starts simulation and clears paused state', async () => {
+    const gw = getBackendGateway();
+    const startSpy = vi.spyOn(gw, 'startSimulation');
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+    await act(async () => {
+      await result.current.sendControl('resume');
+    });
+    expect(startSpy).toHaveBeenCalledWith(1);
+    expect(result.current.isSimulating).toBe(true);
+    expect(result.current.isPaused).toBe(false);
+  });
+
+  it('applyData skips non-array speed', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      return () => {};
+    });
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+    act(() => {
+      metricsCallback?.(JSON.stringify({ isSimulating: false, speed: 0 }));
+    });
+    expect(result.current.simulationSpeed).toBe(1);
+  });
+
+  it('clusterTotals handles deployment with empty metrics and non-numeric values', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      return () => {};
+    });
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      metricsCallback?.(JSON.stringify({
+        deployments: [
+          { id: 'dep-1', label: 'web', replicas: 2 },
+          { id: 'dep-2', label: 'db', replicas: 0 },
+        ],
+        metrics: {
+          'dep-1': [
+            { cpuValue: 0, cpuLimit: 0, memoryValue: 0, memoryLimit: 0, isThrottled: false, isOOM: false },
+          ],
+        },
+      }));
+    });
+    // replicas||1: dep-1=2, dep-2=0 falsy -> 1 => 3
+    expect(result.current.clusterTotals.totalPods).toBe(3);
+    expect(result.current.clusterTotals.cpuPercent).toBe(0);
+    expect(result.current.clusterTotals.memoryPercent).toBe(0);
+    expect(result.current.clusterTotals.errorRate).toBe(0);
+  });
+
+  it('clusterTotals errorRate is 0 when totalPods is 0', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      return () => {};
+    });
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      metricsCallback?.(JSON.stringify({
+        deployments: [{ id: 'dep-1', label: 'web', replicas: 0 }],
+      }));
+    });
+    // replicas 0 falsy -> 1
+    expect(result.current.clusterTotals.totalPods).toBe(1);
+    expect(result.current.clusterTotals.errorRate).toBe(0);
+  });
+
+  it('colorMode effect ignores storeColorMode when falsy', async () => {
+    const { useFlowStore } = await import('@/store');
+    useFlowStore.setState({ colorMode: '' as any });
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+    expect(result.current.colorMode).toBe('dark');
+  });
+
+  it('metrics-update event ignores payload when broadcast already received it', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      return () => {};
+    });
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+    // Simulate broadcast arriving first
+    const bc = new BroadcastChannel('monitoring-data');
+    bc.postMessage({ type: 'METRICS_UPDATE', deployments: [{ id: 'dep-b', label: 'b', replicas: 1 }] });
+    bc.close();
+
+    // Give the event loop a tick for broadcast delivery
+    return new Promise((resolve) => setTimeout(resolve, 50)).then(async () => {
+      expect(result.current.deployments).toEqual([{ id: 'dep-b', label: 'b', replicas: 1 }]);
+      await act(async () => {
+        metricsCallback?.(JSON.stringify({ deployments: [{ id: 'dep-event', label: 'e', replicas: 9 }], isSimulating: true }));
+      });
+      expect(result.current.deployments).toEqual([{ id: 'dep-b', label: 'b', replicas: 1 }]);
+    });
+  });
+
+  it('metrics-update event swallows parse errors', () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      return () => {};
+    });
+    renderHook(() => useSystemMonitorDashboard());
+    expect(() => metricsCallback?.('not json')).not.toThrow();
+  });
+
+  it('snapshot events: handle empty raw and malformed JSON gracefully', async () => {
+    const gw = getBackendGateway();
+    let snapshotCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'simulation-snapshot-updated') snapshotCallback = cb;
+      return () => {};
+    });
+    vi.spyOn(gw, 'getSimulationSnapshot').mockResolvedValue('');
+    renderHook(() => useSystemMonitorDashboard());
+    expect(() => snapshotCallback?.('')).not.toThrow();
+
+    vi.spyOn(gw, 'getSimulationSnapshot').mockResolvedValue('invalid-json');
+    await expect(gw.getSimulationSnapshot()).resolves.toBe('invalid-json');
+  });
+
+  it('handleCloseWindow browser-fallback path closes window when not wails desktop and not test', async () => {
+    const closeSpy = vi.fn();
+    vi.stubGlobal('close', closeSpy);
+    vi.stubEnv('NODE_ENV', 'production');
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+    act(() => {
+      result.current.handleCloseWindow();
+    });
+    expect(closeSpy).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
 });
