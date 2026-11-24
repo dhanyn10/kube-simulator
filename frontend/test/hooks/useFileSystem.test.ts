@@ -429,7 +429,10 @@ describe('useFileSystem branch coverage additions', () => {
     const spy = vi.spyOn(gw, 'onEvent').mockReturnValue(undefined as any);
     try {
       const { unmount } = renderHook(() => useFileSystem([], []));
+      expect(spy).toHaveBeenCalledWith('open-infra-file', expect.any(Function));
       unmount();
+      // Cleanup runs without throwing even though off is not a function
+      expect(() => unmount()).not.toThrow();
     } finally {
       spy.mockRestore();
     }
