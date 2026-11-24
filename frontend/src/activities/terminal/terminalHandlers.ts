@@ -49,6 +49,59 @@ export const handleGetDeployments = (addActivityLog: (line: string) => void, nod
 };
 
 /**
+ * Handles the 'kubectl get namespaces' command by printing all Namespace resources on the canvas.
+ */
+export const handleGetNamespaces = (addActivityLog: (line: string) => void, nodes: Node[]) => {
+  const namespaces = nodes.filter(n => n.type === 'Namespace');
+  if (namespaces.length === 0) {
+    addActivityLog('No namespaces found on the canvas.');
+    return;
+  }
+  addActivityLog(`${'NAME'.padEnd(38)} STATUS`);
+  namespaces.forEach(n => {
+    const name = String(n.data?.label || n.id);
+    addActivityLog(`${name.padEnd(38)} ${String(n.data?.status || 'Active')}`);
+  });
+};
+
+/**
+ * Handles the 'kubectl get statefulsets' command by printing all StatefulSet workloads on the canvas.
+ */
+export const handleGetStatefulSets = (addActivityLog: (line: string) => void, nodes: Node[], isSimulating: boolean) => {
+  const statefulSets = nodes.filter(n => n.type === 'StatefulSet');
+  if (statefulSets.length === 0) {
+    addActivityLog('No statefulsets found on the canvas.');
+    return;
+  }
+  addActivityLog(`${"NAME".padEnd(30)} READY   UP-TO-DATE   AVAILABLE   AGE`);
+  statefulSets.forEach(s => {
+    const name = (s.data?.label as string) || s.id;
+    const replicas = (s.data?.replicas as number) || 1;
+    const status = isSimulating ? `${replicas}/${replicas}` : `0/${replicas}`;
+    addActivityLog(`${String(name).padEnd(30)} ${status.padEnd(7)} ${String(replicas).padEnd(12)} ${String(isSimulating ? replicas : 0).padEnd(11)} 2m`);
+  });
+};
+
+/**
+ * Handles the 'kubectl get pvcs' command by printing all PersistentVolumeClaims on the canvas.
+ */
+export const handleGetPvcs = (addActivityLog: (line: string) => void, nodes: Node[]) => {
+  const pvcs = nodes.filter(n => n.type === 'PVC');
+  if (pvcs.length === 0) {
+    addActivityLog('No persistentvolumeclaims found on the canvas.');
+    return;
+  }
+  addActivityLog(`${'NAME'.padEnd(38)} SIZE    STATUS    ACCESSMODES`);
+  pvcs.forEach(p => {
+    const name = String(p.data?.label || p.id);
+    const size = String(p.data?.storageCapacity || p.data?.size || '-');
+    const status = String(p.data?.pvcStatus || '-');
+    const modes = Array.isArray(p.data?.accessMode) ? p.data.accessMode.join(',') : '-';
+    addActivityLog(`${String(name).padEnd(38)} ${size.padEnd(8)} ${status.padEnd(9)} ${modes}`);
+  });
+};
+
+/**
  * Handles the 'kubectl get services' command by printing all service resources on the canvas.
  *
  * @param addActivityLog - Function callback to append a log line to terminal history.
@@ -98,6 +151,24 @@ export const handleGetCommands = (
   const isSvcGet = ['kubectl get services', 'kubectl get service', 'kubectl get svc'].includes(cmdLower);
   if (isSvcGet) {
     handleGetServices(addActivityLog, nodes);
+    return true;
+  }
+
+  const isNamespaceGet = ['kubectl get namespaces', 'kubectl get namespace', 'kubectl get ns'].includes(cmdLower);
+  if (isNamespaceGet) {
+    handleGetNamespaces(addActivityLog, nodes);
+    return true;
+  }
+
+  const isStsGet = ['kubectl get statefulsets', 'kubectl get statefulset', 'kubectl get sts'].includes(cmdLower);
+  if (isStsGet) {
+    handleGetStatefulSets(addActivityLog, nodes, isSimulating);
+    return true;
+  }
+
+  const isPvcGet = ['kubectl get pvcs', 'kubectl get pvc'].includes(cmdLower);
+  if (isPvcGet) {
+    handleGetPvcs(addActivityLog, nodes);
     return true;
   }
 
@@ -218,6 +289,9 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
   addActivityLog('  kubectl get pods                      List all pods on the canvas');
   addActivityLog('  kubectl get deployments               List deployments on the canvas');
   addActivityLog('  kubectl get services                  List services on the canvas');
+  addActivityLog('  kubectl get namespaces                List namespaces on the canvas');
+  addActivityLog('  kubectl get statefulsets              List statefulsets on the canvas');
+  addActivityLog('  kubectl get pvcs                      List persistentvolumeclaims on the canvas');
   addActivityLog('  kubectl get all                       List all resources on the canvas');
   addActivityLog('  kubectl scale deployment/<name>       Scale replicas of a deployment');
   addActivityLog('  kubectl set image deployment/<name>   Set container image (triggers Rolling Update)');
@@ -235,6 +309,11 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
   addActivityLog('  kubectl logs <pod-name>               Stream live container stdout logs');
   addActivityLog('  kubectl describe deploy <name>        Describe deployment specifications');
   addActivityLog('  kubectl describe pod <name>           Describe pod specifications & events');
+  addActivityLog('  kubectl describe service <name>       Describe service type & port');
+  addActivityLog('  kubectl describe namespace <name>     Describe namespace status');
+  addActivityLog('  kubectl describe ingress <name>       Describe ingress host & backend');
+  addActivityLog('  kubectl describe pvc <name>           Describe PVC storage details');
+  addActivityLog('  kubectl describe hpa <name>           Describe HPA min/max/CPU target');
   addActivityLog('  kubectl exec <pod-name> -- env        Print container environment variables');
   addActivityLog('  history                               View command execution history with timestamps');
   addActivityLog('  clear                                 Clear the console log list');
@@ -281,8 +360,48 @@ const printNodeDescription = (
   addActivityLog(`  Normal  Started    44s   kubelet            Started container app-container`);
 };
 
+const printNamespaceDescription = (n: Node, addActivityLog: (line: string) => void) => {
+  const name = (n.data?.label as string) || n.id;
+  addActivityLog(`Name:               ${name}`);
+  addActivityLog(`Status:             ${String(n.data?.status || 'Active')}`);
+};
+
+const printServiceDescription = (n: Node, addActivityLog: (line: string) => void) => {
+  const name = (n.data?.label as string) || n.id;
+  addActivityLog(`Name:               ${name}`);
+  addActivityLog(`Type:               ${String(n.data?.serviceType || 'ClusterIP')}`);
+  addActivityLog(`Port:               ${String(n.data?.port || 80)}/TCP`);
+  addActivityLog(`Selector:           ${String((n.data as any)?.selector || '<none>')}`);
+};
+
+const printIngressDescription = (n: Node, addActivityLog: (line: string) => void) => {
+  const name = (n.data?.label as string) || n.id;
+  addActivityLog(`Name:               ${name}`);
+  addActivityLog(`Host:               ${String((n.data as any)?.ingressHost || '<none>')}`);
+  addActivityLog(`BackendService:     ${String((n.data as any)?.backendServiceName || '<none>')}`);
+};
+
+const printPvcDescription = (n: Node, addActivityLog: (line: string) => void) => {
+  const name = (n.data?.label as string) || n.id;
+  addActivityLog(`Name:               ${name}`);
+  addActivityLog(`StorageClass:       ${String((n.data as any)?.storageClass || '<none>')}`);
+  addActivityLog(`Size:               ${String((n.data as any)?.storageCapacity || (n.data as any)?.size || '<none>')}`);
+  addActivityLog(`AccessModes:        ${Array.isArray((n.data as any)?.accessMode) ? (n.data as any).accessMode.join(',') : '<none>'}`);
+  addActivityLog(`Status:             ${String((n.data as any)?.pvcStatus || '<none>')}`);
+};
+
+const printHpaDescription = (n: Node, addActivityLog: (line: string) => void) => {
+  const name = (n.data?.label as string) || n.id;
+  addActivityLog(`Name:               ${name}`);
+  addActivityLog(`MinReplicas:        ${String((n.data as any)?.minReplicas || 1)}`);
+  addActivityLog(`MaxReplicas:        ${String((n.data as any)?.maxReplicas || 10)}`);
+  addActivityLog(`TargetCPU:          ${String((n.data as any)?.targetCPU || 50)}%`);
+  addActivityLog(`TargetMemory:       ${String((n.data as any)?.targetMemory || '<none>')}`);
+};
+
 /**
- * Handles 'kubectl describe <pod|deploy> <name>' commands, outputting specifications and event logs.
+ * Handles 'kubectl describe <pod|po|deploy|service|namespace|ingress|pvc|hpa> <name>' commands,
+ * outputting specifications and event logs.
  *
  * @param cmd - Raw input command string.
  * @param addActivityLog - Function callback to append log lines.
@@ -296,18 +415,46 @@ export const handleDescribeCommand = (
   nodes: Node[],
   isSimulating: boolean
 ): boolean => {
-  const describeMatch = /^kubectl\s+describe\s+(pod|po|deploy(?:ment)?)\s+([-a-z0-9]+)/i.exec(cmd);
+  const describeMatch = /^kubectl\s+describe\s+(pod|po|deploy(?:ment)?|service|svc|namespace|ns|ingress|pvc|hpa)\s+([-a-z0-9]+)/i.exec(cmd);
   if (!describeMatch) return false;
 
   const typeRaw = describeMatch[1].toLowerCase();
   const targetName = describeMatch[2].toLowerCase();
 
   const isPod = typeRaw === 'pod' || typeRaw === 'po';
-  const nodeTypes = isPod ? ['Pod'] : ['Deployment'];
+  let nodeTypes: string[];
+  if (isPod) {
+    nodeTypes = ['Pod'];
+  } else if (typeRaw === 'service' || typeRaw === 'svc') {
+    nodeTypes = ['Service'];
+  } else if (typeRaw === 'namespace' || typeRaw === 'ns') {
+    nodeTypes = ['Namespace'];
+  } else if (typeRaw === 'ingress') {
+    nodeTypes = ['Ingress'];
+  } else if (typeRaw === 'pvc') {
+    nodeTypes = ['PVC'];
+  } else if (typeRaw === 'hpa') {
+    nodeTypes = ['HPA'];
+  } else {
+    nodeTypes = ['Deployment'];
+  }
+
   const foundNode = findNodeByTargetName(nodes, targetName, nodeTypes);
 
   if (foundNode) {
-    printNodeDescription(foundNode, isSimulating, addActivityLog);
+    if (typeRaw === 'namespace' || typeRaw === 'ns') {
+      printNamespaceDescription(foundNode, addActivityLog);
+    } else if (typeRaw === 'service' || typeRaw === 'svc') {
+      printServiceDescription(foundNode, addActivityLog);
+    } else if (typeRaw === 'ingress') {
+      printIngressDescription(foundNode, addActivityLog);
+    } else if (typeRaw === 'pvc') {
+      printPvcDescription(foundNode, addActivityLog);
+    } else if (typeRaw === 'hpa') {
+      printHpaDescription(foundNode, addActivityLog);
+    } else {
+      printNodeDescription(foundNode, isSimulating, addActivityLog);
+    }
 
     if (isPod) {
       const setHoveredAutocompletePodName = useFlowStore.getState().setHoveredAutocompletePodName;
