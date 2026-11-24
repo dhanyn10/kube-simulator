@@ -868,6 +868,219 @@ describe('Clean Architecture Backend Gateway', () => {
     });
   });
 
+  describe('WailsBackendGateway additional branch coverage', () => {
+    let gateway: WailsBackendGateway;
+
+    beforeEach(() => {
+      gateway = new WailsBackendGateway();
+    });
+
+    it('resolves app methods from window.go.main.App when globalThis.go is absent', async () => {
+      const mockGetSetting = vi.fn().mockResolvedValue('secondary-value');
+      const mockGetProjects = vi.fn().mockResolvedValue([{ id: 99, name: 'Split Project' }]);
+      (globalThis as any).window = { go: { main: { App: { GetSetting: mockGetSetting, GetProjects: mockGetProjects } } } };
+
+      expect(await gateway.getSetting('k')).toBe('secondary-value');
+      expect(await gateway.getProjects()).toEqual([{ id: 99, name: 'Split Project' }]);
+    });
+
+    it('saveProject returns 0 when the window backend object exists but SaveProject is missing', async () => {
+      (globalThis as any).window = { go: { main: { App: {} } } };
+      expect(await gateway.saveProject('test', '{}')).toBe(0);
+    });
+
+    it('saveProject returns Date.now-like fallback when no backend object exists at all', async () => {
+      delete (globalThis as any).go;
+      delete (globalThis as any).window;
+      const result = await gateway.saveProject('test', '{}');
+      expect(result).toBeGreaterThan(0);
+    });
+
+    it('openSimulationWindow falls back to globalThis.open when the app method returns falsy', async () => {
+      const appMock = { OpenSimulationWindow: vi.fn().mockResolvedValue(false) };
+      (globalThis as any).go = { main: { App: appMock } };
+      const fakePopup = { focus: vi.fn() };
+      const openSpy = vi.fn().mockReturnValue(fakePopup);
+      const origOpen = globalThis.open;
+      globalThis.open = openSpy as any;
+      try {
+        expect(await gateway.openSimulationWindow()).toBe(true);
+        expect(openSpy).toHaveBeenCalled();
+        expect(openSpy.mock.calls[0][1]).toBe('simulation-monitoring');
+      } finally {
+        globalThis.open = origOpen;
+      }
+    });
+
+    it('openSidebarWindow falls back to globalThis.open when the app method is missing', async () => {
+      (globalThis as any).go = { main: { App: {} } };
+      const openSpy = vi.fn().mockReturnValue({ focus: vi.fn() });
+      const origOpen = globalThis.open;
+      globalThis.open = openSpy as any;
+      try {
+        expect(await gateway.openSidebarWindow('right')).toBe(true);
+        expect(openSpy.mock.calls[0][1]).toBe('sidebar-right');
+        expect(openSpy.mock.calls[0][0]).toContain('mode=sidebar-right');
+      } finally {
+        globalThis.open = origOpen;
+      }
+    });
+
+    it('openSidebarWindow returns false when globalThis.open returns null or throws', async () => {
+      (globalThis as any).go = { main: { App: {} } };
+      const origOpen = globalThis.open;
+      globalThis.open = vi.fn().mockReturnValue(null) as any;
+      try {
+        expect(await gateway.openSidebarWindow('left')).toBe(false);
+      } finally {
+        globalThis.open = origOpen;
+      }
+      globalThis.open = vi.fn().mockImplementation(() => {
+        throw new Error('popup blocked');
+      }) as any;
+      try {
+        expect(await gateway.openSidebarWindow('right')).toBe(false);
+      } finally {
+        globalThis.open = origOpen;
+      }
+    });
+
+    it('closeSidebarWindow returns false when the app method is missing', async () => {
+      (globalThis as any).go = { main: { App: {} } };
+      expect(await gateway.closeSidebarWindow('left')).toBe(false);
+    });
+
+    it('resumeSimulation and broadcastSimulationSnapshot emit events when app methods are missing', async () => {
+      const eventsEmit = vi.fn();
+      (globalThis as any).runtime = { EventsEmit: eventsEmit };
+      (globalThis as any).go = { main: { App: {} } };
+
+      expect(await gateway.resumeSimulation()).toBe(true);
+      expect(eventsEmit).toHaveBeenCalledWith('simulation-state-change', expect.stringContaining('"isPaused":false'));
+
+      expect(await gateway.broadcastSimulationSnapshot('{"snap":1}')).toBe(true);
+      expect(eventsEmit).toHaveBeenCalledWith('simulation-snapshot-updated', '{"snap":1}');
+    });
+
+    it('generateYaml falls back to the client-side generator when the app method returns undefined', async () => {
+      const appMock = { GenerateYaml: vi.fn().mockResolvedValue(undefined) };
+      (globalThis as any).go = { main: { App: appMock } };
+
+      const yaml = await gateway.generateYaml('[]', '[]');
+      expect(appMock.GenerateYaml).toHaveBeenCalled();
+      expect(typeof yaml).toBe('string');
+    });
+
+    it('generateYaml falls back to the client-side generator when the app has no GenerateYaml', async () => {
+      (globalThis as any).go = { main: { App: {} } };
+      const yaml = await gateway.generateYaml('[]', '[]');
+      expect(typeof yaml).toBe('string');
+    });
+
+    it('getRuntimeWindow resolves a window-scoped wails Window object', async () => {
+      const mockMinimise = vi.fn().mockResolvedValue(undefined);
+      (globalThis as any).chrome = { webview: { postMessage: () => {} } };
+      (globalThis as any).window = { wails: { Window: { Minimise: mockMinimise } } };
+
+      await gateway.minimizeWindow();
+      expect(mockMinimise).toHaveBeenCalled();
+    });
+
+    it('getRuntimeWindow falls through to the Window import when window has no wails', async () => {
+      // Desktop mode (chrome set) but no window.wails -> getRuntimeWindow returns the imported Window
+      (globalThis as any).chrome = { webview: { postMessage: () => {} } };
+      (globalThis as any).window = {};
+
+      const runtimeWin = await gateway
+        .minimizeWindow()
+        .then(() => undefined);
+      expect(runtimeWin).toBeUndefined();
+    });
+
+    it('openSidebarWindow returns the app result and covers both res sides', async () => {
+      const openSidebarWindowMock = vi.fn().mockResolvedValue(true);
+      (globalThis as any).go = { main: { App: { OpenSidebarWindow: openSidebarWindowMock } } };
+
+      expect(await gateway.openSidebarWindow('left')).toBe(true);
+      expect(openSidebarWindowMock).toHaveBeenCalledWith('left');
+
+      // falsy app result -> falls back to globalThis.open
+      openSidebarWindowMock.mockResolvedValue(false);
+      const openSpy = vi.fn().mockReturnValue({ focus: vi.fn() });
+      const origOpen = globalThis.open;
+      globalThis.open = openSpy as any;
+      try {
+        expect(await gateway.openSidebarWindow('right')).toBe(true);
+        expect(openSpy.mock.calls[0][1]).toBe('sidebar-right');
+      } finally {
+        globalThis.open = origOpen;
+      }
+    });
+
+    it('closeSidebarWindow delegates to the app when the method exists', async () => {
+      const closeSidebarWindowMock = vi.fn().mockResolvedValue(true);
+      (globalThis as any).go = { main: { App: { CloseSidebarWindow: closeSidebarWindowMock } } };
+      expect(await gateway.closeSidebarWindow('right')).toBe(true);
+      expect(closeSidebarWindowMock).toHaveBeenCalledWith('right');
+    });
+
+    it('emits simulation events when the app methods are missing and runtime is present', async () => {
+      const eventsEmit = vi.fn();
+      (globalThis as any).runtime = { EventsEmit: eventsEmit };
+      (globalThis as any).go = { main: { App: {} } };
+
+      expect(await gateway.resumeSimulation()).toBe(true);
+      expect(eventsEmit).toHaveBeenCalledWith('simulation-state-change', '{"isPaused":false}');
+
+      expect(await gateway.broadcastSimulationSnapshot('{"snap":1}')).toBe(true);
+      expect(eventsEmit).toHaveBeenCalledWith('simulation-snapshot-updated', '{"snap":1}');
+    });
+
+    it('resolves app methods when only globalThis.window.go.main.App exists', async () => {
+      delete (globalThis as any).go;
+      (globalThis as any).window = { go: { main: { App: { OpenSidebarWindow: vi.fn().mockResolvedValue(true) } } } };
+
+      expect(await gateway.openSidebarWindow('left')).toBe(true);
+    });
+
+    it('app and runtime getters handle undefined globalThis', async () => {
+      const gw = new WailsBackendGateway();
+      const origDescriptor = Object.getOwnPropertyDescriptor(global, 'globalThis');
+      try {
+        Object.defineProperty(global, 'globalThis', {
+          configurable: true,
+          get() {
+            const stack = new Error().stack || '';
+            if (stack.includes('WailsBackendGateway.ts')) {
+              return undefined;
+            }
+            return origDescriptor?.value ?? global;
+          },
+        });
+        await expect(gw.minimizeWindow()).resolves.toBeUndefined();
+        await expect(gw.maximizeWindow()).resolves.toBeUndefined();
+        await expect(gw.closeWindow()).resolves.toBeUndefined();
+      } finally {
+        if (origDescriptor) {
+          Object.defineProperty(global, 'globalThis', origDescriptor);
+        }
+      }
+    });
+
+    it('proxy get falls through to getWailsFallback for missing methods', () => {
+      delete (globalThis as any).go;
+      delete (globalThis as any).window;
+      expect((gateway as any).TotallyMissingMethod).toBeUndefined();
+    });
+
+    it('getSimulationSnapshot returns {} when the app method returns empty', async () => {
+      const snapMock = vi.fn().mockResolvedValue('');
+      (globalThis as any).go = { main: { App: { GetSimulationSnapshot: snapMock } } };
+      expect(await gateway.getSimulationSnapshot()).toBe('{}');
+      expect(snapMock).toHaveBeenCalled();
+    });
+  });
+
   describe('Bindings Fallback Module', () => {
     it('returns resolved stub defaults safely when Wails bindings are unavailable', async () => {
       await expect(fallbackBindings.MinimizeWindow()).resolves.toBeUndefined();

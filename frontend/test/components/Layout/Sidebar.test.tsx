@@ -284,3 +284,35 @@ describe('Sidebar', () => {
     sidebarHelpers.ITEM_STYLES.Pod = origStyle;
   });
 });
+
+describe('Sidebar detached mode branch coverage', () => {
+  it('broadcasts modal requests for detached modal items and calls onAddNode for non-modal items', () => {
+    const onAddNode = vi.fn();
+    const postMessageSpy = vi.spyOn(BroadcastChannel.prototype, 'postMessage');
+
+    render(<Sidebar onAddNode={onAddNode} isDetached />);
+
+    // Non-modal item (Pod) in detached mode -> onAddNode
+    fireEvent.click(screen.getByText('Pod'));
+    expect(onAddNode).toHaveBeenCalledWith('Pod');
+
+    // Modal item (IAM) in detached mode -> broadcastModalRequest posts a MODAL_REQUEST
+    fireEvent.click(screen.getByText('Kube IAM'));
+    expect(postMessageSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'MODAL_REQUEST', modalId: 'KUBE_IAM' })
+    );
+
+    postMessageSpy.mockRestore();
+  });
+
+  it('renders the context menu with detach when attached and without it when detached', () => {
+    const { unmount } = render(<Sidebar onAddNode={vi.fn()} />);
+    fireEvent.contextMenu(document.getElementById('sidebar-components')!);
+    expect(screen.getByTestId('left-sidebar-detach')).toBeDefined();
+    unmount();
+
+    render(<Sidebar onAddNode={vi.fn()} isDetached />);
+    fireEvent.contextMenu(document.getElementById('sidebar-components')!);
+    expect(screen.queryByTestId('left-sidebar-detach')).toBeNull();
+  });
+});
