@@ -15,6 +15,10 @@ export interface SystemMonitorCanvasRendererProps {
   capacity?: number;
 }
 
+/**
+ * Converts a hex color string (3 or 6 digits, with or without '#') to an rgba string
+ * with the given alpha channel.
+ */
 export const hexToRgba = (hex: string, alpha: number): string => {
   let c = hex.replace('#', '');
   if (c.length === 3) {
@@ -112,6 +116,17 @@ const strokeSeriesLine = (
   ctx.stroke();
 };
 
+/**
+ * Renders the series (with capacity truncation) onto the 2D canvas context
+ * and draws a translucent shadow area for each series line.
+ *
+ * @param ctx - 2D canvas context.
+ * @param width - Canvas width (px).
+ * @param height - Canvas height (px).
+ * @param seriesList - Series to render.
+ * @param maxVal - Current maximum Y value for scaling.
+ * @param capacity - Optional points-per-line cap (`slice(-capacity)`).
+ */
 export const renderCanvasSeries = (
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -137,6 +152,9 @@ export const renderCanvasSeries = (
   }
 };
 
+/**
+ * Canvas renderer for the system-monitor chart (delegates to `renderCanvasSeries`).
+ */
 export const SystemMonitorCanvasRenderer = memo(({
   series,
   maxVal,

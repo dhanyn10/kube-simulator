@@ -7,6 +7,9 @@ interface QuickConnectArrowsProps {
   color?: string;
 }
 
+/**
+ * Floating arrows for quick-connect (directional connect buttons with start handle positions).
+ */
 export const QuickConnectArrows = ({ nodeId, color = 'blue' }: QuickConnectArrowsProps) => {
   const { arrowStyle, handleConnect } = useQuickConnect(nodeId, color);
 

@@ -13,6 +13,13 @@ interface RoleConfigProps {
   nodeId: string;
 }
 
+/**
+ * Interactive Role configuration panel: lists the node's RBAC rules with verb toggles,
+ * rule add/remove, and resource disconnect actions (via `useRoleConfigHandler`).
+ *
+ * @param props - `{ data: K8sNodeData, nodeId: string }`.
+ * @returns Rules editing UI for the Role node.
+ */
 export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const rules: K8sRoleRule[] = data.rules || [];

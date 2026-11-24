@@ -11,6 +11,9 @@ import { ProgressBar } from '@/components/Monitoring/ProgressBar';
 
 const SCALE_WORKLOAD_TYPES = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
 
+/**
+ * HPA node card: displays autoscaler target CPU, min/max replicas, connection status.
+ */
 export const HPANode = memo((props: NodeProps) => {
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);

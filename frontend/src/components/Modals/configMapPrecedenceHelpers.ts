@@ -103,6 +103,12 @@ export interface SyncPrecedenceParams {
   addLog?: (level: PrecedenceLogLevel, message: string, category?: string) => void;
 }
 
+/**
+ * Persists the reordered items (per resource type) to the node(s), updates saved items
+ * state and local storage via `saveToLocal`, with optional activity logging.
+ *
+ * @param params - `SyncPrecedenceParams` (resourceType, reorderedItems, nodes, updateNodeData, savedItems, setSavedItems, saveToLocal, addLog?).
+ */
 export function syncResourcePrecedenceOrder(params: SyncPrecedenceParams): void {
   const {
     resourceType,

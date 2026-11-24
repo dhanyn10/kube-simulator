@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isValidRfc1123Host, parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, getPodQoSClass, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName, beautifyYaml } from '@/lib/utils';
+import { isValidRfc1123Host, parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, getPodQoSClass, generateYaml, cn, classNames, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName, beautifyYaml } from '@/lib/utils';
 
 describe('utils', () => {
   describe('trimDashes', () => {
@@ -90,10 +90,14 @@ describe('utils', () => {
     });
   });
 
-  describe('cn', () => {
+  describe('classNames', () => {
     it('merges tailwind classes', () => {
-      expect(cn('bg-red-500', 'p-4')).toBe('bg-red-500 p-4');
-      expect(cn('p-2', 'p-4')).toBe('p-4'); // tailwind-merge in action
+      expect(classNames('bg-red-500', 'p-4')).toBe('bg-red-500 p-4');
+      expect(classNames('p-2', 'p-4')).toBe('p-4'); // tailwind-merge in action
+    });
+
+    it('cn remains a transition alias of classNames', () => {
+      expect(cn).toBe(classNames);
     });
   });
 

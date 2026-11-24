@@ -6,6 +6,9 @@ import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 
+/**
+ * Ingress node card: displays path/ports info (via `hasMultiplePaths`), opens paths modal via config.
+ */
 export const IngressNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);

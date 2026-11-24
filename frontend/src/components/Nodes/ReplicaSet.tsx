@@ -9,6 +9,9 @@ import { ForbiddenOverlay } from './ForbiddenOverlay';
 import { QuickConnectArrows } from './QuickConnectArrows';
 import { NodeHandles } from './NodeHandles';
 
+/**
+ * ReplicaSet node card with quick-connect target ring and standard NodeHandles.
+ */
 export const ReplicaSetNode = memo(({ selected, data, id }: NodeProps<Node<K8sNodeData>>) => {
   const { containerClass, badgeClass } = useReplicaSetNodeHandler(selected);
   const isQuickConnectTarget = useFlowStore((state) => state.quickConnectTargetNodeId === id);

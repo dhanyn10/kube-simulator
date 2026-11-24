@@ -10,6 +10,10 @@ interface RoleSettingsSectionProps {
   nodeId: string;
 }
 
+/**
+ * Settings section for the Role resource type on a node card: delegates to
+ * `AttachedResourceSettingsSection` with Role list/edit modals.
+ */
 export const RoleSettingsSection: React.FC<RoleSettingsSectionProps> = ({ data, nodeId }) => {
   return (
     <AttachedResourceSettingsSection<K8sRoleItem>

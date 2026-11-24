@@ -10,6 +10,10 @@ interface ResourceLimitSettingsSectionProps {
   nodeId: string;
 }
 
+/**
+ * Settings section for the ResourceLimit resource type on a node card: delegates to
+ * `AttachedResourceSettingsSection` with ResourceLimit list/edit modals.
+ */
 export const ResourceLimitSettingsSection: React.FC<ResourceLimitSettingsSectionProps> = ({ data, nodeId }) => {
   return (
     <AttachedResourceSettingsSection<K8sResourceLimitItem>

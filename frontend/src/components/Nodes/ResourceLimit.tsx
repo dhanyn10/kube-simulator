@@ -5,6 +5,10 @@ import { SimpleResourceNode } from './SimpleResourceNode';
 import { cn, parseCPU, parseMemory } from '@/lib/utils';
 import { useResourceLimitNode } from '@/activities/nodes';
 
+/**
+ * ResourceLimit node card: displays CPU/memory requests/limits with validation errors
+ * when `isCpuInvalid`/`isMemoryInvalid`.
+ */
 export const ResourceLimitNode = memo((props: NodeProps) => {
   const {
     data,

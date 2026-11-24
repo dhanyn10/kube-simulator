@@ -5,6 +5,9 @@ import { calculateResourceTotals } from '@/activities/monitoring';
 import { MultiProgressBar } from './MultiProgressBar';
 import { Cpu, Database, AlertCircle } from 'lucide-react';
 
+/**
+ * Resource budget panel: shows cluster-wide CPU/memory usage with a multi-segment progress bar.
+ */
 export const ResourceBudget = () => {
   const nodes = useFlowStore((state) => state.nodes);
   const systemResources = useFlowStore((state) => state.systemResources);

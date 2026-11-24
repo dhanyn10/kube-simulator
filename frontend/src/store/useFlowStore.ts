@@ -15,6 +15,9 @@ import { K8sConfigMapItem, K8sSecretItem } from '@/types';
 /**
  * Formats a Date object into an autosave key with format: autosave-ddmmyyyyhis
  * Example: autosave-10092026120008
+ *
+ * @param d - Date to format (defaults to now).
+ * @returns Key string like `autosave-10092026120008` (padded day/month/year/hours/minutes/seconds).
  */
 export const formatAutosaveKey = (d: Date = new Date()): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -59,6 +62,12 @@ if (typeof setLogConsumer === 'function') {
 let currentSessionAutosaveKey: string | null = null;
 let isApplyingHistory = false;
 
+/**
+ * Lazily generates and caches the current session autosave key (format `autosave-ddmmyyyyhis`).
+ * Generated once per session; subsequent calls return the same key.
+ *
+ * @returns The session autosave key.
+ */
 export const getCurrentSessionAutosaveKey = (): string => {
   if (!currentSessionAutosaveKey) {
     currentSessionAutosaveKey = formatAutosaveKey(new Date());
@@ -66,10 +75,22 @@ export const getCurrentSessionAutosaveKey = (): string => {
   return currentSessionAutosaveKey;
 };
 
+/**
+ * Resets the current session autosave key (used when starting a new session/activity).
+ *
+ * @param key - The new key, or null to clear.
+ */
 export const setCurrentSessionAutosaveKey = (key: string | null): void => {
   currentSessionAutosaveKey = key;
 };
 
+/**
+ * Resolves the profile name for the current session: the trimmed `currentProject.name`
+ * when present, otherwise the cached session autosave key.
+ *
+ * @param currentProject - Optional current project context.
+ * @returns Non-empty project name, or the session autosave key fallback.
+ */
 export const getActiveProfileName = (currentProject?: { name?: string } | null): string => {
   if (currentProject?.name?.trim()) {
     return currentProject.name.trim();
@@ -144,12 +165,25 @@ let pendingAutosaveState: FlowState | null = null;
 let autosaveDebounceMs: number =
   typeof process !== 'undefined' && process.env?.NODE_ENV === 'test' ? 0 : 400;
 
+/**
+ * Overrides the autosave debounce delay (in ms). Values <= 0 make `scheduleAutosave` flush synchronously.
+ *
+ * @param ms - New debounce interval.
+ */
 export const setAutosaveDebounceMs = (ms: number): void => {
   autosaveDebounceMs = ms;
 };
 
+/**
+ * Returns the current autosave debounce delay (in ms).
+ *
+ * @returns The active debounce interval (0 in tests, 400 in production by default).
+ */
 export const getAutosaveDebounceMs = (): number => autosaveDebounceMs;
 
+/**
+ * Immediately executes any pending autosave, cancelling the scheduled debounce timer.
+ */
 export const flushAutosave = (): void => {
   if (autosaveTimeoutId) {
     clearTimeout(autosaveTimeoutId);
@@ -162,6 +196,12 @@ export const flushAutosave = (): void => {
   }
 };
 
+/**
+ * Schedules a debounced autosave for the given state: stores it as `pendingAutosaveState`
+ * and, when the debounce is disabled or expired, flushes immediately.
+ *
+ * @param state - The FlowState to persist on the next flush.
+ */
 export const scheduleAutosave = (state: FlowState): void => {
   pendingAutosaveState = state;
 
@@ -180,6 +220,14 @@ export const scheduleAutosave = (state: FlowState): void => {
   }, autosaveDebounceMs);
 };
 
+/**
+ * Executes the autosave for the given state (when `isAutosaveEnabled` is true):
+ * persists node/edge/lastActionName/timestamp snapshot via `autoGw.saveSetting`
+ * (chained sequential writes), syncs node-attached secrets/configmaps locally,
+ * and updates the current project when it has an id other than -1.
+ *
+ * @param state - The FlowState to autosave.
+ */
 export const executeAutosave = (state: FlowState) => {
   if (!state.isAutosaveEnabled) return;
 
@@ -253,7 +301,13 @@ flowStore.subscribe((state, prevState) => {
   }
 });
 
-// Helper to apply state from history
+/**
+ * Applies a history state JSON snapshot to the store (nodes are hydrated via
+ * `ejectLoadBalancersFromNamespaces` when `data.nodes` is an array).
+ * On parse failure, logs the error and re-enables applying history.
+ *
+ * @param json - Serialized history snapshot string (nodes, edges, actionName).
+ */
 export const applyHistoryState = (json: string) => {
   if (!json) return;
   try {
@@ -278,6 +332,10 @@ if (typeof globalThis !== 'undefined') {
   (globalThis as any).useFlowStore = flowStore;
 }
 
+/**
+ * The global flow store instance exposed as a Zustand `useStore` hook with attached store methods
+ * (`flowStore.setState`, `flowStore.getState`, ...). Works for both selectors and direct state access.
+ */
 export const useFlowStore = Object.assign(
   <T>(selector: (state: FlowState) => T) => useStore(flowStore, selector),
   flowStore

@@ -4,6 +4,10 @@ import { Settings } from 'lucide-react';
 import { BaseNode } from './BaseNode';
 import { K8sNodeData } from '@/types';
 
+/**
+ * ConfigMap node card: renders attached config map vars (keys/values) below the node
+ * when `displaySettings.data !== false` and the config has entries.
+ */
 export const ConfigMapNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
 

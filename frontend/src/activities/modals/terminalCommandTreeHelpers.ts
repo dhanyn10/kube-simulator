@@ -6,8 +6,15 @@ export interface CommandTreeNode {
   children?: CommandTreeNode[];
 }
 
+/** Specification for a tree leaf: [id, name, description, optional command string]. */
 type LeafSpec = [string, string, string, string?];
 
+/**
+ * Builds a CommandTreeNode leaf from a spec tuple.
+ *
+ * @param leaf - [id, name, description, command?]
+ * @returns Tree node with `command` present only when provided.
+ */
 export const makeLeaf = ([id, name, description, command]: LeafSpec): CommandTreeNode => ({
   id,
   name,
@@ -21,16 +28,24 @@ const GET_LEAFS: LeafSpec[] = [
   ['kubectl-get-pods', 'pods', 'List all pods on canvas', 'kubectl get pods'],
   ['kubectl-get-deployments', 'deployments', 'List deployments on canvas', 'kubectl get deployments'],
   ['kubectl-get-services', 'services', 'List services on canvas', 'kubectl get services'],
+  ['kubectl-get-namespaces', 'namespaces', 'List namespaces on canvas', 'kubectl get namespaces'],
+  ['kubectl-get-statefulsets', 'statefulsets', 'List statefulsets on canvas', 'kubectl get statefulsets'],
   ['kubectl-get-roles', 'roles', 'List roles on canvas', 'kubectl get roles'],
   ['kubectl-get-rolebindings', 'rolebindings', 'List rolebindings on canvas', 'kubectl get rolebindings'],
   ['kubectl-get-configmaps', 'configmaps', 'List configmaps on canvas', 'kubectl get configmaps'],
   ['kubectl-get-secrets', 'secrets', 'List secrets on canvas', 'kubectl get secrets'],
+  ['kubectl-get-pvcs', 'pvcs', 'List persistentvolumeclaims on canvas', 'kubectl get pvcs'],
   ['kubectl-get-all', 'all', 'List all resources on canvas', 'kubectl get all'],
 ];
 
 const DESCRIBE_LEAFS: LeafSpec[] = [
   ['kubectl-describe-deploy', 'deploy', 'Describe deployment specs', 'kubectl describe deploy '],
   ['kubectl-describe-pod', 'pod', 'Describe pod specs & events', 'kubectl describe pod '],
+  ['kubectl-describe-service', 'service', 'Describe service type & port', 'kubectl describe service '],
+  ['kubectl-describe-namespace', 'namespace', 'Describe namespace status', 'kubectl describe namespace '],
+  ['kubectl-describe-ingress', 'ingress', 'Describe ingress host & backend', 'kubectl describe ingress '],
+  ['kubectl-describe-pvc', 'pvc', 'Describe PVC storage details', 'kubectl describe pvc '],
+  ['kubectl-describe-hpa', 'hpa', 'Describe HPA min/max/CPU target', 'kubectl describe hpa '],
   ['kubectl-describe-role', 'role', 'Describe role specs & rules', 'kubectl describe role '],
   ['kubectl-describe-rolebinding', 'rolebinding', 'Describe rolebinding specs & subjects', 'kubectl describe rolebinding '],
   ['kubectl-describe-cm', 'cm', 'Describe configmap data', 'kubectl describe cm '],
@@ -56,6 +71,10 @@ const DELETE_LEAFS: LeafSpec[] = [
   ['kubectl-delete-service', 'service', 'Delete a service', 'kubectl delete service '],
 ];
 
+/**
+ * Static command tree shown by `TerminalCommandTreeModal` — kubectl root with
+ * children built from GET_LEAFS / DESCRIBE_LEAFS, plus utility commands (help, history, clear).
+ */
 export const COMMAND_TREE_DATA: CommandTreeNode[] = [
   {
     id: 'kubectl',
@@ -92,6 +111,14 @@ export const COMMAND_TREE_DATA: CommandTreeNode[] = [
   ])
 ];
 
+/**
+ * Filters the command tree by a search term: matches nodes on name, command, and description,
+ * and keeps ancestors of matching children. Returns the input array when search is empty.
+ *
+ * @param nodes - Root-level command tree nodes.
+ * @param search - Search term to match against node names/commands/descriptions.
+ * @returns Filtered tree (nodes with matching descendants carry their children along).
+ */
 export const filterCommandTree = (nodes: CommandTreeNode[], search: string): CommandTreeNode[] => {
   if (!search.trim()) return nodes;
   const term = search.toLowerCase();
@@ -113,6 +140,12 @@ export const filterCommandTree = (nodes: CommandTreeNode[], search: string): Com
   }, []);
 };
 
+/**
+ * Collects all node ids from a command tree, depth-first.
+ *
+ * @param nodes - Tree nodes to flatten.
+ * @returns Array of every node id in the tree.
+ */
 export const getAllNodeIds = (nodes: CommandTreeNode[]): string[] => {
   let ids: string[] = [];
   for (const node of nodes) {

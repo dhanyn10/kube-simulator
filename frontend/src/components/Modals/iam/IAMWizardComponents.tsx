@@ -11,6 +11,9 @@ export interface IAMStepperProps {
   readonly onReset: () => void;
 }
 
+/**
+ * Horizontal stepper (left nav) of the IAM creation/edit wizard, with reset action.
+ */
 export const IAMStepper: React.FC<IAMStepperProps> = ({ currentStep, colorMode, isEditMode = false, onReset }) => {
   const isDark = colorMode === 'dark';
 
@@ -86,6 +89,9 @@ export interface IAMStep1DetailsProps {
   readonly onUsernameChange: (value: string) => void;
 }
 
+/**
+ * Step 1 of the IAM wizard: username input + validation message.
+ */
 export const IAMStep1Details: React.FC<IAMStep1DetailsProps> = ({
   username,
   usernameError,
@@ -143,6 +149,9 @@ export interface IAMStep2PermissionsProps {
   readonly onTogglePolicy: (policyName: string) => void;
 }
 
+/**
+ * Step 2 of the IAM wizard: admin toggle + policy selection list.
+ */
 export const IAMStep2Permissions: React.FC<IAMStep2PermissionsProps> = ({
   username,
   selectedPolicies,
@@ -258,6 +267,9 @@ export interface IAMStep3ReviewProps {
   readonly isEditMode?: boolean;
 }
 
+/**
+ * Step 3 of the IAM wizard: review of chosen access type + policies.
+ */
 export const IAMStep3Review: React.FC<IAMStep3ReviewProps> = ({
   username,
   computedAccessType,
@@ -324,6 +336,9 @@ export interface IAMWizardFooterProps {
   readonly onFinish: () => void;
 }
 
+/**
+ * Footer actions for the IAM wizard (Previous/Next/Finish) with step indication.
+ */
 export const IAMWizardFooter: React.FC<IAMWizardFooterProps> = ({
   currentStep,
   colorMode,

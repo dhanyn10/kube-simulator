@@ -7,6 +7,13 @@ interface FitViewOptions {
   maxZoom?: number;
 }
 
+/**
+ * Hook exposing `customFitView`: computes an explicit bounding box over canvas nodes
+ * (using measured/width/height fallbacks) and calls the React Flow `fitView`,
+ * falling back to the built-in `fitView` when the renderer container is missing.
+ *
+ * @returns Object containing the `customFitView` callback.
+ */
 export const useFitView = () => {
   const { getNodes, setViewport, fitView: rfFitView } = useReactFlow();
 

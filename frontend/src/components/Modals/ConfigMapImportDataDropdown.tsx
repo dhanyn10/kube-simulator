@@ -12,6 +12,12 @@ export interface ConfigMapImportDataDropdownProps {
   readonly dropdownRef: React.RefObject<HTMLDivElement | null>;
 }
 
+/**
+ * Dropdown listing existing configmaps with import data option (returns null when empty).
+ *
+ * @param props - `ConfigMapImportDataDropdownProps` (isOpen, onToggleOpen, existingConfigMaps, onImport, isDark, dropdownRef).
+ * @returns Dropdown JSX or null.
+ */
 export const ConfigMapImportDataDropdown: React.FC<ConfigMapImportDataDropdownProps> = ({
   isOpen,
   onToggleOpen,

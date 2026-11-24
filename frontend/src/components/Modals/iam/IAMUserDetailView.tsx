@@ -13,6 +13,9 @@ export interface IAMUserSummaryCardsProps {
   readonly formattedDate: string;
 }
 
+/**
+ * Summary cards for IAM user detail (name, email, status, created date).
+ */
 export const IAMUserSummaryCards: React.FC<IAMUserSummaryCardsProps> = ({
   user,
   isActive,
@@ -55,6 +58,9 @@ export interface IAMUserPolicyTableProps {
   readonly isDark: boolean;
 }
 
+/**
+ * Table listing IAM policies attached to a user.
+ */
 export const IAMUserPolicyTable: React.FC<IAMUserPolicyTableProps> = ({ policies, isDark }) => (
   <div className="space-y-2">
     <span className={cn('text-xs font-semibold block', isDark ? 'text-slate-300' : 'text-slate-700')}>
@@ -97,6 +103,9 @@ export interface IAMUserRoleBindingsTableProps {
   readonly onNavigateToRole: (nodeId: string, nodeLabel: string) => void;
 }
 
+/**
+ * Table listing the IAM role bindings assigned to a user.
+ */
 export const IAMUserRoleBindingsTable: React.FC<IAMUserRoleBindingsTableProps> = ({
   user,
   attachedRoles,
@@ -185,6 +194,9 @@ export interface IAMUserDetailViewProps {
   readonly onNavigateToRole: (nodeId: string, nodeLabel: string) => void;
 }
 
+/**
+ * Detailed IAM user view: summary cards, policies table, role bindings table, and user details.
+ */
 export const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
   user,
   isActive,

@@ -10,6 +10,10 @@ interface ConfigMapSettingsSectionProps {
   nodeId: string;
 }
 
+/**
+ * Settings section for the ConfigMap resource type on a node card: delegates to
+ * `AttachedResourceSettingsSection` with ConfigMap-specific modals (list/edit/new).
+ */
 export const ConfigMapSettingsSection: React.FC<ConfigMapSettingsSectionProps> = ({ data, nodeId }) => {
   return (
     <AttachedResourceSettingsSection<K8sConfigMapItem>

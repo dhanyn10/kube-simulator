@@ -10,6 +10,10 @@ interface SecretSettingsSectionProps {
   nodeId: string;
 }
 
+/**
+ * Settings section for the Secret resource type on a node card: delegates to
+ * `AttachedResourceSettingsSection` with Secret list/edit modals.
+ */
 export const SecretSettingsSection: React.FC<SecretSettingsSectionProps> = ({ data, nodeId }) => {
   return (
     <AttachedResourceSettingsSection<K8sSecretItem>

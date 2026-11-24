@@ -207,6 +207,9 @@ const SaveModalContextMenu: React.FC<SaveModalContextMenuProps> = ({
   );
 };
 
+/**
+ * Save As modal: inputs for the new project name (with availability checks) + recent files list.
+ */
 export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs }) => {
   const {
     colorMode,

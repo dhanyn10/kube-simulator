@@ -18,6 +18,12 @@ interface ResourceLimitModalProps {
   readonly onSave: (resourceLimitItem: K8sResourceLimitItem) => void;
 }
 
+/**
+ * Modal for creating/editing a ResourceLimit item (cpu/memory/QoS limits) for a target node.
+ *
+ * @param props - `ResourceLimitModalProps` (isOpen, onClose, targetNodeId, targetNodeLabel, initialResourceLimit?, onSave).
+ * @returns Modal JSX.
+ */
 export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
   isOpen,
   onClose,

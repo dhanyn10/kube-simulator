@@ -64,6 +64,10 @@ const renderCardDetailLines = (
   );
 };
 
+/**
+ * Renders a single minimap node rect (with vertical detail lines when tall),
+ * colored by the node type and positioned at MiniMap coordinates.
+ */
 export const CanvasMiniMapNode: React.FC<MiniMapNodeProps> = ({
   id,
   x,
@@ -113,6 +117,14 @@ export const CanvasMiniMapNode: React.FC<MiniMapNodeProps> = ({
   );
 };
 
+/**
+ * Resolves the minimap node color by canvas node type (Deployment/StatefulSet: violet,
+ * Pod: cyan, Service: amber, others: slate, light/dark aware).
+ *
+ * @param type - Canvas node type string.
+ * @param colorMode - Current color mode.
+ * @returns Hex color string for the minimap rect.
+ */
 export const getMiniMapNodeColor = (
   type: string | undefined,
   colorMode: 'dark' | 'light'
@@ -123,6 +135,10 @@ export const getMiniMapNodeColor = (
   return colorMode === 'dark' ? '#475569' : '#94A3B8';
 };
 
+/**
+ * Canvas minimap panel: small map of the canvas with zoom controls, pinnable position,
+ * and color mode support (via `useCanvasMiniMap`).
+ */
 export const CanvasMiniMap: React.FC = () => {
   const { minimapPosition, colorMode, moveToPosition } = useCanvasMiniMap();
 

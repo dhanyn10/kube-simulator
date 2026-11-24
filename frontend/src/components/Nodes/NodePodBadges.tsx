@@ -7,6 +7,9 @@ interface NodePodBadgesProps {
   nodeId?: string;
 }
 
+/**
+ * Badge row for Pod cards (runtime, webserver, assigned worker); returns null when none apply.
+ */
 export const NodePodBadges = ({ data, nodeId }: NodePodBadgesProps) => {
   const { showRuntime, showWebserver, showNodeBadge, hasAnyBadge } = getPodBadgeVisibility(data);
 

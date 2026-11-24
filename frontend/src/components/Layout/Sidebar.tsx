@@ -118,6 +118,14 @@ const DETACHED_MODAL_REQUESTS: Partial<Record<K8sResourceType, string>> = {
 };
 
 export { DETACHED_MODAL_REQUESTS };
+/**
+ * Main-window Components sidebar: renders draggable component items, section accordions
+ * (searchable + expandable), and the detached/attached context menu; handles add-node
+ * requests (modal requests for detached targets) via `DETACHED_MODAL_REQUESTS`.
+ *
+ * @param props - `SidebarProps` (onAddNode, isDetached?).
+ * @returns Sidebar JSX.
+ */
 export const Sidebar = ({ onAddNode, isDetached = false }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);

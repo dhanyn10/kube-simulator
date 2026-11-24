@@ -20,6 +20,9 @@ const getItemClassName = (isCurrentStep: boolean, colorMode: 'dark' | 'light'): 
   return 'border-transparent hover:bg-violet-50/50 text-slate-700';
 };
 
+/**
+ * History panel for the monitoring dashboard (via `useHistory`).
+ */
 export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
   const { historyLogs, currentHistoryIndex, isLoading, fetchHistoryLogs, handleJumpToHistory } = useHistory();
   const lastActionId = useFlowStore((state) => state.lastActionId);

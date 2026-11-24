@@ -15,6 +15,10 @@ interface HPAModalProps {
   readonly onSave: (hpaItem: K8sHpaItem) => void;
 }
 
+/**
+ * Modal for creating/editing an HPA (min/max replicas, CPU target) attached to a target node
+ * (uses `useHpaModal` for state and saves via `onSave`).
+ */
 export const HPAModal: React.FC<HPAModalProps> = ({
   isOpen,
   onClose,

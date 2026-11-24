@@ -26,6 +26,9 @@ interface SelectorDropdownOption {
   port?: number;
 }
 
+/**
+ * Option metadata for the Service Type dropdown buttons (value, label, description).
+ */
 export const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
   { value: 'ClusterIP', label: 'ClusterIP', description: 'Exposes service on an internal IP in the cluster (Default).' },
   { value: 'NodePort', label: 'NodePort', description: 'Exposes service on each Node’s IP at a static port.' },
@@ -520,6 +523,13 @@ const isTargetStatefulSet = (
   );
 };
 
+/**
+ * Full Service node configuration UI: service type dropdown, node selector, and port
+ * mappings (visible for NodePort/LoadBalancer types).
+ *
+ * @param props - `ServiceConfigProps` (selectedNode, performUpdate, toggleVisibility, toggleYaml).
+ * @returns Service config JSX.
+ */
 export const ServiceConfig = ({
   selectedNode,
   performUpdate,

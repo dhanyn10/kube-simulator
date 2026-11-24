@@ -11,6 +11,13 @@ interface EdgeConfigProps {
   selectedEdge: any;
 }
 
+/**
+ * Edge configuration panel: shows connection styling controls (thickness, running/error
+ * colors with reset), via `useEdgeConfigHandler(selectedEdge)` + palette pickers.
+ *
+ * @param props - `{ selectedEdge }`: the edge node being configured.
+ * @returns Configuration UI for edge thickness/colors.
+ */
 export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
 

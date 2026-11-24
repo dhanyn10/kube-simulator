@@ -6,6 +6,10 @@ import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 
+/**
+ * PersistentVolumeClaim node card: shows storage request, access mode text (RWO/ROX/RWX),
+ * and status (Bound / Multi-Attach Error with pulse animation).
+ */
 export const PVCNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);

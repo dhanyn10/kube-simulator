@@ -13,6 +13,9 @@ interface SecretListModalProps {
   onAddNewSecret: () => void;
 }
 
+/**
+ * Modal listing secrets attached to a node (via `AttachedResourceListModal`) with edit/delete actions.
+ */
 export const SecretListModal: React.FC<SecretListModalProps> = ({
   isOpen,
   onClose,

@@ -13,6 +13,13 @@ interface ConfigMapListModalProps {
   onAddNewConfigMap: () => void;
 }
 
+/**
+ * Modal listing the configmaps attached to a node (via `AttachedResourceListModal`)
+ * with edit/delete actions for each configmap.
+ *
+ * @param props - `ConfigMapListModalProps` (isOpen, onClose, targetNodeLabel, configMaps, callbacks).
+ * @returns Modal JSX.
+ */
 export const ConfigMapListModal: React.FC<ConfigMapListModalProps> = ({
   isOpen,
   onClose,

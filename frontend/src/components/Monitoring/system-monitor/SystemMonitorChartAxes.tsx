@@ -38,6 +38,9 @@ const resolveAxisScaleLabels = (xTicks: XAxisTick[], unit: string) => {
   };
 };
 
+/**
+ * Bottom time-axis labels (step + total window text), adapts to dense tick counts.
+ */
 export const SystemMonitorAxisBottom = memo(({
   xTicks,
   isDark = true,
@@ -117,6 +120,9 @@ export interface SystemMonitorYScaleOverlayProps {
   isDark?: boolean;
 }
 
+/**
+ * Left-aligned Y-scale overlay labels for the system-monitor chart.
+ */
 export const SystemMonitorYScaleOverlay = memo(({ ticks, isDark = true }: SystemMonitorYScaleOverlayProps) => (
   <div className={cn(
     "absolute left-1.5 inset-y-1.5 flex flex-col justify-between pointer-events-none z-10 text-[8px] font-mono select-none",
@@ -143,6 +149,9 @@ export interface SystemMonitorVerticalGridProps {
   isDark?: boolean;
 }
 
+/**
+ * Vertical grid lines behind the chart at X-axis tick positions (denser spacing when >13 ticks).
+ */
 export const SystemMonitorVerticalGrid = memo(({ xTicks, isDark = true }: SystemMonitorVerticalGridProps) => {
   const isDense = xTicks.length > 13;
   return (
@@ -174,6 +183,9 @@ export interface SystemMonitorHorizontalGridProps {
   isDark?: boolean;
 }
 
+/**
+ * Horizontal grid lines (3 dividers) behind the chart.
+ */
 export const SystemMonitorHorizontalGrid = memo(({ isDark = true }: SystemMonitorHorizontalGridProps) => (
   <div className={cn("absolute inset-0 flex flex-col justify-between p-2 pointer-events-none", isDark ? "opacity-20" : "opacity-30")}>
     <div className={cn("border-t w-full", isDark ? "border-slate-500" : "border-slate-300")} />
@@ -198,6 +210,10 @@ export interface SystemMonitorChartCanvasProps {
   onMouseLeave?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
+/**
+ * Canvas container for the chart: renders grids + empty state + custom overlay + children
+ * (e.g. interactive chart), with pointer-event handling.
+ */
 export const SystemMonitorChartCanvas = memo(({
   heightClass = 'h-28',
   isDark = true,
@@ -246,6 +262,9 @@ export interface SystemMonitorPanelCardProps {
   className?: string;
 }
 
+/**
+ * Styled card panel for system-monitor page sections (header + children + optional footer).
+ */
 export const SystemMonitorPanelCard = memo(({
   isDark = true,
   headerLeft,

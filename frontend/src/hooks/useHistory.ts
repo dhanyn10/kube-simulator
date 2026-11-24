@@ -2,6 +2,15 @@ import { useCallback } from 'react';
 import { applyHistoryState, useFlowStore } from '@/store';
 import { getBackendGateway } from '@/gateway';
 
+/**
+ * Hook for accessing the canvas history feature:
+ * reads history logs/current index/loading state from the flow store,
+ * fetches history logs from the backend, and provides undo/redo/jump handlers
+ * that open the history tab, apply state via `applyHistoryState`, and refresh logs.
+ *
+ * @returns Object with `historyLogs`, `currentHistoryIndex`, `isLoading`, `fetchHistoryLogs`,
+ *   `handleUndo`, `handleRedo`, `handleJumpToHistory`.
+ */
 export function useHistory() {
   const historyLogs = useFlowStore((state) => state.historyLogs);
   const currentHistoryIndex = useFlowStore((state) => state.currentHistoryIndex);

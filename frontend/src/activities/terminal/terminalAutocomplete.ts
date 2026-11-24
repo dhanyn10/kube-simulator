@@ -87,10 +87,13 @@ export const GET_SUBCOMMANDS: SuggestionItem[] = createSuggestionMap([
   ['kubectl get pods', 'kubectl get pods', 'Command', 'List all pods on canvas'],
   ['kubectl get deployments', 'kubectl get deployments', 'Command', 'List deployments on canvas'],
   ['kubectl get services', 'kubectl get services', 'Command', 'List services on canvas'],
+  ['kubectl get namespaces', 'kubectl get namespaces', 'Command', 'List namespaces on canvas'],
+  ['kubectl get statefulsets', 'kubectl get statefulsets', 'Command', 'List statefulsets on canvas'],
   ['kubectl get roles', 'kubectl get roles', 'Command', 'List roles on canvas'],
   ['kubectl get rolebindings', 'kubectl get rolebindings', 'Command', 'List rolebindings on canvas'],
   ['kubectl get configmaps', 'kubectl get configmaps', 'Command', 'List configmaps on canvas'],
   ['kubectl get secrets', 'kubectl get secrets', 'Command', 'List secrets on canvas'],
+  ['kubectl get pvcs', 'kubectl get pvcs', 'Command', 'List persistentvolumeclaims on canvas'],
   ['kubectl get all', 'kubectl get all', 'Command', 'List all resources on canvas'],
 ]);
 
@@ -162,10 +165,13 @@ export const COMMAND_SPEC_TREE: CommandSpecNode[] = [
           { name: 'pods', category: 'Command', description: 'List all pods on canvas' },
           { name: 'deployments', category: 'Command', description: 'List deployments on canvas' },
           { name: 'services', category: 'Command', description: 'List services on canvas' },
+          { name: 'namespaces', category: 'Command', description: 'List namespaces on canvas' },
+          { name: 'statefulsets', category: 'Command', description: 'List statefulsets on canvas' },
           { name: 'roles', category: 'Command', description: 'List roles on canvas' },
           { name: 'rolebindings', category: 'Command', description: 'List rolebindings on canvas' },
           { name: 'configmaps', category: 'Command', description: 'List configmaps on canvas' },
           { name: 'secrets', category: 'Command', description: 'List secrets on canvas' },
+          { name: 'pvcs', category: 'Command', description: 'List persistentvolumeclaims on canvas' },
           { name: 'all', category: 'Command', description: 'List all resources on canvas' },
         ],
       },
@@ -245,6 +251,11 @@ export const COMMAND_SPEC_TREE: CommandSpecNode[] = [
             requiresResourceReason: (nodes) => getSecretNames(nodes).length === 0 ? NO_SECRET_REASON : null,
             dynamicChildren: (nodes) => getSecretNames(nodes).map(n => ({ name: n, category: 'Command', description: `Describe ${n}` })),
           },
+          { name: 'service <name>', category: 'Subcommand', description: 'Describe service type & port' },
+          { name: 'namespace <name>', category: 'Subcommand', description: 'Describe namespace status' },
+          { name: 'ingress <name>', category: 'Subcommand', description: 'Describe ingress host & backend' },
+          { name: 'pvc <name>', category: 'Subcommand', description: 'Describe PVC storage details' },
+          { name: 'hpa <name>', category: 'Subcommand', description: 'Describe HPA min/max/CPU target' },
         ],
       },
       {
@@ -778,6 +789,15 @@ const trimByPartialWord = (item: SuggestionItem, completedPrefix: string): strin
   return null;
 };
 
+/**
+ * Trims a suggestion's display label against user input, preferring the longest
+ * word-prefix match so the dropdown shows the already-typed portion and the remainder
+ * (e.g. typing "kubectl ge" -> label "pods" for suggestion "kubectl get pods").
+ *
+ * @param item - Suggestion item to trim (kept if no match applies).
+ * @param input - Current user input string.
+ * @returns A copy of `item` with the trimmed `label`, or the original when nothing matches.
+ */
 export const trimSuggestionLabel = (item: SuggestionItem, input: string): SuggestionItem => {
   const trimmed = input?.trim();
   if (!trimmed) return item;
@@ -797,6 +817,22 @@ export const trimSuggestionLabel = (item: SuggestionItem, input: string): Sugges
   return item;
 };
 
+/**
+ * Computes the filtered + trimmed suggestion list for the terminal input.
+ *
+ * Behavior:
+ * - Admin-mode flows return `ADMIN_SUGGESTIONS` (password-gated); returns empty while awaiting the admin password.
+ * - Sequence matches against deployment/pod names short-circuit with `matchSequenceCandidates`.
+ * - "kubectl" prefix input → top-level commands or subcommand candidates per token count;
+ *   other input → `UTILITY_COMMANDS` + `KUBECTL_TOP_COMMANDS`.
+ * - Non-empty input with no tokens → empty list (user is mid-command).
+ *
+ * @param input - Current user input in the terminal form.
+ * @param nodes - Active canvas nodes (used for dynamic names).
+ * @param isAdminAuthenticated - Whether the user is authenticated in admin mode.
+ * @param isAwaitingAdminPassword - Whether an admin password entry is pending.
+ * @returns Up to 10 unique, trimmed suggestions; empty when input is blank or awaiting password.
+ */
 export const getAutocompleteSuggestions = (
   input: string,
   nodes: Node[],

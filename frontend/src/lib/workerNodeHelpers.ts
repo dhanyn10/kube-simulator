@@ -14,9 +14,19 @@ export interface WorkerNodeInfo {
  * Assembles dummy IP octets dynamically to prevent hardcoded IP alerts (SonarCloud S1313).
  */
 const MOCK_WORKER_IP_OCTETS = ['192', '168', '1'] as const;
+/**
+ * Builds a deterministic mock worker IP from a fixed octet prefix (192.168.1.100+index).
+ * Assembled dynamically to avoid hardcoded IP alerts (SonarCloud S1313).
+ *
+ * @param index - Worker index (offset added to the last octet).
+ * @returns Mock IP string (e.g. '192.168.1.101').
+ */
 export const getMockWorkerIp = (index: number): string =>
   [...MOCK_WORKER_IP_OCTETS, String(100 + index)].join('.');
 
+/**
+ * Tailwind badge styles used for worker node cards in the Pod component.
+ */
 export const WORKER_COLOR_PALETTES = [
   { badgeBg: 'bg-cyan-500/10', badgeText: 'text-cyan-400', badgeBorder: 'border-cyan-500/20' },
   { badgeBg: 'bg-purple-500/10', badgeText: 'text-purple-400', badgeBorder: 'border-purple-500/20' },
@@ -65,6 +75,10 @@ const BASE_WORKER_NODES: Record<string, WorkerNodeInfo> = {
   'worker-3': getWorkerNodeInfo(3),
 };
 
+/**
+ * Proxy-based map of worker node info keyed by id (`worker-1`, `worker-2`, ...).
+ * Lazily generates `worker-N` entries via `getWorkerNodeInfo` when missing.
+ */
 export const WORKER_NODES: Record<string, WorkerNodeInfo> = new Proxy(BASE_WORKER_NODES, {
   get(target, prop: string) {
     if (typeof prop === 'string' && prop in target) {
@@ -77,6 +91,12 @@ export const WORKER_NODES: Record<string, WorkerNodeInfo> = new Proxy(BASE_WORKE
   },
 });
 
+/**
+ * Builds `{ id, label, ip }` dropdown option items from worker nodes.
+ *
+ * @param count - Number of worker nodes (1-100, default 3).
+ * @returns Array of option objects with id, label like `worker-1 (192.168.1.101)`, and ip.
+ */
 export const getWorkerNodeOptions = (count = 3): { id: string; label: string; ip: string }[] => {
   return getWorkerNodes(count).map((w) => ({
     id: w.id,
@@ -85,6 +105,7 @@ export const getWorkerNodeOptions = (count = 3): { id: string; label: string; ip
   }));
 };
 
+/** Options list derived from the default worker set (`getWorkerNodeOptions(3)`). */
 export const WORKER_NODE_OPTIONS: { id: string; label: string; ip: string }[] =
   getWorkerNodeOptions(3);
 

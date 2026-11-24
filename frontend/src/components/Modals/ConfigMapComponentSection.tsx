@@ -66,6 +66,13 @@ const getSuggestionTypeBadgeClass = (isDark: boolean, accent: ComponentSectionAc
   return 'bg-slate-100 text-teal-600';
 };
 
+/**
+ * Component section for the ConfigMap "config data" picker: attaches existing workload
+ * components, lists attached ones, with search/autocomplete and remove buttons.
+ *
+ * @param props - `ConfigMapComponentSectionProps` (attachedComponents, availableComponents, callbacks, isDark, accentColor?).
+ * @returns Component section JSX.
+ */
 export const ConfigMapComponentSection: React.FC<ConfigMapComponentSectionProps> = ({
   attachedComponents,
   availableComponents,

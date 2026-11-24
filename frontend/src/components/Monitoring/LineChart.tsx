@@ -21,6 +21,9 @@ const getSeriesColors = (color: string, isAlert: boolean): { stroke: string; fil
   return { stroke: '#a855f7', fill: 'rgba(168, 85, 247, 0.1)' };
 };
 
+/**
+ * Line chart for time-series metrics (with gradient fill and optional limit line).
+ */
 export const LineChart = ({
   data,
   color,

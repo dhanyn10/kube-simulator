@@ -220,6 +220,13 @@ const ReadOnlyProfileChart = ({
   );
 };
 
+/**
+ * Config panel for the Internet card: traffic settings, profile selection, and actions
+ * (e.g. "Explore More" → InternetProfileModal in the main window).
+ *
+ * @param props - `InternetConfigProps` (selectedNode, performUpdate, toggleVisibility).
+ * @returns Internet config JSX.
+ */
 export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }: InternetConfigProps) => {
   const data = selectedNode.data;
   const currentTraffic = Math.max(1, data.traffic || 1);

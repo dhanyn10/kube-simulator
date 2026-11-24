@@ -9,6 +9,9 @@ export interface IAMSystemAdminCardProps {
   readonly onSelectActive: (username: string) => void;
 }
 
+/**
+ * Card representing the SystemAdmin (built-in admin) identity in the IAM user list.
+ */
 export const IAMSystemAdminCard: React.FC<IAMSystemAdminCardProps> = ({ isActive, isDark, onSelectActive }) => (
   <div
     className={cn(

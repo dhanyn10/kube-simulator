@@ -41,6 +41,17 @@ const getResourceGroup = (type: string) => {
   return '';
 };
 
+/**
+ * Handles 'kubectl apply -f <file>' commands.
+ *
+ * Logs the resources of matching types found on the canvas (Deployment, ReplicaSet, Pod,
+ * Service, Ingress, HPA, PVC, ConfigMap, Secret) without modifying them; a manifest with
+ * no recognized resources logs "No resources defined in the manifest."
+ *
+ * @param cmd - Raw input command string.
+ * @param ctx - Command execution context (nodes + logging callback).
+ * @returns True if the command matched and was handled; false otherwise.
+ */
 export const handleApplyCommand = (
   cmd: string,
   ctx: CommandContext
@@ -368,6 +379,16 @@ export const handleAdminCommands = (
   return false;
 };
 
+/**
+ * Handles 'kubectl scale deployment/<name> --replicas=<n>' commands.
+ *
+ * Updates the Deployment/ReplicaSet node on the canvas via `updateNodeData` and logs
+ * the previous and new replica counts. Logs NotFound when the target workload isn't found.
+ *
+ * @param cmd - Raw input command string.
+ * @param ctx - Command execution context (nodes, updateNodeData, logging).
+ * @returns True if the command matched and was handled; false otherwise.
+ */
 export const handleScaleCommand = (
   cmd: string,
   ctx: CommandContext
@@ -505,6 +526,57 @@ export const handleRolloutUndoCommand = (
   return true;
 };
 
+export const handleDeleteDeploymentCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const match = /^kubectl\s+delete\s+(deploy(?:ment)?|statefulset|sts)\s+([a-z0-9-]+)/i.exec(cmd);
+  if (!match) return false;
+
+  const targetName = match[2].toLowerCase();
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, ['Deployment', 'StatefulSet']);
+
+  if (foundNode) {
+    const label = getNodeData(foundNode).label || foundNode.id;
+    ctx.deleteNodes([foundNode]);
+    ctx.addActivityLog(`${foundNode.type.toLowerCase()} "${label}" deleted`);
+  } else {
+    ctx.addActivityLog(`Error from server (NotFound): deployment "${targetName}" not found`);
+  }
+  return true;
+};
+
+export const handleDeleteServiceCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const match = /^kubectl\s+delete\s+service\s+([a-z0-9-]+)/i.exec(cmd);
+  if (!match) return false;
+
+  const targetName = match[1].toLowerCase();
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, ['Service']);
+
+  if (foundNode) {
+    const label = getNodeData(foundNode).label || foundNode.id;
+    ctx.deleteNodes([foundNode]);
+    ctx.addActivityLog(`service "${label}" deleted`);
+  } else {
+    ctx.addActivityLog(`Error from server (NotFound): service "${targetName}" not found`);
+  }
+  return true;
+};
+
+/**
+ * Handles 'kubectl delete pod <name>' commands.
+ *
+ * Deletes the Pod from the canvas. When the pod is attached to a Deployment or ReplicaSet,
+ * triggers the simulated ReplicaSet self-healing flow (replacement pod is recreated via
+ * `syncDeployment`) instead of a plain delete. Logs a NotFound error when the pod isn't found.
+ *
+ * @param cmd - Raw input command string.
+ * @param ctx - Command execution context (nodes, deleteNodes, setState, logging).
+ * @returns True if the command matched and was handled; false otherwise.
+ */
 export const handleDeletePodCommand = (
   cmd: string,
   ctx: CommandContext
@@ -562,6 +634,15 @@ export const handleDeletePodCommand = (
   return true;
 };
 
+/**
+ * Handles 'kubectl get all' — prints a combined status table of pods, deployments,
+ * services, ingresses, HPA (both standalone and attached), statefulsets, namespaces,
+ * and persistentvolumeclaims found on the canvas.
+ *
+ * @param cmd - Raw input command string.
+ * @param ctx - Command execution context (nodes, isSimulating, logging).
+ * @returns True if the command matched and was handled; false otherwise.
+ */
 export const handleGetAllCommand = (
   cmd: string,
   ctx: CommandContext
@@ -632,6 +713,37 @@ export const handleGetAllCommand = (
     });
     attachedHpas.forEach(ah => {
       ctx.addActivityLog(`horizontalpodautoscaler.autoscaling/${String(ah.name).padEnd(2)} Deployment/${ah.owner.padEnd(10)} 12%/50%         ${ah.min}         ${ah.max}        3          5m`);
+    });
+  }
+
+  const statefulSets = ctx.nodes.filter(node => node.type === 'StatefulSet');
+  if (statefulSets.length > 0) {
+    ctx.addActivityLog(`\n${"NAME".padEnd(38)} READY   UP-TO-DATE   AVAILABLE   AGE`);
+    statefulSets.forEach(statefulSet => {
+      const name = statefulSet.data.label || statefulSet.id;
+      const replicas = statefulSet.data?.replicas || 1;
+      ctx.addActivityLog(`${String(name).padEnd(38)} ${String(ctx.isSimulating ? replicas : 0).padEnd(7)} ${String(replicas).padEnd(12)} ${String(replicas).padEnd(11)} 2m`);
+    });
+  }
+
+  const namespaces = ctx.nodes.filter(node => node.type === 'Namespace');
+  if (namespaces.length > 0) {
+    ctx.addActivityLog(`\n${'NAME'.padEnd(38)} STATUS`);
+    namespaces.forEach(namespaceNode => {
+      const name = namespaceNode.data.label || namespaceNode.id;
+      ctx.addActivityLog(`${String(name).padEnd(38)} ${String(namespaceNode.data?.status || 'Active')}`);
+    });
+  }
+
+  const pvcs = ctx.nodes.filter(node => node.type === 'PVC');
+  if (pvcs.length > 0) {
+    ctx.addActivityLog(`\n${'NAME'.padEnd(38)} SIZE    STATUS    ACCESSMODES`);
+    pvcs.forEach(pvcNode => {
+      const name = pvcNode.data.label || pvcNode.id;
+      const size = String((pvcNode.data as any)?.storageCapacity || (pvcNode.data as any)?.size || '-');
+      const status = String((pvcNode.data as any)?.pvcStatus || '-');
+      const modes = Array.isArray((pvcNode.data as any)?.accessMode) ? (pvcNode.data as any).accessMode.join(',') : '-';
+      ctx.addActivityLog(`${String(name).padEnd(38)} ${size.padEnd(8)} ${status.padEnd(9)} ${modes}`);
     });
   }
 

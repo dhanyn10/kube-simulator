@@ -17,6 +17,9 @@ export interface IAMUserListViewProps {
   readonly onDeleteUser: (id: string) => void;
 }
 
+/**
+ * List view of IAM users with search/filter, selection and create/delete actions.
+ */
 export const IAMUserListView: React.FC<IAMUserListViewProps> = ({
   iamUsers,
   filteredUsers,

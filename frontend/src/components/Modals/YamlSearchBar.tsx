@@ -25,6 +25,9 @@ const getSearchCountBadgeClass = (totalMatches: number, isDark: boolean): string
     : 'bg-rose-50 text-rose-700 border-rose-200';
 };
 
+/**
+ * YAML search bar: match count display, next/prev match navigation, clear search.
+ */
 export const YamlSearchBar: React.FC<YamlSearchBarProps> = ({
   query,
   onQueryChange,

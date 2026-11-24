@@ -4,6 +4,9 @@ import { Globe } from 'lucide-react';
 import { BaseNode } from './BaseNode';
 import { K8sNodeData } from '@/types';
 
+/**
+ * Internet node card (BaseNode with Globe icon, blue accent, id/type passthrough).
+ */
 export const InternetNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   return <BaseNode {...props} data={data} title="Internet" icon={Globe} color="blue" id={props.id} type={props.type} />;

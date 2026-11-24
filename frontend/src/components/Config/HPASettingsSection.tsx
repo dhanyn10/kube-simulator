@@ -10,6 +10,10 @@ interface HPASettingsSectionProps {
   nodeId: string;
 }
 
+/**
+ * Settings section for the HPA resource type on a node card: delegates to
+ * `AttachedResourceSettingsSection` with HPA list/edit modals.
+ */
 export const HPASettingsSection: React.FC<HPASettingsSectionProps> = ({ data, nodeId }) => {
   return (
     <AttachedResourceSettingsSection<K8sHpaItem>

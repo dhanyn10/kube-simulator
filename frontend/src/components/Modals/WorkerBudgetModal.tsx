@@ -351,6 +351,10 @@ const WorkerBudgetNoticeBanner: React.FC<NoticeBannerProps> = ({
   );
 };
 
+/**
+ * Worker budget modal: shows cluster worker resources vs active canvas workload demand
+ * and provides budget controls/actions (opens via store or props).
+ */
 export const WorkerBudgetModal: React.FC<WorkerBudgetModalProps> = ({
   isOpen: propIsOpen,
   onClose: propOnClose,

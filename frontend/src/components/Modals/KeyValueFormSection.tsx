@@ -21,6 +21,10 @@ interface KeyValueFormSectionProps {
   sectionTitle?: string;
 }
 
+/**
+ * Reusable key/value editor section: managed fields with add/remove/update and optional
+ * password input type, section title.
+ */
 export const KeyValueFormSection: React.FC<KeyValueFormSectionProps> = ({
   items,
   colorMode,

@@ -11,6 +11,14 @@ export {
   getTargetLoggableNode,
 } from '@/activities/edges';
 
+/**
+ * Computes the tailwind classes for the CustomEdge settings button: highlighted when the
+ * edge is being configured (simulating a settings view), otherwise hover styles.
+ *
+ * @param isConfiguring - Whether the edge is in configuring state.
+ * @param isDark - Active color mode.
+ * @returns Class string for the settings button.
+ */
 export const getSettingsButtonClass = (isConfiguring: boolean, isDark: boolean): string => {
   if (isConfiguring) {
     return isDark ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-100 text-blue-600';
@@ -18,6 +26,13 @@ export const getSettingsButtonClass = (isConfiguring: boolean, isDark: boolean):
   return isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-600';
 };
 
+/**
+ * Renders a custom animated edge between canvas nodes with settings/remove buttons,
+ * traffic animation (stroke width/color), hover states, and alert markers.
+ *
+ * @param props - React Flow EdgeProps plus edge context (isSimulating, getStrokeColor, edgePath...).
+ * @returns Edge JSX.
+ */
 export default function CustomEdge(props: EdgeProps) {
   const { style = {}, markerEnd, selected, id } = props;
   const [isHovered, setIsHovered] = useState(false);

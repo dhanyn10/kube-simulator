@@ -10,6 +10,9 @@ interface LogPaginationProps {
   colorMode: 'dark' | 'light';
 }
 
+/**
+ * Pagination controls for the log list (prev/next page, page indicator).
+ */
 export const LogPagination: React.FC<LogPaginationProps> = ({
   currentPage,
   totalPages,

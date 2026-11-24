@@ -6,6 +6,9 @@ import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 
+/**
+ * Secret node card: shows secretData entries or falls back to configData when secretData is empty/absent.
+ */
 export const SecretNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);

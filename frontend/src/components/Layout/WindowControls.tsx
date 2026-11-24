@@ -7,6 +7,12 @@ interface WindowControlsProps {
   onClose?: () => void;
 }
 
+/**
+ * Window minimize/maximize/close buttons (browser-fallback mode) using `useWindowControls`.
+ *
+ * @param props - `WindowControlsProps` (colorMode, onClose?).
+ * @returns Controls row JSX.
+ */
 export const WindowControls = ({ colorMode, onClose }: WindowControlsProps) => {
   const { handleMinimize, handleMaximize, handleClose } = useWindowControls();
 

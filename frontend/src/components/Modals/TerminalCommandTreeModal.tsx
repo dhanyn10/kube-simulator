@@ -186,6 +186,10 @@ const TreeNodeItem = ({
   );
 };
 
+/**
+ * Modal browsing the full terminal command tree (kubectl/get/describe/etc. from `COMMAND_TREE_DATA`)
+ * with search and run-on-click.
+ */
 export const TerminalCommandTreeModal = () => {
   const isOpen = useFlowStore((state) => state.isTerminalCommandTreeModalOpen);
   const onClose = () => useFlowStore.getState().setTerminalCommandTreeModalOpen(false);

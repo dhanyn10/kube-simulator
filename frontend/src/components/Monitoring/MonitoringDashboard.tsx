@@ -18,6 +18,10 @@ const getDashboardHeaderClass = (isOverloaded: boolean, isDark: boolean): string
   return isDark ? "bg-slate-800/60 border-slate-700/50" : "bg-slate-100 border-slate-200";
 };
 
+/**
+ * Main monitoring dashboard: SystemMonitorPanelCard grid or legacy monitoring view,
+ * with open/close controls and store state (position, simulation state).
+ */
 export const MonitoringDashboard = () => {
   const {
     isMonitoringOpen,

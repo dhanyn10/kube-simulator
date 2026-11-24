@@ -14,6 +14,9 @@ interface ResourceLimitListModalProps {
   readonly onDeleteItem: (itemId: string, itemName: string) => void;
 }
 
+/**
+ * Modal listing resource limits attached to a node, with per-item display including QoS class.
+ */
 export const ResourceLimitListModal: React.FC<ResourceLimitListModalProps> = ({
   isOpen,
   onClose,

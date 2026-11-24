@@ -153,6 +153,13 @@ const ItemDetailSection: React.FC<{ readonly type: K8sResourceType; readonly ite
   return <ResourceLimitDetails item={item} isDark={isDark} />;
 };
 
+/**
+ * Modal showing a detailed overview of a single attached resource (ConfigMap, Secret,
+ * Role, HPA, or ResourceLimit) with search + per-resource detail views.
+ *
+ * @param props - `AttachedResourceOverviewModalProps` (type, onClose).
+ * @returns Modal JSX.
+ */
 export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewModalProps> = ({
   type,
   onClose,

@@ -23,6 +23,9 @@ interface YamlModalProps {
   onClose: () => void;
 }
 
+/**
+ * Read-only YAML viewer modal (with copy + search).
+ */
 export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalProps>) {
   const [copied, setCopied] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
