@@ -299,6 +299,8 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
   addActivityLog('  kubectl rollout history deploy/<name> View rollout revision history');
   addActivityLog('  kubectl rollout undo deploy/<name>    Rollback to the previous deployment revision');
   addActivityLog('  kubectl delete pod <name>             Delete pod (triggers replica controller self-healing)');
+  addActivityLog('  kubectl delete deployment <name>       Delete deployment (or statefulset)');
+  addActivityLog('  kubectl delete service <name>          Delete service');
   addActivityLog('  kubectl get roles                     List all roles on the canvas');
   addActivityLog('  kubectl get rolebindings              List role bindings on the canvas');
   addActivityLog('  kubectl describe role <name>          Describe role specifications & rules');

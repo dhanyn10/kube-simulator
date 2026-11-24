@@ -505,6 +505,46 @@ export const handleRolloutUndoCommand = (
   return true;
 };
 
+export const handleDeleteDeploymentCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const match = /^kubectl\s+delete\s+(deploy(?:ment)?|statefulset|sts)\s+([a-z0-9-]+)/i.exec(cmd);
+  if (!match) return false;
+
+  const targetName = match[2].toLowerCase();
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, ['Deployment', 'StatefulSet']);
+
+  if (foundNode) {
+    const label = getNodeData(foundNode).label || foundNode.id;
+    ctx.deleteNodes([foundNode]);
+    ctx.addActivityLog(`${foundNode.type.toLowerCase()} "${label}" deleted`);
+  } else {
+    ctx.addActivityLog(`Error from server (NotFound): deployment "${targetName}" not found`);
+  }
+  return true;
+};
+
+export const handleDeleteServiceCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const match = /^kubectl\s+delete\s+service\s+([a-z0-9-]+)/i.exec(cmd);
+  if (!match) return false;
+
+  const targetName = match[1].toLowerCase();
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, ['Service']);
+
+  if (foundNode) {
+    const label = getNodeData(foundNode).label || foundNode.id;
+    ctx.deleteNodes([foundNode]);
+    ctx.addActivityLog(`service "${label}" deleted`);
+  } else {
+    ctx.addActivityLog(`Error from server (NotFound): service "${targetName}" not found`);
+  }
+  return true;
+};
+
 export const handleDeletePodCommand = (
   cmd: string,
   ctx: CommandContext
@@ -632,6 +672,37 @@ export const handleGetAllCommand = (
     });
     attachedHpas.forEach(ah => {
       ctx.addActivityLog(`horizontalpodautoscaler.autoscaling/${String(ah.name).padEnd(2)} Deployment/${ah.owner.padEnd(10)} 12%/50%         ${ah.min}         ${ah.max}        3          5m`);
+    });
+  }
+
+  const statefulSets = ctx.nodes.filter(n => n.type === 'StatefulSet');
+  if (statefulSets.length > 0) {
+    ctx.addActivityLog(`\n${"NAME".padEnd(38)} READY   UP-TO-DATE   AVAILABLE   AGE`);
+    statefulSets.forEach(s => {
+      const name = s.data.label || s.id;
+      const replicas = s.data?.replicas || 1;
+      ctx.addActivityLog(`${String(name).padEnd(38)} ${String(ctx.isSimulating ? replicas : 0).padEnd(7)} ${String(replicas).padEnd(12)} ${String(replicas).padEnd(11)} 2m`);
+    });
+  }
+
+  const namespaces = ctx.nodes.filter(n => n.type === 'Namespace');
+  if (namespaces.length > 0) {
+    ctx.addActivityLog(`\n${'NAME'.padEnd(38)} STATUS`);
+    namespaces.forEach(ns => {
+      const name = ns.data.label || ns.id;
+      ctx.addActivityLog(`${String(name).padEnd(38)} ${String(ns.data?.status || 'Active')}`);
+    });
+  }
+
+  const pvcs = ctx.nodes.filter(n => n.type === 'PVC');
+  if (pvcs.length > 0) {
+    ctx.addActivityLog(`\n${'NAME'.padEnd(38)} SIZE    STATUS    ACCESSMODES`);
+    pvcs.forEach(p => {
+      const name = p.data.label || p.id;
+      const size = String((p.data as any)?.storageCapacity || (p.data as any)?.size || '-');
+      const status = String((p.data as any)?.pvcStatus || '-');
+      const modes = Array.isArray((p.data as any)?.accessMode) ? (p.data as any).accessMode.join(',') : '-';
+      ctx.addActivityLog(`${String(name).padEnd(38)} ${size.padEnd(8)} ${status.padEnd(9)} ${modes}`);
     });
   }
 
