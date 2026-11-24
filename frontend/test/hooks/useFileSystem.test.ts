@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFileSystem, parseAndHydrateProject } from '@/hooks/useFileSystem';
 import { useFlowStore } from '@/store';
-import { setBackendGateway, resetBackendGateway, MockBackendGateway } from '@/gateway';
+import { setBackendGateway, resetBackendGateway, MockBackendGateway, getBackendGateway } from '@/gateway';
 
 describe('useFileSystem', () => {
   beforeEach(() => {
@@ -314,5 +314,127 @@ describe('useFileSystem', () => {
     expect(spyExport).toHaveBeenCalled();
     expect(spyImport).toHaveBeenCalled();
     unmount();
+  });
+});
+
+describe('useFileSystem branch coverage additions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetBackendGateway();
+    useFlowStore.setState({
+      nodes: [],
+      edges: [],
+      currentProject: null,
+      logs: [],
+      isLogModalOpen: false,
+    });
+
+    (globalThis as any).go = {
+      main: {
+        App: {
+          ExportProjectFile: vi.fn().mockResolvedValue(true),
+          ImportProjectFile: vi.fn().mockResolvedValue(''),
+        },
+      },
+    };
+  });
+
+  it('parseAndHydrateProject uses the default project name when the project name is missing or blank', () => {
+    expect(parseAndHydrateProject(JSON.stringify({ canvas: JSON.stringify({ nodes: [] }) }))).toBe(true);
+    expect(useFlowStore.getState().currentProject?.name).toBe('Imported Architecture');
+
+    expect(parseAndHydrateProject(JSON.stringify({ name: '', canvas: JSON.stringify({ nodes: [] }) }))).toBe(true);
+    expect(useFlowStore.getState().currentProject?.name).toBe('Imported Architecture');
+  });
+
+  it('parseAndHydrateProject rejects null and non-object JSON string canvases', () => {
+    expect(parseAndHydrateProject(JSON.stringify({ name: 'X', canvas: JSON.stringify(null) }))).toBe(false);
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+
+    useFlowStore.setState({ isLogModalOpen: false, logs: [] });
+    expect(parseAndHydrateProject(JSON.stringify({ name: 'X', canvas: JSON.stringify(42) }))).toBe(false);
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().logs.some((l) => l.message.includes('Canvas payload must be an object'))).toBe(true);
+  });
+
+  it('parseAndHydrateProject uses the fallback error message when the thrown error has no message', () => {
+    const parseSpy = vi.spyOn(JSON, 'parse').mockImplementationOnce(() => {
+      throw new Error();
+    });
+    try {
+      expect(parseAndHydrateProject('{"name":"X","canvas":{}}')).toBe(false);
+      expect(
+        useFlowStore.getState().logs.some((l) => l.message.includes('Corrupted or invalid project file format'))
+      ).toBe(true);
+    } finally {
+      parseSpy.mockRestore();
+    }
+  });
+
+  it('handleExportFile does not log success when the backend reports false', async () => {
+    (globalThis as any).go.main.App.ExportProjectFile.mockResolvedValueOnce(false);
+    const { result, unmount } = renderHook(() => useFileSystem([], []));
+
+    await act(async () => {
+      await result.current.handleExportFile();
+    });
+
+    expect(useFlowStore.getState().logs.some((l) => l.message.includes('exported successfully'))).toBe(false);
+    unmount();
+  });
+
+  it('handleExportFile uses the fallback message when the backend export error has no message', async () => {
+    (globalThis as any).go.main.App.ExportProjectFile.mockRejectedValueOnce(new Error());
+    const { result, unmount } = renderHook(() => useFileSystem([], []));
+
+    await act(async () => {
+      await result.current.handleExportFile();
+    });
+
+    expect(
+      useFlowStore.getState().logs.some((l) => l.message.includes('Unknown error occurred while exporting file'))
+    ).toBe(true);
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    unmount();
+  });
+
+  it('handleImportFile returns early when the backend returns empty json', async () => {
+    (globalThis as any).go.main.App.ImportProjectFile.mockResolvedValueOnce('');
+    const { result, unmount } = renderHook(() => useFileSystem([], []));
+
+    await act(async () => {
+      await result.current.handleImportFile();
+    });
+
+    expect(useFlowStore.getState().isLogModalOpen).toBe(false);
+    unmount();
+  });
+
+  it('handleImportFile uses the fallback message when the import error has no message', async () => {
+    (globalThis as any).go.main.App.ImportProjectFile.mockRejectedValueOnce(new Error());
+    const { result, unmount } = renderHook(() => useFileSystem([], []));
+
+    await act(async () => {
+      await result.current.handleImportFile();
+    });
+
+    expect(
+      useFlowStore.getState().logs.some((l) => l.message.includes('Unknown error occurred while importing file'))
+    ).toBe(true);
+    unmount();
+  });
+
+  it('handles a non-function onEvent return from the backend gateway on cleanup', async () => {
+    const gw = getBackendGateway();
+    const spy = vi.spyOn(gw, 'onEvent').mockReturnValue(undefined as any);
+    try {
+      const { unmount } = renderHook(() => useFileSystem([], []));
+      expect(spy).toHaveBeenCalledWith('open-infra-file', expect.any(Function));
+      unmount();
+      // Cleanup runs without throwing even though off is not a function
+      expect(() => unmount()).not.toThrow();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

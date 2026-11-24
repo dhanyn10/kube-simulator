@@ -281,3 +281,48 @@ describe('useConfigMapModal handleAddMultipleRows', () => {
     expect(result.current.rows[0].key).toBe('APP_ENV');
   });
 });
+
+describe('useConfigMapModal fallback name & id branches', () => {
+  it('falls back to item.id when item.name is empty on load and save', () => {
+    const onSave = vi.fn();
+    const onClose = vi.fn();
+    const { result } = renderHook(() =>
+      useConfigMapModal({
+        isOpen: true,
+        onClose,
+        initialConfigMap: {
+          id: 'cm-id-only',
+          name: '',
+          configData: [{ key: 'K', value: 'V' }],
+        },
+        onSave,
+      })
+    );
+
+    expect(result.current.cmName).toBe('cm-id-only');
+
+    act(() => {
+      result.current.setCmName('   ');
+    });
+    act(() => {
+      result.current.handleSave();
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'cm-id-only', name: 'cm-id-only' })
+    );
+  });
+
+  it('loads empty rows when item has id but no configData', () => {
+    const { result } = renderHook(() =>
+      useConfigMapModal({
+        isOpen: true,
+        onClose: vi.fn(),
+        initialConfigMap: { id: 'cm-empty', name: '', configData: [] },
+        onSave: vi.fn(),
+      })
+    );
+    expect(result.current.cmName).toBe('cm-empty');
+    expect(result.current.rows).toHaveLength(0);
+  });
+});

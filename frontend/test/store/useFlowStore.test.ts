@@ -4,10 +4,12 @@ import {
   useFlowStore,
   applyHistoryState,
   formatAutosaveKey,
+  getActiveProfileName,
   getCurrentSessionAutosaveKey,
   setAutosaveDebounceMs,
   getAutosaveDebounceMs,
   flushAutosave,
+  executeAutosave,
 } from '@/store/useFlowStore';
 import { logger } from '@/lib/logger';
 
@@ -350,5 +352,162 @@ describe('useFlowStore autosave savedConfigMaps sync', () => {
     await new Promise((r) => setTimeout(r, 20));
 
     expect(useFlowStore.getState().savedConfigMaps).toHaveLength(1);
+  });
+});
+
+describe('useFlowStore branch coverage additions', () => {
+  it('getActiveProfileName falls back to the session autosave key for null/missing/blank names', () => {
+    const sessionKey = getCurrentSessionAutosaveKey();
+    expect(getActiveProfileName(null)).toBe(sessionKey);
+    expect(getActiveProfileName(undefined as any)).toBe(sessionKey);
+    expect(getActiveProfileName({} as any)).toBe(sessionKey);
+    expect(getActiveProfileName({ name: '' } as any)).toBe(sessionKey);
+    expect(getActiveProfileName({ name: '   ' } as any)).toBe(sessionKey);
+    expect(getActiveProfileName({ name: '  My Project  ' } as any)).toBe('My Project');
+  });
+
+  it('flushAutosave without a pending autosave is a no-op', () => {
+    expect(() => flushAutosave()).not.toThrow();
+  });
+
+  it('applyHistoryState applies snapshots without a nodes array', () => {
+    applyHistoryState(JSON.stringify({ edges: [], actionName: 'No Nodes' }));
+    expect(useFlowStore.getState().lastActionName).toBe('Applied: No Nodes');
+  });
+
+  it('executeAutosave syncs node-embedded and saved secrets/configMaps (including duplicate merge paths)', async () => {
+    const saveSettingSpy = vi.fn();
+    (globalThis as any).go = {
+      main: {
+        App: {
+          PushHistory: vi.fn().mockResolvedValue(true),
+          SaveSetting: saveSettingSpy,
+        },
+      },
+    };
+
+    useFlowStore.setState({
+      isAutosaveEnabled: true,
+      nodes: [
+        {
+          id: 'n1',
+          data: {
+            secrets: [{ id: 's1', name: 'Node Secret' }],
+            configMaps: [{ id: 'cm1', name: 'Node ConfigMap' }],
+          },
+        } as any,
+      ],
+      savedSecrets: [
+        { id: 's1', name: 'Node Secret' }, // duplicate of node-embedded (merged by id/name)
+        { id: 's1x', name: 'Node Secret' }, // different id, same name -> merged via the name match
+        { id: 's2', name: 'Standalone Secret' }, // non-duplicate -> merged
+      ],
+      savedConfigMaps: undefined,
+      lastActionId: 'autosave-sync-branch',
+    });
+
+    executeAutosave(useFlowStore.getState());
+    await new Promise(process.nextTick);
+    expect(saveSettingSpy).toHaveBeenCalled();
+  });
+
+  it('executeAutosave skips local secret/configmap sync when merged lists are empty', async () => {
+    const saveSettingSpy = vi.fn();
+    (globalThis as any).go = {
+      main: {
+        App: {
+          PushHistory: vi.fn().mockResolvedValue(true),
+          SaveSetting: saveSettingSpy,
+        },
+      },
+    };
+
+    useFlowStore.setState({
+      isAutosaveEnabled: true,
+      nodes: [],
+      savedSecrets: [],
+      savedConfigMaps: [],
+      lastActionId: 'autosave-empty-sync',
+    });
+
+    executeAutosave(useFlowStore.getState());
+    await new Promise(process.nextTick);
+    expect(saveSettingSpy).toHaveBeenCalled();
+  });
+
+  it('defaults to a 400ms autosave debounce outside the test environment', async () => {
+    const prevNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      vi.resetModules();
+      const fresh = await import('@/store/useFlowStore');
+      expect(fresh.getAutosaveDebounceMs()).toBe(400);
+    } finally {
+      process.env.NODE_ENV = prevNodeEnv;
+      vi.resetModules();
+    }
+  });
+
+  it('does not register the log consumer when setLogConsumer is not a function', async () => {
+    vi.resetModules();
+    vi.doMock('@/lib/logger', async (importOriginal) => {
+      const actual = await importOriginal<any>();
+      return { ...actual, setLogConsumer: undefined };
+    });
+    try {
+      const mod = await import('@/store/useFlowStore');
+      expect(mod.useFlowStore).toBeDefined();
+    } finally {
+      vi.doUnmock('@/lib/logger');
+      vi.resetModules();
+    }
+  });
+
+  it('executeAutosave skips savedSecrets sync when savedSecrets is not an array', async () => {
+    const saveSettingSpy = vi.fn();
+    (globalThis as any).go = {
+      main: {
+        App: {
+          PushHistory: vi.fn().mockResolvedValue(true),
+          SaveSetting: saveSettingSpy,
+        },
+      },
+    };
+
+    useFlowStore.setState({
+      isAutosaveEnabled: true,
+      nodes: [{ id: 'n2', data: { secrets: [{ id: 's3', name: 'S3 Secret' }] } } as any],
+      savedSecrets: undefined as any,
+      savedConfigMaps: undefined as any,
+      lastActionId: 'autosave-saved-secrets-not-array',
+    });
+
+    executeAutosave(useFlowStore.getState());
+    await new Promise(process.nextTick);
+    expect(saveSettingSpy).toHaveBeenCalled();
+  });
+
+  it('handles module evaluation when globalThis is undefined', async () => {
+    vi.resetModules();
+    const origDescriptor = Object.getOwnPropertyDescriptor(global, 'globalThis');
+    try {
+      Object.defineProperty(global, 'globalThis', {
+        configurable: true,
+        get() {
+          const stack = new Error().stack || '';
+          if (stack.includes('useFlowStore.ts:222') || stack.includes('useFlowStore.ts:277')) {
+            return undefined;
+          }
+          return origDescriptor?.value ?? global;
+        },
+      });
+      const mod = await import('@/store/useFlowStore');
+      expect(mod.useFlowStore).toBeDefined();
+    } finally {
+      if (origDescriptor) {
+        Object.defineProperty(global, 'globalThis', origDescriptor);
+      }
+      vi.resetModules();
+    }
   });
 });

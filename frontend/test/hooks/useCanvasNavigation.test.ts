@@ -318,3 +318,19 @@ describe('useCanvasNavigation RAF cancellation on zero velocity', () => {
     cancelSpy.mockRestore();
   });
 });
+
+describe('useCanvasNavigation keydown guard branches', () => {
+  it('ignores defaultPrevented and non-navigation keys', () => {
+    const setViewport = vi.fn();
+    renderHook(() => useCanvasNavigation({ setViewport }));
+
+    const preventedEvent = new KeyboardEvent('keydown', { key: 'w', cancelable: true });
+    preventedEvent.preventDefault();
+    act(() => {
+      globalThis.dispatchEvent(preventedEvent);
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'x' }));
+    });
+
+    expect(setViewport).not.toHaveBeenCalled();
+  });
+});
