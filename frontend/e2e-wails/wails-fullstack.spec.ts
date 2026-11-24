@@ -32,14 +32,24 @@ test.describe('Wails Full-Stack E2E (Go Backend + WebView2)', () => {
 
     // Poll WebView2 CDP endpoint until ready (up to 20s)
     const deadline = Date.now() + 20_000;
+    let cdpReady = false;
     while (Date.now() < deadline) {
+      if (appProcess.exitCode !== null) {
+        throw new Error(`Wails process exited early with code ${appProcess.exitCode}`);
+      }
       try {
         const res = await fetch(`${CDP_URL}/json/version`);
-        if (res.ok) break;
+        if (res.ok) {
+          cdpReady = true;
+          break;
+        }
       } catch {
         // CDP not ready yet
       }
       await new Promise((r) => setTimeout(r, 500));
+    }
+    if (!cdpReady) {
+      throw new Error(`WebView2 CDP endpoint ${CDP_URL} did not become ready within 20s`);
     }
   });
 

@@ -1,5 +1,6 @@
 name: Wails Full-Stack E2E Tests
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
   pull_request:
@@ -44,14 +45,15 @@ jobs:
       - name: Build Wails binary
         run: go build -o bin/kube-simulator.exe .
 
-      - name: Run Wails Full-Stack E2E tests
+      - name: Run Wails Full-Stack E2E tests (manual / interactive runner only)
+        if: github.event_name == 'workflow_dispatch'
         working-directory: frontend
         env:
           WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--remote-debugging-port=9222 --disable-gpu'
         run: pnpm run test:e2e:wails
 
       - name: Upload Wails E2E Report
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
         with:
           name: wails-playwright-report
