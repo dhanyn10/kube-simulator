@@ -731,6 +731,16 @@ const saveSettingIfAvailable = (key: string, value: string): void => {
   const gw = getBackendGateway();
   void gw.saveSetting(key, value);
 };
+/**
+ * Creates the UI slice of the flow store: visual state (colorMode, minimapPosition),
+ * active-node target selectors for configurational modals (role, configmap, secret,
+ * HPA, resource-limit, overview), and persisted-resource lists (savedConfigMaps, savedSecrets)
+ * with helpers to replace/append/delete entries.
+ *
+ * @param set - Zustand setter.
+ * @param get - Zustand getter.
+ * @returns The UiSlice object (state + actions).
+ */
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
   minimapPosition: 'bottom-right',

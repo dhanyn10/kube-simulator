@@ -6,8 +6,15 @@ export interface CommandTreeNode {
   children?: CommandTreeNode[];
 }
 
+/** Specification for a tree leaf: [id, name, description, optional command string]. */
 type LeafSpec = [string, string, string, string?];
 
+/**
+ * Builds a CommandTreeNode leaf from a spec tuple.
+ *
+ * @param leaf - [id, name, description, command?]
+ * @returns Tree node with `command` present only when provided.
+ */
 export const makeLeaf = ([id, name, description, command]: LeafSpec): CommandTreeNode => ({
   id,
   name,
@@ -64,6 +71,10 @@ const DELETE_LEAFS: LeafSpec[] = [
   ['kubectl-delete-service', 'service', 'Delete a service', 'kubectl delete service '],
 ];
 
+/**
+ * Static command tree shown by `TerminalCommandTreeModal` — kubectl root with
+ * children built from GET_LEAFS / DESCRIBE_LEAFS, plus utility commands (help, history, clear).
+ */
 export const COMMAND_TREE_DATA: CommandTreeNode[] = [
   {
     id: 'kubectl',
@@ -100,6 +111,14 @@ export const COMMAND_TREE_DATA: CommandTreeNode[] = [
   ])
 ];
 
+/**
+ * Filters the command tree by a search term: matches nodes on name, command, and description,
+ * and keeps ancestors of matching children. Returns the input array when search is empty.
+ *
+ * @param nodes - Root-level command tree nodes.
+ * @param search - Search term to match against node names/commands/descriptions.
+ * @returns Filtered tree (nodes with matching descendants carry their children along).
+ */
 export const filterCommandTree = (nodes: CommandTreeNode[], search: string): CommandTreeNode[] => {
   if (!search.trim()) return nodes;
   const term = search.toLowerCase();
@@ -121,6 +140,12 @@ export const filterCommandTree = (nodes: CommandTreeNode[], search: string): Com
   }, []);
 };
 
+/**
+ * Collects all node ids from a command tree, depth-first.
+ *
+ * @param nodes - Tree nodes to flatten.
+ * @returns Array of every node id in the tree.
+ */
 export const getAllNodeIds = (nodes: CommandTreeNode[]): string[] => {
   let ids: string[] = [];
   for (const node of nodes) {

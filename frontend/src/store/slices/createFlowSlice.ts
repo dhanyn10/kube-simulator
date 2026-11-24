@@ -263,6 +263,15 @@ const getConnectedNodesForRole = (roleNodeId: string, nodes: Node[], edges: Edge
   return nodes.filter((n) => connectedNodeIds.has(n.id));
 };
 
+/**
+ * Derives RBAC rules for Role nodes by inspecting the nodes connected to each Role
+ * (via edges) and collecting derived resources with `getDerivedResourcesForNode`.
+ * Returns a new nodes array when any rule changed; otherwise the input array.
+ *
+ * @param nodes - Current canvas nodes.
+ * @param edges - Current canvas edges.
+ * @returns Updated nodes array.
+ */
 export const syncRoleRulesFromConnections = (nodes: Node[], edges: Edge[]): Node[] => {
   const roleNodes = nodes.filter((n) => n.type === 'Role');
   if (roleNodes.length === 0) return nodes;
@@ -610,6 +619,15 @@ const buildConnectedServiceData = (
   return buildConnectedServiceWorkloadData(data, targetNodeInStore, targetLabel, targetType);
 };
 
+/**
+ * Checks whether a Service node's current `selector` matches its source node label.
+ * An empty selector is treated as "no selector configured" (returns true).
+ *
+ * @param serviceData - Data of the Service node.
+ * @param sourceNode - The node connected to the Service.
+ * @param srcId - Source node id fallback.
+ * @returns True when the selector is unset or matches the source label.
+ */
 export const shouldApplyTargetServiceSelector = (
   serviceData: Record<string, any> | undefined,
   sourceNode?: Node,
@@ -640,6 +658,15 @@ const syncConnectedPvcNode = (
   return { ...node, data: { ...node.data, pvcStatus: realTimeStatus } };
 };
 
+/**
+ * Syncs an updated source node in a connection pair: rebuilds Service data when the
+ * source is an Ingress connected to a Service target (`buildConnectedIngressData`),
+ * or when the source is a Service with a valid selector target.
+ *
+ * @param updated - The updated source node.
+ * @param ctx - `ConnectedNodeSyncContext` with `syncedNodesList`, `srcId`, `srcNode`, `tgtId`, `tgtNode`.
+ * @returns The (possibly updated) source node.
+ */
 export const syncConnectedSourceNode = (
   updated: Node,
   ctx: ConnectedNodeSyncContext
@@ -664,6 +691,14 @@ export const syncConnectedSourceNode = (
   return updated;
 };
 
+/**
+ * Syncs an updated target node in a connection pair: when the target is a Service
+ * with a valid selector target and the source matches the selector, rebuilds Service data.
+ *
+ * @param updated - The updated target node.
+ * @param ctx - `ConnectedNodeSyncContext` with `syncedNodesList`, `tgtId`, `srcId`, `srcNode`, `tgtNode`.
+ * @returns The (possibly updated) target node.
+ */
 export const syncConnectedTargetNode = (
   updated: Node,
   ctx: ConnectedNodeSyncContext
@@ -735,6 +770,19 @@ const collectExistingPvcWorkloads = (
   return workloads;
 };
 
+/**
+ * Validates the PVC topology for a new edge connection: when neither endpoint is a PVC,
+ * returns null. Otherwise derives the PVC/workload pair and returns an error string when
+ * the pair is invalid (e.g. Multi-Attach / Cross-Namespace Binding / Volume Claim Template
+ * conflicts), or null when topology is valid.
+ *
+ * @param edge - The new edge being connected.
+ * @param sourceNode - Source node of the edge.
+ * @param targetNode - Target node of the edge.
+ * @param nodes - All canvas nodes.
+ * @param edges - All canvas edges.
+ * @returns Error message string or null when no topology error.
+ */
 export const checkPvcTopologyError = (
   edge: Edge,
   sourceNode: Node,
@@ -809,6 +857,15 @@ const applyConnectedNodesSync = (
   return { nextEdges, nextNodes };
 };
 
+/**
+ * Creates the flow slice of the flow store: nodes, edges, and their actions
+ * (add/update/delete/cut/copy/paste nodes & edges, layout, connection sync,
+ * autoLayout, etc.).
+ *
+ * @param set - Zustand setter.
+ * @param get - Zustand getter.
+ * @returns The FlowSlice object (state + actions).
+ */
 export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set, get) => ({
   nodes: [],
   edges: [],

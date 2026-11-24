@@ -66,6 +66,14 @@ const mapEdgesWithStrings = (edges: any[] = []): any[] => {
   });
 };
 
+/**
+ * Parses a project JSON string, hydrates nodes onto the store, and sets currentProject
+ * to `{ id: -1, name: data.name || 'Imported Architecture' }`. Returns true on success;
+ * on failure logs the error, opens the log modal, and returns false.
+ *
+ * @param json - Serialized project payload ({ name, canvas }).
+ * @returns True when the project was imported, false on any parse/validation error.
+ */
 export const parseAndHydrateProject = (json: string): boolean => {
   if (!json) return false;
   try {
@@ -100,6 +108,17 @@ export const parseAndHydrateProject = (json: string): boolean => {
   }
 };
 
+/**
+ * Hook exposing project file export/import handlers that operate on the given canvas nodes/edges.
+ *
+ * - `handleExportFile`: exports the current project via `exportProjectFile(projectName, canvasContent, yamlContent)`
+ *   (name falls back to 'unnamed-project'; logs on success or failure).
+ * - `handleImportFile`: opens `importProjectFile()`, then `parseAndHydrateProject` (returns early when empty).
+ *
+ * @param nodes - Active canvas nodes.
+ * @param edges - Active canvas edges.
+ * @returns Object with `handleExportFile` and `handleImportFile` callbacks.
+ */
 export const useFileSystem = (nodes: Node[], edges: Edge[]) => {
   useEffectExternalFileListener();
 
