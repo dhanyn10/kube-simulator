@@ -9,9 +9,15 @@ import { generateYamlClientSide } from './manifestGenerator';
  * @param inputs - Array of class names, conditional objects, or class strings.
  * @returns Combined string of merged Tailwind CSS classes without duplicate/conflicting utilities.
  */
-export function cn(...inputs: ClassValue[]) {
+export function classNames(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+/**
+ * Transition alias for the former `cn` name. New call sites should use `classNames`;
+ * the alias will be removed once all call sites are migrated.
+ */
+export const cn = classNames;
 
 /**
  * Trims leading and trailing hyphen (`-`) characters from a string.

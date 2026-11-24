@@ -58,9 +58,9 @@ export const handleGetNamespaces = (addActivityLog: (line: string) => void, node
     return;
   }
   addActivityLog(`${'NAME'.padEnd(38)} STATUS`);
-  namespaces.forEach(n => {
-    const name = String(n.data?.label || n.id);
-    addActivityLog(`${name.padEnd(38)} ${String(n.data?.status || 'Active')}`);
+  namespaces.forEach((namespaceNode) => {
+    const name = String(namespaceNode.data?.label || namespaceNode.id);
+    addActivityLog(`${name.padEnd(38)} ${String(namespaceNode.data?.status || 'Active')}`);
   });
 };
 
@@ -74,9 +74,9 @@ export const handleGetStatefulSets = (addActivityLog: (line: string) => void, no
     return;
   }
   addActivityLog(`${"NAME".padEnd(30)} READY   UP-TO-DATE   AVAILABLE   AGE`);
-  statefulSets.forEach(s => {
-    const name = (s.data?.label as string) || s.id;
-    const replicas = (s.data?.replicas as number) || 1;
+  statefulSets.forEach((statefulSet) => {
+    const name = (statefulSet.data?.label as string) || statefulSet.id;
+    const replicas = (statefulSet.data?.replicas as number) || 1;
     const status = isSimulating ? `${replicas}/${replicas}` : `0/${replicas}`;
     addActivityLog(`${String(name).padEnd(30)} ${status.padEnd(7)} ${String(replicas).padEnd(12)} ${String(isSimulating ? replicas : 0).padEnd(11)} 2m`);
   });
@@ -92,11 +92,11 @@ export const handleGetPvcs = (addActivityLog: (line: string) => void, nodes: Nod
     return;
   }
   addActivityLog(`${'NAME'.padEnd(38)} SIZE    STATUS    ACCESSMODES`);
-  pvcs.forEach(p => {
-    const name = String(p.data?.label || p.id);
-    const size = String(p.data?.storageCapacity || p.data?.size || '-');
-    const status = String(p.data?.pvcStatus || '-');
-    const modes = Array.isArray(p.data?.accessMode) ? p.data.accessMode.join(',') : '-';
+  pvcs.forEach((pvc) => {
+    const name = String(pvc.data?.label || pvc.id);
+    const size = String(pvc.data?.storageCapacity || pvc.data?.size || '-');
+    const status = String(pvc.data?.pvcStatus || '-');
+    const modes = Array.isArray(pvc.data?.accessMode) ? pvc.data.accessMode.join(',') : '-';
     addActivityLog(`${String(name).padEnd(38)} ${size.padEnd(8)} ${status.padEnd(9)} ${modes}`);
   });
 };
@@ -160,8 +160,8 @@ export const handleGetCommands = (
     return true;
   }
 
-  const isStsGet = ['kubectl get statefulsets', 'kubectl get statefulset', 'kubectl get sts'].includes(cmdLower);
-  if (isStsGet) {
+  const isStatefulSetGet = ['kubectl get statefulsets', 'kubectl get statefulset', 'kubectl get sts'].includes(cmdLower);
+  if (isStatefulSetGet) {
     handleGetStatefulSets(addActivityLog, nodes, isSimulating);
     return true;
   }
@@ -362,43 +362,43 @@ const printNodeDescription = (
   addActivityLog(`  Normal  Started    44s   kubelet            Started container app-container`);
 };
 
-const printNamespaceDescription = (n: Node, addActivityLog: (line: string) => void) => {
-  const name = (n.data?.label as string) || n.id;
+const printNamespaceDescription = (namespaceNode: Node, addActivityLog: (line: string) => void) => {
+  const name = (namespaceNode.data?.label as string) || namespaceNode.id;
   addActivityLog(`Name:               ${name}`);
-  addActivityLog(`Status:             ${String(n.data?.status || 'Active')}`);
+  addActivityLog(`Status:             ${String(namespaceNode.data?.status || 'Active')}`);
 };
 
-const printServiceDescription = (n: Node, addActivityLog: (line: string) => void) => {
-  const name = (n.data?.label as string) || n.id;
+const printServiceDescription = (serviceNode: Node, addActivityLog: (line: string) => void) => {
+  const name = (serviceNode.data?.label as string) || serviceNode.id;
   addActivityLog(`Name:               ${name}`);
-  addActivityLog(`Type:               ${String(n.data?.serviceType || 'ClusterIP')}`);
-  addActivityLog(`Port:               ${String(n.data?.port || 80)}/TCP`);
-  addActivityLog(`Selector:           ${String((n.data as any)?.selector || '<none>')}`);
+  addActivityLog(`Type:               ${String(serviceNode.data?.serviceType || 'ClusterIP')}`);
+  addActivityLog(`Port:               ${String(serviceNode.data?.port || 80)}/TCP`);
+  addActivityLog(`Selector:           ${String((serviceNode.data as any)?.selector || '<none>')}`);
 };
 
-const printIngressDescription = (n: Node, addActivityLog: (line: string) => void) => {
-  const name = (n.data?.label as string) || n.id;
+const printIngressDescription = (ingressNode: Node, addActivityLog: (line: string) => void) => {
+  const name = (ingressNode.data?.label as string) || ingressNode.id;
   addActivityLog(`Name:               ${name}`);
-  addActivityLog(`Host:               ${String((n.data as any)?.ingressHost || '<none>')}`);
-  addActivityLog(`BackendService:     ${String((n.data as any)?.backendServiceName || '<none>')}`);
+  addActivityLog(`Host:               ${String((ingressNode.data as any)?.ingressHost || '<none>')}`);
+  addActivityLog(`BackendService:     ${String((ingressNode.data as any)?.backendServiceName || '<none>')}`);
 };
 
-const printPvcDescription = (n: Node, addActivityLog: (line: string) => void) => {
-  const name = (n.data?.label as string) || n.id;
+const printPvcDescription = (pvcNode: Node, addActivityLog: (line: string) => void) => {
+  const name = (pvcNode.data?.label as string) || pvcNode.id;
   addActivityLog(`Name:               ${name}`);
-  addActivityLog(`StorageClass:       ${String((n.data as any)?.storageClass || '<none>')}`);
-  addActivityLog(`Size:               ${String((n.data as any)?.storageCapacity || (n.data as any)?.size || '<none>')}`);
-  addActivityLog(`AccessModes:        ${Array.isArray((n.data as any)?.accessMode) ? (n.data as any).accessMode.join(',') : '<none>'}`);
-  addActivityLog(`Status:             ${String((n.data as any)?.pvcStatus || '<none>')}`);
+  addActivityLog(`StorageClass:       ${String((pvcNode.data as any)?.storageClass || '<none>')}`);
+  addActivityLog(`Size:               ${String((pvcNode.data as any)?.storageCapacity || (pvcNode.data as any)?.size || '<none>')}`);
+  addActivityLog(`AccessModes:        ${Array.isArray((pvcNode.data as any)?.accessMode) ? (pvcNode.data as any).accessMode.join(',') : '<none>'}`);
+  addActivityLog(`Status:             ${String((pvcNode.data as any)?.pvcStatus || '<none>')}`);
 };
 
-const printHpaDescription = (n: Node, addActivityLog: (line: string) => void) => {
-  const name = (n.data?.label as string) || n.id;
+const printHpaDescription = (hpaNode: Node, addActivityLog: (line: string) => void) => {
+  const name = (hpaNode.data?.label as string) || hpaNode.id;
   addActivityLog(`Name:               ${name}`);
-  addActivityLog(`MinReplicas:        ${String((n.data as any)?.minReplicas || 1)}`);
-  addActivityLog(`MaxReplicas:        ${String((n.data as any)?.maxReplicas || 10)}`);
-  addActivityLog(`TargetCPU:          ${String((n.data as any)?.targetCPU || 50)}%`);
-  addActivityLog(`TargetMemory:       ${String((n.data as any)?.targetMemory || '<none>')}`);
+  addActivityLog(`MinReplicas:        ${String((hpaNode.data as any)?.minReplicas || 1)}`);
+  addActivityLog(`MaxReplicas:        ${String((hpaNode.data as any)?.maxReplicas || 10)}`);
+  addActivityLog(`TargetCPU:          ${String((hpaNode.data as any)?.targetCPU || 50)}%`);
+  addActivityLog(`TargetMemory:       ${String((hpaNode.data as any)?.targetMemory || '<none>')}`);
 };
 
 /**

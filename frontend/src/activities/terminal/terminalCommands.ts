@@ -675,33 +675,33 @@ export const handleGetAllCommand = (
     });
   }
 
-  const statefulSets = ctx.nodes.filter(n => n.type === 'StatefulSet');
+  const statefulSets = ctx.nodes.filter(node => node.type === 'StatefulSet');
   if (statefulSets.length > 0) {
     ctx.addActivityLog(`\n${"NAME".padEnd(38)} READY   UP-TO-DATE   AVAILABLE   AGE`);
-    statefulSets.forEach(s => {
-      const name = s.data.label || s.id;
-      const replicas = s.data?.replicas || 1;
+    statefulSets.forEach(statefulSet => {
+      const name = statefulSet.data.label || statefulSet.id;
+      const replicas = statefulSet.data?.replicas || 1;
       ctx.addActivityLog(`${String(name).padEnd(38)} ${String(ctx.isSimulating ? replicas : 0).padEnd(7)} ${String(replicas).padEnd(12)} ${String(replicas).padEnd(11)} 2m`);
     });
   }
 
-  const namespaces = ctx.nodes.filter(n => n.type === 'Namespace');
+  const namespaces = ctx.nodes.filter(node => node.type === 'Namespace');
   if (namespaces.length > 0) {
     ctx.addActivityLog(`\n${'NAME'.padEnd(38)} STATUS`);
-    namespaces.forEach(ns => {
-      const name = ns.data.label || ns.id;
-      ctx.addActivityLog(`${String(name).padEnd(38)} ${String(ns.data?.status || 'Active')}`);
+    namespaces.forEach(namespaceNode => {
+      const name = namespaceNode.data.label || namespaceNode.id;
+      ctx.addActivityLog(`${String(name).padEnd(38)} ${String(namespaceNode.data?.status || 'Active')}`);
     });
   }
 
-  const pvcs = ctx.nodes.filter(n => n.type === 'PVC');
+  const pvcs = ctx.nodes.filter(node => node.type === 'PVC');
   if (pvcs.length > 0) {
     ctx.addActivityLog(`\n${'NAME'.padEnd(38)} SIZE    STATUS    ACCESSMODES`);
-    pvcs.forEach(p => {
-      const name = p.data.label || p.id;
-      const size = String((p.data as any)?.storageCapacity || (p.data as any)?.size || '-');
-      const status = String((p.data as any)?.pvcStatus || '-');
-      const modes = Array.isArray((p.data as any)?.accessMode) ? (p.data as any).accessMode.join(',') : '-';
+    pvcs.forEach(pvcNode => {
+      const name = pvcNode.data.label || pvcNode.id;
+      const size = String((pvcNode.data as any)?.storageCapacity || (pvcNode.data as any)?.size || '-');
+      const status = String((pvcNode.data as any)?.pvcStatus || '-');
+      const modes = Array.isArray((pvcNode.data as any)?.accessMode) ? (pvcNode.data as any).accessMode.join(',') : '-';
       ctx.addActivityLog(`${String(name).padEnd(38)} ${size.padEnd(8)} ${status.padEnd(9)} ${modes}`);
     });
   }
