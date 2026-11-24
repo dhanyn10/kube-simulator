@@ -298,3 +298,18 @@ describe('workloadPodsModalHelpers', () => {
     });
   });
 });
+
+describe('workloadPodsModalHelpers dynamic worker fallback', () => {
+  it('handles worker-5 beyond default WORKER_NODES and default podHash fallback', () => {
+    const dep = { id: 'd1', type: 'Deployment', data: { label: 'svc', replicas: 1 } };
+    const pod = { id: 'p1', type: 'Pod', parentId: 'd1', data: { assignedNode: 'worker-5' } };
+
+    const pods = buildWorkloadPodList(dep, [dep, pod]);
+    expect(pods[0].workerId).toBe('worker-5');
+    expect(pods[0].podHash).toBe('1pd4l');
+
+    const dist = getWorkerDistribution(pods);
+    expect(dist).toHaveLength(5);
+    expect(dist.find((d) => d.workerId === 'worker-5')?.count).toBe(1);
+  });
+});

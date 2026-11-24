@@ -287,3 +287,16 @@ describe('syncSecretPrecedenceOrder', () => {
     expect(addLog).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('configMapPrecedenceHelpers remaining branches', () => {
+  it('handles reordered item with empty name', () => {
+    const updateNodeData = vi.fn();
+    const setSaved = vi.fn();
+    const reordered = [
+      { id: 'cm-1', name: '', data: {}, source: 'saved' as const },
+      { id: 'cm-2', name: 'cm-two', data: {}, source: 'saved' as const },
+    ];
+    syncConfigMapPrecedenceOrder(reordered, [], updateNodeData, [], setSaved);
+    expect(setSaved).not.toHaveBeenCalled();
+  });
+});
