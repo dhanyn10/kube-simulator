@@ -251,4 +251,101 @@ describe('PodNode', () => {
 
     expect(screen.queryByText('node:')).toBeNull();
   });
+
+  it('resolves type from data.type, then props.type, then Pod fallback', () => {
+    // data.type is used when present
+    const withDataType = {
+      id: 'pod-type-1',
+      type: 'Pod',
+      data: { label: 'Typed Pod', type: 'Deployment' },
+    } as any;
+    const { unmount: unmount1 } = render(
+      <ReactFlowProvider>
+        <PodNode {...withDataType} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('Pod')).toBeDefined();
+    unmount1();
+
+    // falls back to props.type when data.type is missing
+    const withPropsType = {
+      id: 'pod-type-2',
+      type: 'CustomType',
+      data: { label: 'Props Type Pod' },
+    } as any;
+    const { unmount: unmount2 } = render(
+      <ReactFlowProvider>
+        <PodNode {...withPropsType} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('Pod')).toBeDefined();
+    unmount2();
+
+    // falls back to 'Pod' when neither is set
+    const bare = {
+      id: 'pod-type-3',
+      type: undefined,
+      data: { label: 'Bare Pod' },
+    } as any;
+    const { unmount: unmount3 } = render(
+      <ReactFlowProvider>
+        <PodNode {...bare} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('Pod')).toBeDefined();
+    unmount3();
+  });
+
+  it('renders image row only when data.image is set and displaySettings.image is not false', () => {
+    const withImage = {
+      id: 'pod-img-1',
+      type: 'Pod',
+      data: { label: 'Img Pod', image: 'nginx:latest', displaySettings: { image: true } },
+    } as any;
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <PodNode {...withImage} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('image:')).toBeDefined();
+    expect(screen.getByText('nginx:latest')).toBeDefined();
+
+    // image: false -> hidden even if data.image is set
+    rerender(
+      <ReactFlowProvider>
+        <PodNode {...withImage} data={{ ...withImage.data, displaySettings: { image: false } }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.queryByText('image:')).toBeNull();
+
+    // no image at all -> hidden
+    const noImage = {
+      id: 'pod-img-2',
+      type: 'Pod',
+      data: { label: 'No Img Pod' },
+    } as any;
+    const { unmount } = render(
+      <ReactFlowProvider>
+        <PodNode {...noImage} />
+      </ReactFlowProvider>
+    );
+    expect(screen.queryByText('image:')).toBeNull();
+    unmount();
+  });
+
+  it('renders image row in light mode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    const props = {
+      id: 'pod-img-light',
+      type: 'Pod',
+      data: { label: 'Light Img Pod', image: 'redis:7' },
+    } as any;
+    render(
+      <ReactFlowProvider>
+        <PodNode {...props} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('image:')).toHaveClass('text-slate-400');
+    expect(screen.getByText('redis:7')).toBeDefined();
+  });
 });
