@@ -98,3 +98,17 @@ describe('LineChart', () => {
     expect(screen.getByText('0%')).toBeInTheDocument();
   });
 });
+
+describe('LineChart simulationSpeed transition classes', () => {
+  it('applies transition-none when simulationSpeed is 10 and duration-[30ms] when simulationSpeed is 5', () => {
+    useFlowStore.setState({ simulationSpeed: 10 });
+    const { container, rerender } = render(
+      <LineChart data={[10, 20]} color="blue" label="CPU" />
+    );
+    expect(container.querySelector('.transition-none')).toBeTruthy();
+
+    useFlowStore.setState({ simulationSpeed: 5 });
+    rerender(<LineChart data={[10, 20]} color="blue" label="CPU" />);
+    expect(container.querySelector('.duration-\\[30ms\\]')).toBeTruthy();
+  });
+});
