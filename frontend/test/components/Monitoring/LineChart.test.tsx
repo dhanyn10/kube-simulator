@@ -112,3 +112,13 @@ describe('LineChart simulationSpeed transition classes', () => {
     expect(container.querySelector('.duration-\\[30ms\\]')).toBeTruthy();
   });
 });
+
+describe('LineChart simulationSpeed fallback', () => {
+  it('falls back to speed 1 when simulationSpeed is 0', () => {
+    useFlowStore.setState({ simulationSpeed: 0 });
+    const { container } = render(
+      <LineChart data={[10, 20]} color="blue" label="CPU" />
+    );
+    expect(container.querySelector('.duration-\\[150ms\\]')).toBeTruthy();
+  });
+});

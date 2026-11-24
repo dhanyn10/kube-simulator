@@ -121,3 +121,20 @@ describe('useRightSidebar', () => {
     document.body.removeChild(dropdownContainer);
   });
 });
+
+describe('useRightSidebar detached & detach handler', () => {
+  it('switches to settings tab in detached right mode when configuringNodeId is set, and handles detach', () => {
+    globalThis.history.replaceState({}, '', '?mode=sidebar-right');
+    useFlowStore.setState({ configuringNodeId: 'node-1' });
+
+    const { result } = renderHook(() => useRightSidebar());
+    expect(result.current.activeTab).toBe('settings');
+
+    act(() => {
+      result.current.handleDetachSidebar();
+    });
+    expect(useFlowStore.getState().isRightSidebarDetached).toBe(true);
+
+    globalThis.history.replaceState({}, '', '/');
+  });
+});

@@ -338,3 +338,17 @@ describe('useFlowStore', () => {
 
 
 
+
+describe('useFlowStore autosave savedConfigMaps sync', () => {
+  it('merges savedConfigMaps into autosave sync when nodes are updated', async () => {
+    useFlowStore.setState({
+      nodes: [],
+      savedConfigMaps: [{ id: 'cm-saved-1', name: 'saved-cm', data: { A: '1' } }],
+    });
+
+    useFlowStore.getState().addNode('Pod', { x: 50, y: 50 });
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(useFlowStore.getState().savedConfigMaps).toHaveLength(1);
+  });
+});

@@ -3,6 +3,7 @@ import {
   checkIsKeyOverridden,
   reorderItems,
   syncConfigMapPrecedenceOrder,
+  syncSecretPrecedenceOrder,
 } from '@/components/Modals/configMapPrecedenceHelpers';
 import * as storageHelpers from '@/activities/modals/configMapStorageHelpers';
 
@@ -251,5 +252,38 @@ describe('configMapPrecedenceHelpers', () => {
       const arg = mockUpdateNodeData.mock.calls.at(-1)?.[1];
       expect(arg).toBeDefined();
     });
+  });
+});
+
+describe('syncSecretPrecedenceOrder', () => {
+  it('synchronizes reordered Secret items across nodes and savedSecrets', () => {
+    const updateNodeData = vi.fn();
+    const setSavedSecrets = vi.fn();
+    const addLog = vi.fn();
+    const reordered = [
+      { id: 'sec-2', name: 'db-secret', data: { KEY: 'val2' }, source: 'saved' as const },
+      { id: 'sec-1', name: 'app-secret', data: { KEY: 'val1' }, source: 'saved' as const },
+    ];
+    const nodes = [
+      {
+        id: 'node-1',
+        data: {
+          secrets: [
+            { id: 'sec-1', name: 'app-secret', data: { KEY: 'val1' } },
+            { id: 'sec-2', name: 'db-secret', data: { KEY: 'val2' } },
+          ],
+        },
+      },
+    ];
+    const savedSecrets = [
+      { id: 'sec-1', name: 'app-secret', data: { KEY: 'val1' } },
+      { id: 'sec-2', name: 'db-secret', data: { KEY: 'val2' } },
+    ];
+
+    syncSecretPrecedenceOrder(reordered, nodes, updateNodeData, savedSecrets, setSavedSecrets, addLog);
+
+    expect(updateNodeData).toHaveBeenCalledTimes(1);
+    expect(setSavedSecrets).toHaveBeenCalledTimes(1);
+    expect(addLog).toHaveBeenCalledTimes(1);
   });
 });

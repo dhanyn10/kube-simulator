@@ -47,3 +47,13 @@ describe('imageCharacteristicsHelpers', () => {
     expect(javaRes.memValue).toBeGreaterThan(goRes.memValue);
   });
 });
+
+describe('getImageCharacteristics php, redis, and database presets', () => {
+  it('returns php, cache, and database presets for matching image names', () => {
+    expect(getImageCharacteristics('php:8.2-fpm')).toBeDefined();
+    expect(getImageCharacteristics('redis:7-alpine')).toBeDefined();
+    expect(getImageCharacteristics('postgres:16')).toBeDefined();
+    expect(getImageCharacteristics('mysql:8.0')).toBeDefined();
+    expect(getImageCharacteristics('mariadb:11')).toBeDefined();
+  });
+});
