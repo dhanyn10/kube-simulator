@@ -28,6 +28,20 @@ import { evaluateRbacForCommand } from './terminalConfigCommands';
 import { createDefaultTerminalCommandFactory } from './commandFactory';
 import { CommandHistoryEntry, formatCommandTimestamp } from './terminalLogUtils';
 
+/**
+ * Executes a terminal command string through the full dispatch pipeline:
+ * 1. Admin commands via `handleAdminCommands`.
+ * 2. RBAC permission check via `evaluateRbacForCommand`.
+ * 3. Operational handlers (apply, get all, scale, set image, rollout, delete, describe...).
+ * 4. `TerminalCommandFactory` chain (config, get, logs, history, help).
+ * 5. Fallback: logs "kubectl-mock: command not found".
+ *
+ * @param cmd - The raw user-typed command string.
+ * @param ctx - Command execution context (nodes, store getters, callbacks).
+ * @param setTerminalSelectedResourceId - Callback to select the target node in the canvas.
+ * @param setTerminalActiveTab - Callback to switch the terminal output stream tab ('activity' | 'logs').
+ * @param historyEntries - Recorded command history (passed to `history` command).
+ */
 export const executeKubectlCommand = (
   cmd: string,
   ctx: CommandContext,

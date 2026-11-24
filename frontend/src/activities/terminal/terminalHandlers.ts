@@ -122,13 +122,15 @@ export const handleGetServices = (addActivityLog: (line: string) => void, nodes:
 };
 
 /**
- * Evaluates and dispatches 'kubectl get' sub-commands for pods, deployments, and services.
+ * Dispatches 'kubectl get <resource>' sub-commands (pods, deployments, services,
+ * namespaces, statefulsets, and pvcs) by filtering canvas nodes by type and printing
+ * their status tables via the dedicated handlers.
  *
  * @param cmdLower - Normalized lowercase CLI command string.
  * @param addActivityLog - Function callback to append log lines.
  * @param nodes - Array of active canvas nodes.
  * @param isSimulating - Flag indicating whether simulation loop is actively running.
- * @returns True if command was matched and handled; false otherwise.
+ * @returns True if a handler matched and handled; false otherwise.
  */
 export const handleGetCommands = (
   cmdLower: string,
@@ -403,7 +405,8 @@ const printHpaDescription = (hpaNode: Node, addActivityLog: (line: string) => vo
 
 /**
  * Handles 'kubectl describe <pod|po|deploy|service|namespace|ingress|pvc|hpa> <name>' commands,
- * outputting specifications and event logs.
+ * outputting resource specifications per type (image/cpu/memory for pods/deploys, type/port for
+ * services, storage details for PVCs, HPA min/max/CPU target, etc.).
  *
  * @param cmd - Raw input command string.
  * @param addActivityLog - Function callback to append log lines.

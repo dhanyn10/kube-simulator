@@ -41,6 +41,17 @@ const getResourceGroup = (type: string) => {
   return '';
 };
 
+/**
+ * Handles 'kubectl apply -f <file>' commands.
+ *
+ * Logs the resources of matching types found on the canvas (Deployment, ReplicaSet, Pod,
+ * Service, Ingress, HPA, PVC, ConfigMap, Secret) without modifying them; a manifest with
+ * no recognized resources logs "No resources defined in the manifest."
+ *
+ * @param cmd - Raw input command string.
+ * @param ctx - Command execution context (nodes + logging callback).
+ * @returns True if the command matched and was handled; false otherwise.
+ */
 export const handleApplyCommand = (
   cmd: string,
   ctx: CommandContext
@@ -368,6 +379,16 @@ export const handleAdminCommands = (
   return false;
 };
 
+/**
+ * Handles 'kubectl scale deployment/<name> --replicas=<n>' commands.
+ *
+ * Updates the Deployment/ReplicaSet node on the canvas via `updateNodeData` and logs
+ * the previous and new replica counts. Logs NotFound when the target workload isn't found.
+ *
+ * @param cmd - Raw input command string.
+ * @param ctx - Command execution context (nodes, updateNodeData, logging).
+ * @returns True if the command matched and was handled; false otherwise.
+ */
 export const handleScaleCommand = (
   cmd: string,
   ctx: CommandContext
@@ -545,6 +566,17 @@ export const handleDeleteServiceCommand = (
   return true;
 };
 
+/**
+ * Handles 'kubectl delete pod <name>' commands.
+ *
+ * Deletes the Pod from the canvas. When the pod is attached to a Deployment or ReplicaSet,
+ * triggers the simulated ReplicaSet self-healing flow (replacement pod is recreated via
+ * `syncDeployment`) instead of a plain delete. Logs a NotFound error when the pod isn't found.
+ *
+ * @param cmd - Raw input command string.
+ * @param ctx - Command execution context (nodes, deleteNodes, setState, logging).
+ * @returns True if the command matched and was handled; false otherwise.
+ */
 export const handleDeletePodCommand = (
   cmd: string,
   ctx: CommandContext
@@ -602,6 +634,15 @@ export const handleDeletePodCommand = (
   return true;
 };
 
+/**
+ * Handles 'kubectl get all' — prints a combined status table of pods, deployments,
+ * services, ingresses, HPA (both standalone and attached), statefulsets, namespaces,
+ * and persistentvolumeclaims found on the canvas.
+ *
+ * @param cmd - Raw input command string.
+ * @param ctx - Command execution context (nodes, isSimulating, logging).
+ * @returns True if the command matched and was handled; false otherwise.
+ */
 export const handleGetAllCommand = (
   cmd: string,
   ctx: CommandContext

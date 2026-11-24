@@ -789,6 +789,15 @@ const trimByPartialWord = (item: SuggestionItem, completedPrefix: string): strin
   return null;
 };
 
+/**
+ * Trims a suggestion's display label against user input, preferring the longest
+ * word-prefix match so the dropdown shows the already-typed portion and the remainder
+ * (e.g. typing "kubectl ge" -> label "pods" for suggestion "kubectl get pods").
+ *
+ * @param item - Suggestion item to trim (kept if no match applies).
+ * @param input - Current user input string.
+ * @returns A copy of `item` with the trimmed `label`, or the original when nothing matches.
+ */
 export const trimSuggestionLabel = (item: SuggestionItem, input: string): SuggestionItem => {
   const trimmed = input?.trim();
   if (!trimmed) return item;
@@ -808,6 +817,22 @@ export const trimSuggestionLabel = (item: SuggestionItem, input: string): Sugges
   return item;
 };
 
+/**
+ * Computes the filtered + trimmed suggestion list for the terminal input.
+ *
+ * Behavior:
+ * - Admin-mode flows return `ADMIN_SUGGESTIONS` (password-gated); returns empty while awaiting the admin password.
+ * - Sequence matches against deployment/pod names short-circuit with `matchSequenceCandidates`.
+ * - "kubectl" prefix input → top-level commands or subcommand candidates per token count;
+ *   other input → `UTILITY_COMMANDS` + `KUBECTL_TOP_COMMANDS`.
+ * - Non-empty input with no tokens → empty list (user is mid-command).
+ *
+ * @param input - Current user input in the terminal form.
+ * @param nodes - Active canvas nodes (used for dynamic names).
+ * @param isAdminAuthenticated - Whether the user is authenticated in admin mode.
+ * @param isAwaitingAdminPassword - Whether an admin password entry is pending.
+ * @returns Up to 10 unique, trimmed suggestions; empty when input is blank or awaiting password.
+ */
 export const getAutocompleteSuggestions = (
   input: string,
   nodes: Node[],
