@@ -23,12 +23,25 @@ interface PathRowItemProps {
   readonly onDelete: (id: string) => void;
 }
 
+/**
+ * Normalizes an ingress path: trims whitespace and ensures it starts with '/'
+ * (defaults to '/' when empty).
+ */
 export const normalizeIngressPath = (rawPath: string): string => {
   const trimmed = rawPath.trim();
   if (!trimmed) return '/';
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
 };
 
+/**
+ * Resolves ClusterIP services available for an Ingress node's paths modal:
+ * filters services by namespace (ingress's parentId) and appends the list of
+ * available service names for autocomplete.
+ *
+ * @param ingressNode - The Ingress node (parentId selects the namespace).
+ * @param nodes - Canvas nodes.
+ * @returns `{ clusterIpServices, availableServiceNames }`.
+ */
 export const resolveIngressClusterIpServices = (
   ingressNode: any,
   nodes: any[]
@@ -206,6 +219,12 @@ const PathRowItem: React.FC<PathRowItemProps> = ({
   );
 };
 
+/**
+ * Modal for editing Ingress paths (`normalizeIngressPath` + validation of duplicates/canDelete).
+ *
+ * @param props - `IngressPathsModalProps` (isOpen, onClose, ingressNode, onSave).
+ * @returns Modal JSX.
+ */
 export const IngressPathsModal: React.FC<IngressPathsModalProps> = ({
   isOpen,
   onClose,

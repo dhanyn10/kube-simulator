@@ -2,6 +2,9 @@ import React from 'react';
 import { Network } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Renders the Service Port / Target Port (container) number inputs used in Service config.
+ */
 export interface PortMappingConfigProps {
   port: number | string;
   targetPort?: number | string;
@@ -12,6 +15,12 @@ export interface PortMappingConfigProps {
   targetPortLabel?: string;
 }
 
+/**
+ * Renders Service Port (and optional target port) input fields for Service nodes.
+ *
+ * @param props - `{ port, targetPort, onPortChange, onTargetPortChange, colorMode, portLabel?, targetPortLabel? }`.
+ * @returns Port input section JSX.
+ */
 export const PortMappingConfig: React.FC<PortMappingConfigProps> = ({
   port,
   targetPort,

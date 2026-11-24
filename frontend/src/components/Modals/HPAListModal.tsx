@@ -13,6 +13,9 @@ interface HPAListModalProps {
   onAddNewHpa: () => void;
 }
 
+/**
+ * Modal listing HPAs attached to a node (via `AttachedResourceListModal`) with edit/delete actions.
+ */
 export const HPAListModal: React.FC<HPAListModalProps> = ({
   isOpen,
   onClose,

@@ -25,6 +25,10 @@ const getPatternButtonClass = (active: boolean, isDark: boolean): string => {
   return 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50';
 };
 
+/**
+ * Profile popover shown in the canvas top-right corner (or backdrop): profile name
+ * actions and canvas settings (background variant/opacity, autosave toggle, etc.).
+ */
 export const CanvasProfilePopover: React.FC<CanvasProfilePopoverProps> = ({
   isOpen,
   onClose,

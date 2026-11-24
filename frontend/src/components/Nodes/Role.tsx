@@ -4,6 +4,9 @@ import { ShieldCheck } from 'lucide-react';
 import { BaseNode } from './BaseNode';
 import { K8sNodeData } from '@/types';
 
+/**
+ * Role node card: renders RBAC rules (rules can be hidden via `displaySettings.rules`).
+ */
 export const RoleNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const rules = data.rules || [];

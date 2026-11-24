@@ -27,6 +27,13 @@ const RESTART_POLICIES = [
   { id: 'Never', label: 'Never' }
 ] as const;
 
+/**
+ * Checks whether a Pod node is a controller-managed child pod (has parent, replicas,
+ * parentReplicas > 1, or is part of a StatefulSet workload type).
+ *
+ * @param node - Canvas node to check.
+ * @returns True when the node is a controller-managed pod.
+ */
 export const isControllerPodNode = (node: any): boolean => {
   if (!node) return false;
   return Boolean(
@@ -47,6 +54,10 @@ interface WorkloadRestartPolicySectionProps {
   readonly performUpdate: (updates: any) => void;
 }
 
+/**
+ * Restart policy dropdown section for workloads (Always / OnFailure / Never);
+ * disabled (hidden) when `isControllerPod` is true.
+ */
 export const WorkloadRestartPolicySection: React.FC<WorkloadRestartPolicySectionProps> = ({
   selectedNode,
   isControllerPod,

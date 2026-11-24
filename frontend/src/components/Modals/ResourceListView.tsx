@@ -347,6 +347,13 @@ export interface ResourceListViewProps {
   readonly accentColor?: 'teal' | 'rose';
 }
 
+/**
+ * Generic list view used by config map/secret/HPA/resource limit list modals:
+ * shows items in a table with pagination, column visibility toggle, search, precedence view.
+ *
+ * @param props - `ResourceListViewProps` (resourceType, storageKey, items, callbacks...).
+ * @returns List view JSX.
+ */
 export const ResourceListView: React.FC<ResourceListViewProps> = ({
   resourceType,
   storageKey,

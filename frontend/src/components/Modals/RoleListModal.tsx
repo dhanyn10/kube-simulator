@@ -13,6 +13,9 @@ interface RoleListModalProps {
   onAddNewRole: () => void;
 }
 
+/**
+ * Modal listing roles attached to a node (via `AttachedResourceListModal`) with edit/delete actions.
+ */
 export const RoleListModal: React.FC<RoleListModalProps> = ({
   isOpen,
   onClose,

@@ -15,6 +15,9 @@ interface MultiProgressBarProps {
   className?: string;
 }
 
+/**
+ * Stacked multi-color progress bar for resource display (segments array).
+ */
 export const MultiProgressBar = ({
   segments,
   height = "h-2.5",

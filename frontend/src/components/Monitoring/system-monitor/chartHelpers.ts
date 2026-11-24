@@ -1,6 +1,9 @@
 import { SimulationMetricPoint } from '@/store/types';
 import { DeploymentSummary, TimeRangeFilter } from './types';
 
+/**
+ * Fixed CSS color palette for network/replica series in the system-monitor charts.
+ */
 export const CHART_PALETTE = [
   '#3b82f6', // blue
   '#10b981', // emerald
@@ -587,6 +590,16 @@ const aggregateBucketTrafficMetrics = (
   };
 };
 
+/**
+ * Computes network traffic time series (RPM) and latency time series (ms) for the
+ * system-monitor Network Panel from deployment metrics. Buckets by minute when points
+ * have `minuteIndex`, otherwise uses unindexed aggregation.
+ *
+ * @param deployments - Deployment summaries to chart.
+ * @param metrics - Simulation metrics keyed by deployment id.
+ * @param interval - Optional time-range filter used for bucketing.
+ * @returns `{ trafficData, currentTrafficRpm, currentLatency }`; latest point as 0 when empty.
+ */
 export const calculateNetworkMetrics = (
   deployments: DeploymentSummary[],
   metrics: Record<string, SimulationMetricPoint[]>,
@@ -616,6 +629,14 @@ export interface ReplicaSeriesItem {
   svgPoints: string;
 }
 
+/**
+ * Collects all replica counts for replica-range determination: each deployment's
+ * `replicas` and each metrics point with a numeric `replicas` value.
+ *
+ * @param deployments - Deployment summaries.
+ * @param metrics - Simulation metrics keyed by deployment id.
+ * @returns Array of numeric replica counts.
+ */
 export const extractReplicaCounts = (
   deployments: DeploymentSummary[],
   metrics: Record<string, SimulationMetricPoint[]>
@@ -631,6 +652,18 @@ export const extractReplicaCounts = (
   return counts;
 };
 
+/**
+ * Builds the replica series items for the system-monitor Replicas Panel: per deployment,
+ * aggregates metrics by interval (or flat-mapped points when points lack `minuteIndex`),
+ * picks the current replica count (rounded, falling back to `dep.replicas`), and computes
+ * the SVG points string.
+ *
+ * @param deployments - Deployment summaries.
+ * @param metrics - Simulation metrics keyed by deployment id.
+ * @param interval - Time-range filter used for aggregation.
+ * @param dynamicMaxReplicas - Current dynamic maximum replica count (for chart scaling).
+ * @returns Array of `ReplicaSeriesItem` (id, label, color, current, data, svgPoints).
+ */
 export const calculateReplicaSeries = (
   deployments: DeploymentSummary[],
   metrics: Record<string, SimulationMetricPoint[]>,
@@ -724,6 +757,16 @@ const getCpuThresholdLines = (
   return lines;
 };
 
+/**
+ * Resolves the memory limit used to scale the system-monitor memory chart: returns the
+ * highest `memoryLimit` seen on the latest metrics point of any deployment, or the
+ * `fallbackLimit` when none found.
+ *
+ * @param deployments - Deployment summaries.
+ * @param metrics - Simulation metrics keyed by deployment id.
+ * @param fallbackLimit - Value used when no metrics have memoryLimit.
+ * @returns Resolved memory limit (MiB).
+ */
 export const resolveMemoryLimit = (
   deployments: DeploymentSummary[] = [],
   metrics: Record<string, SimulationMetricPoint[]> = {},

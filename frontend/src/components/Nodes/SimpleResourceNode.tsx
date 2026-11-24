@@ -13,6 +13,10 @@ export interface SimpleResourceNodeProps extends NodeProps {
   hideDefaultHandles?: boolean;
 }
 
+/**
+ * Simple wrapper around BaseNode for lightweight resource node types (Ingress etc.):
+ * passes title/icon/color + custom source/target handle styling to the card.
+ */
 export const SimpleResourceNode = memo(({
   title,
   icon: Icon,

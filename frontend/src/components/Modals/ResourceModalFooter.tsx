@@ -200,6 +200,10 @@ const FormModeFooter: React.FC<{
   </div>
 );
 
+/**
+ * Footer actions for resource modals: Save button, Back to List / Add New buttons
+ * depending on `mode`, with accent color styling.
+ */
 export const ResourceModalFooter: React.FC<ResourceModalFooterProps> = ({
   mode,
   isDark,

@@ -54,6 +54,10 @@ const resolveValidServiceSelectorDisplay = (
   };
 };
 
+/**
+ * Service node card: shows service type, node port (when NodePort/LoadBalancer),
+ * and selector display (inline or validated).
+ */
 export const ServiceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);

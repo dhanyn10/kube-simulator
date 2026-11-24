@@ -13,6 +13,9 @@ interface ProgressBarProps {
   barClassName?: string;
 }
 
+/**
+ * Styled progress bar (label + value + optional subLabel, custom bar colors/sizes).
+ */
 export const ProgressBar = ({
   value,
   max = 100,

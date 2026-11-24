@@ -40,6 +40,9 @@ const renderHighlightedText = (text: string, query: string) => {
   });
 };
 
+/**
+ * A single log row (selectable, expandable, search highlight).
+ */
 export const LogRow: React.FC<LogRowProps> = ({
   log,
   isSelected,

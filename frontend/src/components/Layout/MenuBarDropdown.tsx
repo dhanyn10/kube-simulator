@@ -50,6 +50,12 @@ const MenuItemButton = ({ item, isDark, hasIconsOrChecks, onItemClick }: MenuIte
   );
 };
 
+/**
+ * Dropdown menu button for the menu bar (with chevron indicator and menu items).
+ *
+ * @param props - `MenuBarDropdownProps` (menu item tree, color mode).
+ * @returns Dropdown trigger button + open panel JSX.
+ */
 export const MenuBarDropdown = (props: MenuBarDropdownProps) => {
   const { menu, colorMode } = props;
   const {

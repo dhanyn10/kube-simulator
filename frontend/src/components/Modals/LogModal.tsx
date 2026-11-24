@@ -6,6 +6,10 @@ import { LogRow } from './log/LogRow';
 import { LogPagination } from './log/LogPagination';
 import { useLogModal } from '@/activities/modals';
 
+/**
+ * Activity log display modal: table of log rows with pagination, toolbar filters,
+ * and "Clear logs" action.
+ */
 export const LogModal: React.FC = () => {
   const {
     logs,

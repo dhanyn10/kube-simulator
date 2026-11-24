@@ -2,6 +2,9 @@ import React from 'react';
 import { Cpu, HardDrive } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Renders CPU/Memory allocation/limit input controls with live value display.
+ */
 export interface ResourceBudgetControlsProps {
   cpuValue: string;
   memoryValue: string;
@@ -12,6 +15,12 @@ export interface ResourceBudgetControlsProps {
   memoryLabel?: string;
 }
 
+/**
+ * Renders CPU and Memory budget controls (sliders/inputs) with live values for Deployment/Service nodes.
+ *
+ * @param props - `{ cpuValue, memoryValue, onCpuChange, onMemoryChange, colorMode, cpuLabel?, memoryLabel? }`.
+ * @returns Budget controls JSX.
+ */
 export const ResourceBudgetControls: React.FC<ResourceBudgetControlsProps> = ({
   cpuValue,
   memoryValue,

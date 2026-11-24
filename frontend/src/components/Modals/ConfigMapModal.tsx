@@ -121,6 +121,16 @@ function isNodeConfigMapAttached(
   );
 }
 
+/**
+ * Finds all canvas nodes/groups attached to a ConfigMap (by `cmId` or `cmName`),
+ * using replica-group info and optional comma-separated resource name filter.
+ *
+ * @param cmId - ConfigMap id (may be undefined).
+ * @param cmName - ConfigMap name.
+ * @param nodes - Canvas nodes.
+ * @param resourceName - Optional comma-separated target resource name filter.
+ * @returns Array of `ComponentOption` ({ id, label, type }) of attached components.
+ */
 export function findAllAttachedComponents(
   cmId: string | undefined,
   cmName: string | undefined,
@@ -152,6 +162,19 @@ export function findAllAttachedComponents(
   return results;
 }
 
+/**
+ * Syncs the configmap attachment list (`updateNodeData`) on all nodes: adds the new
+ * configmap when the node is in `attachedIds` (or its replica group is), replaces when
+ * already attached, or removes when detached but still listed.
+ *
+ * @param nodes - Canvas nodes.
+ * @param targetId - Target node id (renamed cases).
+ * @param cmName - New configmap name.
+ * @param oldCmName - Previous configmap name (for rename).
+ * @param configMapItem - The configmap item to sync.
+ * @param attachedIds - Set of attached node/group ids.
+ * @param updateNodeData - Callback to update node data.
+ */
 export function syncNodesConfigMap(
   nodes: any[],
   targetId: string | undefined,
@@ -183,6 +206,15 @@ export function syncNodesConfigMap(
   });
 }
 
+/**
+ * Merges currently attached components with those found in `nodes` that are attached
+ * to `sourceCm`, avoiding duplicates by component key.
+ *
+ * @param currentAttached - Existing `ComponentOption[]`.
+ * @param sourceCm - Source configmap item.
+ * @param nodes - Canvas nodes.
+ * @returns Merged component options array.
+ */
 export function mergeAttachedComponents(
   currentAttached: readonly ComponentOption[],
   sourceCm: K8sConfigMapItem,
@@ -424,6 +456,13 @@ const ConfigMapAutocompletePortal: React.FC<ConfigMapAutocompletePortalProps> = 
   );
 };
 
+/**
+ * Modal for creating/editing a ConfigMap (or editing its attached components),
+ * including component attach UI and config data editor.
+ *
+ * @param props - `ConfigMapModalProps` (isOpen, onClose, targetNodeId, targetNodeLabel, initialConfigMap, ...).
+ * @returns Modal JSX.
+ */
 export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   isOpen,
   onClose,

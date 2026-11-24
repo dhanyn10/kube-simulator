@@ -22,6 +22,13 @@ interface ModalProps {
   compactHeader?: boolean;
 }
 
+/**
+ * Presentational Modal dialog wrapper: renders header (title, subtitle, icon) + children + footer
+ * (and is hidden when `isOpen` is false).
+ *
+ * @param props - `ModalProps` (isOpen, onClose, title, subtitle, icon, footer, size/alignment variants...).
+ * @returns Modal JSX or null.
+ */
 export const Modal = ({
   isOpen,
   onClose,

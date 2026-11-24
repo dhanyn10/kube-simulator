@@ -18,6 +18,9 @@ export interface IAMUserEditViewProps {
   readonly onFinish: (username: string, policies: KubeIAMPolicy[]) => void;
 }
 
+/**
+ * Edit view for an IAM user (edit roles/policies) with save/finish.
+ */
 export const IAMUserEditView: React.FC<IAMUserEditViewProps> = ({
   user,
   isDark,

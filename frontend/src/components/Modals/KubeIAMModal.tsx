@@ -14,6 +14,9 @@ import {
   IAMWizardFooter,
 } from './iam';
 
+/**
+ * Kube IAM Management modal: user list/detail views, wizard (steps 1–3), create/edit/delete users.
+ */
 export const KubeIAMModal: React.FC = () => {
   const {
     isOpen,

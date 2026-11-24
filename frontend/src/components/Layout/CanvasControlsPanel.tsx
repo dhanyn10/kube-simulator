@@ -5,6 +5,10 @@ import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { useFitView } from '@/hooks/useFitView';
 
+/**
+ * Floating canvas controls panel (top-left): zoom in/out, fit view, and autofocus toggle,
+ * styled with the app color mode.
+ */
 export const CanvasControlsPanel: React.FC = () => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const isAutofocusEnabled = useFlowStore((state) => state.isAutofocusEnabled);

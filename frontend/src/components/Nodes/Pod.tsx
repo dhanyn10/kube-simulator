@@ -10,6 +10,10 @@ import { getPodReplicaInfo } from '@/lib/podReplicaHelpers';
 import { cn } from '@/lib/utils';
 import { usePodOverlapAutoCorrection } from '@/activities/nodes';
 
+/**
+ * Pod node card: shows worker node assignment (when not stacked), image, restart policy,
+ * CPU/memory resource rows (when limits set), and attached configmap vars.
+ */
 export const PodNode = memo((props: NodeProps) => {
   usePodOverlapAutoCorrection(props.id);
 

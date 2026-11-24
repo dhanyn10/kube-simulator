@@ -68,6 +68,9 @@ interface LogToolbarProps {
   colorMode: 'dark' | 'light';
 }
 
+/**
+ * Activity log toolbar: search + level/scope filters, bulk select/delete, export logs.
+ */
 export const LogToolbar: React.FC<LogToolbarProps> = ({
   logs,
   filteredLogs,

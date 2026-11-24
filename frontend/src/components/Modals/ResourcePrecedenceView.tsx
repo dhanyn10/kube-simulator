@@ -451,6 +451,10 @@ const ComponentGroupCard: React.FC<ComponentGroupCardProps> = ({
   );
 };
 
+/**
+ * Table-based precedence view of attached resources (higher-first order) with
+ * edit/delete actions; used by Secret/ConfigMap/HPA list views.
+ */
 export const ResourcePrecedenceView: React.FC<ResourcePrecedenceViewProps> = ({
   resourceType,
   profileName,

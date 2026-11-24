@@ -60,6 +60,13 @@ const getAutoSaveButtonClass = (status: 'idle' | 'saving' | 'saved', colorMode: 
   return 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700';
 };
 
+/**
+ * Modal for selecting/editing internet connection profiles for the Internet card
+ * ("Explore More" for profile templates).
+ *
+ * @param props - `InternetProfileModalProps` (isOpen, onClose, selectedNode, performUpdate).
+ * @returns Modal JSX.
+ */
 export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
   isOpen,
   onClose,

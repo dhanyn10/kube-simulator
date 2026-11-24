@@ -9,6 +9,9 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
+/**
+ * Settings modal (app settings): theme, layout, autosave settings, etc. (via `useSettingsModal`).
+ */
 export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
   const {
     colorMode,

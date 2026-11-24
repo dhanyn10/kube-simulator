@@ -10,6 +10,10 @@ import { useNodeStyles } from '@/hooks/useNodeStyles';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { ForbiddenOverlay } from './ForbiddenOverlay';
 
+/**
+ * Namespace node card: dashed container with border, rename support, action buttons,
+ * and attached resources footer.
+ */
 export const NamespaceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);

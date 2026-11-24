@@ -1,3 +1,7 @@
+/**
+ * Palette of material colors mapping display names (e.g. 'Red', 'Blue Grey') to CSS variable
+ * token names (`var(--color-mat-...)`). Used for palette pickers in the canvas config UI.
+ */
 export const MATERIAL_COLORS = [
   { name: 'Red', hex: 'var(--color-mat-red)' }, { name: 'Pink', hex: 'var(--color-mat-pink)' },
   { name: 'Purple', hex: 'var(--color-mat-purple)' }, { name: 'Deep Purple', hex: 'var(--color-mat-deep-purple)' },
@@ -11,6 +15,13 @@ export const MATERIAL_COLORS = [
   { name: 'Blue Grey', hex: 'var(--color-mat-blue-grey)' },
 ];
 
+/**
+ * Returns the hex token for a material color by display name, falling back to the first
+ * palette entry when the name isn't found.
+ *
+ * @param name - Material color display name (e.g. 'Red').
+ * @returns CSS variable string for the color.
+ */
 export const getMaterialColor = (name: string) => {
   return MATERIAL_COLORS.find(c => c.name === name)?.hex || MATERIAL_COLORS[0].hex;
 };

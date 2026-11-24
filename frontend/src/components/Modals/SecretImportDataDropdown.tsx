@@ -12,6 +12,9 @@ export interface SecretImportDataDropdownProps {
   readonly dropdownRef: React.RefObject<HTMLDivElement | null>;
 }
 
+/**
+ * Dropdown listing existing secrets with import data option (returns null when empty).
+ */
 export const SecretImportDataDropdown: React.FC<SecretImportDataDropdownProps> = ({
   isOpen,
   onToggleOpen,

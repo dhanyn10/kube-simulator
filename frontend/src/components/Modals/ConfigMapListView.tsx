@@ -21,9 +21,15 @@ export interface ConfigMapListViewProps {
 
 const STORAGE_COLUMN_KEY = 'k8s_configmap_table_columns';
 
+/**
+ * Loads the initial column visibility for the configmap list table (from storage key).
+ */
 export const getInitialColumnVisibility = (): ColumnVisibility =>
   getInitialResourceColumnVisibility(STORAGE_COLUMN_KEY);
 
+/**
+ * Table view for listing configmaps with column visibility management.
+ */
 export const ConfigMapListView: React.FC<ConfigMapListViewProps> = (props) => (
   <ResourceListView
     {...props}

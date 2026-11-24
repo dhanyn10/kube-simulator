@@ -40,6 +40,14 @@ export interface AttachedResourceSettingsSectionProps<T extends BaseResourceItem
   }) => React.ReactElement;
 }
 
+/**
+ * Generic section rendering attached configurable resources (ConfigMaps, Secrets, Roles,
+ * HPAs...) for a node — shows a summary row for each attached item, plus "Add New Item"
+ * button and delegated List/Edit modals (renderListModal/renderEditModal).
+ *
+ * @param props - Rendering context including the node data, resource key/name, icon, color classes, and modal renderers.
+ * @returns Section JSX or null when nothing is attached.
+ */
 export function AttachedResourceSettingsSection<T extends BaseResourceItem>({
   data,
   nodeId,

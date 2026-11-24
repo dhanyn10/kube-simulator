@@ -13,6 +13,9 @@ export interface IAMUserCardProps {
   readonly onDeleteUser: (id: string) => void;
 }
 
+/**
+ * Card representing a single IAM user (name, active state, actions, delete).
+ */
 export const IAMUserCard: React.FC<IAMUserCardProps> = ({
   user,
   isActive,

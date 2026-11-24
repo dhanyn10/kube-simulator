@@ -31,6 +31,13 @@ interface CanvasWidgetsPanelProps {
   visibleWidgets: string[];
 }
 
+/**
+ * Canvas widgets panel (Hardware Budget, etc.) for the right sidebar: shows/hides
+ * widgets based on `visibleWidgets` and renders widget sections.
+ *
+ * @param props - `CanvasWidgetsPanelProps` (nodes, colorMode, visibleWidgets).
+ * @returns Widgets panel JSX.
+ */
 export const CanvasWidgetsPanel = ({ nodes, colorMode, visibleWidgets }: CanvasWidgetsPanelProps) => {
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -109,6 +116,13 @@ interface SettingsPanelProps {
   colorMode: 'dark' | 'light';
 }
 
+/**
+ * Right-sidebar "Settings" view: renders `EdgeConfig` when an edge is selected,
+ * `NodeConfig` when a node is selected, or the placeholder text when neither.
+ *
+ * @param props - `SettingsPanelProps` (selectedNode, selectedEdge, isElementSelected, colorMode).
+ * @returns Settings panel JSX.
+ */
 export const SettingsPanel = ({ selectedNode, selectedEdge, isElementSelected, colorMode }: SettingsPanelProps) => {
   let elementConfig: ReactNode | null = null;
   if (selectedEdge) {
@@ -172,6 +186,13 @@ interface SidebarTabBarProps {
   colorMode: 'dark' | 'light';
 }
 
+/**
+ * Right sidebar tab bar (Activity / Logs): includes the canvas dropdown toggle,
+ * widget visibility toggles, log export and detach sidebar controls.
+ *
+ * @param props - `SidebarTabBarProps` (activeTab, setActiveTab, canvas dropdown state + ref, widgets, toggles, callbacks).
+ * @returns Tab bar JSX.
+ */
 export const SidebarTabBar = ({
   activeTab,
   setActiveTab,
@@ -307,6 +328,13 @@ export const SidebarTabBar = ({
   );
 };
 
+/**
+ * Right sidebar container: hosts the tab bar + content (SettingsPanel/CanvasWidgetsPanel),
+ * with height adjustments for open terminal and detached mode.
+ *
+ * @param props - `{ onExportYaml, isDetached? }`.
+ * @returns Right sidebar JSX.
+ */
 export const RightSidebar = ({ onExportYaml, isDetached = false }: { onExportYaml: () => void; isDetached?: boolean }) => {
   const {
     colorMode,

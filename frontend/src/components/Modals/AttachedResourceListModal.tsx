@@ -26,6 +26,13 @@ export interface AttachedResourceListModalProps<T extends BaseAttachedItem> {
   readonly onAddNewItem: () => void;
 }
 
+/**
+ * Generic attached-resource list modal: renders the item list with edit/delete rows,
+ * an "Add New Item" button, and a title + empty state (`emptyText`/`addLabel`).
+ *
+ * @param props - `AttachedResourceListModalProps` (isOpen, onClose, title, items, emptyText, addLabel, callbacks...).
+ * @returns Modal JSX.
+ */
 export function AttachedResourceListModal<T extends BaseAttachedItem>({
   isOpen,
   onClose,

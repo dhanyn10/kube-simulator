@@ -102,6 +102,10 @@ const ReplicaProgress = ({
   );
 };
 
+/**
+ * Generic canvas node wrapper: renders title + icon + settings button, handles hover/detaching
+ * visual states and context menu; delegates settings/details to children.
+ */
 export const BaseNode = memo(({
   children,
   data,

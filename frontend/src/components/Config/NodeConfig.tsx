@@ -35,6 +35,13 @@ interface NodeNameInputProps {
 
 export { resolveTargetInfo };
 
+/**
+ * Renders a node name input bound to the canvas node id (via `updateNodeData`),
+ * with optional target/exclude scope props used by name-uniqueness validation.
+ *
+ * @param props - `NodeNameInputProps` (nodeId, value, placeholder, className, colorMode, onUpdate, targetType?, targetParentId?, excludeNodeId?).
+ * @returns Name input JSX.
+ */
 export const NodeNameInput = ({
   nodeId,
   value,
@@ -152,6 +159,13 @@ interface NodeConfigProps {
   selectedNode: any;
 }
 
+/**
+ * Main node configuration panel: dispatches per-type settings sections (deployment,
+ * service, workload, HPA, resource limit, IAM, etc.) via `useNodeConfigHandler`.
+ *
+ * @param props - `NodeConfigProps` (selectedNode).
+ * @returns Node config JSX or null when nothing to configure.
+ */
 export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
   const colorMode = useFlowStore((state) => state.colorMode);

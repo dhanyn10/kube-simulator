@@ -8,6 +8,9 @@ import {
 } from '@/activities/layout/fileBackstageHelpers';
 import { detectScenarioResources, ResourceBadgeList } from '@/scenarios';
 
+/**
+ * Returns the highlight class for a recent-projects table row when its context menu is active.
+ */
 export const getRowHighlightClass = (isContextMenuActive: boolean, isDark: boolean): string => {
   if (!isContextMenuActive) return '';
   return isDark
@@ -15,12 +18,19 @@ export const getRowHighlightClass = (isContextMenuActive: boolean, isDark: boole
     : "bg-blue-100/80 ring-1 ring-blue-400/50";
 };
 
+/**
+ * Returns the icon badge class for a project file row based on file-loading state
+ * (autosave badge when `isAutosave`, otherwise default blue).
+ */
 export const getProjectIconBadgeClass = (isFileLoading: boolean, isAutosave?: boolean): string => {
   if (isFileLoading) return "bg-blue-500/20 text-blue-400";
   if (isAutosave) return "bg-amber-500/10 text-amber-500";
   return "bg-blue-500/10 text-blue-500";
 };
 
+/**
+ * Icon for a project file row: spinner while loading, clock for autosave, file icon otherwise.
+ */
 export const ProjectFileIcon: React.FC<{ readonly isFileLoading: boolean; readonly isAutosave?: boolean }> = ({
   isFileLoading,
   isAutosave,
@@ -39,6 +49,9 @@ export interface RecentProjectsLoadingRowProps {
   readonly testId?: string;
 }
 
+/**
+ * Loading spinner row for the recent projects table ("Reading current profiles...").
+ */
 export const RecentProjectsLoadingRow: React.FC<RecentProjectsLoadingRowProps> = ({
   isDark,
   testId = 'recent-files-loading',
@@ -68,6 +81,9 @@ export const RecentProjectsLoadingRow: React.FC<RecentProjectsLoadingRowProps> =
   </tr>
 );
 
+/**
+ * Empty-state row for the recent projects table ("No recent files or auto-saved profiles found").
+ */
 export const RecentProjectsEmptyRow: React.FC = () => (
   <tr>
     <td colSpan={2} className="text-center py-8 text-slate-500">
@@ -76,6 +92,9 @@ export const RecentProjectsEmptyRow: React.FC = () => (
   </tr>
 );
 
+/**
+ * Props for `RecentProjectsTableRow` (a clickable row to restore a saved project).
+ */
 export interface RecentProjectsTableRowProps {
   readonly file: RecentFileItem;
   readonly isDark: boolean;
@@ -86,6 +105,10 @@ export interface RecentProjectsTableRowProps {
   readonly onRestoreFile: (file: RecentFileItem) => void;
 }
 
+/**
+ * A row in the Recent Projects table: shows the project icon, name, scenario badges,
+ * and opens the context menu / restores the file.
+ */
 export const RecentProjectsTableRow: React.FC<RecentProjectsTableRowProps> = ({
   file,
   isDark,
@@ -205,6 +228,10 @@ export interface RenderRecentProjectsBodyParams {
   readonly loadingTestId?: string;
 }
 
+/**
+ * Renders the body of the Recent Projects table: loading row, rows (with optional
+ * inactive message) or empty state; `currentProjectId`/`activeContextId` highlight the active row.
+ */
 export const renderRecentProjectsBody = ({
   isLoading,
   recentFiles,

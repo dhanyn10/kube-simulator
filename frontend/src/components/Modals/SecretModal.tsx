@@ -48,6 +48,12 @@ export interface SecretModalProps {
 export { findAllAttachedSecretComponents, syncNodesSecret, mergeAttachedSecretComponents, removeSecretFromNodeOrStore };
 
 
+/**
+ * Modal for creating/editing a Secret (secret data editor + attached-component sync helpers).
+ *
+ * @param props - `SecretModalProps` (isOpen, onClose, targetNodeId, targetNodeLabel, initialSecret, ...).
+ * @returns Modal JSX.
+ */
 export const SecretModal: React.FC<SecretModalProps> = ({
   isOpen,
   onClose,

@@ -17,6 +17,13 @@ interface MenuBarProps {
   onNewArchitecture?: () => void;
 }
 
+/**
+ * Top application menu bar: Export YAML, Import, Save/Save As, Projects, Scenarios,
+ * About, Settings, New Architecture (with dark/light toggle and simulation controls).
+ *
+ * @param props - `MenuBarProps` with all action callbacks.
+ * @returns Menu bar JSX.
+ */
 export const MenuBar = ({
   onExportYaml,
   onImportFile,

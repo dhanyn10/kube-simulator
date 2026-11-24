@@ -21,9 +21,15 @@ export interface SecretListViewProps {
 
 const STORAGE_COLUMN_KEY = 'k8s_secret_table_columns';
 
+/**
+ * Loads the initial column visibility for the secret list table (from storage key).
+ */
 export const getInitialSecretColumnVisibility = (): SecretColumnVisibility =>
   getInitialResourceColumnVisibility(STORAGE_COLUMN_KEY);
 
+/**
+ * Table view for listing secrets with column visibility management.
+ */
 export const SecretListView: React.FC<SecretListViewProps> = (props) => (
   <ResourceListView
     {...props}

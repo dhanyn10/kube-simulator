@@ -17,6 +17,9 @@ interface ScenarioModalProps {
   onClose: () => void;
 }
 
+/**
+ * Modal for browsing + loading pre-built scenario templates onto the canvas.
+ */
 export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
   const fitView = useFitView();
   const colorMode = useFlowStore((state) => state.colorMode);

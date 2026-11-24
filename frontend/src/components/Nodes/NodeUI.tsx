@@ -2,6 +2,9 @@ import { Settings, Trash2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 
+/**
+ * Action buttons row for nodes (settings + delete buttons).
+ */
 export const NodeActionButtons = ({ 
   id, 
   onDelete, 
@@ -71,6 +74,9 @@ export interface NodeRenameInputProps {
   errorMessage?: string;
 }
 
+/**
+ * Inline editable input + save button for node rename (with validation error display).
+ */
 export const NodeRenameInput = ({
   isEditing,
   setIsEditing,

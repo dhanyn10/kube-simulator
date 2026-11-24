@@ -32,6 +32,10 @@ const getBadgeColor = (data: K8sNodeData): string => {
   return 'bg-violet-600';
 };
 
+/**
+ * Deployment node card: shows HPA warning (via `checkShowHPAWarning`), auto-scales children,
+ * with hover/detach visual states and worker node assignment row.
+ */
 export const DeploymentNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);

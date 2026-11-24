@@ -18,6 +18,9 @@ const TRAFFIC_POLICY_OPTIONS = [
   { id: 'Local', label: 'Local', desc: 'Preserves Client IP. Routes only to node-local pods (no extra hop).' },
 ] as const;
 
+/**
+ * "External traffic policy" dropdown section for Services (Cluster vs Local).
+ */
 export const ExternalTrafficPolicySection: React.FC<ExternalTrafficPolicySectionProps> = ({
   data,
   colorMode,
@@ -68,6 +71,9 @@ interface EntryNodeSectionProps {
   toggleVisibility: (field: string) => void;
 }
 
+/**
+ * "Simulated entry node" dropdown section (worker-N options) for workload simulation.
+ */
 export const EntryNodeSection: React.FC<EntryNodeSectionProps> = ({
   data,
   colorMode,

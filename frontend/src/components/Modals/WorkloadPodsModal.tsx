@@ -50,6 +50,9 @@ const RESTART_POLICIES = [
   { id: 'Never', label: 'Never' },
 ] as const;
 
+/**
+ * Returns the workload tab button class for the active/inactive states (dark aware).
+ */
 export const getWorkloadTabClass = (isActive: boolean, isDark: boolean): string => {
   if (isActive) {
     return 'bg-blue-600 text-white shadow-sm';
@@ -60,6 +63,9 @@ export const getWorkloadTabClass = (isActive: boolean, isDark: boolean): string 
   return 'text-slate-600 hover:text-slate-900 hover:bg-slate-100';
 };
 
+/**
+ * Returns the pod count badge class for the active/inactive states (dark aware).
+ */
 export const getPodBadgeCountClass = (isActive: boolean, isDark: boolean): string => {
   if (isActive) {
     return 'bg-white/20 text-white';
@@ -527,6 +533,9 @@ const WorkloadSidebarMenu: React.FC<WorkloadSidebarMenuProps> = ({
   );
 };
 
+/**
+ * Modal listing pods of a workload (with stacked pods expansion) — shows controller name/replicas/type.
+ */
 export const WorkloadPodsModal: React.FC<WorkloadPodsModalProps> = ({
   isOpen,
   onClose,

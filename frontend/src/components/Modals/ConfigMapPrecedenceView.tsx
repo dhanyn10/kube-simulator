@@ -11,6 +11,10 @@ export interface ConfigMapPrecedenceViewProps {
   readonly onAddNewConfigMap?: () => void;
 }
 
+/**
+ * Precedence view (higher-first ordering) of configmaps attached to a node:
+ * lists items with edit/delete actions and an optional add button.
+ */
 export const ConfigMapPrecedenceView: React.FC<ConfigMapPrecedenceViewProps> = ({
   onAddNewConfigMap: _onAddNewConfigMap,
   ...props
