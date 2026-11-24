@@ -15,8 +15,9 @@ test('gear on Internet card opens Settings tab in attached mode', async ({ page 
   await nodeCard.hover();
   await nodeCard.locator('button').filter({ has: page.locator('svg.lucide-settings') }).first().click({ force: true });
 
-  await page.waitForTimeout(1500);
-  const body = await page.evaluate(() => document.body.innerText);
-  expect(body.includes('Modify element properties') || body.includes('Select an element on the canvas')).toBe(true);
+  await expect(async () => {
+    const body = await page.evaluate(() => document.body.innerText);
+    expect(body.includes('Modify element properties') || body.includes('Select an element on the canvas')).toBe(true);
+  }).toPass({ timeout: 5000 });
   await expect(page.locator('text=HARDWARE BUDGET').first()).toHaveCount(0);
 });
