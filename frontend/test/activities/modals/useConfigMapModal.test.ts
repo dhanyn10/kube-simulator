@@ -258,3 +258,26 @@ describe('useConfigMapModal hook', () => {
     });
   });
 });
+
+describe('useConfigMapModal handleAddMultipleRows', () => {
+  it('appends multiple rows via handleAddMultipleRows', () => {
+    const { result } = renderHook(() =>
+      useConfigMapModal({
+        isOpen: true,
+        onClose: vi.fn(),
+        initialConfigMap: null,
+        onSave: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.handleAddMultipleRows([
+        { id: 'r1', key: 'APP_ENV', value: 'prod' },
+        { id: 'r2', key: 'LOG_LEVEL', value: 'info' },
+      ]);
+    });
+
+    expect(result.current.rows).toHaveLength(2);
+    expect(result.current.rows[0].key).toBe('APP_ENV');
+  });
+});

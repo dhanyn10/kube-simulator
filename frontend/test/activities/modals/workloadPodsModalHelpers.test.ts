@@ -252,4 +252,49 @@ describe('workloadPodsModalHelpers', () => {
       expect(resIp[0].workerId).toBe('worker-3');
     });
   });
+
+  describe('buildWorkloadPodList edge branches', () => {
+    it('uses assignedNode on child pod when valid worker-N, respects cachedSuffixes and isSimulating', () => {
+      const deployment = {
+        id: 'dep-1',
+        type: 'Deployment',
+        data: { baseName: 'api', replicas: 2, status: 'ready' },
+      };
+      const childPod = {
+        id: 'pod-1',
+        type: 'Pod',
+        parentId: 'dep-1',
+        data: { assignedNode: 'worker-4', podHash: 'abcde' },
+      };
+
+      const pods = buildWorkloadPodList(
+        deployment,
+        [deployment, childPod],
+        { 0: 'c0001', 1: 'c0002' },
+        3,
+        true
+      );
+
+      expect(pods).toHaveLength(2);
+      expect(pods[0].workerId).toBe('worker-4');
+      expect(pods[0].status).toBe('Running');
+      expect(pods[0].replicaSuffix).toBe('c0001');
+
+      const dist = getWorkerDistribution(pods, 4);
+      expect(dist).toHaveLength(4);
+      expect(dist.find((d) => d.workerId === 'worker-4')?.count).toBe(1);
+    });
+
+    it('handles workloadType StatefulSet on Deployment node and falls back to pod label', () => {
+      const sts = {
+        id: 'sts-1',
+        type: 'Deployment',
+        data: { workloadType: 'StatefulSet', replicas: 1 },
+      };
+      const pods = buildWorkloadPodList(sts, [sts]);
+      expect(pods).toHaveLength(1);
+      expect(pods[0].podName).toBe('pod-0');
+      expect(pods[0].status).toBe('Pending');
+    });
+  });
 });

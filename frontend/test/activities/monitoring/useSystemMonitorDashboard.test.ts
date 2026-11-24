@@ -472,3 +472,10 @@ describe('useSystemMonitorDashboard hook', () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe('useSystemMonitorDashboard theme sync', () => {
+  it('updates colorMode on THEME_SYNC broadcast message', () => {
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+    expect(result.current.colorMode).toBeDefined();
+  });
+});

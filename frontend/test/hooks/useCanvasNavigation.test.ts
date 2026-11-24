@@ -277,3 +277,44 @@ describe('useCanvasNavigation (Cities: Skylines physics style)', () => {
     });
   });
 });
+
+
+describe('useCanvasNavigation RAF cancellation on zero velocity', () => {
+  it('cancels animation frame when velocity reaches zero', () => {
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    });
+    const cancelSpy = vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {});
+
+    const setViewport = vi.fn();
+    const getViewport = vi.fn(() => ({ x: 0, y: 0, zoom: 1 }));
+    renderHook(() =>
+      useCanvasNavigation({
+        getViewport,
+        setViewport,
+        deceleration: 100000,
+      })
+    );
+
+    act(() => {
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+    });
+    // Run first RAF tick while key is held
+    act(() => {
+      rafCallbacks.shift()?.(16);
+    });
+    // Release key and run next RAF tick so velocity decays to 0
+    act(() => {
+      globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'w' }));
+    });
+    act(() => {
+      rafCallbacks.shift()?.(32);
+    });
+
+    expect(cancelSpy).toHaveBeenCalled();
+    rafSpy.mockRestore();
+    cancelSpy.mockRestore();
+  });
+});

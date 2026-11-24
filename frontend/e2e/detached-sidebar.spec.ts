@@ -17,7 +17,7 @@ async function detachSidebar(page: any, context: any, side: 'left' | 'right') {
   }
   const detached = await context.newPage();
   await detached.goto(`${base}/?mode=sidebar-${side}`, { waitUntil: 'load' });
-  await detached.waitForTimeout(600);
+  await detached.getByTestId(`attach-${side}-sidebar-btn`).waitFor({ state: 'visible', timeout: 5000 });
   return detached;
 }
 
@@ -60,7 +60,9 @@ test('IAM opened in detached palette shows modal in main window', async ({ page,
 
   const detached = await detachSidebar(page, context, 'left');
   await detached.locator('#sidebar-item-IAM').click();
-  await page.waitForTimeout(1200);
+  await expect(async () => {
+    expect((await mainStore(page)).isKubeIamModalOpen).toBe(true);
+  }).toPass({ timeout: 5000 });
 
   const state = await mainStore(page);
   expect(state.isKubeIamModalOpen).toBe(true);
@@ -74,11 +76,13 @@ test('attach left sidebar while IAM modal is open', async ({ page, context }) =>
 
   const detached = await detachSidebar(page, context, 'left');
   await detached.locator('#sidebar-item-IAM').click();
-  await page.waitForTimeout(1000);
+  await expect(page.locator('dialog')).toBeVisible({ timeout: 5000 });
   expect((await mainStore(page)).isKubeIamModalOpen).toBe(true);
 
   await detached.getByTestId('attach-left-sidebar-btn').click();
-  await page.waitForTimeout(1000);
+  await expect(async () => {
+    expect((await mainStore(page)).isSidebarDetached).toBe(false);
+  }).toPass({ timeout: 5000 });
 
   const state = await mainStore(page);
   expect(state.isSidebarDetached).toBe(false);
@@ -103,7 +107,10 @@ test('gear on Internet card switches detached right window to Settings tab', asy
   const gear = nodeCard.locator('button').filter({ has: page.locator('svg.lucide-settings') }).first();
   await gear.click({ force: true });
 
-  await page.waitForTimeout(1500);
+  await expect(async () => {
+    expect((await detachedStore(detached)).configuringNodeId).toBeTruthy();
+  }).toPass({ timeout: 5000 });
+
   const detachedState = await detachedStore(detached);
   expect(detachedState.configuringNodeId).toBeTruthy();
 
@@ -124,7 +131,9 @@ test('Explore More from detached Internet opens InternetProfileModal in main win
   const nodeCard = page.locator('.react-flow__node').filter({ hasText: 'Internet' }).first();
   await nodeCard.hover();
   await nodeCard.locator('button').filter({ has: page.locator('svg.lucide-settings') }).first().click({ force: true });
-  await page.waitForTimeout(1200);
+  await expect(async () => {
+    expect((await detachedStore(detached)).configuringNodeId).toBeTruthy();
+  }).toPass({ timeout: 5000 });
 
   await expect(detached.getByRole('button', { name: /Explore More/i })).toBeVisible();
   await detached.getByRole('button', { name: /Explore More/i }).click();
@@ -150,19 +159,21 @@ test('attach right sidebar while InternetProfileModal is open', async ({ page, c
   const nodeCard = page.locator('.react-flow__node').filter({ hasText: 'Internet' }).first();
   await nodeCard.hover();
   await nodeCard.locator('button').filter({ has: page.locator('svg.lucide-settings') }).first().click({ force: true });
-  await page.waitForTimeout(1200);
+  await expect(async () => {
+    expect((await detachedStore(detached)).configuringNodeId).toBeTruthy();
+  }).toPass({ timeout: 5000 });
 
   // Explore More -> InternetProfileModal in main window
   await expect(detached.getByRole('button', { name: /Explore More/i })).toBeVisible();
   await detached.getByRole('button', { name: /Explore More/i }).click();
-  await page.waitForTimeout(1000);
-
   await expect(async () => {
     expect((await mainStore(page)).isInternetProfileModalOpen).toBe(true);
   }).toPass({ timeout: 5000 });
 
   await detached.getByTestId('attach-right-sidebar-btn').click();
-  await page.waitForTimeout(1000);
+  await expect(async () => {
+    expect((await mainStore(page)).isRightSidebarDetached).toBe(false);
+  }).toPass({ timeout: 5000 });
 
   const state = await mainStore(page);
   expect(state.isRightSidebarDetached).toBe(false);

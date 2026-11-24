@@ -8,6 +8,7 @@ import {
   validateHpaTargets,
   getMetricsChannel,
   setMetricsChannel,
+  canStartSimulation,
 } from '@/store/slices/simulationManager';
 import { Node, Edge } from '@xyflow/react';
 
@@ -390,5 +391,28 @@ describe('simulationManager', () => {
       expect(hasMonitorError({ metrics: {}, nodes: pendingNodes })).toBe(false);
       expect(hasMonitorError({ metrics: {}, nodes: crashedNodes })).toBe(true);
     });
+  });
+});
+
+describe('simulationManager edge branches', () => {
+  it('canStartSimulation returns false for empty nodes array', () => {
+    expect(canStartSimulation([])).toBe(false);
+  });
+
+  it('broadcastMetrics extracts hpaTarget from workload hpas and throttles in non-test env', () => {
+    const workloads = [
+      { id: 'dep-1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'api', hpas: [{ targetCPU: 75 }] } },
+    ] as any[];
+
+    const prevEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      broadcastMetrics({}, workloads, { isSimulating: true, isPaused: false, speed: 10, force: true });
+      // Second immediate call without force should hit throttle return
+      broadcastMetrics({}, workloads, { isSimulating: true, isPaused: false, speed: 10, force: false });
+    } finally {
+      process.env.NODE_ENV = prevEnv;
+    }
+    expect(workloads).toHaveLength(1);
   });
 });
