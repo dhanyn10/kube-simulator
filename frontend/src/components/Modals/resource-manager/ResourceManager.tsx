@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Box, Search, Gauge, HardDrive, Zap, Cpu, Check } from 'lucide-react';
+import { Box, Search, Gauge, HardDrive, Zap, Cpu, Check, Copy } from 'lucide-react';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 import { Modal } from '@/components/Modals/Modal';
@@ -34,6 +34,7 @@ const getItemCardClass = (isTarget: boolean, colorMode: 'dark' | 'light'): strin
  */
 export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManagerProps) => {
   const [search, setSearch] = useState('');
+  const [copiedImage, setCopiedImage] = useState<string | null>(null);
   const targetItemRef = useRef<HTMLDivElement | null>(null);
   const targetButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -47,7 +48,12 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
   const activeTargetImage = targetImage ?? storeTargetImage;
 
   useEffect(() => {
-    if (isOpen && activeTargetImage) {
+    if (!isOpen) {
+      setSearch('');
+      setCopiedImage(null);
+      return;
+    }
+    if (activeTargetImage) {
       setSearch('');
       const timer = setTimeout(() => {
         targetItemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -81,6 +87,14 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
       updateNodeData(selectedNodeId, { image: imageName, status: 'ready' });
     }
     onClose();
+  };
+
+  const handleCopyImage = (imageName: string) => {
+    void navigator.clipboard?.writeText(imageName);
+    setCopiedImage(imageName);
+    setTimeout(() => {
+      setCopiedImage((prev) => (prev === imageName ? null : prev));
+    }, 1500);
   };
 
   if (!isOpen) return null;
@@ -157,7 +171,7 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
                     )}
                   </div>
 
-                  {selectedNodeId && (
+                  {selectedNodeId ? (
                     <button
                       type="button"
                       ref={isTarget ? targetButtonRef : undefined}
@@ -171,6 +185,20 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
                     >
                       <Check size={11} />
                       <span>Apply Image</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleCopyImage(item.name)}
+                      className={cn(
+                        "px-3 py-1 rounded-lg text-[11px] font-bold font-mono transition-all flex items-center gap-1.5 shrink-0",
+                        colorMode === 'dark'
+                          ? "bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700"
+                          : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                      )}
+                    >
+                      {copiedImage === item.name ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                      <span>{copiedImage === item.name ? 'Copied' : 'Copy'}</span>
                     </button>
                   )}
                 </div>
