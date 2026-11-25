@@ -317,6 +317,53 @@ describe('useCanvasNavigation RAF cancellation on zero velocity', () => {
     rafSpy.mockRestore();
     cancelSpy.mockRestore();
   });
+
+  it('handles missing RAF, cancelAnimationFrame, performance, and partial/missing viewport functions', async () => {
+    const reactFlow = await import('@xyflow/react');
+    const useReactFlowSpy = vi.spyOn(reactFlow, 'useReactFlow').mockReturnValue({
+      getViewport: undefined as any,
+      setViewport: vi.fn(),
+    } as any);
+
+    vi.stubGlobal('requestAnimationFrame', undefined);
+    vi.stubGlobal('cancelAnimationFrame', undefined);
+    vi.stubGlobal('performance', undefined);
+
+    try {
+      const { result, unmount } = renderHook(() => useCanvasNavigation());
+      act(() => {
+        result.current.panUp(400);
+      });
+      act(() => {
+        result.current.stop();
+      });
+
+      // Also cover getViewport returning partial object without x/y/zoom
+      useReactFlowSpy.mockReturnValue({
+        getViewport: (() => ({})) as any,
+        setViewport: vi.fn(),
+      } as any);
+      const { result: res2 } = renderHook(() => useCanvasNavigation());
+      act(() => {
+        res2.current.panDown(400);
+      });
+
+      // Also cover setViewport not being a function
+      useReactFlowSpy.mockReturnValue({
+        getViewport: vi.fn(),
+        setViewport: undefined as any,
+      } as any);
+      const { result: res3 } = renderHook(() => useCanvasNavigation());
+      act(() => {
+        res3.current.panLeft(400);
+      });
+
+      unmount();
+    } finally {
+      vi.unstubAllGlobals();
+      useReactFlowSpy.mockRestore();
+    }
+  });
 });
 
 describe('useCanvasNavigation keydown guard branches', () => {

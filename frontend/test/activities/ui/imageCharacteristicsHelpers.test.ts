@@ -56,4 +56,16 @@ describe('getImageCharacteristics php, redis, and database presets', () => {
     expect(getImageCharacteristics('mysql:8.0')).toBeDefined();
     expect(getImageCharacteristics('mariadb:11')).toBeDefined();
   });
+
+  it('covers unknown preset, empty image name, and surge traffic multiplier branches', () => {
+    const fallbackPreset = createRuntimePreset('unknown' as any);
+    expect(fallbackPreset.maxTrafficRpm).toBe(1000);
+
+    const emptyImageChars = getImageCharacteristics('' as any);
+    expect(emptyImageChars.maxTrafficRpm).toBe(1000);
+
+    // Surge traffic exceeding maxTrafficRpm * spikeToleranceRatio (1200 * 1.15 = 1380)
+    const surgeRes = evaluateImageResourceConsumption('openjdk:21-jdk-slim', 5000, 1, 0);
+    expect(surgeRes.cpuValue).toBeGreaterThan(1000);
+  });
 });
