@@ -175,6 +175,32 @@ describe('App Component', () => {
     });
   });
 
+  it('deletes the active card when the Delete key is pressed on the canvas', async () => {
+    useFlowStore.setState({
+      nodes: [{ id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'pod-1' } }],
+      configuringNodeId: null,
+    });
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    const nodeElement = screen.getByTestId('node-n1');
+
+    await act(async () => {
+      fireEvent.click(nodeElement);
+    });
+
+    expect(useFlowStore.getState().configuringNodeId).toBe('n1');
+    expect(useFlowStore.getState().nodes).toHaveLength(1);
+
+    await act(async () => {
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+    });
+
+    expect(useFlowStore.getState().nodes).toHaveLength(0);
+  });
+
   it('handles edge clicks with autofocus', async () => {
     const nodes = [
       { id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'n1' } },

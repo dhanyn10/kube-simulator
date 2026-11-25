@@ -234,6 +234,35 @@ export default function App() {
 
   useCanvasNavigation({ disabled: isModalOverlayActive });
 
+  useEffect(() => {
+    const handleDeleteKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Delete') return;
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.tagName === 'SELECT' ||
+          activeEl.isContentEditable ||
+          activeEl.closest('.modal-overlay'))
+      ) {
+        return;
+      }
+      const { nodes: currentNodes, configuringNodeId, deleteNodes: removeNodes } = useFlowStore.getState();
+      let targetNodes = currentNodes.filter((n) => n.selected);
+      if (targetNodes.length === 0 && configuringNodeId) {
+        const activeNode = currentNodes.find((n) => n.id === configuringNodeId);
+        if (activeNode) targetNodes = [activeNode];
+      }
+      if (targetNodes.length > 0) {
+        e.preventDefault();
+        removeNodes(targetNodes);
+      }
+    };
+    globalThis.addEventListener('keydown', handleDeleteKey, true);
+    return () => globalThis.removeEventListener('keydown', handleDeleteKey, true);
+  }, []);
+
   const handleSave = async () => {
     flushAutosave();
     const { currentProject, nodes: currentNodes, edges: currentEdges, addLog } = useFlowStore.getState();
@@ -334,7 +363,7 @@ export default function App() {
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onNodesDelete={deleteNodes}
-            deleteKeyCode={isModalOverlayActive ? null : ['Backspace', 'Delete']}
+            deleteKeyCode={isModalOverlayActive ? null : 'Delete'}
             nodesFocusable={false}
             edgesFocusable={false}
             nodeTypes={nodeTypes}
