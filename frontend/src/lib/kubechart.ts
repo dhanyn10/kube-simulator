@@ -205,6 +205,13 @@ export function calculateMinutePoint(
   };
 }
 
+/**
+ * Linearly interpolates a numeric profile value at a given minute of the day.
+ *
+ * @param points - Sorted profile data points.
+ * @param minute - Target minute of the day (0–1440).
+ * @returns Interpolated numeric value.
+ */
 export function getInterpolatedValueForMinute(
   timeStr: string,
   minuteIdx: number,
@@ -429,6 +436,12 @@ export function computeChartLayout(
 /**
  * Generates reference time points across 00:00 to 23:00 for a given minute interval.
  */
+/**
+ * Generates evenly spaced profile chart points across the configured interval span.
+ *
+ * @param intervalMinutes - Interval step size in minutes.
+ * @returns Array of generated profile points.
+ */
 export function generateProfileIntervalPoints(
   profile: InternetProfileItem,
   intervalMinutes: number,
@@ -442,6 +455,12 @@ export function generateProfileIntervalPoints(
   chartWidth: number;
   chartHeight: number;
 };
+/**
+ * Generates evenly spaced profile chart points across the configured interval span.
+ *
+ * @param intervalMinutes - Interval step size in minutes.
+ * @returns Array of generated profile points.
+ */
 export function generateProfileIntervalPoints(
   profile: InternetProfileItem,
   intervalMinutes: number,
@@ -467,6 +486,9 @@ export function generateProfileIntervalPoints(
   };
 }
 
+/**
+ * Computes chart series data from a traffic/resource profile and selected time interval.
+ */
 export function calculateProfileChartData(
   profile: InternetProfileItem,
   width: number,
@@ -483,6 +505,9 @@ export function calculateProfileChartData(
   chartWidth: number;
   chartHeight: number;
 };
+/**
+ * Computes chart series data from a traffic/resource profile and selected time interval.
+ */
 export function calculateProfileChartData(
   profile: InternetProfileItem,
   width: number,
@@ -501,6 +526,9 @@ export function calculateProfileChartData(
   chartWidth: number;
   chartHeight: number;
 };
+/**
+ * Computes chart series data from a traffic/resource profile and selected time interval.
+ */
 export function calculateProfileChartData(
   profile: InternetProfileItem,
   width: number,

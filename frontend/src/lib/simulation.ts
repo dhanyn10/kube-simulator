@@ -366,6 +366,13 @@ export const checkSecretSimulationStatus = (
   return { hasChanges, isBlocked: false };
 };
 
+/**
+ * Checks whether a workload's referenced ConfigMaps exist and are valid during simulation.
+ *
+ * @param dep - The workload node being simulated.
+ * @param ctx - The active simulation context.
+ * @returns An error message string if a ConfigMap is missing or invalid, otherwise `null`.
+ */
 export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean; effectiveTrafficLimit?: number; requireSecret?: boolean } => {
   const deploymentData = dep.data as K8sNodeData;
   const configMaps = deploymentData.configMaps || [];

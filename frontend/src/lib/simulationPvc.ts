@@ -74,6 +74,12 @@ export const countConnectedPvcReplicas = (
   };
 };
 
+/**
+ * Handles a PVC multi-attach error during simulation by updating node status and emitting logs.
+ *
+ * @param pvcNode - The PVC node experiencing a multi-attach conflict.
+ * @param ctx - The active simulation context.
+ */
 export const handlePvcMultiAttachError = (
   pvc: Node,
   _totalReplicas: number,
@@ -118,6 +124,12 @@ export const handlePvcMultiAttachError = (
   return hasChanges;
 };
 
+/**
+ * Clears a previously recorded PVC multi-attach error when the conflict is resolved.
+ *
+ * @param pvcNode - The PVC node whose multi-attach error is resolved.
+ * @param ctx - The active simulation context.
+ */
 export const resolvePvcMultiAttachError = (
   pvc: Node,
   connectedEdges: Edge[],

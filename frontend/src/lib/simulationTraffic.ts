@@ -11,12 +11,25 @@ const canReachWorkload = (reachableNodes: Set<string>, depId: string, childPods?
   return children.some(child => reachableNodes.has(child.id));
 };
 
+/**
+ * Returns `true` if the given node is a simulatable workload (`Pod`, `Deployment`, or `StatefulSet`).
+ *
+ * @param node - The React Flow node to check.
+ * @returns `true` if the node is a workload.
+ */
 export const isSimulationWorkload = (node: Node): boolean =>
   node.type === 'Deployment' ||
   node.type === 'StatefulSet' ||
   node.type === 'ReplicaSet' ||
   (node.type === 'Pod' && !node.parentId && !node.data?.parentId);
 
+/**
+ * Counts the number of reachable workload nodes from traffic entrypoints in the simulation graph.
+ *
+ * @param nodes - All nodes in the cluster canvas.
+ * @param edges - All edges in the cluster canvas.
+ * @returns The count of reachable workload nodes.
+ */
 export const getReachableWorkloadCount = (
   internetNodeId: string,
   ctx: SimulationContext

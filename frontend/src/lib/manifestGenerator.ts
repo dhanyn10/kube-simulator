@@ -751,6 +751,14 @@ const buildPvcManifest = (node: any, metadata: any) => ({
   },
 });
 
+/**
+ * Returns `true` if a PVC node is used as a `volumeClaimTemplates` entry by a connected StatefulSet.
+ *
+ * @param pvcNode - The PVC node to check.
+ * @param allNodes - All nodes in the canvas.
+ * @param allEdges - All edges in the canvas.
+ * @returns `true` if the PVC is a StatefulSet volumeClaimTemplate.
+ */
 export const isStatefulSetVolumeClaimTemplate = (
   pvcNodeId: string,
   nodeMap: Map<string, any>,
@@ -1049,6 +1057,13 @@ const buildAttachedHpaManifest = (
   };
 };
 
+/**
+ * Generates multi-document Kubernetes YAML manifests client-side from the current canvas nodes and edges.
+ *
+ * @param nodes - All React Flow nodes on the canvas.
+ * @param edges - All React Flow edges on the canvas.
+ * @returns A YAML string containing all generated Kubernetes resource manifests.
+ */
 export const generateYamlClientSide = (nodes: any[], edges: any[]): string => {
   const nodeMap = new Map<string, any>(nodes.map((n) => [n.id, n]));
   const { sourceEdgeMap, targetEdgeMap } = buildEdgeMaps(edges);

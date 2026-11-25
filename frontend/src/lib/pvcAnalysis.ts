@@ -46,6 +46,12 @@ export interface PvcWorkloadAnalysis {
   templateConflict?: PvcTemplateConflict;
 }
 
+/**
+ * Returns `true` if the given React Flow node represents a StatefulSet workload.
+ *
+ * @param node - The React Flow node to check.
+ * @returns `true` if `node.type` or `node.data.workloadType` is `'StatefulSet'`.
+ */
 export const isStatefulSetNode = (node: Node): boolean => {
   return node.type === 'StatefulSet' || node.data?.workloadType === 'StatefulSet';
 };
