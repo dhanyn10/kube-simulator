@@ -232,7 +232,28 @@ export default function App() {
     isWorkerBudgetModalOpen,
   });
 
-  useCanvasNavigation({ disabled: isModalOverlayActive });
+  const isNavBlocked = isAnyModalOverlayOpen({
+    isFileBackstageOpen,
+    isProjectOpen: isProjectOpen || isResourceManagerOpen,
+    isScenarioOpen,
+    isAboutDialogOpen,
+    isSettingsOpen,
+    isSaveModalOpen,
+    isYamlOpen,
+    roleModalTargetNode,
+    configMapModalTargetNode,
+    secretModalTargetNode,
+    hpaModalTargetNode,
+    resourceLimitModalTargetNode,
+    isTerminalOpen: false,
+    isMonitoringDashboardOpen: false,
+    isLogModalOpen,
+    isKubeIamWizardOpen,
+    isTerminalCommandTreeModalOpen,
+    isWorkerBudgetModalOpen,
+  });
+
+  useCanvasNavigation({ disabled: isNavBlocked });
 
   useEffect(() => {
     const handleDeleteKey = (e: KeyboardEvent) => {
