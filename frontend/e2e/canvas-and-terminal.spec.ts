@@ -40,4 +40,21 @@ test.describe('Canvas Interactions & Terminal CLI', () => {
     // Synchronize on the observable condition: the node is still rendered on the canvas
     await expect(page.locator('.react-flow__node')).toHaveCount(initialNodes + 1);
   });
+
+  test('pans the canvas viewport using WASD keys', async ({ page }) => {
+    const viewport = page.locator('.react-flow__viewport');
+    await expect(viewport).toBeVisible();
+
+    const initialTransform = await viewport.getAttribute('style');
+
+    await page.locator('.react-flow__pane').click({ position: { x: 200, y: 200 } });
+    await page.keyboard.down('d');
+    await page.waitForTimeout(150);
+    await page.keyboard.up('d');
+
+    await expect(async () => {
+      const nextTransform = await viewport.getAttribute('style');
+      expect(nextTransform).not.toBe(initialTransform);
+    }).toPass({ timeout: 3000 });
+  });
 });
