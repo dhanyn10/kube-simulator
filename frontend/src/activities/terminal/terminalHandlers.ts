@@ -404,6 +404,83 @@ const printHpaDescription = (hpaNode: Node, addActivityLog: (line: string) => vo
 };
 
 /**
+ * Maps a raw `kubectl describe` resource type to the canvas node types it describes.
+ *
+ * @param typeRaw - Lowercased resource type from the describe command.
+ * @returns The canvas node types that can be described.
+ */
+const getDescribeNodeTypes = (typeRaw: string): string[] => {
+  if (typeRaw === 'pod' || typeRaw === 'po') return ['Pod'];
+  if (typeRaw === 'service' || typeRaw === 'svc') return ['Service'];
+  if (typeRaw === 'namespace' || typeRaw === 'ns') return ['Namespace'];
+  if (typeRaw === 'ingress') return ['Ingress'];
+  if (typeRaw === 'pvc') return ['PVC'];
+  if (typeRaw === 'hpa') return ['HPA'];
+  return ['Deployment'];
+};
+
+/**
+ * Dispatches the type-specific output for a matched `kubectl describe` node.
+ *
+ * @param typeRaw - Lowercased resource type from the describe command.
+ * @param foundNode - Matched canvas node.
+ * @param isSimulating - Flag indicating whether simulation loop is actively running.
+ * @param addActivityLog - Function callback to append log lines.
+ */
+/**
+ * Maps a raw `kubectl describe` resource type to the dedicated output printer for that type.
+ */
+const describeNodeTypePrinters: Record<string, (node: Node, addActivityLog: (line: string) => void) => void> = {
+  namespace: printNamespaceDescription,
+  ns: printNamespaceDescription,
+  service: printServiceDescription,
+  svc: printServiceDescription,
+  ingress: printIngressDescription,
+  pvc: printPvcDescription,
+  hpa: printHpaDescription,
+};
+
+/**
+ * Dispatches the type-specific output for a matched `kubectl describe` node.
+ *
+ * @param typeRaw - Lowercased resource type from the describe command.
+ * @param foundNode - Matched canvas node.
+ * @param isSimulating - Flag indicating whether simulation loop is actively running.
+ * @param addActivityLog - Function callback to append log lines.
+ */
+const printDescribeNodeByType = (
+  typeRaw: string,
+  foundNode: Node,
+  isSimulating: boolean,
+  addActivityLog: (line: string) => void
+): void => {
+  const print = describeNodeTypePrinters[typeRaw];
+  if (print) {
+    print(foundNode, addActivityLog);
+  } else {
+    printNodeDescription(foundNode, isSimulating, addActivityLog);
+  }
+};
+
+/**
+ * Sets the hovered autocomplete pod name to the described pod, clearing it after a short delay.
+ *
+ * @param foundNode - Matched pod node.
+ */
+const highlightAutocompletePodName = (foundNode: Node): void => {
+  const setHoveredAutocompletePodName = useFlowStore.getState().setHoveredAutocompletePodName;
+  const targetLabel = (foundNode.data?.label as string) || foundNode.id;
+  setHoveredAutocompletePodName(targetLabel);
+
+  setTimeout(() => {
+    const currentHovered = useFlowStore.getState().hoveredAutocompletePodName;
+    if (currentHovered === targetLabel) {
+      setHoveredAutocompletePodName(null);
+    }
+  }, 3000);
+};
+
+/**
  * Handles 'kubectl describe <pod|po|deploy|service|namespace|ingress|pvc|hpa> <name>' commands,
  * outputting resource specifications per type (image/cpu/memory for pods/deploys, type/port for
  * services, storage details for PVCs, HPA min/max/CPU target, etc.).
@@ -425,53 +502,12 @@ export const handleDescribeCommand = (
 
   const typeRaw = describeMatch[1].toLowerCase();
   const targetName = describeMatch[2].toLowerCase();
-
-  const isPod = typeRaw === 'pod' || typeRaw === 'po';
-  let nodeTypes: string[];
-  if (isPod) {
-    nodeTypes = ['Pod'];
-  } else if (typeRaw === 'service' || typeRaw === 'svc') {
-    nodeTypes = ['Service'];
-  } else if (typeRaw === 'namespace' || typeRaw === 'ns') {
-    nodeTypes = ['Namespace'];
-  } else if (typeRaw === 'ingress') {
-    nodeTypes = ['Ingress'];
-  } else if (typeRaw === 'pvc') {
-    nodeTypes = ['PVC'];
-  } else if (typeRaw === 'hpa') {
-    nodeTypes = ['HPA'];
-  } else {
-    nodeTypes = ['Deployment'];
-  }
-
-  const foundNode = findNodeByTargetName(nodes, targetName, nodeTypes);
+  const foundNode = findNodeByTargetName(nodes, targetName, getDescribeNodeTypes(typeRaw));
 
   if (foundNode) {
-    if (typeRaw === 'namespace' || typeRaw === 'ns') {
-      printNamespaceDescription(foundNode, addActivityLog);
-    } else if (typeRaw === 'service' || typeRaw === 'svc') {
-      printServiceDescription(foundNode, addActivityLog);
-    } else if (typeRaw === 'ingress') {
-      printIngressDescription(foundNode, addActivityLog);
-    } else if (typeRaw === 'pvc') {
-      printPvcDescription(foundNode, addActivityLog);
-    } else if (typeRaw === 'hpa') {
-      printHpaDescription(foundNode, addActivityLog);
-    } else {
-      printNodeDescription(foundNode, isSimulating, addActivityLog);
-    }
-
-    if (isPod) {
-      const setHoveredAutocompletePodName = useFlowStore.getState().setHoveredAutocompletePodName;
-      const targetLabel = (foundNode.data?.label as string) || foundNode.id;
-      setHoveredAutocompletePodName(targetLabel);
-
-      setTimeout(() => {
-        const currentHovered = useFlowStore.getState().hoveredAutocompletePodName;
-        if (currentHovered === targetLabel) {
-          setHoveredAutocompletePodName(null);
-        }
-      }, 3000);
+    printDescribeNodeByType(typeRaw, foundNode, isSimulating, addActivityLog);
+    if (typeRaw === 'pod' || typeRaw === 'po') {
+      highlightAutocompletePodName(foundNode);
     }
   } else {
     addActivityLog(`Error from server (NotFound): ${typeRaw} "${targetName}" not found`);

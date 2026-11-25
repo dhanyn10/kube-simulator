@@ -340,15 +340,7 @@ const WorkerBudgetNoticeBanner: React.FC<NoticeBannerProps> = ({
     );
   }
 
-  return (
-    <div className="p-3 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2.5">
-      <CheckCircle size={16} className="text-emerald-400 shrink-0" />
-      <div>
-        <span className="font-bold">Optimal Configuration:</span>{' '}
-        Cluster worker resources are well within local hardware budget and fully satisfy active canvas workload demands.
-      </div>
-    </div>
-  );
+  return null;
 };
 
 /**
@@ -439,8 +431,8 @@ export const WorkerBudgetModal: React.FC<WorkerBudgetModalProps> = ({
       <div
         data-testid="worker-budget-modal"
         className={cn(
-          "w-full max-w-2xl rounded-2xl shadow-2xl border flex flex-col max-h-[90vh] overflow-hidden relative",
-          isDark ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"
+          "modal-container animate-in fade-in zoom-in duration-200 w-full max-w-3xl h-[80vh]",
+          isDark ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
         )}
       >
         <WorkerBudgetHeader isDark={isDark} onClose={handleClose} />

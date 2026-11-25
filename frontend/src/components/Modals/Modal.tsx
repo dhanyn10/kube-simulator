@@ -39,7 +39,7 @@ export const Modal = ({
   children,
   footer,
   widthClass = "w-full max-w-3xl",
-  maxHeightClass = "max-h-[85vh] h-[70vh]",
+  maxHeightClass = "h-[80vh]",
   alignClass = "items-center",
   disableScroll = false,
   compactHeader = true
@@ -76,7 +76,7 @@ export const Modal = ({
     <dialog
       open
       onContextMenu={handleContextMenu}
-      className={cn("modal-overlay", alignClass)}
+      className={cn("modal-overlay bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200", alignClass)}
     >
       {/* Backdrop button for accessibility to handle clicks outside */}
       <button

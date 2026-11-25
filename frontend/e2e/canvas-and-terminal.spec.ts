@@ -24,4 +24,20 @@ test.describe('Canvas Interactions & Terminal CLI', () => {
 
     await expect(page.locator('.react-flow__node')).toHaveCount(initialNodes);
   });
+
+  test('leaves cards untouched when no card is active and Delete is pressed', async ({ page }) => {
+    const initialNodes = await page.locator('.react-flow__node').count();
+
+    const podItem = page.locator('#sidebar-item-Pod');
+    await expect(podItem).toBeVisible();
+    await podItem.click();
+
+    await expect(page.locator('.react-flow__node')).toHaveCount(initialNodes + 1);
+
+    // No card is clicked/activated: Delete should not remove cards
+    await page.keyboard.press('Delete');
+
+    // Synchronize on the observable condition: the node is still rendered on the canvas
+    await expect(page.locator('.react-flow__node')).toHaveCount(initialNodes + 1);
+  });
 });
