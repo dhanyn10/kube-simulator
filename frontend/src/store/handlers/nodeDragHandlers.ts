@@ -4,8 +4,7 @@ import {
   isAllowed, 
   getNodeData, 
   sortNodes,
-  resolveGlobalCollisions,
-  ejectLoadBalancersFromNamespaces
+  resolveGlobalCollisions
 } from '@/store/helpers';
 import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
 import type { FlowState } from '@/store/types';
@@ -26,9 +25,6 @@ import { syncPvcRealtimeState } from '@/activities/config/pvcConfigHelpers';
 const getRelationshipStatus = (node: Node, container: Node, intersects: boolean, overlapPercentage: number) => {
   if (node.parentId === container.id) {
     return overlapPercentage < 20 ? 'detaching' : 'hovering';
-  }
-  if (intersects && container.type === 'Namespace' && node.type === 'Service' && node.data?.serviceType === 'LoadBalancer') {
-    return 'detaching';
   }
   if (intersects && isAllowed(container.type || '', node.type || '', node.data as Record<string, any>)) {
     return 'hovering';
@@ -218,19 +214,6 @@ const reconcileDroppedNode = (
 ): { nextNodes: Node[]; finalNode: Node } => {
   let nextNodes = mergeDroppedNodeIntoState(stateNodes, node.id, finalNode);
   let resolvedFinalNode = nextNodes.find((n) => n.id === node.id) || finalNode;
-
-  const isLoadBalancerDrag = resolvedFinalNode.type === 'Service' && resolvedFinalNode.data?.serviceType === 'LoadBalancer';
-  if (isLoadBalancerDrag || resolvedFinalNode.type === 'Namespace') {
-    const { nodes: ejectedNodes, ejectedIds } = ejectLoadBalancersFromNamespaces(nextNodes);
-    if (ejectedIds.length > 0) {
-      nextNodes = ejectedNodes;
-      resolvedFinalNode = nextNodes.find((n) => n.id === node.id) || resolvedFinalNode;
-      get().addLog('warn', '[Canvas Action] LoadBalancer Service cannot be placed inside a Namespace! Moved to nearest outside edge.', 'UI');
-      if (isLoadBalancerDrag) {
-        return { nextNodes, finalNode: resolvedFinalNode };
-      }
-    }
-  }
 
   if (!hoveredDeploymentId) {
     nextNodes = resolveGlobalCollisions(nextNodes, node.id);

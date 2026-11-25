@@ -25,7 +25,7 @@ describe('ResourceManager', () => {
   it('renders runtime setup images with numerical simulator variables when open', () => {
     render(<ResourceManager isOpen={true} onClose={vi.fn()} />);
 
-    expect(screen.getByText('Runtime & Container Image Manager')).toBeDefined();
+    expect(screen.getByText('Resource Manager')).toBeDefined();
     expect(screen.getByText('openjdk:21-jdk-slim')).toBeDefined();
     expect(screen.getByText('golang:1.24-alpine')).toBeDefined();
     expect(screen.getByText('custom-app:v1')).toBeDefined();
@@ -118,12 +118,7 @@ describe('ResourceManager', () => {
 
     render(<ResourceManager isOpen={true} onClose={onClose} />);
 
-    const applyBtns = screen.getAllByRole('button', { name: /Apply Image/i });
-    fireEvent.click(applyBtns[0]);
-
-    expect(addCustomImage).toHaveBeenCalled();
-    expect(updateNodeData).not.toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /Apply Image/i })).toBeNull();
   });
 
   it('renders empty state when search matches no images', () => {
