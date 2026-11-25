@@ -47,4 +47,30 @@ describe('useModalOverlayState', () => {
     });
     expect(result).toBe(true);
   });
+
+  it('returns false when target node props are undefined and true when a target node is truthy', () => {
+    const base = {
+      isFileBackstageOpen: false,
+      isProjectOpen: false,
+      isScenarioOpen: false,
+      isAboutDialogOpen: false,
+      isSettingsOpen: false,
+      isSaveModalOpen: false,
+      isYamlOpen: false,
+      roleModalTargetNode: undefined,
+      configMapModalTargetNode: undefined,
+      secretModalTargetNode: undefined,
+      hpaModalTargetNode: undefined,
+      resourceLimitModalTargetNode: undefined,
+      isTerminalOpen: false,
+      isMonitoringDashboardOpen: false,
+      isLogModalOpen: false,
+      isKubeIamWizardOpen: false,
+      isTerminalCommandTreeModalOpen: false,
+    };
+
+    expect(isAnyModalOverlayOpen(base)).toBe(false);
+    expect(isAnyModalOverlayOpen({ ...base, roleModalTargetNode: { id: 'r1', label: 'Role' } })).toBe(true);
+    expect(isAnyModalOverlayOpen({ ...base, isWorkerBudgetModalOpen: true })).toBe(true);
+  });
 });

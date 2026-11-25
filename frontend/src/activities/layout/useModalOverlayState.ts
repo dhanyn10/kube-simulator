@@ -32,11 +32,11 @@ export function isAnyModalOverlayOpen(modalStates: {
     modalStates.isSettingsOpen ||
     modalStates.isSaveModalOpen ||
     modalStates.isYamlOpen ||
-    modalStates.roleModalTargetNode !== null ||
-    modalStates.configMapModalTargetNode !== null ||
-    modalStates.secretModalTargetNode !== null ||
-    modalStates.hpaModalTargetNode !== null ||
-    modalStates.resourceLimitModalTargetNode !== null ||
+    Boolean(modalStates.roleModalTargetNode) ||
+    Boolean(modalStates.configMapModalTargetNode) ||
+    Boolean(modalStates.secretModalTargetNode) ||
+    Boolean(modalStates.hpaModalTargetNode) ||
+    Boolean(modalStates.resourceLimitModalTargetNode) ||
     modalStates.isTerminalOpen ||
     modalStates.isMonitoringDashboardOpen ||
     modalStates.isLogModalOpen ||
