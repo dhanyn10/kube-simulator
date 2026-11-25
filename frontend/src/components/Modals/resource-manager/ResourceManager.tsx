@@ -157,20 +157,22 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
                     )}
                   </div>
 
-                  <button
-                    type="button"
-                    ref={isTarget ? targetButtonRef : undefined}
-                    onClick={() => handleSelectImage(item.name)}
-                    className={cn(
-                      "px-3 py-1 rounded-lg text-[11px] font-bold font-mono transition-all flex items-center gap-1.5 shrink-0",
-                      colorMode === 'dark'
-                        ? "bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30"
-                        : "bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200"
-                    )}
-                  >
-                    <Check size={11} />
-                    <span>Apply Image</span>
-                  </button>
+                  {selectedNodeId && (
+                    <button
+                      type="button"
+                      ref={isTarget ? targetButtonRef : undefined}
+                      onClick={() => handleSelectImage(item.name)}
+                      className={cn(
+                        "px-3 py-1 rounded-lg text-[11px] font-bold font-mono transition-all flex items-center gap-1.5 shrink-0",
+                        colorMode === 'dark'
+                          ? "bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30"
+                          : "bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200"
+                      )}
+                    >
+                      <Check size={11} />
+                      <span>Apply Image</span>
+                    </button>
+                  )}
                 </div>
 
                 <p className={cn("text-[11px]", colorMode === 'dark' ? "text-slate-400" : "text-slate-600")}>

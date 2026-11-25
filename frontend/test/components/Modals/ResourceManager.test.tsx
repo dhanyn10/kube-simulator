@@ -118,12 +118,7 @@ describe('ResourceManager', () => {
 
     render(<ResourceManager isOpen={true} onClose={onClose} />);
 
-    const applyBtns = screen.getAllByRole('button', { name: /Apply Image/i });
-    fireEvent.click(applyBtns[0]);
-
-    expect(addCustomImage).toHaveBeenCalled();
-    expect(updateNodeData).not.toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /Apply Image/i })).toBeNull();
   });
 
   it('renders empty state when search matches no images', () => {
