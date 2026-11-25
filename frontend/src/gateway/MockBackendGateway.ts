@@ -201,7 +201,9 @@ export class MockBackendGateway extends BaseBackendGateway {
     return true;
   }
 
-  async openDevTools(): Promise<void> {}
+  openDevTools(): Promise<void> {
+    return Promise.resolve();
+  }
 
   async closeSimulationWindow(): Promise<boolean> {
     return true;
