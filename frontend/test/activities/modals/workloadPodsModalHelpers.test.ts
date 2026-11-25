@@ -312,4 +312,25 @@ describe('workloadPodsModalHelpers dynamic worker fallback', () => {
     expect(dist).toHaveLength(5);
     expect(dist.find((d) => d.workerId === 'worker-5')?.count).toBe(1);
   });
+
+  it('matches child pods via data.parentId and handles non-worker-N workerId in getWorkerDistribution', () => {
+    const dep = { id: 'd-data-p', type: 'Deployment', data: { label: 'svc', replicas: 1 } };
+    const pod = {
+      id: 'p-data-p',
+      type: 'Pod',
+      data: { parentId: 'd-data-p', replicaSuffix: 'abc99' },
+    };
+
+    const pods = buildWorkloadPodList(dep, [dep, pod]);
+    expect(pods[0].replicaSuffix).toBe('abc99');
+
+    const customDist = getWorkerDistribution([
+      {
+        ...pods[0],
+        workerId: 'custom-node',
+      },
+    ]);
+    expect(customDist).toHaveLength(3);
+    expect(customDist.every((d) => d.count === 0)).toBe(true);
+  });
 });
