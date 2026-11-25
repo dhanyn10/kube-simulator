@@ -62,6 +62,7 @@ export const useMenuBarState = ({
   const activeIdentity = useFlowStore((state: FlowState) => state.activeIdentity);
   const setKubeIamModalOpen = useFlowStore((state: FlowState) => state.setKubeIamModalOpen);
   const setTerminalCommandTreeModalOpen = useFlowStore((state: FlowState) => state.setTerminalCommandTreeModalOpen);
+  const setResourceManagerOpen = useFlowStore((state: FlowState) => state.setResourceManagerOpen);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [updateAvailableInfo, setUpdateAvailableInfo] = useState<{ version: string; releaseUrl: string } | null>(null);
@@ -156,7 +157,7 @@ export const useMenuBarState = ({
       {
         label: 'Resource',
         items: [
-          { label: 'Resource Manager', icon: FolderOpen, onClick: onOpenProjects },
+          { label: 'Resource Manager', icon: FolderOpen, onClick: () => setResourceManagerOpen(true) },
           { label: 'Terminal Commands', icon: Terminal, onClick: () => setTerminalCommandTreeModalOpen(true) },
           { label: 'Scenarios', icon: BookOpen, onClick: onOpenScenarios },
           {

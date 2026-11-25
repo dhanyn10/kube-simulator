@@ -25,7 +25,7 @@ describe('ResourceManager', () => {
   it('renders runtime setup images with numerical simulator variables when open', () => {
     render(<ResourceManager isOpen={true} onClose={vi.fn()} />);
 
-    expect(screen.getByText('Runtime & Container Image Manager')).toBeDefined();
+    expect(screen.getByText('Resource Manager')).toBeDefined();
     expect(screen.getByText('openjdk:21-jdk-slim')).toBeDefined();
     expect(screen.getByText('golang:1.24-alpine')).toBeDefined();
     expect(screen.getByText('custom-app:v1')).toBeDefined();

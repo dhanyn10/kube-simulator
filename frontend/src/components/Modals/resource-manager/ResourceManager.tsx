@@ -89,7 +89,7 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Runtime & Container Image Manager"
+      title="Resource Manager"
       icon={Box}
       widthClass="w-[720px]"
       maxHeightClass="h-[75vh]"
