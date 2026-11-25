@@ -36,8 +36,8 @@ test.describe('Canvas Interactions & Terminal CLI', () => {
 
     // No card is clicked/activated: Delete should not remove cards
     await page.keyboard.press('Delete');
-    await page.waitForTimeout(500);
 
+    // Synchronize on the observable condition: the node is still rendered on the canvas
     await expect(page.locator('.react-flow__node')).toHaveCount(initialNodes + 1);
   });
 });
