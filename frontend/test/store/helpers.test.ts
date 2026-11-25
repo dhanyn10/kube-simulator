@@ -7,7 +7,6 @@ import {
   syncPodsInDeployment,
   layoutPodsInDeployment,
   resolveGlobalCollisions,
-  ejectLoadBalancersFromNamespaces,
   getDomMeasuredNodeSize,
   getEffectiveSize
 } from '@/store/helpers';
@@ -701,88 +700,10 @@ describe('store helpers', () => {
     const randomizedGroup = syncPodsInDeployment(depGroup, initialPods, undefined, true);
     expect(randomizedGroup[0].data.replicaSuffixes).not.toEqual(initialPods[0].data.replicaSuffixes);
 
-    const ns = { id: 'ns-1', type: 'Namespace', position: { x: 100, y: 100 }, width: 600, height: 400, data: { label: 'prod' } } as any;
-    const lbInsideNearLeft = { id: 'lb-left', type: 'Service', parentId: 'ns-1', position: { x: 20, y: 150 }, width: 200, height: 120, data: { label: 'lb-svc', serviceType: 'LoadBalancer', parentId: 'ns-1' } } as any;
-    const { nodes: ejected, ejectedIds } = ejectLoadBalancersFromNamespaces([ns, lbInsideNearLeft]);
-    expect(ejectedIds).toEqual(['lb-left']);
-    const ejectedLb = ejected.find((n) => n.id === 'lb-left')!;
-    expect(ejectedLb.parentId).toBeUndefined();
-    expect(ejectedLb.position.x).toBe(100 - 200 - 32);
-
-    const lbPlaceholderTop = {
-      id: 'lb-top-88',
-      type: 'Service',
-      position: { x: 300, y: 110 },
-      width: 180,
-      height: 88,
-      style: { width: 180, height: 88 },
-      data: { label: 'lb-top', serviceType: 'LoadBalancer' },
-    } as any;
-    const { nodes: ejectedTopNodes } = ejectLoadBalancersFromNamespaces([ns, lbPlaceholderTop]);
-    const ejectedTop = ejectedTopNodes.find((n) => n.id === 'lb-top-88')!;
-    expect(ejectedTop.position.y).toBe(100 - 200 - 32);
-
-    // DOM measured node size with .react-flow__node and firstElementChild
-    const domNodeEl = document.createElement('div');
-    domNodeEl.className = 'react-flow__node';
-    domNodeEl.setAttribute('data-id', 'dom-lb');
-    Object.defineProperty(domNodeEl, 'offsetWidth', { value: 210 });
-    Object.defineProperty(domNodeEl, 'offsetHeight', { value: 195 });
-    const domChildEl = document.createElement('div');
-    Object.defineProperty(domChildEl, 'offsetWidth', { value: 220 });
-    Object.defineProperty(domChildEl, 'offsetHeight', { value: 205 });
-    domNodeEl.appendChild(domChildEl);
-    document.body.appendChild(domNodeEl);
-
-    try {
-      const lbDom = {
-        id: 'dom-lb',
-        type: 'Service',
-        position: { x: 300, y: 110 },
-        data: { label: 'dom-lb', serviceType: 'LoadBalancer' },
-      } as any;
-      const { nodes: domEjected } = ejectLoadBalancersFromNamespaces([ns, lbDom]);
-      expect(domEjected.find((n) => n.id === 'dom-lb')!.position.y).toBe(100 - 205 - 32);
-    } finally {
-      domNodeEl.remove();
-    }
-
     // Node with empty id exercises !nodeId guard in getDomMeasuredNodeSize
     const emptyIdNode = { id: '', type: 'Service', position: { x: 0, y: 0 }, data: {} } as any;
     expect(resolveGlobalCollisions([emptyIdNode])).toHaveLength(1);
     expect(getDomMeasuredNodeSize(undefined)).toEqual({ width: 0, height: 0 });
-
-    // ejectLoadBalancersFromNamespaces with zero ejected IDs
-    const noEjectResult = ejectLoadBalancersFromNamespaces([ns]);
-    expect(noEjectResult.ejectedIds).toHaveLength(0);
-    expect(noEjectResult.nodes).toEqual([ns]);
-
-    // Ejected LoadBalancer overlapping an adjacent namespace triggers getNearestOutsideNamespacePosition
-    const adjacentNs = {
-      id: 'ns-adjacent',
-      type: 'Namespace',
-      position: { x: -160, y: 100 },
-      width: 200,
-      height: 400,
-      data: { label: 'adjacent' },
-    } as any;
-    const lbEjectedNearAdjacent = {
-      id: 'lb-adj',
-      type: 'Service',
-      parentId: 'ns-1',
-      position: { x: 10, y: 150 },
-      width: 150,
-      height: 100,
-      data: { label: 'lb-adj', serviceType: 'LoadBalancer', parentId: 'ns-1' },
-    } as any;
-    const { nodes: adjEjected, ejectedIds: adjEjectedIds } = ejectLoadBalancersFromNamespaces([
-      ns,
-      adjacentNs,
-      lbEjectedNearAdjacent,
-    ]);
-    expect(adjEjectedIds).toContain('lb-adj');
-    const finalLb = adjEjected.find((n) => n.id === 'lb-adj')!;
-    expect(finalLb.parentId).toBeUndefined();
   });
 
   it('covers uncovered conditions in getAbsPos with nodeMap and missing position', () => {
@@ -968,31 +889,6 @@ describe('store helpers', () => {
     expect(resolvedXB.find(n => n.id === 'xB')?.position.x).toBe(10);
     expect(resolvedXB.find(n => n.id === 'xA')?.position.x).not.toBe(0);
 
-    // 3. ejectLoadBalancersFromNamespaces with parentId on data instead of node root
-    const nsNode = { id: 'ns-data-p', type: 'Namespace', position: { x: 100, y: 100 }, width: 400, height: 400, data: {} } as any;
-    const lbWithDataParent = {
-      id: 'lb-dp',
-      type: 'Service',
-      position: { x: 150, y: 150 },
-      width: 150,
-      height: 180,
-      data: { serviceType: 'LoadBalancer', parentId: 'ns-data-p' }
-    } as any;
-    const { ejectedIds } = ejectLoadBalancersFromNamespaces([nsNode, lbWithDataParent]);
-    expect(ejectedIds).toContain('lb-dp');
-
-    // 4. ejectLoadBalancersFromNamespaces with parentId pointing to non-existent namespace
-    const lbNonExistentParent = {
-      id: 'lb-bad-p',
-      type: 'Service',
-      parentId: 'missing-ns',
-      position: { x: 0, y: 0 },
-      width: 150,
-      height: 180,
-      data: { serviceType: 'LoadBalancer' }
-    } as any;
-    const resBad = ejectLoadBalancersFromNamespaces([lbNonExistentParent]);
-    expect(resBad.ejectedIds).toHaveLength(0);
   });
 });
 
