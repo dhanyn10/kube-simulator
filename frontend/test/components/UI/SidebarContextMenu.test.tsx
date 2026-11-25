@@ -63,4 +63,24 @@ describe('SidebarContextMenu', () => {
     });
     expect(result.current.contextMenu).toBeNull();
   });
+
+  it('calls onDetachSidebar and onCloseContextMenu when Detach Window is clicked', () => {
+    const onDetachSidebar = vi.fn();
+    const onCloseContextMenu = vi.fn();
+
+    render(
+      <SidebarContextMenu
+        x={50}
+        y={50}
+        colorMode="dark"
+        toggleColorMode={vi.fn()}
+        onDetachSidebar={onDetachSidebar}
+        onCloseContextMenu={onCloseContextMenu}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Detach Window'));
+    expect(onDetachSidebar).toHaveBeenCalledTimes(1);
+    expect(onCloseContextMenu).toHaveBeenCalledTimes(1);
+  });
 });

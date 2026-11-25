@@ -41,4 +41,21 @@ describe('useAboutDialog', () => {
     const { result } = renderHook(() => useAboutDialog({ isOpen: false }));
     expect(result.current.displayVersion).toBe('3.1.4');
   });
+
+  it('logs error when clipboard writeText rejects', async () => {
+    const mockWriteText = vi.fn().mockRejectedValue(new Error('Clipboard blocked'));
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: mockWriteText,
+      },
+    });
+
+    const { result } = renderHook(() => useAboutDialog({ isOpen: false }));
+    await act(async () => {
+      await result.current.handleCopy();
+    });
+
+    expect(mockWriteText).toHaveBeenCalled();
+    expect(result.current.copied).toBe(false);
+  });
 });

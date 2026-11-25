@@ -54,4 +54,19 @@ describe('WindowControls', () => {
     expect(() => fireEvent.click(minBtn)).not.toThrow();
     expect(minBtn).toBeDefined();
   });
+
+  it('stops propagation on mouseDown for minimize, maximize, and close buttons', () => {
+    const parentMouseDown = vi.fn();
+    render(
+      <div onMouseDown={parentMouseDown}>
+        <WindowControls colorMode="light" />
+      </div>
+    );
+
+    fireEvent.mouseDown(screen.getByLabelText('minimize'));
+    fireEvent.mouseDown(screen.getByLabelText('maximize'));
+    fireEvent.mouseDown(screen.getByLabelText('close'));
+
+    expect(parentMouseDown).not.toHaveBeenCalled();
+  });
 });

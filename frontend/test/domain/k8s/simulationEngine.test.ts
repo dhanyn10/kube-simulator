@@ -129,4 +129,23 @@ describe('runDomainSimulationStep (branch coverage additions)', () => {
     expect(graph.getNode('dep-1')).toBeDefined();
     expect(result.hasChanges).toBe(true);
   });
+
+  it('records logs and invokes options.onLog when a workload triggers a simulation log', async () => {
+    const simLib = await import('@/lib/simulation');
+    const spy = vi.spyOn(simLib, 'processWorkloadSimulation').mockImplementation((_dep, ctx) => {
+      ctx.onLog('warn', 'Simulated workload warning', 'Traffic');
+      return { hasChanges: false } as any;
+    });
+
+    const graph = new K8sClusterGraph();
+    graph.addNode(makeNode({ id: 'dep-log', type: 'Deployment', data: { label: 'dep-log' } }));
+
+    const onLog = vi.fn();
+    const result = runDomainSimulationStep(graph, { ticks: 1, onLog });
+
+    expect(onLog).toHaveBeenCalledWith('warn', 'Simulated workload warning', 'Traffic');
+    expect(result.logs).toHaveLength(1);
+    expect(result.logs[0].message).toBe('Simulated workload warning');
+    spy.mockRestore();
+  });
 });
