@@ -155,7 +155,6 @@ export const KubeIAMModal: React.FC = () => {
       icon={UserCheck}
       iconColorClass="text-emerald-400"
       widthClass="w-full max-w-3xl"
-      maxHeightClass="max-h-[85vh] h-[70vh]"
     >
       <div className="flex flex-col h-full overflow-hidden">
         {renderBodyContent()}

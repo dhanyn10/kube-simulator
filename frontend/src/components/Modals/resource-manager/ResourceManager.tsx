@@ -106,7 +106,6 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
       title="Resource Manager"
       icon={Box}
       widthClass="w-[720px]"
-      maxHeightClass="h-[75vh]"
       disableScroll={true}
       compactHeader={true}
       footer={

@@ -312,7 +312,7 @@
 
   /* Modal & Overlay Component Styles */
   .modal-overlay {
-    @apply fixed inset-0 z-[500] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden outline-none focus:outline-none;
+    @apply fixed inset-0 z-50 flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden outline-none focus:outline-none;
   }
 
   .modal-container {
