@@ -362,5 +362,33 @@ describe('useTerminalCommandSubmit', () => {
       expect(useFlowStore.getState().isAwaitingAdminPassword).toBe(false);
       expect(result.current.commandHistory).toEqual([]);
     });
+
+    it('invokes deleteNodes and updateNodeData callbacks via kubectl delete and kubectl scale', () => {
+      const deleteNodesSpy = vi.fn();
+      const updateNodeDataSpy = vi.fn();
+      const nodes = [
+        { id: 'pod-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod' } },
+        { id: 'dep-1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'api-dep', replicas: 1 } },
+      ] as any;
+      useFlowStore.setState({
+        nodes,
+        deleteNodes: deleteNodesSpy,
+        updateNodeData: updateNodeDataSpy,
+      });
+
+      const { result } = renderHook(() =>
+        useTerminalCommandSubmit(nodes, true, clearTerminalLogs, setTerminalSelectedResourceId, setTerminalActiveTab)
+      );
+
+      act(() => {
+        result.current.processCommandSubmit('kubectl scale deployment/api-dep --replicas=3', setIsDropdownOpen, setIsNavigatingHistory);
+      });
+      expect(updateNodeDataSpy).toHaveBeenCalledWith('dep-1', expect.objectContaining({ replicas: 3 }));
+
+      act(() => {
+        result.current.processCommandSubmit('kubectl delete pod web-pod', setIsDropdownOpen, setIsNavigatingHistory);
+      });
+      expect(deleteNodesSpy).toHaveBeenCalledWith([expect.objectContaining({ id: 'pod-1' })]);
+    });
   });
 });

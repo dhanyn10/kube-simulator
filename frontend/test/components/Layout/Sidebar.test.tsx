@@ -308,7 +308,10 @@ describe('Sidebar detached mode branch coverage', () => {
   it('renders the context menu with detach when attached and without it when detached', () => {
     const { unmount } = render(<Sidebar onAddNode={vi.fn()} />);
     fireEvent.contextMenu(document.getElementById('sidebar-components')!);
-    expect(screen.getByTestId('left-sidebar-detach')).toBeDefined();
+    const detachBtn = screen.getByTestId('left-sidebar-detach');
+    expect(detachBtn).toBeDefined();
+    fireEvent.click(detachBtn);
+    expect(useFlowStore.getState().isSidebarDetached).toBe(true);
     unmount();
 
     render(<Sidebar onAddNode={vi.fn()} isDetached />);

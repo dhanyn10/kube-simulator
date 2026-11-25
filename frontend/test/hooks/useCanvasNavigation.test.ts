@@ -330,23 +330,31 @@ describe('useCanvasNavigation RAF cancellation on zero velocity', () => {
     vi.stubGlobal('performance', undefined);
 
     try {
+      const setVp1 = vi.fn();
+      useReactFlowSpy.mockReturnValue({
+        getViewport: undefined as any,
+        setViewport: setVp1,
+      } as any);
       const { result, unmount } = renderHook(() => useCanvasNavigation());
       act(() => {
         result.current.panUp(400);
       });
+      expect(setVp1).toHaveBeenCalled();
       act(() => {
         result.current.stop();
       });
 
       // Also cover getViewport returning partial object without x/y/zoom
+      const setVp2 = vi.fn();
       useReactFlowSpy.mockReturnValue({
         getViewport: (() => ({})) as any,
-        setViewport: vi.fn(),
+        setViewport: setVp2,
       } as any);
       const { result: res2 } = renderHook(() => useCanvasNavigation());
       act(() => {
         res2.current.panDown(400);
       });
+      expect(setVp2).toHaveBeenCalled();
 
       // Also cover setViewport not being a function
       useReactFlowSpy.mockReturnValue({
@@ -354,9 +362,11 @@ describe('useCanvasNavigation RAF cancellation on zero velocity', () => {
         setViewport: undefined as any,
       } as any);
       const { result: res3 } = renderHook(() => useCanvasNavigation());
-      act(() => {
-        res3.current.panLeft(400);
-      });
+      expect(() => {
+        act(() => {
+          res3.current.panLeft(400);
+        });
+      }).not.toThrow();
 
       unmount();
     } finally {
