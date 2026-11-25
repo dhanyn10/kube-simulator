@@ -51,6 +51,7 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   abstract maximizeWindow(): Promise<void>;
   abstract closeWindow(): Promise<void>;
   abstract openSimulationWindow(): Promise<boolean>;
+  abstract openDevTools(): Promise<void>;
   abstract closeSimulationWindow(): Promise<boolean>;
   abstract openSidebarWindow(side: 'left' | 'right'): Promise<boolean>;
   abstract closeSidebarWindow(side: 'left' | 'right'): Promise<boolean>;
@@ -164,6 +165,7 @@ export abstract class BaseBackendGateway implements IBackendGateway {
   OpenFileFolder(p: string) { return this.openFileFolder(p); }
   OpenLogFile(p?: string) { return this.openLogFile(p); }
   OpenSimulationWindow() { return this.openSimulationWindow(); }
+  OpenDevTools() { return this.openDevTools(); }
   PushHistory(s: string) { return this.pushHistory(s); }
   Redo() { return this.redo(); }
   SaveInternetProfile(n: string, p: string) { return this.saveInternetProfile(n, p); }

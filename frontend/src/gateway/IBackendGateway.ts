@@ -94,6 +94,7 @@ export interface IBackendGateway {
   closeWindow(): Promise<void>;
   openSimulationWindow(): Promise<boolean>;
   closeSimulationWindow(): Promise<boolean>;
+  openDevTools(): Promise<void>;
   openSidebarWindow(side: 'left' | 'right'): Promise<boolean>;
   closeSidebarWindow(side: 'left' | 'right'): Promise<boolean>;
   calculateAppHeight(screenHeight: number): Promise<number>;

@@ -59,6 +59,7 @@ export const useMenuBarState = ({
   const isTerminalOpen = useFlowStore((state: FlowState) => state.isTerminalOpen);
   const setTerminalOpen = useFlowStore((state: FlowState) => state.setTerminalOpen);
   const simulatedUpdateInfo = useFlowStore((state: FlowState) => state.simulatedUpdateInfo);
+  const isAdminAuthenticated = useFlowStore((state: FlowState) => state.isAdminAuthenticated);
   const activeIdentity = useFlowStore((state: FlowState) => state.activeIdentity);
   const setKubeIamModalOpen = useFlowStore((state: FlowState) => state.setKubeIamModalOpen);
   const setTerminalCommandTreeModalOpen = useFlowStore((state: FlowState) => state.setTerminalCommandTreeModalOpen);
@@ -252,7 +253,19 @@ export const useMenuBarState = ({
             label: 'Terminal',
             icon: Terminal,
             onClick: () => setTerminalOpen(!isTerminalOpen)
-          }
+          },
+          ...(isAdminAuthenticated
+            ? [
+                { type: 'separator' as const },
+                {
+                  label: 'Open DevTools',
+                  icon: Terminal,
+                  onClick: () => {
+                    void getBackendGateway().openDevTools();
+                  }
+                }
+              ]
+            : [])
         ]
       },
       {
@@ -270,7 +283,8 @@ export const useMenuBarState = ({
     isMonitoringOpen, setMonitoringOpen, setMonitoringDetached,
     isSidebarVisible, isRightSidebarVisible, isHistoryViewOpen, setHistoryViewOpen,
     isAutofocusEnabled, isTerminalAutoOpenOnPlay, toggleTerminalAutoOpenOnPlay, setSidebarVisible, setRightSidebarVisible, toggleAutofocus,
-    setLogModalOpen, isTerminalOpen, setTerminalOpen, setTerminalCommandTreeModalOpen
+    setLogModalOpen, isTerminalOpen, setTerminalOpen, setTerminalCommandTreeModalOpen,
+    isAdminAuthenticated
   ]);
 
   const hasInternet = useMemo(() => nodes.some((n: any) => n.type === 'Internet'), [nodes]);
@@ -287,6 +301,7 @@ export const useMenuBarState = ({
     hasInternet,
     canStart,
     hasHpaValidationError,
+    isAdminAuthenticated,
     activeIdentity,
     setKubeIamModalOpen,
     effectiveUpdateInfo,
