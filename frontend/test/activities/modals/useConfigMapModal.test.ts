@@ -325,4 +325,35 @@ describe('useConfigMapModal fallback name & id branches', () => {
     expect(result.current.cmName).toBe('cm-empty');
     expect(result.current.rows).toHaveLength(0);
   });
+
+  it('covers empty name/id with configData, named-only without id, and handleSave cmId fallback', () => {
+    const onSave = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ initialConfigMap }: { initialConfigMap: any }) =>
+        useConfigMapModal({
+          isOpen: true,
+          onClose: vi.fn(),
+          targetNodeId: null,
+          initialConfigMap,
+          onSave,
+        }),
+      {
+        initialProps: {
+          initialConfigMap: { id: '', name: '', configData: [{ key: 'A', value: '1' }] },
+        },
+      }
+    );
+    expect(result.current.cmName).toBe('');
+
+    rerender({ initialConfigMap: { id: '', name: 'named-only', configData: [] } });
+    expect(result.current.cmName).toBe('named-only');
+
+    rerender({ initialConfigMap: null });
+    act(() => {
+      result.current.handleSave();
+    });
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ id: result.current.cmId, name: result.current.cmId })
+    );
+  });
 });

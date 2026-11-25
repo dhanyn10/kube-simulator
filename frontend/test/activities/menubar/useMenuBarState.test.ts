@@ -739,4 +739,28 @@ describe('useMenuBarState', () => {
       )
     ).toBe(true);
   });
+
+  it('opens Resource Manager when Resource > Resource Manager is clicked', () => {
+    useFlowStore.setState({ isResourceManagerOpen: false });
+    const { result } = renderHook(() =>
+      useMenuBarState({
+        onExportYaml: vi.fn(),
+        onImportFile: vi.fn(),
+        onSave: vi.fn(),
+        onSaveAs: vi.fn(),
+        onOpenProjects: vi.fn(),
+        onOpenScenarios: vi.fn(),
+        onOpenAbout: vi.fn(),
+        onOpenSettings: vi.fn(),
+      })
+    );
+
+    const resourceMenu = result.current.menuItems.find((m) => m.label === 'Resource');
+    const rmItem = resourceMenu?.items.find((i) => i.label === 'Resource Manager');
+    act(() => {
+      rmItem?.onClick?.();
+    });
+
+    expect(useFlowStore.getState().isResourceManagerOpen).toBe(true);
+  });
 });

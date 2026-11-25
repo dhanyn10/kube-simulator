@@ -783,4 +783,33 @@ describe('SecretModal', () => {
 
     expect(screen.getByTestId('secret-precedence-view')).toBeInTheDocument();
   });
+
+  it('closes import dropdown on outside mouseDown', () => {
+    useFlowStore.setState({
+      nodes: [],
+      savedSecrets: [
+        {
+          id: 'sec-saved-outside',
+          name: 'outside-sec',
+          type: 'Opaque',
+          secretData: [{ key: 'K', value: 'V' }],
+        },
+      ],
+    });
+
+    render(
+      <SecretModal
+        {...defaultProps}
+        targetNodeId="pod-1"
+        targetNodeLabel="Pod 1"
+        initialSecret={null}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('btn-add-from-existing-sec'));
+    expect(screen.getByText('outside-sec')).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText('outside-sec')).not.toBeInTheDocument();
+  });
 });

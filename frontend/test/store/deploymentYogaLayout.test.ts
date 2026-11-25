@@ -982,4 +982,15 @@ describe('deploymentYogaLayout', () => {
     expect(engine).toBeDefined();
     expect(getYogaInstanceSync()).toBe(engine);
   });
+
+  it('falls back to null if top-level loadYoga fails during module initialization', async () => {
+    vi.resetModules();
+    vi.doMock('yoga-layout/load', () => ({
+      loadYoga: vi.fn().mockRejectedValue(new Error('WASM init failed')),
+    }));
+    const freshMod = await import('@/store/deploymentYogaLayout');
+    expect(freshMod.getYogaInstanceSync()).toBeNull();
+    vi.doUnmock('yoga-layout/load');
+    vi.resetModules();
+  });
 });

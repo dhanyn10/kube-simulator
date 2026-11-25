@@ -174,4 +174,24 @@ describe('aboutDialogHelpers', () => {
       isPrerelease: false,
     });
   });
+
+  it('handles errors from getSystemInfo and checkForUpdates gracefully', async () => {
+    delete (globalThis.window as any).go;
+    const mockGateway: any = {
+      getSystemInfo: vi.fn().mockRejectedValue(new Error('sys fail')),
+      checkForUpdates: vi.fn().mockRejectedValue(new Error('update fail')),
+    };
+
+    let setUpd: UpdateInfo | null = { currentVersion: '1', latestVersion: '2', updateAvailable: true, releaseUrl: '', isPrerelease: false };
+    await fetchAboutData(
+      '1.0.0',
+      vi.fn(),
+      vi.fn(),
+      (u) => { setUpd = u; },
+      null,
+      mockGateway
+    );
+
+    expect(setUpd).toBeNull();
+  });
 });

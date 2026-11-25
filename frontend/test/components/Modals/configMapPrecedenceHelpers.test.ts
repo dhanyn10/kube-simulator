@@ -299,4 +299,24 @@ describe('configMapPrecedenceHelpers remaining branches', () => {
     syncConfigMapPrecedenceOrder(reordered, [], updateNodeData, [], setSaved);
     expect(setSaved).not.toHaveBeenCalled();
   });
+
+  it('sorts savedItems by name fallback and 999 fallback when id is not in orderRank', () => {
+    const updateNodeData = vi.fn();
+    const setSaved = vi.fn();
+    const reordered = [
+      { id: 'different-id-2', name: 'cm-beta', data: {}, source: 'saved' as const },
+      { id: 'different-id-1', name: 'cm-alpha', data: {}, source: 'saved' as const },
+    ];
+    const savedItems = [
+      { id: 'unmatched-1', name: 'cm-gamma', configData: [] },
+      { id: 'unmatched-2', name: 'cm-alpha', configData: [] },
+      { id: 'unmatched-3', name: 'cm-beta', configData: [] },
+    ];
+    syncConfigMapPrecedenceOrder(reordered, [], updateNodeData, savedItems, setSaved);
+    expect(setSaved).toHaveBeenCalledWith([
+      { id: 'unmatched-3', name: 'cm-beta', configData: [] },
+      { id: 'unmatched-2', name: 'cm-alpha', configData: [] },
+      { id: 'unmatched-1', name: 'cm-gamma', configData: [] },
+    ]);
+  });
 });

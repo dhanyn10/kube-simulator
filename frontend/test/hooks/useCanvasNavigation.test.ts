@@ -317,6 +317,63 @@ describe('useCanvasNavigation RAF cancellation on zero velocity', () => {
     rafSpy.mockRestore();
     cancelSpy.mockRestore();
   });
+
+  it('handles missing RAF, cancelAnimationFrame, performance, and partial/missing viewport functions', async () => {
+    const reactFlow = await import('@xyflow/react');
+    const useReactFlowSpy = vi.spyOn(reactFlow, 'useReactFlow').mockReturnValue({
+      getViewport: undefined as any,
+      setViewport: vi.fn(),
+    } as any);
+
+    vi.stubGlobal('requestAnimationFrame', undefined);
+    vi.stubGlobal('cancelAnimationFrame', undefined);
+    vi.stubGlobal('performance', undefined);
+
+    try {
+      const setVp1 = vi.fn();
+      useReactFlowSpy.mockReturnValue({
+        getViewport: undefined as any,
+        setViewport: setVp1,
+      } as any);
+      const { result, unmount } = renderHook(() => useCanvasNavigation());
+      act(() => {
+        result.current.panUp(400);
+      });
+      expect(setVp1).toHaveBeenCalled();
+      act(() => {
+        result.current.stop();
+      });
+
+      // Also cover getViewport returning partial object without x/y/zoom
+      const setVp2 = vi.fn();
+      useReactFlowSpy.mockReturnValue({
+        getViewport: (() => ({})) as any,
+        setViewport: setVp2,
+      } as any);
+      const { result: res2 } = renderHook(() => useCanvasNavigation());
+      act(() => {
+        res2.current.panDown(400);
+      });
+      expect(setVp2).toHaveBeenCalled();
+
+      // Also cover setViewport not being a function
+      useReactFlowSpy.mockReturnValue({
+        getViewport: vi.fn(),
+        setViewport: undefined as any,
+      } as any);
+      const { result: res3 } = renderHook(() => useCanvasNavigation());
+      expect(() => {
+        act(() => {
+          res3.current.panLeft(400);
+        });
+      }).not.toThrow();
+
+      unmount();
+    } finally {
+      vi.unstubAllGlobals();
+      useReactFlowSpy.mockRestore();
+    }
+  });
 });
 
 describe('useCanvasNavigation keydown guard branches', () => {

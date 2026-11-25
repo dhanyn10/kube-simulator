@@ -1130,5 +1130,12 @@ describe('Clean Architecture Backend Gateway', () => {
       await expect(fallbackBindings.Greet('Test')).resolves.toBe('');
       await expect(fallbackBindings.GetSystemResources()).resolves.toEqual({});
     });
+
+    it('covers MockBackendGateway openDevTools, openSidebarWindow, and closeSidebarWindow', async () => {
+      const mockGw = new MockBackendGateway();
+      await expect(mockGw.openDevTools()).resolves.toBeUndefined();
+      await expect(mockGw.openSidebarWindow('left')).resolves.toBe(true);
+      await expect(mockGw.closeSidebarWindow('left')).resolves.toBe(true);
+    });
   });
 });
