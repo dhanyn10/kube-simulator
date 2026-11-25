@@ -26,7 +26,7 @@ describe('store helpers', () => {
     expect(isAllowed('Namespace', 'Pod')).toBe(true);
     expect(isAllowed('Namespace', 'Deployment')).toBe(true);
     expect(isAllowed('Namespace', 'Service', { serviceType: 'ClusterIP' })).toBe(true);
-    expect(isAllowed('Namespace', 'Service', { serviceType: 'LoadBalancer' })).toBe(false);
+    expect(isAllowed('Namespace', 'Service', { serviceType: 'LoadBalancer' })).toBe(true);
     expect(isAllowed('Service', 'Pod')).toBe(false);
   });
 

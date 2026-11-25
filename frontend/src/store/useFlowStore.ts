@@ -3,7 +3,6 @@ import { getBackendGateway } from '@/gateway';
 import { createStore, useStore } from 'zustand';
 import type { FlowState } from '@/store/types';
 import { createFlowSlice } from '@/store/slices/createFlowSlice';
-import { ejectLoadBalancersFromNamespaces } from '@/store/helpers';
 import { createDeploymentSlice } from '@/store/slices/createDeploymentSlice';
 import { createNodeSlice } from '@/store/slices/createNodeSlice';
 import { createUiSlice } from '@/store/slices/createUiSlice';
@@ -302,8 +301,7 @@ flowStore.subscribe((state, prevState) => {
 });
 
 /**
- * Applies a history state JSON snapshot to the store (nodes are hydrated via
- * `ejectLoadBalancersFromNamespaces` when `data.nodes` is an array).
+ * Applies a history state JSON snapshot to the store.
  * On parse failure, logs the error and re-enables applying history.
  *
  * @param json - Serialized history snapshot string (nodes, edges, actionName).
@@ -314,7 +312,7 @@ export const applyHistoryState = (json: string) => {
     const data = JSON.parse(json);
     isApplyingHistory = true;
     flowStore.setState({
-      nodes: Array.isArray(data.nodes) ? ejectLoadBalancersFromNamespaces(data.nodes).nodes : data.nodes,
+      nodes: data.nodes,
       edges: data.edges,
       lastActionId: `history-apply-${Date.now()}`,
       lastActionName: `Applied: ${data.actionName}`
