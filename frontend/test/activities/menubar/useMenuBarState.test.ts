@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useMenuBarState } from '@/activities/menubar/useMenuBarState';
 import { useFlowStore } from '@/store';
+import { getBackendGateway } from '@/gateway';
 
 describe('useMenuBarState', () => {
   beforeEach(() => {
@@ -421,6 +422,43 @@ describe('useMenuBarState', () => {
       historyItem?.onClick?.();
     });
     expect(useFlowStore.getState().isHistoryViewOpen).toBe(true);
+  });
+
+  it('shows View > Open DevTools only when admin is authenticated and calls the gateway on click', async () => {
+    const defaultProps = {
+      onExportYaml: vi.fn(),
+      onImportFile: vi.fn(),
+      onSave: vi.fn(),
+      onSaveAs: vi.fn(),
+      onOpenProjects: vi.fn(),
+      onOpenScenarios: vi.fn(),
+      onOpenAbout: vi.fn(),
+      onOpenSettings: vi.fn(),
+    };
+
+    useFlowStore.setState({ isAdminAuthenticated: false });
+    const { result, rerender } = renderHook(() => useMenuBarState(defaultProps));
+
+    let viewMenu = result.current.menuItems.find((m) => m.label === 'View');
+    expect(viewMenu?.items.find((i) => i.label === 'Open DevTools')).toBeUndefined();
+
+    // After admin login the item appears (menuItems deps include isAdminAuthenticated)
+    const openDevToolsSpy = vi.spyOn(getBackendGateway(), 'openDevTools').mockResolvedValue(undefined);
+    act(() => {
+      useFlowStore.setState({ isAdminAuthenticated: true });
+      rerender();
+    });
+    viewMenu = result.current.menuItems.find((m) => m.label === 'View');
+    const devToolsItem = viewMenu?.items.find((i) => i.label === 'Open DevTools');
+    expect(devToolsItem).toBeDefined();
+
+    await act(async () => {
+      await devToolsItem?.onClick?.();
+    });
+    expect(openDevToolsSpy).toHaveBeenCalledTimes(1);
+
+    openDevToolsSpy.mockRestore();
+    useFlowStore.setState({ isAdminAuthenticated: false });
   });
 
   it('covers uncovered conditions in useMenuBarState: isMounted state during async update check, errorCount with fatal log level, and successful Resource Save alert', async () => {

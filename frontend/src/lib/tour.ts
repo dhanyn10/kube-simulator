@@ -9,6 +9,11 @@ interface TourStep {
   on: 'top' | 'bottom' | 'left' | 'right';
 }
 
+/**
+ * Launches the interactive Shepherd.js onboarding tour for the Kube Simulator UI.
+ *
+ * @param colorMode - Active UI theme (`'dark'` or `'light'`) used to style the tour overlay.
+ */
 export const startTour = (colorMode: 'dark' | 'light') => {
   const isDark = colorMode === 'dark';
 

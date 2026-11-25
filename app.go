@@ -312,6 +312,15 @@ func (a *App) WriteLog(category, level, message string) bool {
 	return true
 }
 
+// OpenDevTools opens the Wails WebView developer tools; Edge shows them in a new window.
+func (a *App) OpenDevTools() {
+	if app := application.Get(); app != nil && app.Window != nil {
+		if win := app.Window.Current(); win != nil {
+			win.OpenDevTools()
+		}
+	}
+}
+
 func (a *App) OpenLogFile() bool {
 	var logFilePath string
 	if testPath, isTest := getTestFilePath(); isTest && testPath != "" {

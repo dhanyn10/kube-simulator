@@ -292,6 +292,12 @@ export function getPodQoSClass(data: {
   return 'Burstable';
 }
 
+/**
+ * Validates CPU and memory resource requests against limits for a Kubernetes workload node.
+ *
+ * @param data - Node data containing `cpuRequest`, `cpuLimit`, `memoryRequest`, and `memoryLimit`.
+ * @returns Validation result with `valid` boolean and optional `error` message.
+ */
 export function validateResourceLimits(data: any) {
   const cpuReq = parseCPU(data.cpuRequest);
   const cpuLim = parseCPU(data.cpuLimit);

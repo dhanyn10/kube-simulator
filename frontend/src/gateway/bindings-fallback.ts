@@ -9,6 +9,8 @@ export const MaximizeWindow = (): Promise<void> => Promise.resolve();
 export const CloseWindow = (): Promise<void> => Promise.resolve();
 /** Stub returning `false` (no simulation window) for the Wails `OpenSimulationWindow` binding. */
 export const OpenSimulationWindow = (): Promise<boolean> => Promise.resolve(false);
+/** Stub that resolves immediately for the Wails `OpenDevTools` binding (no-op without a real backend). */
+export const OpenDevTools = (): Promise<void> => Promise.resolve();
 /** Stub returning `false` for the Wails `CloseSimulationWindow` binding. */
 export const CloseSimulationWindow = (): Promise<boolean> => Promise.resolve(false);
 /** Stub for the Wails `OpenSidebarWindow(side)` binding; always resolves `false` in fallback. */

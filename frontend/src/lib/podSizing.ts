@@ -1,6 +1,7 @@
 import { K8sNodeData, K8sConfigMapItem } from '@/types';
 import { getPodReplicaInfo } from './podReplicaHelpers';
 
+/** Minimum width and height dimensions (in pixels) for rendered Pod cards. */
 export const POD_MIN_DIMENSIONS = {
   width: 168,
   height: 92,
@@ -19,6 +20,12 @@ const calculateMaxConfigMapVarWidth = (configMaps?: K8sConfigMapItem[]): number 
   return maxWidth;
 };
 
+/**
+ * Calculates the rendered width of a Pod card based on its display settings and badges.
+ *
+ * @param data - Partial Pod node data.
+ * @returns Computed width in pixels.
+ */
 export const calculatePodWidth = (
   data: Partial<K8sNodeData>,
   badges: string[],
@@ -44,6 +51,13 @@ export const calculatePodWidth = (
   return Math.ceil(Math.max(baseWidth, headerContentWidth + 44 + horizontalPadding, labelWidth + horizontalPadding, badgeWidth + horizontalPadding, readableImageWidth + horizontalPadding, readableCmVarWidth));
 };
 
+/**
+ * Calculates the base height of a Pod card before attached resources and ConfigMap variables.
+ *
+ * @param data - Partial Pod node data.
+ * @param _width - Card width in pixels.
+ * @returns Base height in pixels.
+ */
 export const calculatePodBaseHeight = (data: Partial<K8sNodeData>, _width: number, badges: string[], isMegaPod: boolean) => {
   const { showDashedProgress, isStackedPod } = getPodReplicaInfo(data);
   let height = 80;
@@ -58,6 +72,13 @@ export const calculatePodBaseHeight = (data: Partial<K8sNodeData>, _width: numbe
   return Math.max(baseHeight, Math.ceil(height));
 };
 
+/**
+ * Calculates the inner content height of a Pod card.
+ *
+ * @param data - Partial Pod node data.
+ * @param width - Card width in pixels.
+ * @returns Content height in pixels.
+ */
 export const calculatePodContentHeight = (data: Partial<K8sNodeData>, width: number) => {
   const showImage = Boolean(data.displaySettings?.image !== false && data.image);
   if (!showImage) return 0;
@@ -65,6 +86,12 @@ export const calculatePodContentHeight = (data: Partial<K8sNodeData>, width: num
   return Math.ceil(String(data.image).length / charsPerLine) * 12 + 8;
 };
 
+/**
+ * Calculates the height contribution of attached resources (e.g., ConfigMaps, Secrets, PVCs) on a Pod card.
+ *
+ * @param data - Partial Pod node data.
+ * @returns Additional height in pixels.
+ */
 export const calculatePodAttachedHeight = (data: Partial<K8sNodeData>) => {
   const rolesCount = data.roles?.length ?? 0;
   const configMapsCount = data.configMaps?.length ?? 0;
@@ -77,6 +104,12 @@ export const calculatePodAttachedHeight = (data: Partial<K8sNodeData>) => {
   return rows * 36;
 };
 
+/**
+ * Calculates the height contribution of ConfigMap environment variables displayed on a Pod card.
+ *
+ * @param data - Partial Pod node data.
+ * @returns Additional height in pixels.
+ */
 export const calculatePodConfigMapVarsHeight = (
   data: Partial<K8sNodeData>,
   parentData?: Partial<K8sNodeData>
@@ -94,6 +127,12 @@ export const calculatePodConfigMapVarsHeight = (
   return 12 + displayedCount * 18 + (hasMore ? 14 : 0);
 };
 
+/**
+ * Calculates the total rendered height of a Pod card.
+ *
+ * @param data - Partial Pod node data.
+ * @returns Total height in pixels.
+ */
 export const calculatePodHeight = (
   data: Partial<K8sNodeData>,
   width: number,
@@ -108,6 +147,12 @@ export const calculatePodHeight = (
   return baseHeight + contentHeight + attachedHeight + configMapVarsHeight;
 };
 
+/**
+ * Returns the list of visible badge identifiers for a Pod card based on its configuration.
+ *
+ * @param data - Partial Pod node data.
+ * @returns Array of badge names to render.
+ */
 export const getPodVisibleBadges = (data: Partial<K8sNodeData> = {}): string[] => {
   const isPod = !data.type || data.type === 'Pod';
   const { isStackedPod } = getPodReplicaInfo(data);
@@ -121,6 +166,12 @@ export const getPodVisibleBadges = (data: Partial<K8sNodeData> = {}): string[] =
   return badges;
 };
 
+/**
+ * Computes the minimum `{ width, height }` size required for a Pod card.
+ *
+ * @param data - Partial Pod node data.
+ * @returns Minimum width and height in pixels.
+ */
 export const getPodMinimumSize = (
   data: Partial<K8sNodeData> = {},
   parentData?: Partial<K8sNodeData>

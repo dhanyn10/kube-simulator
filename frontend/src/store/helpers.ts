@@ -6,11 +6,25 @@ import { getPodMinimumSize } from '@/lib/podSizing';
 import { generateRandomHash, formatPodName } from '@/lib/utils';
 import { calculateDeploymentLayoutWithYoga } from './deploymentYogaLayout';
 
+/**
+ * Safely extracts typed Kubernetes node data from a React Flow node.
+ *
+ * @param node - The React Flow node instance.
+ * @returns The typed `K8sNodeData` object, or an empty object if `node.data` is missing.
+ */
 export const getNodeData = (node: Node): K8sNodeData => {
   return (node.data as unknown as K8sNodeData) || ({} as K8sNodeData);
 };
 
-export const isAllowed = (parentType: string, childType: string, childData?: Record<string, any>): boolean => {
+/**
+ * Checks whether a child Kubernetes resource type is allowed to be nested inside a given parent container type.
+ *
+ * @param parentType - The node type of the parent container (e.g. `'Namespace'`, `'Deployment'`, `'StatefulSet'`).
+ * @param childType - The node type of the child resource being dropped or attached.
+ * @param _childData - Optional node data payload for the child resource.
+ * @returns `true` if the parent-child relationship is permitted, `false` otherwise.
+ */
+export const isAllowed = (parentType: string, childType: string, _childData?: Record<string, any>): boolean => {
   if (parentType === 'Deployment' || parentType === 'StatefulSet') return childType === 'Pod';
   if (parentType === 'Namespace') {
     return ['Pod', 'Deployment', 'StatefulSet', 'Service', 'Internet', 'Ingress', 'HPA', 'Role'].includes(childType);

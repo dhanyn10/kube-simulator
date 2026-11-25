@@ -7,6 +7,7 @@ import {
   MockBackendGateway,
 } from '@/gateway';
 import * as fallbackBindings from '@/gateway/bindings-fallback';
+import { logger } from '@/lib/logger';
 import { APP_VERSION } from '@/constants/config';
 
 describe('Clean Architecture Backend Gateway', () => {
@@ -508,6 +509,37 @@ describe('Clean Architecture Backend Gateway', () => {
       } finally {
         globalThis.open = origOpen2;
       }
+    });
+
+    it('opens dev tools via the gateway (binding, throwing fallback, and no-binding cases)', async () => {
+      // 1. App binding succeeds
+      const appMock = {
+        OpenDevTools: vi.fn().mockResolvedValue(undefined),
+      };
+      (globalThis as any).go = { main: { App: appMock } };
+      const gw = new WailsBackendGateway();
+      await gw.openDevTools();
+      expect(appMock.OpenDevTools).toHaveBeenCalledTimes(1);
+
+      // 2. App binding throws -> gateway call still resolves and logs the failure
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+      try {
+        const throwingApp = {
+          OpenDevTools: vi.fn().mockRejectedValue(new Error('devtools unavailable')),
+        };
+        (globalThis as any).go = { main: { App: throwingApp } };
+        const gwThrowing = new WailsBackendGateway();
+        await expect(gwThrowing.openDevTools()).resolves.toBeUndefined();
+        expect(throwingApp.OpenDevTools).toHaveBeenCalledTimes(1);
+        expect(warnSpy).toHaveBeenCalledWith('[WailsBackendGateway] OpenDevTools failed:', expect.any(Error));
+      } finally {
+        warnSpy.mockRestore();
+      }
+
+      // 3. No binding available -> still resolves
+      delete (globalThis as any).go;
+      const gwNone = new WailsBackendGateway();
+      await expect(gwNone.openDevTools()).resolves.toBeUndefined();
     });
 
     it('handles simulation broker operations delegation and fallback chains in WailsBackendGateway', async () => {

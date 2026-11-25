@@ -416,6 +416,27 @@ export class WailsBackendGateway extends BaseBackendGateway {
     }
   }
 
+  /**
+   * Opens the developer tools in a new window via the backend binding.
+   *
+   * Tries the resolved Wails app target first, then the generated bindings
+   * directly so it also works when the legacy `go` global is stale or absent.
+   * Failures are logged and swallowed so the menu action never throws.
+   */
+  async openDevTools(): Promise<void> {
+    const sources = [this.app, appBindings, wailsApp];
+    for (const source of sources) {
+      if (source && typeof source.OpenDevTools === 'function') {
+        try {
+          await source.OpenDevTools();
+        } catch (err) {
+          logger.warn('[WailsBackendGateway] OpenDevTools failed:', err);
+        }
+        return;
+      }
+    }
+  }
+
   async closeSimulationWindow(): Promise<boolean> {
     if (typeof this.app?.CloseSimulationWindow === 'function') {
       try {
