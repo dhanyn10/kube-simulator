@@ -551,20 +551,21 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
       {activeStage === 'manifest' && (
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
           {/* Main YAML Viewer */}
-          <div
-            ref={viewerRef}
-            className={cn(
-              'flex-1 p-6 font-mono text-[11px] leading-relaxed overflow-auto select-all custom-scrollbar',
-              isDark ? 'bg-slate-950 text-emerald-500/90' : 'bg-slate-50 text-emerald-700/90'
-            )}
-          >
-            {!formattedContent && (
-              <pre># No resources generated yet.</pre>
-            )}
+            <div
+              ref={viewerRef}
+              data-testid="yaml-code-viewer"
+              className={cn(
+                'flex-1 p-6 font-mono text-[11px] leading-relaxed overflow-auto select-all custom-scrollbar',
+                isDark ? 'bg-slate-950 text-emerald-500/90' : 'bg-slate-50 text-emerald-700/90'
+              )}
+            >
+              {!formattedContent && (
+                <pre data-testid="yaml-viewer-pre"># No resources generated yet.</pre>
+              )}
 
-            {formattedContent && !searchQuery.trim() && (
-              <pre>{formattedContent}</pre>
-            )}
+              {formattedContent && !searchQuery.trim() && (
+                <pre data-testid="yaml-viewer-pre">{formattedContent}</pre>
+              )}
 
             {formattedContent && searchQuery.trim() && (
               <div className="font-mono text-[11px] leading-relaxed whitespace-pre select-text">

@@ -166,7 +166,10 @@ test.describe('ConfigMap and Secret', () => {
     await page.getByTestId('canvas-dropdown-toggle').click();
     await page.getByTestId('open-yaml-inspector').click();
 
-    const pre = page.locator('pre');
+    // Switch to Manifest & Apply tab (Stage 2)
+    await page.getByTestId('yaml-tab-manifest').click();
+
+    const pre = page.locator('pre').first();
     await expect(pre).toContainText('kind: ConfigMap');
     await expect(pre).toContainText('kind: Secret');
     await expect(pre).toContainText('kind: Deployment');
