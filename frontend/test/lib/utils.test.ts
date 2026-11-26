@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isValidRfc1123Host, parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, getPodQoSClass, generateYaml, cn, classNames, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName, beautifyYaml } from '@/lib/utils';
+import { isValidRfc1123Host, parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, getPodQoSClass, generateYaml, cn, classNames, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName, beautifyYaml, toWindowsDisplayPath } from '@/lib/utils';
 
 describe('utils', () => {
   describe('trimDashes', () => {
@@ -305,6 +305,24 @@ describe('utils', () => {
     it('gracefully falls back to trimmed string on invalid YAML syntax', () => {
       const invalidYaml = 'invalid: [unclosed';
       expect(beautifyYaml(invalidYaml)).toBe('invalid: [unclosed');
+    });
+  });
+
+  describe('toWindowsDisplayPath', () => {
+    it('converts forward-slashed paths into Windows backslashed paths without using String.raw or escape backslashes', () => {
+      const result = toWindowsDisplayPath('C:/Windows/System32/drivers/etc/hosts');
+      const expected = ['C:', 'Windows', 'System32', 'drivers', 'etc', 'hosts'].join(String.fromCharCode(92));
+      expect(result).toBe(expected);
+    });
+
+    it('joins multiple path segments with Windows backslashes', () => {
+      const result = toWindowsDisplayPath('C:', 'Program Files', 'Docker');
+      const expected = ['C:', 'Program Files', 'Docker'].join(String.fromCharCode(92));
+      expect(result).toBe(expected);
+    });
+
+    it('handles single segment with no slashes by returning it unchanged', () => {
+      expect(toWindowsDisplayPath('hosts')).toBe('hosts');
     });
   });
 });

@@ -1,5 +1,11 @@
 import yaml from 'js-yaml';
+import { toWindowsDisplayPath } from '@/lib/utils';
 import { getLocalHardwareSpecs } from '../monitoring/workerBudgetHelpers';
+
+/**
+ * Windows hosts file path formatted safely for user guidance without triggering escape rules.
+ */
+const WINDOWS_HOSTS_PATH = toWindowsDisplayPath('C:/Windows/System32/drivers/etc/hosts');
 
 /**
  * A single command that a user can copy and run from the YAML deployment runbook.
@@ -396,7 +402,7 @@ const buildHpaStep = (documents: ManifestDocument[]): YamlRunbookStep | null => 
       },
       {
         command:
-          String.raw`kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'`,
+          `kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'`,
       },
       {
         command:
@@ -542,7 +548,7 @@ const buildIngressTargetNotes = (
 
   return routes.map((route) => {
     const url = `http://${route.host}${route.path}`;
-    return String.raw`Add "127.0.0.1 ${route.host}" to your hosts file (Windows: C:\Windows\System32\drivers\etc\hosts, macOS/Linux: /etc/hosts), then open ${url}. Opening http://localhost:${target.localPort} gives nginx 404 because the Host header does not match the Ingress rule.`;
+    return `Add "127.0.0.1 ${route.host}" to your hosts file (Windows: ${WINDOWS_HOSTS_PATH}, macOS/Linux: /etc/hosts), then open ${url}. Opening http://localhost:${target.localPort} gives nginx 404 because the Host header does not match the Ingress rule.`;
   });
 };
 
@@ -712,7 +718,7 @@ const buildTeardownPrerequisitesStep = (
   if (ingressRoutes.length > 0) {
     const hosts = Array.from(new Set(ingressRoutes.map((r) => r.host))).join(', ');
     notes.push(
-      String.raw`Hosts file cleanup: Remove entries for "${hosts}" from your hosts file (Windows: C:\Windows\System32\drivers\etc\hosts, macOS/Linux: /etc/hosts).`
+      `Hosts file cleanup: Remove entries for "${hosts}" from your hosts file (Windows: ${WINDOWS_HOSTS_PATH}, macOS/Linux: /etc/hosts).`
     );
   }
 
