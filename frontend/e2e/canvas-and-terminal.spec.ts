@@ -49,12 +49,9 @@ test.describe('Canvas Interactions & Terminal CLI', () => {
 
     await page.locator('.react-flow__pane').click({ position: { x: 200, y: 200 } });
     await page.keyboard.down('d');
-    await page.waitForTimeout(150);
+    await expect
+      .poll(() => viewport.getAttribute('style'), { timeout: 3000 })
+      .not.toBe(initialTransform);
     await page.keyboard.up('d');
-
-    await expect(async () => {
-      const nextTransform = await viewport.getAttribute('style');
-      expect(nextTransform).not.toBe(initialTransform);
-    }).toPass({ timeout: 3000 });
   });
 });

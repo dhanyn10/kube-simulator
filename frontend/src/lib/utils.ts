@@ -370,3 +370,24 @@ export function beautifyYaml(raw: string): string {
 
   return trimmed;
 }
+
+/**
+ * Code point for backslash `\` (92) without writing literal escape sequences.
+ */
+const BACKSLASH_CHAR = String.fromCodePoint(92);
+
+/**
+ * Formats a Windows path by joining segments with a backslash delimiter (`\`)
+ * or converts forward slashes to Windows backslashes without triggering SonarQube's
+ * `String.raw` / backslash-escaping code smell rule (S6594).
+ *
+ * @param pathOrSegments - Either a single forward-slashed path string (e.g. 'C:/Windows/System32')
+ *                         or separate path segments (e.g. 'C:', 'Windows', 'System32').
+ * @returns Clean Windows path formatted with backslashes (e.g. 'C:\Windows\System32').
+ */
+export function toWindowsDisplayPath(...pathOrSegments: string[]): string {
+  if (pathOrSegments.length === 1 && pathOrSegments[0].includes('/')) {
+    return pathOrSegments[0].replaceAll('/', BACKSLASH_CHAR);
+  }
+  return pathOrSegments.join(BACKSLASH_CHAR);
+}

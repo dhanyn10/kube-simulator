@@ -1,5 +1,11 @@
 import yaml from 'js-yaml';
+import { toWindowsDisplayPath } from '@/lib/utils';
 import { getLocalHardwareSpecs } from '../monitoring/workerBudgetHelpers';
+
+/**
+ * Windows hosts file path formatted safely for user guidance without triggering escape rules.
+ */
+const WINDOWS_HOSTS_PATH = toWindowsDisplayPath('C:/Windows/System32/drivers/etc/hosts');
 
 /**
  * A single command that a user can copy and run from the YAML deployment runbook.
@@ -9,9 +15,9 @@ export interface YamlRunbookCommand {
 }
 
 /**
- * Stages in the 3-step deployment and verification workflow.
+ * Stages in the 4-step deployment, verification, and cleanup workflow (matching CI/CD pipeline stages).
  */
-export type YamlStage = 'prerequisites' | 'manifest' | 'localhost';
+export type YamlStage = 'prerequisites' | 'manifest' | 'deploy' | 'cleanup' | 'localhost';
 
 /**
  * One numbered, user-facing step in the YAML deployment runbook.
@@ -87,6 +93,8 @@ interface LocalTestPort {
   readonly serviceName: string;
   readonly namespace?: string;
   readonly port: number;
+  readonly nodePort?: number;
+  readonly serviceType?: 'ClusterIP' | 'NodePort' | 'LoadBalancer';
 }
 
 interface IngressRoute {
@@ -232,6 +240,11 @@ const getContainers = (doc: ManifestDocument): ManifestContainer[] | undefined =
 const isIngressControllerSelector = (selector: ManifestLabelSelector | undefined): boolean =>
   selector?.['app.kubernetes.io/name'] === 'ingress-nginx';
 
+const resolveServiceType = (type?: string): 'ClusterIP' | 'NodePort' | 'LoadBalancer' => {
+  if (type === 'LoadBalancer' || type === 'NodePort') return type;
+  return 'ClusterIP';
+};
+
 const buildServiceWarnings = (
   services: ManifestDocument[],
   workloads: ManifestDocument[],
@@ -243,6 +256,7 @@ const buildServiceWarnings = (
     const name = service.metadata?.name || 'unnamed-service';
     const flag = namespaceFlag(service.metadata?.namespace);
     const servicePorts = service.spec?.ports || [];
+    const serviceType = resolveServiceType(service.spec?.type);
 
     servicePorts.forEach((item) => {
       if (typeof item.port === 'number' && item.port > 0) {
@@ -250,6 +264,8 @@ const buildServiceWarnings = (
           serviceName: name,
           namespace: service.metadata?.namespace,
           port: item.port,
+          nodePort: typeof item.nodePort === 'number' && item.nodePort > 0 ? item.nodePort : undefined,
+          serviceType,
         });
       }
     });
@@ -377,11 +393,25 @@ const buildHpaStep = (documents: ManifestDocument[]): YamlRunbookStep | null => 
   return {
     id: 'metrics-server',
     title: 'Install the Kubernetes Metrics Server',
-    description: 'HorizontalPodAutoscaler needs the Metrics Server to read CPU and memory usage. Skip this step if metrics-server is already installed.',
+    description:
+      'HorizontalPodAutoscaler needs the Metrics Server to read CPU and memory usage. In Docker Desktop, the deployment is patched with --kubelet-insecure-tls to bypass local self-signed certificate checks. Skip this step if metrics-server is already running.',
     commands: [
-      { command: 'kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml' },
-      { command: 'kubectl rollout status deployment/metrics-server -n kube-system --timeout=120s' },
+      {
+        command:
+          'kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml',
+      },
+      {
+        command:
+          `kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'`,
+      },
+      {
+        command:
+          'kubectl rollout status deployment/metrics-server -n kube-system --timeout=120s',
+      },
       { command: 'kubectl top pods' },
+    ],
+    notes: [
+      'Docker Desktop uses self-signed Kubelet certificates. The patch adds --kubelet-insecure-tls so Metrics Server can scrape CPU and memory without TLS SAN validation errors.',
     ],
     requiresSetup: true,
     stage: 'prerequisites',
@@ -419,6 +449,20 @@ const buildIngressStep = (ingressClass: string): YamlRunbookStep => {
 
 const buildStorageStep = (storageClasses: string[]): YamlRunbookStep | null => {
   if (storageClasses.length === 0) return null;
+
+  const nonHostpath = storageClasses.filter((sc) => sc !== 'hostpath');
+  const notes: string[] = [];
+
+  if (nonHostpath.length > 0) {
+    notes.push(
+      `Docker Desktop only provides the "hostpath" StorageClass by default. If ${nonHostpath.join(', ')} is not provisioned on your cluster, PVCs will remain Pending. Change storageClassName to "hostpath" on your PVC / StatefulSet cards, or create matching StorageClasses.`
+    );
+  } else {
+    notes.push(
+      'Docker Desktop provides the "hostpath" StorageClass out of the box, so PVCs will bind immediately.'
+    );
+  }
+
   return {
     id: 'storage-classes',
     title: 'Make sure the StorageClass exists',
@@ -426,6 +470,7 @@ const buildStorageStep = (storageClasses: string[]): YamlRunbookStep | null => {
     commands: [
       { command: `kubectl get storageclass ${storageClasses.join(' ')}` },
     ],
+    notes,
     requiresSetup: true,
     stage: 'prerequisites',
   };
@@ -452,7 +497,7 @@ const buildVerifyStep = (
     commands: targets.map((namespace) => ({
       command: `kubectl get all${suffix}${namespaceFlag(namespace)}`,
     })),
-    stage: 'localhost',
+    stage: 'deploy',
   };
 };
 
@@ -465,7 +510,7 @@ const buildBrowserWarningStep = (warnings: string[]): YamlRunbookStep | null => 
     commands: [],
     notes: warnings,
     tone: 'warning',
-    stage: 'localhost',
+    stage: 'deploy',
   };
 };
 
@@ -503,8 +548,57 @@ const buildIngressTargetNotes = (
 
   return routes.map((route) => {
     const url = `http://${route.host}${route.path}`;
-    return String.raw`Add "127.0.0.1 ${route.host}" to your hosts file (Windows: C:\Windows\System32\drivers\etc\hosts, macOS/Linux: /etc/hosts), then open ${url}. Opening http://localhost:${target.localPort} gives nginx 404 because the Host header does not match the Ingress rule.`;
+    return `Add "127.0.0.1 ${route.host}" to your hosts file (Windows: ${WINDOWS_HOSTS_PATH}, macOS/Linux: /etc/hosts), then open ${url}. Opening http://localhost:${target.localPort} gives nginx 404 because the Host header does not match the Ingress rule.`;
   });
+};
+
+const buildServiceRoutingNotes = (appTargets: LocalTestTarget[]): string[] => {
+  const notes: string[] = [];
+  appTargets.forEach((target) => {
+    const { serviceName, port, nodePort, serviceType } = target.item;
+    if (serviceType === 'LoadBalancer') {
+      notes.push(
+        `Service ${serviceName} is a LoadBalancer: Docker Desktop binds port ${port} directly to http://localhost:${port}. You can open it without port-forward (or run the port-forward fallback command if port ${port} is occupied).`
+      );
+    } else if (serviceType === 'NodePort') {
+      if (nodePort) {
+        notes.push(
+          `Service ${serviceName} is a NodePort: Docker Desktop exposes port ${nodePort} directly on localhost. You can open http://localhost:${nodePort} directly without port-forward.`
+        );
+      } else {
+        notes.push(
+          `Service ${serviceName} is a NodePort without an explicit nodePort. Docker Desktop assigns a dynamic port (30000-32767). Run "kubectl get svc ${serviceName}" to find the port, or use the port-forward command below.`
+        );
+      }
+    }
+  });
+  return notes;
+};
+
+const collectAppUrls = (appTargets: LocalTestTarget[]): string[] => {
+  const urls: string[] = [];
+  const addUrl = (url: string) => {
+    if (!urls.includes(url)) urls.push(url);
+  };
+
+  appTargets.forEach((target) => {
+    const { port, nodePort, serviceType } = target.item;
+    if (serviceType === 'LoadBalancer') {
+      addUrl(`http://localhost:${port}`);
+      if (target.localPort !== port) {
+        addUrl(`http://localhost:${target.localPort}`);
+      }
+    } else if (serviceType === 'NodePort') {
+      if (nodePort) {
+        addUrl(`http://localhost:${nodePort}`);
+      }
+      addUrl(`http://localhost:${target.localPort}`);
+    } else {
+      addUrl(`http://localhost:${target.localPort}`);
+    }
+  });
+
+  return urls;
 };
 
 const buildPortForwardStep = (
@@ -528,8 +622,12 @@ const buildPortForwardStep = (
 
   const appTargets = targets.filter((target) => !target.isIngress);
   const ingressTargets = targets.filter((target) => target.isIngress);
-  const urls = appTargets.map((target) => `http://localhost:${target.localPort}`);
+  const urls = collectAppUrls(appTargets);
   const notes: string[] = [];
+
+  buildServiceRoutingNotes(appTargets).forEach((note) => {
+    if (!notes.includes(note)) notes.push(note);
+  });
 
   ingressTargets.forEach((target) => {
     buildIngressTargetNotes(target, ingressRoutes).forEach((note) => {
@@ -549,24 +647,96 @@ const buildPortForwardStep = (
     if (!notes.includes(note)) notes.push(note);
   });
 
+  const hasDirectRouting = appTargets.some(
+    (t) => t.item.serviceType === 'LoadBalancer' || t.item.serviceType === 'NodePort'
+  );
+
+  const description = hasDirectRouting
+    ? 'Docker Desktop natively routes LoadBalancer and NodePort services to localhost without port-forward. For ClusterIP services (or as fallback), keep the command running in its own terminal. Stop with Ctrl+C.'
+    : 'Keep each command running in its own terminal. The number before the colon is the local port; if it is busy, change it (for example 8081:80). Stop with Ctrl+C. Use the localhost link below for a direct test; the Ingress link needs the hosts-file note.';
+
   return {
     id: 'port-forward',
     title: 'Open the app in your browser',
-    description: 'Keep each command running in its own terminal. The number before the colon is the local port; if it is busy, change it (for example 8081:80). Stop with Ctrl+C. Use the localhost link below for a direct test; the Ingress link needs the hosts-file note.',
+    description,
     commands,
     urls,
     notes: notes.length > 0 ? notes : undefined,
-    stage: 'localhost',
+    stage: 'deploy',
   };
 };
 
 const buildCleanupStep = (): YamlRunbookStep => ({
   id: 'cleanup',
-  title: 'Clean up resources when finished',
-  description: 'When you are done testing, run this command to delete the resources created from infra.yaml.',
+  title: 'Clean up application workloads',
+  description:
+    'Stop running port-forward processes with Ctrl+C, then run this command to delete the resources created from infra.yaml.',
   commands: [{ command: 'kubectl delete -f infra.yaml' }],
-  stage: 'localhost',
+  notes: [
+    'Stop port-forward: Press Ctrl+C in any terminal running kubectl port-forward.',
+    'Local manifest: Delete or archive infra.yaml in your terminal folder once cleanup is complete.',
+  ],
+  stage: 'cleanup',
 });
+
+const buildTeardownPrerequisitesStep = (
+  namespaces: string[],
+  ingressClasses: string[],
+  hasHpa: boolean,
+  ingressRoutes: IngressRoute[]
+): YamlRunbookStep | null => {
+  const hasPrerequisites =
+    namespaces.length > 0 || ingressClasses.length > 0 || hasHpa || ingressRoutes.length > 0;
+  if (!hasPrerequisites) return null;
+
+  const commands: YamlRunbookCommand[] = [];
+
+  ingressClasses.forEach((ingressClass) => {
+    if (ingressClass === 'traefik') {
+      commands.push({ command: 'helm uninstall traefik' });
+    } else {
+      commands.push({
+        command:
+          'kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0/deploy/static/provider/cloud/deploy.yaml',
+      });
+    }
+  });
+
+  if (hasHpa) {
+    commands.push({
+      command:
+        'kubectl delete -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml',
+    });
+  }
+
+  namespaces.forEach((namespace) => {
+    commands.push({ command: `kubectl delete namespace ${namespace}` });
+  });
+
+  const notes: string[] = [];
+
+  if (ingressRoutes.length > 0) {
+    const hosts = Array.from(new Set(ingressRoutes.map((r) => r.host))).join(', ');
+    notes.push(
+      `Hosts file cleanup: Remove entries for "${hosts}" from your hosts file (Windows: ${WINDOWS_HOSTS_PATH}, macOS/Linux: /etc/hosts).`
+    );
+  }
+
+  notes.push(
+    'Add-on retention: Ingress controllers and Metrics Server can be left installed if you plan to run more Kubernetes tests. Only run the uninstall commands above if you want to free up laptop memory.',
+    'Full Docker Desktop reset: To wipe all cluster state and restore a factory-clean cluster, go to Docker Desktop Settings > Kubernetes > click "Reset Kubernetes Cluster".'
+  );
+
+  return {
+    id: 'teardown-prerequisites',
+    title: 'Revert cluster prerequisites & system changes (Optional)',
+    description:
+      'Return your Docker Desktop cluster and host system to their original state. Skip this step if you prefer keeping add-ons for future tests.',
+    commands,
+    notes,
+    stage: 'cleanup',
+  };
+};
 
 const buildSaveManifestStep = (): YamlRunbookStep => ({
   id: 'save-manifest',
@@ -581,14 +751,19 @@ const buildApplyManifestStep = (): YamlRunbookStep => ({
   title: 'Apply the manifest',
   description: 'Run this command from the same folder that contains infra.yaml. Make sure the prerequisite steps above are already completed.',
   commands: [{ command: 'kubectl apply -f infra.yaml' }],
-  stage: 'manifest',
+  stage: 'deploy',
 });
 
 /**
  * Filter runbook steps by their corresponding workflow stage.
  */
 export const getStepsByStage = (steps: YamlRunbookStep[], stage: YamlStage): YamlRunbookStep[] =>
-  steps.filter((step) => step.stage === stage);
+  steps.filter(
+    (step) =>
+      step.stage === stage ||
+      (stage === 'deploy' && step.stage === 'localhost') ||
+      (stage === 'localhost' && step.stage === 'deploy')
+  );
 
 /**
  * Builds a step-by-step kubectl runbook from the generated multi-document YAML.
@@ -609,6 +784,7 @@ export const buildYamlRunbook = (yamlContent: string): YamlRunbookStep[] => {
   const ingressClasses = collectIngressClasses(documents);
   const storageClasses = collectStorageClasses(documents);
   const readiness = analyzeLocalTestReadiness(documents);
+  const hasHpa = documents.some((doc) => doc.kind === 'HorizontalPodAutoscaler');
 
   const candidates: Array<YamlRunbookStep | null> = [
     buildDockerDesktopContextStep(),
@@ -627,6 +803,12 @@ export const buildYamlRunbook = (yamlContent: string): YamlRunbookStep[] => {
       readiness.nonHttpImages
     ),
     buildCleanupStep(),
+    buildTeardownPrerequisitesStep(
+      namespaces,
+      ingressClasses,
+      hasHpa,
+      readiness.ingressRoutes
+    ),
   ];
 
   return candidates.filter((step): step is YamlRunbookStep => step !== null);

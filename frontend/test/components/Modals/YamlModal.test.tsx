@@ -55,6 +55,7 @@ describe('YamlModal', () => {
 
   it('copies content to clipboard', async () => {
     render(<YamlModal content={content} colorMode="dark" onClose={mockOnClose} />);
+    fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
     const copyBtn = screen.getByTestId('yaml-modal-copy-btn');
 
     fireEvent.click(copyBtn);
@@ -113,6 +114,7 @@ describe('YamlModal', () => {
   it('copies auto-beautified YAML to clipboard even if raw input was unformatted JSON', async () => {
     const rawJsonManifest = JSON.stringify({ apiVersion: 'v1', kind: 'Secret', metadata: { name: 'sec' } });
     render(<YamlModal content={rawJsonManifest} colorMode="dark" onClose={mockOnClose} />);
+    fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
 
     const copyBtn = screen.getByTestId('yaml-modal-copy-btn');
     await act(async () => {
@@ -125,6 +127,34 @@ describe('YamlModal', () => {
     await waitFor(() => {
       expect(screen.getByText('Copied!')).toBeDefined();
     });
+  });
+
+  it('renders sticky copy button on top-right of YAML block and does not render copy button in footer across any stage', () => {
+    render(<YamlModal content={content} colorMode="dark" onClose={mockOnClose} />);
+
+    // In stage 1 (Prerequisites): footer should NOT have copy button
+    expect(screen.queryByTestId('yaml-modal-copy-btn')).not.toBeInTheDocument();
+
+    // In stage 2 (Manifest): sticky copy button is inside code viewer container, footer has no copy button
+    fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
+    const viewer = screen.getByTestId('yaml-code-viewer');
+    const viewerContainer = viewer.parentElement;
+    expect(viewerContainer).toBeInTheDocument();
+
+    const copyBtn = within(viewerContainer!).getByTestId('yaml-modal-copy-btn');
+    expect(copyBtn).toBeInTheDocument();
+    expect(copyBtn).toHaveTextContent('Copy YAML');
+
+    const footer = screen.getByTestId('yaml-modal-footer');
+    expect(within(footer).queryByTestId('yaml-modal-copy-btn')).not.toBeInTheDocument();
+
+    // In stage 3 (Deploy & Test): footer has no copy button
+    fireEvent.click(screen.getByTestId('yaml-tab-deploy'));
+    expect(within(footer).queryByTestId('yaml-modal-copy-btn')).not.toBeInTheDocument();
+
+    // In stage 4 (Cleanup): footer has no copy button
+    fireEvent.click(screen.getByTestId('yaml-tab-cleanup'));
+    expect(within(footer).queryByTestId('yaml-modal-copy-btn')).not.toBeInTheDocument();
   });
 
   describe('Manifest Search feature', () => {
@@ -346,19 +376,22 @@ spec:
       });
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('kubectl apply -f infra.yaml');
 
-      // Stage 3: Localhost & Warnings
-      fireEvent.click(screen.getByTestId('yaml-tab-localhost'));
+      // Stage 3: Deploy & Test
+      fireEvent.click(screen.getByTestId('yaml-tab-deploy'));
       expect(screen.getByTestId('yaml-runbook-step-verify-resources')).toBeInTheDocument();
       expect(screen.getByTestId('yaml-runbook-step-browser-test-warnings')).toBeInTheDocument();
-      expect(screen.getByTestId('yaml-runbook-step-cleanup')).toBeInTheDocument();
       expect(screen.getByText(/no Service card in this design/)).toBeInTheDocument();
+
+      // Stage 4: Cleanup
+      fireEvent.click(screen.getByTestId('yaml-tab-cleanup'));
+      expect(screen.getByTestId('yaml-runbook-step-cleanup')).toBeInTheDocument();
     });
 
-    it('navigates between the 3 stages via stepper and footer buttons', () => {
+    it('navigates between the 4 stages via stepper and footer buttons', () => {
       render(<YamlModal content={yamlWithPrereqs} colorMode="dark" onClose={mockOnClose} />);
 
       const footer = screen.getByTestId('yaml-modal-footer');
-      expect(within(footer).getByTestId('yaml-runbook-view-manifest')).toHaveTextContent('Next: View YAML');
+      expect(within(footer).getByTestId('yaml-runbook-view-manifest')).toHaveTextContent('Next: View Manifest');
 
       // Forward to Stage 2
       fireEvent.click(screen.getByTestId('yaml-runbook-view-manifest'));
@@ -367,7 +400,15 @@ spec:
 
       // Forward to Stage 3
       fireEvent.click(screen.getByTestId('yaml-btn-next-localhost'));
-      expect(screen.getByRole('heading', { name: /3\. Test at Localhost/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /3\. Deploy & Test/i })).toBeInTheDocument();
+
+      // Forward to Stage 4
+      fireEvent.click(screen.getByTestId('yaml-btn-next-cleanup'));
+      expect(screen.getByRole('heading', { name: /4\. Cleanup & Teardown/i })).toBeInTheDocument();
+
+      // Back to Stage 3
+      fireEvent.click(screen.getByTestId('yaml-btn-back'));
+      expect(screen.getByRole('heading', { name: /3\. Deploy & Test/i })).toBeInTheDocument();
 
       // Back to Stage 2
       fireEvent.click(screen.getByTestId('yaml-btn-back'));
@@ -380,12 +421,14 @@ spec:
 
     it('shows port-forward and localhost URL in stage 3 when the design can be tested', () => {
       render(<YamlModal content={readyYaml} colorMode="dark" onClose={mockOnClose} />);
-      fireEvent.click(screen.getByTestId('yaml-tab-localhost'));
+      fireEvent.click(screen.getByTestId('yaml-tab-deploy'));
 
       expect(screen.getByTestId('yaml-runbook-step-port-forward')).toBeInTheDocument();
       expect(screen.getByText(/kubectl port-forward svc\/web-svc 8080:80/)).toBeInTheDocument();
       expect(screen.getByText('http://localhost:8080')).toBeInTheDocument();
       expect(screen.queryByTestId('yaml-runbook-step-browser-test-warnings')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('yaml-tab-cleanup'));
       expect(screen.getByTestId('yaml-runbook-step-cleanup')).toBeInTheDocument();
     });
 
