@@ -45,6 +45,7 @@ describe('buildYamlRunbook', () => {
       'apply-manifest',
       'verify-resources',
       'port-forward',
+      'cleanup',
     ]);
     expect(stepById(steps, 'docker-desktop-context')?.commands).toEqual([
       { command: 'kubectl config use-context docker-desktop' },
@@ -53,6 +54,9 @@ describe('buildYamlRunbook', () => {
       { command: 'kubectl apply -f infra.yaml' },
     ]);
     expect(stepById(steps, 'verify-resources')?.commands[0].command).toBe('kubectl get all');
+    expect(stepById(steps, 'cleanup')?.commands).toEqual([
+      { command: 'kubectl delete -f infra.yaml' },
+    ]);
     expect(stepById(steps, 'browser-test-warnings')).toBeUndefined();
   });
 
@@ -337,5 +341,15 @@ describe('buildYamlRunbook', () => {
 
     expect(notes).toContain('above the safe local ceiling');
     expect(notes).toContain('Reduce replicas');
+  });
+
+  it('partitions runbook steps cleanly across the 3 workflow stages', () => {
+    const steps = buildYamlRunbook(READY_YAML);
+    expect(stepById(steps, 'docker-desktop-context')?.stage).toBe('prerequisites');
+    expect(stepById(steps, 'save-manifest')?.stage).toBe('manifest');
+    expect(stepById(steps, 'apply-manifest')?.stage).toBe('manifest');
+    expect(stepById(steps, 'verify-resources')?.stage).toBe('localhost');
+    expect(stepById(steps, 'port-forward')?.stage).toBe('localhost');
+    expect(stepById(steps, 'cleanup')?.stage).toBe('localhost');
   });
 });

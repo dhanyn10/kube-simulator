@@ -87,7 +87,7 @@ describe('YamlModal', () => {
     render(<YamlModal content="" colorMode="light" onClose={mockOnClose} />);
     expect(screen.getByText('# No resources generated yet.')).toBeDefined();
 
-    const copyBtn = screen.getByText('Copy');
+    const copyBtn = screen.getByTestId('yaml-modal-copy-btn');
     fireEvent.click(copyBtn);
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('');
   });
@@ -308,16 +308,12 @@ spec:
     it('shows ordered namespace, metrics-server, and ingress steps before the manifest', () => {
       render(<YamlModal content={yamlWithPrereqs} colorMode="dark" onClose={mockOnClose} />);
 
+      // Stage 1: Prerequisites
       expect(screen.getByTestId('yaml-runbook-step-docker-desktop-context')).toBeInTheDocument();
       expect(screen.getByTestId('yaml-runbook-step-create-namespaces')).toBeInTheDocument();
       expect(screen.getByTestId('yaml-runbook-step-metrics-server')).toBeInTheDocument();
       expect(screen.getByTestId('yaml-runbook-step-ingress-nginx')).toBeInTheDocument();
       expect(screen.getByTestId('yaml-runbook-step-ingress-traefik')).toBeInTheDocument();
-      expect(screen.getByTestId('yaml-runbook-step-save-manifest')).toBeInTheDocument();
-      expect(screen.getByTestId('yaml-runbook-step-apply-manifest')).toBeInTheDocument();
-      expect(screen.getByTestId('yaml-runbook-step-verify-resources')).toBeInTheDocument();
-      expect(screen.getByTestId('yaml-runbook-step-browser-test-warnings')).toBeInTheDocument();
-      expect(screen.getByText(/no Service card in this design/)).toBeInTheDocument();
 
       expect(screen.getByText(/kubectl create namespace production/)).toBeInTheDocument();
 
@@ -330,36 +326,85 @@ spec:
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
         expect.stringContaining('ingress-nginx')
       );
+
+      // Stage 2: Manifest & Apply
+      fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
+      expect(screen.getByTestId('yaml-download-btn')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-copy-apply-manifest-0')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('yaml-runbook-copy-apply-manifest-0'));
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('kubectl apply -f infra.yaml');
+
+      // Stage 3: Localhost & Warnings
+      fireEvent.click(screen.getByTestId('yaml-tab-localhost'));
+      expect(screen.getByTestId('yaml-runbook-step-verify-resources')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-browser-test-warnings')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-cleanup')).toBeInTheDocument();
+      expect(screen.getByText(/no Service card in this design/)).toBeInTheDocument();
     });
 
-    it('navigates between the runbook and the YAML manifest', () => {
+    it('navigates between the 3 stages via stepper and footer buttons', () => {
       render(<YamlModal content={yamlWithPrereqs} colorMode="dark" onClose={mockOnClose} />);
 
       const footer = screen.getByTestId('yaml-modal-footer');
       expect(within(footer).getByTestId('yaml-runbook-view-manifest')).toHaveTextContent('Next: View YAML');
 
+      // Forward to Stage 2
       fireEvent.click(screen.getByTestId('yaml-runbook-view-manifest'));
       expect(screen.getByText(/HorizontalPodAutoscaler/)).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-btn-next-localhost')).toBeInTheDocument();
 
-      fireEvent.click(screen.getByTestId('yaml-tab-runbook'));
+      // Forward to Stage 3
+      fireEvent.click(screen.getByTestId('yaml-btn-next-localhost'));
+      expect(screen.getByRole('heading', { name: /3\. Test at Localhost/i })).toBeInTheDocument();
+
+      // Back to Stage 2
+      fireEvent.click(screen.getByTestId('yaml-btn-back'));
+      expect(screen.getByText(/HorizontalPodAutoscaler/)).toBeInTheDocument();
+
+      // Back to Stage 1
+      fireEvent.click(screen.getByTestId('yaml-btn-back'));
       expect(screen.getByTestId('yaml-runbook-step-create-namespaces')).toBeInTheDocument();
     });
 
-    it('shows port-forward and localhost URL when the design can be tested', () => {
+    it('shows port-forward and localhost URL in stage 3 when the design can be tested', () => {
       render(<YamlModal content={readyYaml} colorMode="dark" onClose={mockOnClose} />);
-      fireEvent.click(screen.getByTestId('yaml-tab-runbook'));
+      fireEvent.click(screen.getByTestId('yaml-tab-localhost'));
 
       expect(screen.getByTestId('yaml-runbook-step-port-forward')).toBeInTheDocument();
       expect(screen.getByText(/kubectl port-forward svc\/web-svc 8080:80/)).toBeInTheDocument();
       expect(screen.getByText('http://localhost:8080')).toBeInTheDocument();
       expect(screen.queryByTestId('yaml-runbook-step-browser-test-warnings')).not.toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-cleanup')).toBeInTheDocument();
     });
 
-    it('defaults to the deployment steps (step 1) view when opened', () => {
+    it('defaults to the prerequisites (stage 1) view when opened', () => {
       render(<YamlModal content={readyYaml} colorMode="dark" onClose={mockOnClose} />);
       expect(screen.getByTestId('yaml-tab-runbook')).toBeInTheDocument();
-      expect(screen.getByText('Deployment Runbook')).toBeInTheDocument();
+      expect(screen.getByText('1. Cluster Prerequisites')).toBeInTheDocument();
       expect(screen.getByTestId('yaml-runbook-step-docker-desktop-context')).toBeInTheDocument();
+    });
+
+    it('downloads infra.yaml when download button is clicked', () => {
+      const createObjectURLMock = vi.fn().mockReturnValue('blob:infra-yaml-blob-url');
+      const revokeObjectURLMock = vi.fn();
+      globalThis.URL.createObjectURL = createObjectURLMock;
+      globalThis.URL.revokeObjectURL = revokeObjectURLMock;
+
+      // Mock HTMLAnchorElement.prototype.click to avoid jsdom navigation warning
+      const clickMock = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      render(<YamlModal content={readyYaml} colorMode="dark" onClose={mockOnClose} />);
+      fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
+
+      const downloadBtn = screen.getByTestId('yaml-download-btn');
+      fireEvent.click(downloadBtn);
+
+      expect(createObjectURLMock).toHaveBeenCalled();
+      expect(clickMock).toHaveBeenCalled();
+      expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:infra-yaml-blob-url');
+
+      clickMock.mockRestore();
     });
 
     it('renders Docker Desktop notice in the runbook view', () => {

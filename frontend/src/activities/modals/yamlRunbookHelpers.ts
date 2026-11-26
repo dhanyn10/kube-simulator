@@ -9,6 +9,11 @@ export interface YamlRunbookCommand {
 }
 
 /**
+ * Stages in the 3-step deployment and verification workflow.
+ */
+export type YamlStage = 'prerequisites' | 'manifest' | 'localhost';
+
+/**
  * One numbered, user-facing step in the YAML deployment runbook.
  */
 export interface YamlRunbookStep {
@@ -16,6 +21,7 @@ export interface YamlRunbookStep {
   readonly title: string;
   readonly description: string;
   readonly commands: YamlRunbookCommand[];
+  readonly stage: YamlStage;
   /** True when this step is needed before applying the manifest. */
   readonly requiresSetup?: boolean;
   /** Warnings are highlighted so the user cannot miss an incomplete canvas. */
@@ -349,6 +355,7 @@ const buildDockerDesktopContextStep = (): YamlRunbookStep => ({
   title: 'Target your Docker Desktop cluster',
   description: 'Make sure your terminal commands target your local Docker Desktop Kubernetes cluster.',
   commands: [{ command: 'kubectl config use-context docker-desktop' }],
+  stage: 'prerequisites',
 });
 
 const buildNamespaceStep = (namespaces: string[]): YamlRunbookStep | null => {
@@ -361,6 +368,7 @@ const buildNamespaceStep = (namespaces: string[]): YamlRunbookStep | null => {
       command: `kubectl create namespace ${namespace} --dry-run=client -o yaml | kubectl apply -f -`,
     })),
     requiresSetup: true,
+    stage: 'prerequisites',
   };
 };
 
@@ -376,6 +384,7 @@ const buildHpaStep = (documents: ManifestDocument[]): YamlRunbookStep | null => 
       { command: 'kubectl top pods' },
     ],
     requiresSetup: true,
+    stage: 'prerequisites',
   };
 };
 
@@ -391,6 +400,7 @@ const buildIngressStep = (ingressClass: string): YamlRunbookStep => {
         { command: 'helm install traefik traefik/traefik' },
       ],
       requiresSetup: true,
+      stage: 'prerequisites',
     };
   }
 
@@ -403,6 +413,7 @@ const buildIngressStep = (ingressClass: string): YamlRunbookStep => {
       { command: 'kubectl get pods -n ingress-nginx' },
     ],
     requiresSetup: true,
+    stage: 'prerequisites',
   };
 };
 
@@ -416,6 +427,7 @@ const buildStorageStep = (storageClasses: string[]): YamlRunbookStep | null => {
       { command: `kubectl get storageclass ${storageClasses.join(' ')}` },
     ],
     requiresSetup: true,
+    stage: 'prerequisites',
   };
 };
 
@@ -440,6 +452,7 @@ const buildVerifyStep = (
     commands: targets.map((namespace) => ({
       command: `kubectl get all${suffix}${namespace ? ` -n ${namespace}` : ''}`,
     })),
+    stage: 'localhost',
   };
 };
 
@@ -452,6 +465,7 @@ const buildBrowserWarningStep = (warnings: string[]): YamlRunbookStep | null => 
     commands: [],
     notes: warnings,
     tone: 'warning',
+    stage: 'localhost',
   };
 };
 
@@ -540,8 +554,23 @@ const buildPortForwardStep = (
     commands,
     urls,
     notes: notes.length > 0 ? notes : undefined,
+    stage: 'localhost',
   };
 };
+
+const buildCleanupStep = (): YamlRunbookStep => ({
+  id: 'cleanup',
+  title: 'Clean up resources when finished',
+  description: 'When you are done testing, run this command to delete the resources created from infra.yaml.',
+  commands: [{ command: 'kubectl delete -f infra.yaml' }],
+  stage: 'localhost',
+});
+
+/**
+ * Filter runbook steps by their corresponding workflow stage.
+ */
+export const getStepsByStage = (steps: YamlRunbookStep[], stage: YamlStage): YamlRunbookStep[] =>
+  steps.filter((step) => step.stage === stage);
 
 /**
  * Builds a step-by-step kubectl runbook from the generated multi-document YAML.
@@ -580,16 +609,18 @@ export const buildYamlRunbook = (yamlContent: string): YamlRunbookStep[] => {
 
   steps.push({
     id: 'save-manifest',
-    title: 'Save the manifest as infra.yaml',
-    description: 'Open the View YAML tab, click Copy, and save the content as a file named infra.yaml in the folder where you run kubectl.',
+    title: 'Save or download infra.yaml',
+    description: 'Download infra.yaml or copy the manifest content into a file named infra.yaml in your terminal working folder.',
     commands: [],
+    stage: 'manifest',
   });
 
   steps.push({
     id: 'apply-manifest',
     title: 'Apply the manifest',
-    description: 'Run this command from the same folder that contains infra.yaml. Make sure the namespace steps above are already completed.',
+    description: 'Run this command from the same folder that contains infra.yaml. Make sure the prerequisite steps above are already completed.',
     commands: [{ command: 'kubectl apply -f infra.yaml' }],
+    stage: 'manifest',
   });
 
   steps.push(buildVerifyStep(documents, namespaces));
@@ -604,6 +635,8 @@ export const buildYamlRunbook = (yamlContent: string): YamlRunbookStep[] => {
     readiness.nonHttpImages
   );
   if (portForwardStep) steps.push(portForwardStep);
+
+  steps.push(buildCleanupStep());
 
   return steps;
 };

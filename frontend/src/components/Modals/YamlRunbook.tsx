@@ -7,6 +7,8 @@ interface YamlRunbookProps {
   readonly colorMode: 'dark' | 'light';
   readonly copiedCommandId: string | null;
   readonly onCopyCommand: (id: string, command: string) => void;
+  readonly title?: string;
+  readonly description?: string;
 }
 
 /**
@@ -17,8 +19,14 @@ export function YamlRunbook({
   colorMode,
   copiedCommandId,
   onCopyCommand,
+  title,
+  description,
 }: Readonly<YamlRunbookProps>) {
   const isDark = colorMode === 'dark';
+  const headingTitle = title || 'Deployment Runbook';
+  const headingDesc =
+    description ||
+    'Follow these steps in order from your terminal. If you use Docker Desktop, simply make sure "Enable Kubernetes" is checked in Settings.';
 
   return (
     <div className={cn('flex-1 overflow-auto custom-scrollbar p-6', isDark ? 'bg-slate-950' : 'bg-slate-50')}>
@@ -26,10 +34,10 @@ export function YamlRunbook({
         <div className="flex flex-col gap-1">
           <h3 className={cn('text-xs font-bold uppercase tracking-wider flex items-center gap-2', isDark ? 'text-slate-200' : 'text-slate-800')}>
             <Terminal size={14} className="text-blue-500" />
-            Deployment Runbook
+            {headingTitle}
           </h3>
           <p className={cn('text-[11px] leading-relaxed', isDark ? 'text-slate-400' : 'text-slate-600')}>
-            Follow these steps in order from your terminal. If you use Docker Desktop, simply make sure &quot;Enable Kubernetes&quot; is checked in Settings.
+            {headingDesc}
           </p>
         </div>
 

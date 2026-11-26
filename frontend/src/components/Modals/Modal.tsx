@@ -20,6 +20,9 @@ interface ModalProps {
   alignClass?: string;
   disableScroll?: boolean;
   compactHeader?: boolean;
+  headerExtra?: React.ReactNode;
+  closeLabel?: string;
+  disablePadding?: boolean;
 }
 
 /**
@@ -42,7 +45,10 @@ export const Modal = ({
   maxHeightClass = "h-[80vh]",
   alignClass = "items-center",
   disableScroll = false,
-  compactHeader = true
+  compactHeader = true,
+  headerExtra,
+  closeLabel = "Close",
+  disablePadding = false,
 }: ModalProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
@@ -102,7 +108,10 @@ export const Modal = ({
           <div className="flex items-center gap-3">
             <Icon className={iconColorClass} size={compactHeader ? 18 : 24} />
             <div>
-              <h2 className={cn("font-bold leading-tight", compactHeader ? "text-base" : "text-xl")}>{title}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className={cn("font-bold leading-tight", compactHeader ? "text-base" : "text-xl")}>{title}</h2>
+                {headerExtra}
+              </div>
               {subtitle && <p className={cn("text-slate-500 font-medium", compactHeader ? "text-[10px] leading-tight" : "text-xs")}>{subtitle}</p>}
             </div>
           </div>
@@ -110,7 +119,8 @@ export const Modal = ({
             type="button"
             onClick={onClose}
             className="p-1.5 hover:bg-slate-500/10 rounded-full transition-colors outline-none focus:ring-2 focus:ring-blue-500/50"
-            aria-label="Close"
+            aria-label={closeLabel}
+            title={closeLabel}
           >
             <X size={compactHeader ? 16 : 20} />
           </button>
@@ -119,7 +129,7 @@ export const Modal = ({
         {/* Content */}
         <div className={cn(
           "flex-1 min-h-0",
-          compactHeader ? "p-4" : "p-6",
+          disablePadding ? "flex flex-col" : (compactHeader ? "p-4" : "p-6"),
           !disableScroll && "overflow-y-auto custom-scrollbar"
         )}>
           {children}
@@ -127,7 +137,7 @@ export const Modal = ({
 
         {/* Footer */}
         {footer && (
-          <div className="p-4 border-t bg-slate-500/5 shrink-0">
+          <div className="p-3 px-4 border-t bg-slate-500/5 shrink-0">
             {footer}
           </div>
         )}
