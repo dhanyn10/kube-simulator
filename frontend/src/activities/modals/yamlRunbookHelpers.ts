@@ -387,11 +387,25 @@ const buildHpaStep = (documents: ManifestDocument[]): YamlRunbookStep | null => 
   return {
     id: 'metrics-server',
     title: 'Install the Kubernetes Metrics Server',
-    description: 'HorizontalPodAutoscaler needs the Metrics Server to read CPU and memory usage. Skip this step if metrics-server is already installed.',
+    description:
+      'HorizontalPodAutoscaler needs the Metrics Server to read CPU and memory usage. In Docker Desktop, the deployment is patched with --kubelet-insecure-tls to bypass local self-signed certificate checks. Skip this step if metrics-server is already running.',
     commands: [
-      { command: 'kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml' },
-      { command: 'kubectl rollout status deployment/metrics-server -n kube-system --timeout=120s' },
+      {
+        command:
+          'kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml',
+      },
+      {
+        command:
+          'kubectl patch deployment metrics-server -n kube-system --type=\'json\' -p=\'[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]\'',
+      },
+      {
+        command:
+          'kubectl rollout status deployment/metrics-server -n kube-system --timeout=120s',
+      },
       { command: 'kubectl top pods' },
+    ],
+    notes: [
+      'Docker Desktop uses self-signed Kubelet certificates. The patch adds --kubelet-insecure-tls so Metrics Server can scrape CPU and memory without TLS SAN validation errors.',
     ],
     requiresSetup: true,
     stage: 'prerequisites',

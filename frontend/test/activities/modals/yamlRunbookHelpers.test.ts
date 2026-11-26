@@ -157,8 +157,11 @@ describe('buildYamlRunbook', () => {
 
   it('adds a metrics-server step only when an HPA exists', () => {
     const hpa = buildYamlRunbook('apiVersion: autoscaling/v2\nkind: HorizontalPodAutoscaler\nmetadata:\n  name: api');
-    expect(stepById(hpa, 'metrics-server')).toBeDefined();
-    expect(stepById(hpa, 'metrics-server')?.commands[0].command).toContain('metrics-server');
+    const step = stepById(hpa, 'metrics-server');
+    expect(step).toBeDefined();
+    expect(step?.commands[0].command).toContain('metrics-server');
+    expect(step?.commands[1].command).toContain('--kubelet-insecure-tls');
+    expect(step?.notes?.join(' ')).toContain('--kubelet-insecure-tls');
 
     const pod = buildYamlRunbook('apiVersion: v1\nkind: Pod\nmetadata:\n  name: web');
     expect(stepById(pod, 'metrics-server')).toBeUndefined();
