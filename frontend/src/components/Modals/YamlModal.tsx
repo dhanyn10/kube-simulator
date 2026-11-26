@@ -45,8 +45,10 @@ interface YamlModalStepperProps {
   isDark: boolean;
 }
 
+const ACTIVE_STEP_TAB_CLASS = 'bg-blue-600 text-white shadow-sm';
+
 const getStepTabClass = (stage: YamlStage, target: YamlStage, isDark: boolean): string => {
-  if (stage === target) return 'bg-blue-600 text-white shadow-sm';
+  if (stage === target) return ACTIVE_STEP_TAB_CLASS;
   return isDark
     ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60';
@@ -92,9 +94,7 @@ function YamlModalStepper({ stage, onSelectStage, isDark }: Readonly<YamlModalSt
         className={cn(
           'px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shrink-0 text-xs font-semibold cursor-pointer',
           isDeployActive
-            ? isDark
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'bg-blue-600 text-white shadow-sm'
+            ? ACTIVE_STEP_TAB_CLASS
             : getStepTabClass(stage, 'deploy', isDark)
         )}
       >

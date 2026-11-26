@@ -396,7 +396,7 @@ const buildHpaStep = (documents: ManifestDocument[]): YamlRunbookStep | null => 
       },
       {
         command:
-          'kubectl patch deployment metrics-server -n kube-system --type=\'json\' -p=\'[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]\'',
+          String.raw`kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'`,
       },
       {
         command:
@@ -712,15 +712,12 @@ const buildTeardownPrerequisitesStep = (
   if (ingressRoutes.length > 0) {
     const hosts = Array.from(new Set(ingressRoutes.map((r) => r.host))).join(', ');
     notes.push(
-      `Hosts file cleanup: Remove entries for "${hosts}" from your hosts file (Windows: C:\\Windows\\System32\\drivers\\etc\\hosts, macOS/Linux: /etc/hosts).`
+      String.raw`Hosts file cleanup: Remove entries for "${hosts}" from your hosts file (Windows: C:\Windows\System32\drivers\etc\hosts, macOS/Linux: /etc/hosts).`
     );
   }
 
   notes.push(
-    'Add-on retention: Ingress controllers and Metrics Server can be left installed if you plan to run more Kubernetes tests. Only run the uninstall commands above if you want to free up laptop memory.'
-  );
-
-  notes.push(
+    'Add-on retention: Ingress controllers and Metrics Server can be left installed if you plan to run more Kubernetes tests. Only run the uninstall commands above if you want to free up laptop memory.',
     'Full Docker Desktop reset: To wipe all cluster state and restore a factory-clean cluster, go to Docker Desktop Settings > Kubernetes > click "Reset Kubernetes Cluster".'
   );
 
