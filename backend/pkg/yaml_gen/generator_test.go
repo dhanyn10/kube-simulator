@@ -540,3 +540,21 @@ func TestGenerate_Integration(t *testing.T) {
 		t.Error("Integration test output missing service selector link to deployment")
 	}
 }
+
+func TestGenerateAttachedHPASkipsNamespaceAndChildPod(t *testing.T) {
+	nodesJson := `[
+		{"id":"ns1","type":"Namespace","data":{"label":"production","hpas":[{"id":"h1","name":"api-hpa","minReplicas":2,"maxReplicas":5,"targetCPU":70}]}},
+		{"id":"dep1","type":"Deployment","parentId":"ns1","data":{"label":"api-deployment","replicas":2,"hpas":[{"id":"h1","name":"api-hpa","minReplicas":2,"maxReplicas":5,"targetCPU":70}]}},
+		{"id":"pod1","type":"Pod","parentId":"dep1","data":{"label":"api-deployment-abc-xyz","hpas":[{"id":"h1","name":"api-hpa","minReplicas":2,"maxReplicas":5,"targetCPU":70}]}}
+	]`
+	result := Generate(nodesJson, "[]")
+	if strings.Contains(result, `"kind":"Namespace","name":"production"`) && strings.Count(result, "HorizontalPodAutoscaler") != 1 {
+		t.Errorf("Expected exactly 1 HorizontalPodAutoscaler targeting Deployment, got: %s", result)
+	}
+	if strings.Count(result, "HorizontalPodAutoscaler") != 1 {
+		t.Errorf("Expected exactly 1 HorizontalPodAutoscaler, got: %s", result)
+	}
+	if !strings.Contains(result, `"kind":"Deployment","name":"api-deployment"`) {
+		t.Errorf("Expected HPA to target api-deployment, got: %s", result)
+	}
+}

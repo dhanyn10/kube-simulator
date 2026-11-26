@@ -1,0 +1,609 @@
+import yaml from 'js-yaml';
+import { getLocalHardwareSpecs } from '../monitoring/workerBudgetHelpers';
+
+/**
+ * A single command that a user can copy and run from the YAML deployment runbook.
+ */
+export interface YamlRunbookCommand {
+  readonly command: string;
+}
+
+/**
+ * One numbered, user-facing step in the YAML deployment runbook.
+ */
+export interface YamlRunbookStep {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly commands: YamlRunbookCommand[];
+  /** True when this step is needed before applying the manifest. */
+  readonly requiresSetup?: boolean;
+  /** Warnings are highlighted so the user cannot miss an incomplete canvas. */
+  readonly tone?: 'warning';
+  /** Extra bullets, used to explain warnings in plain language. */
+  readonly notes?: string[];
+  /** Local URLs the user can open after starting a port-forward. */
+  readonly urls?: string[];
+}
+
+interface ManifestLabelSelector {
+  readonly [key: string]: string;
+}
+
+interface ManifestPort {
+  readonly port?: number;
+  readonly targetPort?: number | string;
+  readonly nodePort?: number;
+}
+
+interface ManifestContainer {
+  readonly image?: string;
+  readonly ports?: Array<{ readonly containerPort?: number }>;
+}
+
+interface ManifestDocument {
+  readonly apiVersion?: string;
+  readonly kind?: string;
+  readonly metadata?: {
+    readonly name?: string;
+    readonly namespace?: string;
+    readonly labels?: ManifestLabelSelector;
+  };
+  readonly spec?: {
+    readonly ingressClassName?: string;
+    readonly storageClassName?: string;
+    readonly type?: string;
+    readonly selector?: ManifestLabelSelector;
+    readonly ports?: ManifestPort[];
+    readonly replicas?: number;
+    readonly maxReplicas?: number;
+    readonly template?: {
+      readonly metadata?: { readonly labels?: ManifestLabelSelector };
+      readonly spec?: { readonly containers?: ManifestContainer[] };
+    };
+    readonly rules?: Array<{
+      readonly host?: string;
+      readonly http?: {
+        readonly paths?: Array<{
+          readonly path?: string;
+          readonly backend?: { readonly service?: { readonly name?: string } };
+        }>;
+      };
+    }>;
+    readonly containers?: ManifestContainer[];
+    readonly volumeClaimTemplates?: Array<{
+      readonly spec?: { readonly storageClassName?: string };
+    }>;
+  };
+}
+
+interface LocalTestPort {
+  readonly serviceName: string;
+  readonly namespace?: string;
+  readonly port: number;
+}
+
+interface IngressRoute {
+  readonly host: string;
+  readonly path: string;
+}
+
+interface LocalTestReadiness {
+  readonly warnings: string[];
+  readonly ports: LocalTestPort[];
+  readonly ingressServiceNames: string[];
+  readonly ingressRoutes: IngressRoute[];
+  readonly nonHttpImages: string[];
+}
+
+/**
+ * Conservative number of pods that is safe to run on the current PC.
+ * Used to flag scenario templates that a user edited beyond local capacity.
+ */
+export const getLocalPodCeiling = (): number => {
+  const { cpuCores, memoryGb } = getLocalHardwareSpecs();
+  return Math.max(10, Math.min(cpuCores * 4, Math.floor(memoryGb * 2)));
+};
+
+const SYSTEM_NAMESPACES = new Set([
+  'default',
+  'kube-system',
+  'kube-public',
+  'kube-node-lease',
+]);
+
+const WORKLOAD_KINDS = new Set(['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet']);
+
+const parseDocuments = (yamlContent: string): ManifestDocument[] => {
+  if (!yamlContent.trim()) return [];
+  try {
+    return yaml
+      .loadAll(yamlContent)
+      .filter((doc): doc is ManifestDocument => Boolean(doc) && typeof doc === 'object');
+  } catch {
+    return [];
+  }
+};
+
+const addIfPresent = (target: Set<string>, value: unknown) => {
+  if (typeof value === 'string' && value.trim()) {
+    target.add(value.trim());
+  }
+};
+
+const collectNamespaces = (documents: ManifestDocument[]): string[] => {
+  const namespaces = new Set<string>();
+  documents.forEach((doc) => {
+    addIfPresent(namespaces, doc.metadata?.namespace);
+    if (doc.kind === 'Namespace') {
+      addIfPresent(namespaces, doc.metadata?.name);
+    }
+  });
+  return Array.from(namespaces)
+    .filter((namespace) => !SYSTEM_NAMESPACES.has(namespace))
+    .sort((a, b) => a.localeCompare(b));
+};
+
+const collectIngressClasses = (documents: ManifestDocument[]): string[] => {
+  const classes = new Set<string>();
+  documents.forEach((doc) => {
+    if (doc.kind !== 'Ingress') return;
+    classes.add(doc.spec?.ingressClassName || 'nginx');
+  });
+  return Array.from(classes).sort((a, b) => a.localeCompare(b));
+};
+
+const NON_HTTP_IMAGE_BASES = new Set([
+  'golang',
+  'python',
+  'postgres',
+  'mysql',
+  'mariadb',
+  'redis',
+  'busybox',
+  'alpine',
+]);
+
+const collectNonHttpImages = (documents: ManifestDocument[]): string[] => {
+  const images = new Set<string>();
+  documents.forEach((doc) => {
+    const containers = getContainers(doc) || [];
+    containers.forEach((container) => {
+      const image = container.image;
+      if (!image) return;
+      const base = image.split('/').pop()?.split(':')[0] || '';
+      if (NON_HTTP_IMAGE_BASES.has(base)) images.add(image);
+    });
+  });
+  return Array.from(images).sort((a, b) => a.localeCompare(b));
+};
+
+const collectIngressRoutes = (documents: ManifestDocument[]): IngressRoute[] => {
+  const routes = new Map<string, IngressRoute>();
+  documents.forEach((doc) => {
+    if (doc.kind !== 'Ingress') return;
+    (doc.spec?.rules || []).forEach((rule) => {
+      if (!rule.host) return;
+      const paths = rule.http?.paths || [{ path: '/' }];
+      paths.forEach((item) => {
+        const path = item.path || '/';
+        routes.set(`${rule.host}${path}`, { host: rule.host as string, path });
+      });
+    });
+  });
+  return Array.from(routes.values());
+};
+
+const collectStorageClasses = (documents: ManifestDocument[]): string[] => {
+  const storageClasses = new Set<string>();
+  documents.forEach((doc) => {
+    if (doc.kind === 'PVC' || doc.kind === 'PersistentVolumeClaim') {
+      addIfPresent(storageClasses, doc.spec?.storageClassName);
+    }
+    if (doc.kind === 'StatefulSet' && Array.isArray(doc.spec?.volumeClaimTemplates)) {
+      doc.spec.volumeClaimTemplates.forEach((template) => {
+        addIfPresent(storageClasses, template.spec?.storageClassName);
+      });
+    }
+  });
+  return Array.from(storageClasses).sort((a, b) => a.localeCompare(b));
+};
+
+const namespaceFlag = (namespace?: string): string =>
+  namespace && namespace !== 'default' ? ` -n ${namespace}` : '';
+
+const getPodLabels = (doc: ManifestDocument): ManifestLabelSelector | undefined =>
+  doc.kind === 'Pod' ? doc.metadata?.labels : doc.spec?.template?.metadata?.labels;
+
+const matchesSelector = (
+  labels: ManifestLabelSelector | undefined,
+  selector: ManifestLabelSelector
+): boolean => Object.entries(selector).every(([key, value]) => labels?.[key] === value);
+
+const getContainers = (doc: ManifestDocument): ManifestContainer[] | undefined =>
+  doc.kind === 'Pod' ? doc.spec?.containers : doc.spec?.template?.spec?.containers;
+
+const isIngressControllerSelector = (selector: ManifestLabelSelector | undefined): boolean =>
+  selector?.['app.kubernetes.io/name'] === 'ingress-nginx';
+
+const buildServiceWarnings = (
+  services: ManifestDocument[],
+  workloads: ManifestDocument[],
+  ports: LocalTestPort[],
+  ingressServiceNames: string[],
+  warnings: string[]
+) => {
+  services.forEach((service) => {
+    const name = service.metadata?.name || 'unnamed-service';
+    const flag = namespaceFlag(service.metadata?.namespace);
+    const servicePorts = service.spec?.ports || [];
+
+    servicePorts.forEach((item) => {
+      if (typeof item.port === 'number' && item.port > 0) {
+        ports.push({
+          serviceName: name,
+          namespace: service.metadata?.namespace,
+          port: item.port,
+        });
+      }
+    });
+
+    if (servicePorts.length === 0) {
+      warnings.push(
+        `Service ${name} has no port. Set the port on the Service card, otherwise port-forward cannot reach your app.`
+      );
+    }
+
+    const selector = service.spec?.selector;
+    if (!selector || Object.keys(selector).length === 0) {
+      warnings.push(
+        `Service ${name} has no selector. Check the "selector" toggle on the Service card and connect the Service to a Pod/Deployment. Without a selector there are no endpoints to forward to.`
+      );
+      return;
+    }
+
+    if (isIngressControllerSelector(selector)) {
+      ingressServiceNames.push(name);
+      return;
+    }
+
+    if (!workloads.some((workload) => matchesSelector(getPodLabels(workload), selector))) {
+      warnings.push(
+        `Service ${name} selector does not match any workload in this YAML. Connect the Service card to a Pod/Deployment card (or fix its selector) before testing at localhost. Diagnostic: kubectl get endpoints ${name}${flag}.`
+      );
+    }
+  });
+};
+
+const buildWorkloadWarnings = (workloads: ManifestDocument[], warnings: string[]) => {
+  workloads.forEach((workload) => {
+    const kind = workload.kind || 'Workload';
+    const name = workload.metadata?.name || 'unnamed-workload';
+    const containers = getContainers(workload) || [];
+
+    if (containers.length === 0 || containers.some((container) => !container.image)) {
+      warnings.push(
+        `${kind} ${name} has no container image. Set the image on that card, otherwise the pod cannot start and there is nothing to open in the browser.`
+      );
+    }
+    if (workload.spec?.replicas === 0) {
+      warnings.push(
+        `${kind} ${name} has replicas: 0. Set replicas to at least 1 to get a running pod for browser testing.`
+      );
+    }
+  });
+};
+
+const addCapacityWarnings = (documents: ManifestDocument[], warnings: string[]) => {
+  const safeCeiling = getLocalPodCeiling();
+  const desiredPods = documents.reduce((total, doc) => {
+    if (!WORKLOAD_KINDS.has(doc.kind || '')) return total;
+    return total + (doc.kind === 'Pod' ? 1 : (doc.spec?.replicas ?? 1));
+  }, 0);
+
+  if (desiredPods > safeCeiling) {
+    warnings.push(
+      `This YAML asks for ${desiredPods} pods, above the safe local ceiling of about ${safeCeiling}. You likely increased replicas from the scenario template. Reduce replicas before testing on this PC.`
+    );
+  }
+
+  documents.forEach((doc) => {
+    const maxReplicas = doc.kind === 'HorizontalPodAutoscaler' ? doc.spec?.maxReplicas : undefined;
+    if (typeof maxReplicas === 'number' && maxReplicas > safeCeiling) {
+      warnings.push(
+        `HPA ${doc.metadata?.name || 'unnamed-hpa'} has maxReplicas: ${maxReplicas}, which can exceed this PC's capacity (~${safeCeiling} pods). Lower maxReplicas for a local test.`
+      );
+    }
+  });
+};
+
+const analyzeLocalTestReadiness = (documents: ManifestDocument[]): LocalTestReadiness => {
+  const warnings: string[] = [];
+  const ports: LocalTestPort[] = [];
+  const ingressServiceNames: string[] = [];
+  const ingressRoutes = collectIngressRoutes(documents);
+  const nonHttpImages = collectNonHttpImages(documents);
+  const workloads = documents.filter((doc) => WORKLOAD_KINDS.has(doc.kind || ''));
+  const services = documents.filter((doc) => doc.kind === 'Service');
+
+  if (services.length === 0) {
+    warnings.push(
+      'There is no Service card in this design. Add a Service card and connect it to a Pod/Deployment card; kubectl port-forward needs a Service to expose localhost.'
+    );
+  }
+  if (workloads.length === 0) {
+    warnings.push(
+      'There is no Pod, Deployment, StatefulSet, or ReplicaSet card in this design. Add a workload card with a container image before expecting a live browser test.'
+    );
+  }
+
+  buildServiceWarnings(services, workloads, ports, ingressServiceNames, warnings);
+  buildWorkloadWarnings(workloads, warnings);
+  addCapacityWarnings(documents, warnings);
+
+  return { warnings, ports, ingressServiceNames, ingressRoutes, nonHttpImages };
+};
+
+const buildDockerDesktopContextStep = (): YamlRunbookStep => ({
+  id: 'docker-desktop-context',
+  title: 'Target your Docker Desktop cluster',
+  description: 'Make sure your terminal commands target your local Docker Desktop Kubernetes cluster.',
+  commands: [{ command: 'kubectl config use-context docker-desktop' }],
+});
+
+const buildNamespaceStep = (namespaces: string[]): YamlRunbookStep | null => {
+  if (namespaces.length === 0) return null;
+  return {
+    id: 'create-namespaces',
+    title: 'Create the namespaces first',
+    description: `The manifest contains resources in: ${namespaces.join(', ')}. Run this before kubectl apply. The commands are safe to run again if a namespace already exists.`,
+    commands: namespaces.map((namespace) => ({
+      command: `kubectl create namespace ${namespace} --dry-run=client -o yaml | kubectl apply -f -`,
+    })),
+    requiresSetup: true,
+  };
+};
+
+const buildHpaStep = (documents: ManifestDocument[]): YamlRunbookStep | null => {
+  if (!documents.some((doc) => doc.kind === 'HorizontalPodAutoscaler')) return null;
+  return {
+    id: 'metrics-server',
+    title: 'Install the Kubernetes Metrics Server',
+    description: 'HorizontalPodAutoscaler needs the Metrics Server to read CPU and memory usage. Skip this step if metrics-server is already installed.',
+    commands: [
+      { command: 'kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml' },
+      { command: 'kubectl rollout status deployment/metrics-server -n kube-system --timeout=120s' },
+      { command: 'kubectl top pods' },
+    ],
+    requiresSetup: true,
+  };
+};
+
+const buildIngressStep = (ingressClass: string): YamlRunbookStep => {
+  if (ingressClass === 'traefik') {
+    return {
+      id: 'ingress-traefik',
+      title: 'Install the Traefik Ingress Controller',
+      description: 'Ingress resources use ingressClassName: traefik. Skip this step if Traefik is already installed.',
+      commands: [
+        { command: 'helm repo add traefik https://traefik.github.io/charts' },
+        { command: 'helm repo update' },
+        { command: 'helm install traefik traefik/traefik' },
+      ],
+      requiresSetup: true,
+    };
+  }
+
+  return {
+    id: `ingress-${ingressClass}`,
+    title: `Install the ${ingressClass} Ingress Controller`,
+    description: `Ingress resources use ingressClassName: ${ingressClass}. Skip this step if the controller is already installed.`,
+    commands: [
+      { command: 'kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0/deploy/static/provider/cloud/deploy.yaml' },
+      { command: 'kubectl get pods -n ingress-nginx' },
+    ],
+    requiresSetup: true,
+  };
+};
+
+const buildStorageStep = (storageClasses: string[]): YamlRunbookStep | null => {
+  if (storageClasses.length === 0) return null;
+  return {
+    id: 'storage-classes',
+    title: 'Make sure the StorageClass exists',
+    description: `PersistentVolumeClaims request: ${storageClasses.join(', ')}. If the StorageClass is missing, PVCs stay Pending. Install a storage provisioner or change storageClassName in the manifest.`,
+    commands: [
+      { command: `kubectl get storageclass ${storageClasses.join(' ')}` },
+    ],
+    requiresSetup: true,
+  };
+};
+
+const buildVerifyStep = (
+  documents: ManifestDocument[],
+  namespaces: string[]
+): YamlRunbookStep => {
+  const kinds = new Set(documents.map((doc) => doc.kind).filter(Boolean));
+  const extraTypes = ['ingress', 'hpa', 'pvc'].filter((type) => {
+    if (type === 'ingress') return kinds.has('Ingress');
+    if (type === 'hpa') return kinds.has('HorizontalPodAutoscaler');
+    if (type === 'pvc') return kinds.has('PVC') || kinds.has('PersistentVolumeClaim');
+    return false;
+  });
+  const suffix = extraTypes.length > 0 ? `,${extraTypes.join(',')}` : '';
+  const targets = namespaces.length > 0 ? namespaces : [''];
+
+  return {
+    id: 'verify-resources',
+    title: 'Verify that the resources are running',
+    description: 'Wait a few seconds, then check that pods and services are created. If a pod is not Running, use kubectl describe pod <pod-name> to see the reason.',
+    commands: targets.map((namespace) => ({
+      command: `kubectl get all${suffix}${namespace ? ` -n ${namespace}` : ''}`,
+    })),
+  };
+};
+
+const buildBrowserWarningStep = (warnings: string[]): YamlRunbookStep | null => {
+  if (warnings.length === 0) return null;
+  return {
+    id: 'browser-test-warnings',
+    title: 'The design is not ready for a browser test yet',
+    description: 'Fix these gaps on the canvas, regenerate the YAML, and then repeat the deployment steps. Port-forward will not work until they are resolved.',
+    commands: [],
+    notes: warnings,
+    tone: 'warning',
+  };
+};
+
+interface LocalTestTarget {
+  readonly item: LocalTestPort;
+  readonly localPort: number;
+  readonly isIngress: boolean;
+}
+
+const assignLocalPort = (port: number, isIngress: boolean, used: Set<number>): number => {
+  let candidate = isIngress ? 80 : (port === 80 ? 8080 : port);
+  while (used.has(candidate)) {
+    candidate += 1;
+  }
+  used.add(candidate);
+  return candidate;
+};
+
+/**
+ * Ingress-controller Services return nginx 404 on localhost because the Host
+ * header does not match any Ingress rule. Explain the correct URL instead of
+ * offering a localhost link that cannot work.
+ */
+const buildIngressTargetNotes = (
+  target: LocalTestTarget,
+  routes: IngressRoute[]
+): string[] => {
+  if (routes.length === 0) {
+    return [
+      `Service ${target.item.serviceName} targets the Ingress controller, but no Ingress host was found in this YAML. Use the app Service for a direct browser test.`,
+    ];
+  }
+
+  return routes.map((route) => {
+    const url = `http://${route.host}${route.path}`;
+    return `Add "127.0.0.1 ${route.host}" to your hosts file (Windows: C:\\Windows\\System32\\drivers\\etc\\hosts, macOS/Linux: /etc/hosts), then open ${url}. Opening http://localhost:${target.localPort} gives nginx 404 because the Host header does not match the Ingress rule.`;
+  });
+};
+
+const buildPortForwardStep = (
+  ports: LocalTestPort[],
+  ingressServiceNames: string[],
+  ingressRoutes: IngressRoute[],
+  nonHttpImages: string[]
+): YamlRunbookStep | null => {
+  if (ports.length === 0) return null;
+
+  const usedPorts = new Set<number>();
+  const ingressServices = new Set(ingressServiceNames);
+  const targets: LocalTestTarget[] = ports.map((item) => {
+    const isIngress = ingressServices.has(item.serviceName);
+    return { item, isIngress, localPort: assignLocalPort(item.port, isIngress, usedPorts) };
+  });
+
+  const commands = targets.map(({ item, localPort }) => ({
+    command: `kubectl port-forward svc/${item.serviceName} ${localPort}:${item.port}${namespaceFlag(item.namespace)}`,
+  }));
+
+  const appTargets = targets.filter((target) => !target.isIngress);
+  const ingressTargets = targets.filter((target) => target.isIngress);
+  const urls = appTargets.map((target) => `http://localhost:${target.localPort}`);
+  const notes: string[] = [];
+
+  ingressTargets.forEach((target) => {
+    buildIngressTargetNotes(target, ingressRoutes).forEach((note) => {
+      if (!notes.includes(note)) notes.push(note);
+    });
+  });
+
+  if (urls.length === 0) {
+    ingressRoutes.forEach((route) => {
+      const url = `http://${route.host}${route.path}`;
+      if (!urls.includes(url)) urls.push(url);
+    });
+  }
+
+  nonHttpImages.forEach((image) => {
+    const note = `The image ${image} is not an HTTP server. Port-forward still opens the port, but a browser may show a blank page or connection error. Use nginx/httpd for a page, or a matching client (for example psql) for a database.`;
+    if (!notes.includes(note)) notes.push(note);
+  });
+
+  return {
+    id: 'port-forward',
+    title: 'Open the app in your browser',
+    description: 'Keep each command running in its own terminal. The number before the colon is the local port; if it is busy, change it (for example 8081:80). Stop with Ctrl+C. Use the localhost link below for a direct test; the Ingress link needs the hosts-file note.',
+    commands,
+    urls,
+    notes: notes.length > 0 ? notes : undefined,
+  };
+};
+
+/**
+ * Builds a step-by-step kubectl runbook from the generated multi-document YAML.
+ *
+ * The runbook covers saving the manifest, applying it, and verifying deployed resources.
+ * Namespace creation, Metrics Server, Ingress controllers, and StorageClass checks are added
+ * only when the manifest needs them. A port-forward step plus explicit warnings are added
+ * so a beginner can test the design at localhost, or understand which canvas cards are missing.
+ *
+ * @param yamlContent - Generated Kubernetes YAML (multi-document).
+ * @returns Ordered steps that can be rendered in the YAML modal.
+ */
+export const buildYamlRunbook = (yamlContent: string): YamlRunbookStep[] => {
+  const documents = parseDocuments(yamlContent);
+  if (documents.length === 0) return [];
+
+  const namespaces = collectNamespaces(documents);
+  const ingressClasses = collectIngressClasses(documents);
+  const storageClasses = collectStorageClasses(documents);
+  const readiness = analyzeLocalTestReadiness(documents);
+
+  const steps: YamlRunbookStep[] = [buildDockerDesktopContextStep()];
+
+  const namespaceStep = buildNamespaceStep(namespaces);
+  if (namespaceStep) steps.push(namespaceStep);
+
+  const hpaStep = buildHpaStep(documents);
+  if (hpaStep) steps.push(hpaStep);
+
+  ingressClasses.forEach((ingressClass) => {
+    steps.push(buildIngressStep(ingressClass));
+  });
+
+  const storageStep = buildStorageStep(storageClasses);
+  if (storageStep) steps.push(storageStep);
+
+  steps.push({
+    id: 'save-manifest',
+    title: 'Save the manifest as infra.yaml',
+    description: 'Open the View YAML tab, click Copy, and save the content as a file named infra.yaml in the folder where you run kubectl.',
+    commands: [],
+  });
+
+  steps.push({
+    id: 'apply-manifest',
+    title: 'Apply the manifest',
+    description: 'Run this command from the same folder that contains infra.yaml. Make sure the namespace steps above are already completed.',
+    commands: [{ command: 'kubectl apply -f infra.yaml' }],
+  });
+
+  steps.push(buildVerifyStep(documents, namespaces));
+
+  const warningStep = buildBrowserWarningStep(readiness.warnings);
+  if (warningStep) steps.push(warningStep);
+
+  const portForwardStep = buildPortForwardStep(
+    readiness.ports,
+    readiness.ingressServiceNames,
+    readiness.ingressRoutes,
+    readiness.nonHttpImages
+  );
+  if (portForwardStep) steps.push(portForwardStep);
+
+  return steps;
+};

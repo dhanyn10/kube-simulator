@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import {
   scenarios,
   Scenario,
+  ScenarioLevel,
   detectScenarioResources,
   ResourceBadgeList,
 } from '@/scenarios';
@@ -16,6 +17,26 @@ interface ScenarioModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+interface ScenarioGroup {
+  readonly tier: ScenarioLevel | 'Other';
+  readonly items: Scenario[];
+}
+
+const SCENARIO_TIERS: readonly ScenarioLevel[] = ['Basic', 'Intermediate', 'Advanced'];
+
+const groupScenariosByTier = (items: Scenario[]): ScenarioGroup[] => {
+  const groups: ScenarioGroup[] = SCENARIO_TIERS.map((tier) => ({
+    tier,
+    items: items.filter((scenario) => scenario.difficulty === tier),
+  }));
+  const groupedIds = new Set(groups.flatMap((group) => group.items.map((item) => item.id)));
+  const others = items.filter((scenario) => !groupedIds.has(scenario.id));
+  if (others.length > 0) {
+    groups.push({ tier: 'Other' as const, items: others });
+  }
+  return groups;
+};
 
 /**
  * Modal for browsing + loading pre-built scenario templates onto the canvas.
@@ -100,12 +121,12 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
       isOpen={isOpen}
       onClose={onClose}
       title="Learning Scenarios"
-      subtitle="Select a case study to learn infrastructure patterns"
+      subtitle="Basic → Intermediate → Advanced, all verified for local deploy and localhost testing"
       icon={BookOpen}
       compactHeader={true}
       footer={
         <p className="text-[10px] text-center text-slate-500 font-medium">
-          Scenarios are templates designed to show best practices in Kubernetes architecture.
+          Every tier is safe to apply and test locally. If you edit a template and raise replicas past your PC capacity, the YAML modal will warn you.
         </p>
       }
     >
@@ -147,52 +168,80 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
             </div>
           </div>
         ) : (
-          <div className="grid gap-3">
-            {scenarios.map((scenario) => {
-              const { resources: detectedResources } = detectScenarioResources(scenario);
-
-              return (
-                <button
-                  type="button"
-                  key={scenario.id}
-                  onClick={() => handleSelectScenario(scenario)}
-                  className={cn(
-                    "flex flex-col p-4 rounded-xl border transition-all text-left group relative",
-                    colorMode === 'dark'
-                      ? "bg-slate-800/40 border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/60"
-                      : "bg-slate-50 border-slate-200 hover:border-blue-400 hover:bg-white"
-                  )}
+          <div className="flex flex-col gap-5">
+            {groupScenariosByTier(scenarios).map((group) => (
+              group.items.length > 0 && (
+                <section
+                  key={group.tier}
+                  data-testid={`scenario-tier-${group.tier.toLowerCase()}`}
+                  className="flex flex-col gap-3"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {getLevelIcon(scenario.level)}
-                      <span className="font-bold text-sm uppercase tracking-tight">{scenario.name}</span>
-                    </div>
-                    <span className={cn(
-                      "text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-widest",
-                      getLevelBg(scenario.level)
+                  <div className="flex items-center gap-2">
+                    {getLevelIcon(group.tier)}
+                    <h3 className={cn(
+                      "text-xs font-black uppercase tracking-[0.2em]",
+                      colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
                     )}>
-                      {scenario.level}
+                      {group.tier}
+                    </h3>
+                    <span className={cn(
+                      "text-[10px] font-bold",
+                      colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
+                    )}>
+                      {group.items.length} scenario{group.items.length === 1 ? '' : 's'}
                     </span>
                   </div>
 
-                  <ResourceBadgeList
-                    resources={detectedResources}
-                    colorMode={colorMode}
-                    testId={`scenario-badges-${scenario.id}`}
-                    prefixKey={`scenario-${scenario.id}`}
-                    className="mb-2.5"
-                  />
+                  <div className="grid gap-3">
+                    {group.items.map((scenario) => {
+                      const { resources: detectedResources } = detectScenarioResources(scenario);
 
-                  <p className={cn(
-                    "text-xs leading-relaxed",
-                    colorMode === 'dark' ? "text-slate-400" : "text-slate-600"
-                  )}>
-                    {scenario.description}
-                  </p>
-                </button>
-              );
-            })}
+                      return (
+                        <button
+                          type="button"
+                          key={scenario.id}
+                          onClick={() => handleSelectScenario(scenario)}
+                          className={cn(
+                            "flex flex-col p-4 rounded-xl border transition-all text-left group relative",
+                            colorMode === 'dark'
+                              ? "bg-slate-800/40 border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/60"
+                              : "bg-slate-50 border-slate-200 hover:border-blue-400 hover:bg-white"
+                          )}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              {getLevelIcon(scenario.level)}
+                              <span className="font-bold text-sm uppercase tracking-tight">{scenario.name}</span>
+                            </div>
+                            <span className={cn(
+                              "text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-widest",
+                              getLevelBg(scenario.level)
+                            )}>
+                              {scenario.level}
+                            </span>
+                          </div>
+
+                          <ResourceBadgeList
+                            resources={detectedResources}
+                            colorMode={colorMode}
+                            testId={`scenario-badges-${scenario.id}`}
+                            prefixKey={`scenario-${scenario.id}`}
+                            className="mb-2.5"
+                          />
+
+                          <p className={cn(
+                            "text-xs leading-relaxed",
+                            colorMode === 'dark' ? "text-slate-400" : "text-slate-600"
+                          )}>
+                            {scenario.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )
+            ))}
           </div>
         )}
       </div>

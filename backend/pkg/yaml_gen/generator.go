@@ -55,6 +55,9 @@ func Generate(nodesJson, edgesJson string) string {
 		if obj != nil {
 			manifests = append(manifests, obj)
 		}
+		if node.Type == "Namespace" || (node.Type == "Pod" && obj == nil) {
+			continue
+		}
 		for _, hpaItem := range node.Data.Hpas {
 			hpaObj := generateAttachedHPA(hpaItem, node, ctx)
 			if hpaObj != nil {

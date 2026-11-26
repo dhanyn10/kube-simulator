@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { YamlModal } from '@/components/Modals/YamlModal';
 import '@testing-library/jest-dom';
 
@@ -20,8 +20,21 @@ describe('YamlModal', () => {
 
   it('renders content correctly', () => {
     render(<YamlModal content={content} colorMode="dark" onClose={mockOnClose} />);
-    expect(screen.getByText(/apiVersion: v1/)).toBeDefined();
     expect(screen.getByText('Kubernetes Manifest Output')).toBeDefined();
+    expect(screen.getByTestId('yaml-tab-runbook')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
+    expect(screen.getByText(/apiVersion: v1/)).toBeDefined();
+  });
+
+  it('warns in the manifest view when the design cannot be tested at localhost', () => {
+    render(<YamlModal content={content} colorMode="dark" onClose={mockOnClose} />);
+    fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
+
+    expect(screen.getByTestId('yaml-browser-warning-banner')).toBeInTheDocument();
+    expect(screen.getByText(/Not ready for browser test/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('See the fixes'));
+    expect(screen.getByTestId('yaml-runbook-step-browser-test-warnings')).toBeInTheDocument();
   });
 
   it('calls onClose when close button is clicked', () => {
@@ -37,7 +50,7 @@ describe('YamlModal', () => {
 
   it('copies content to clipboard', async () => {
     render(<YamlModal content={content} colorMode="dark" onClose={mockOnClose} />);
-    const copyBtn = screen.getByText('Copy');
+    const copyBtn = screen.getByTestId('yaml-modal-copy-btn');
 
     fireEvent.click(copyBtn);
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(content);
@@ -84,6 +97,7 @@ describe('YamlModal', () => {
       { apiVersion: 'v1', kind: 'ConfigMap', metadata: { name: 'my-cm' }, data: { ENV: 'prod' } }
     ]);
     render(<YamlModal content={rawJsonManifest} colorMode="dark" onClose={mockOnClose} />);
+    fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
 
     expect(screen.getByTestId('auto-beautified-badge')).toBeInTheDocument();
     expect(screen.getByText('Auto-Beautified')).toBeInTheDocument();
@@ -95,7 +109,7 @@ describe('YamlModal', () => {
     const rawJsonManifest = JSON.stringify({ apiVersion: 'v1', kind: 'Secret', metadata: { name: 'sec' } });
     render(<YamlModal content={rawJsonManifest} colorMode="dark" onClose={mockOnClose} />);
 
-    const copyBtn = screen.getByText('Copy');
+    const copyBtn = screen.getByTestId('yaml-modal-copy-btn');
     await act(async () => {
       fireEvent.click(copyBtn);
     });
@@ -128,6 +142,7 @@ spec:
 
     it('allows user to search keywords, highlights matches, and displays match counter', () => {
       render(<YamlModal content={yamlSample} colorMode="dark" onClose={mockOnClose} />);
+      fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
 
       const searchInput = screen.getByTestId('yaml-search-input');
       expect(searchInput).toBeInTheDocument();
@@ -145,6 +160,7 @@ spec:
 
     it('navigates next and previous matches using buttons and Enter/Shift+Enter keys', () => {
       render(<YamlModal content={yamlSample} colorMode="light" onClose={mockOnClose} />);
+      fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
 
       const searchInput = screen.getByTestId('yaml-search-input');
       fireEvent.change(searchInput, { target: { value: 'web-app' } });
@@ -175,6 +191,7 @@ spec:
 
     it('handles no matches gracefully and disables navigation buttons', () => {
       render(<YamlModal content={yamlSample} colorMode="dark" onClose={mockOnClose} />);
+      fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
 
       const searchInput = screen.getByTestId('yaml-search-input');
       fireEvent.change(searchInput, { target: { value: 'nonexistent-config-key' } });
@@ -186,6 +203,7 @@ spec:
 
     it('renders "No matches" badge in light colorMode and handles key events when input is empty', () => {
       render(<YamlModal content={yamlSample} colorMode="light" onClose={mockOnClose} />);
+      fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
 
       const searchInput = screen.getByTestId('yaml-search-input');
 
@@ -203,6 +221,7 @@ spec:
 
     it('clears search query using clear button and Escape key inside search input', () => {
       render(<YamlModal content={yamlSample} colorMode="dark" onClose={mockOnClose} />);
+      fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
 
       const searchInput = screen.getByTestId('yaml-search-input');
       fireEvent.change(searchInput, { target: { value: 'replicas' } });
@@ -229,11 +248,125 @@ spec:
       window.HTMLElement.prototype.scrollIntoView = scrollMock;
 
       render(<YamlModal content={yamlSample} colorMode="dark" onClose={mockOnClose} />);
+      fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
 
       const searchInput = screen.getByTestId('yaml-search-input');
       fireEvent.change(searchInput, { target: { value: 'web-app' } });
 
       expect(scrollMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    });
+  });
+
+  describe('Deployment runbook flow', () => {
+    const yamlWithPrereqs = [
+      'apiVersion: networking.k8s.io/v1',
+      'kind: Ingress',
+      'metadata:',
+      '  name: web-ingress',
+      '  namespace: production',
+      'spec:',
+      '  ingressClassName: nginx',
+      '---',
+      'apiVersion: networking.k8s.io/v1',
+      'kind: Ingress',
+      'metadata:',
+      '  name: admin-ingress',
+      '  namespace: production',
+      'spec:',
+      '  ingressClassName: traefik',
+      '---',
+      'apiVersion: autoscaling/v2',
+      'kind: HorizontalPodAutoscaler',
+      'metadata:',
+      '  name: api-hpa',
+      '  namespace: production',
+    ].join('\n');
+
+    const readyYaml = [
+      'apiVersion: v1',
+      'kind: Pod',
+      'metadata:',
+      '  name: web',
+      '  labels:',
+      '    app: web',
+      'spec:',
+      '  containers:',
+      '    - name: web',
+      '      image: nginx:latest',
+      '---',
+      'apiVersion: v1',
+      'kind: Service',
+      'metadata:',
+      '  name: web-svc',
+      'spec:',
+      '  selector:',
+      '    app: web',
+      '  ports:',
+      '    - port: 80',
+    ].join('\n');
+
+    it('shows ordered namespace, metrics-server, and ingress steps before the manifest', () => {
+      render(<YamlModal content={yamlWithPrereqs} colorMode="dark" onClose={mockOnClose} />);
+
+      expect(screen.getByTestId('yaml-runbook-step-docker-desktop-context')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-create-namespaces')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-metrics-server')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-ingress-nginx')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-ingress-traefik')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-save-manifest')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-apply-manifest')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-verify-resources')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-browser-test-warnings')).toBeInTheDocument();
+      expect(screen.getByText(/no Service card in this design/)).toBeInTheDocument();
+
+      expect(screen.getByText(/kubectl create namespace production/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('yaml-runbook-copy-create-namespaces-0'));
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        expect.stringContaining('kubectl create namespace production')
+      );
+
+      fireEvent.click(screen.getByTestId('yaml-runbook-copy-ingress-nginx-0'));
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        expect.stringContaining('ingress-nginx')
+      );
+    });
+
+    it('navigates between the runbook and the YAML manifest', () => {
+      render(<YamlModal content={yamlWithPrereqs} colorMode="dark" onClose={mockOnClose} />);
+
+      const footer = screen.getByTestId('yaml-modal-footer');
+      expect(within(footer).getByTestId('yaml-runbook-view-manifest')).toHaveTextContent('Next: View YAML');
+
+      fireEvent.click(screen.getByTestId('yaml-runbook-view-manifest'));
+      expect(screen.getByText(/HorizontalPodAutoscaler/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('yaml-tab-runbook'));
+      expect(screen.getByTestId('yaml-runbook-step-create-namespaces')).toBeInTheDocument();
+    });
+
+    it('shows port-forward and localhost URL when the design can be tested', () => {
+      render(<YamlModal content={readyYaml} colorMode="dark" onClose={mockOnClose} />);
+      fireEvent.click(screen.getByTestId('yaml-tab-runbook'));
+
+      expect(screen.getByTestId('yaml-runbook-step-port-forward')).toBeInTheDocument();
+      expect(screen.getByText(/kubectl port-forward svc\/web-svc 8080:80/)).toBeInTheDocument();
+      expect(screen.getByText('http://localhost:8080')).toBeInTheDocument();
+      expect(screen.queryByTestId('yaml-runbook-step-browser-test-warnings')).not.toBeInTheDocument();
+    });
+
+    it('defaults to the deployment steps (step 1) view when opened', () => {
+      render(<YamlModal content={readyYaml} colorMode="dark" onClose={mockOnClose} />);
+      expect(screen.getByTestId('yaml-tab-runbook')).toBeInTheDocument();
+      expect(screen.getByText('Deployment Runbook')).toBeInTheDocument();
+      expect(screen.getByTestId('yaml-runbook-step-docker-desktop-context')).toBeInTheDocument();
+    });
+
+    it('renders Docker Desktop notice in the runbook view', () => {
+      render(<YamlModal content={readyYaml} colorMode="dark" onClose={mockOnClose} />);
+
+      // Docker Desktop notice
+      expect(screen.getByText(/Enable Kubernetes/)).toBeInTheDocument();
     });
   });
 });

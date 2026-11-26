@@ -354,7 +354,7 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(await gateway.greet('Wails')).toBe('Hey Wails');
       await gateway.setInitialFile('/file');
       expect(mockApp.SetInitialFile).toHaveBeenCalled();
-      expect(await gateway.generateYaml('[]', '[]')).toBe('apiVersion: v1');
+      expect(await gateway.generateYaml('[]', '[]')).toBe('');
       expect(await gateway.fetchDockerHubPopular()).toContain('nginx');
       expect(await gateway.fetchDockerHubTags('nginx')).toContain('latest');
       expect(await gateway.searchDockerHub('redis')).toContain('redis');
@@ -666,21 +666,13 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(result).toBe(false);
     });
 
-    it('converts backend JSON manifest array to multi-document YAML in generateYaml', async () => {
-      const mockManifests = [
-        { apiVersion: 'v1', kind: 'Pod', metadata: { name: 'pod-1' } },
-        { apiVersion: 'v1', kind: 'Service', metadata: { name: 'svc-1' } },
+    it('generates multi-document YAML client-side in generateYaml', async () => {
+      const nodes = [
+        { id: 'p1', type: 'Pod', data: { label: 'pod-1' } },
+        { id: 's1', type: 'Service', data: { label: 'svc-1' } },
       ];
 
-      (globalThis as any).go = {
-        main: {
-          App: {
-            GenerateYaml: vi.fn().mockResolvedValue(JSON.stringify(mockManifests)),
-          },
-        },
-      };
-
-      const yamlResult = await gateway.generateYaml('[]', '[]');
+      const yamlResult = await gateway.generateYaml(JSON.stringify(nodes), '[]');
       expect(yamlResult).toContain('kind: Pod');
       expect(yamlResult).toContain('name: pod-1');
       expect(yamlResult).toContain('---');
@@ -688,51 +680,7 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(yamlResult).toContain('name: svc-1');
     });
 
-    it('handles non-array or malformed JSON returned by GenerateYaml gracefully', async () => {
-      (globalThis as any).go = {
-        main: {
-          App: {
-            GenerateYaml: vi.fn().mockResolvedValue('{"not":"an array"}'),
-          },
-        },
-      };
-
-      const resultObj = await gateway.generateYaml('[]', '[]');
-      expect(resultObj).toBe('{"not":"an array"}');
-
-      (globalThis as any).go.main.App.GenerateYaml = vi.fn().mockResolvedValue('raw-string-not-json');
-      const resultRaw = await gateway.generateYaml('[]', '[]');
-      expect(resultRaw).toBe('raw-string-not-json');
-
-      (globalThis as any).go.main.App.GenerateYaml = vi.fn().mockResolvedValue('');
-      const resultEmpty = await gateway.generateYaml('[]', '[]');
-      expect(resultEmpty).toBe('');
-    });
-
-    it('falls back to client-side YAML generation when backend GenerateYaml throws an error', async () => {
-      (globalThis as any).go = {
-        main: {
-          App: {
-            GenerateYaml: vi.fn().mockRejectedValue(new Error('Backend error')),
-          },
-        },
-      };
-
-      const nodes = [{ id: 'p1', type: 'Pod', data: { label: 'client-pod' } }];
-      const yamlResult = await gateway.generateYaml(JSON.stringify(nodes), '[]');
-      expect(yamlResult).toContain('kind: Pod');
-      expect(yamlResult).toContain('name: client-pod');
-    });
-
-    it('returns empty string when client-side YAML fallback encounters malformed JSON', async () => {
-      (globalThis as any).go = {
-        main: {
-          App: {
-            GenerateYaml: vi.fn().mockResolvedValue(null),
-          },
-        },
-      };
-
+    it('returns empty string when client-side YAML generation encounters malformed JSON', async () => {
       const yamlResult = await gateway.generateYaml('invalid-json{{{', '[]');
       expect(yamlResult).toBe('');
     });
@@ -994,18 +942,12 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(eventsEmit).toHaveBeenCalledWith('simulation-snapshot-updated', '{"snap":1}');
     });
 
-    it('generateYaml falls back to the client-side generator when the app method returns undefined', async () => {
-      const appMock = { GenerateYaml: vi.fn().mockResolvedValue(undefined) };
+    it('generateYaml uses the client-side generator regardless of app.GenerateYaml', async () => {
+      const appMock = { GenerateYaml: vi.fn().mockResolvedValue('ignored') };
       (globalThis as any).go = { main: { App: appMock } };
 
       const yaml = await gateway.generateYaml('[]', '[]');
-      expect(appMock.GenerateYaml).toHaveBeenCalled();
-      expect(typeof yaml).toBe('string');
-    });
-
-    it('generateYaml falls back to the client-side generator when the app has no GenerateYaml', async () => {
-      (globalThis as any).go = { main: { App: {} } };
-      const yaml = await gateway.generateYaml('[]', '[]');
+      expect(appMock.GenerateYaml).not.toHaveBeenCalled();
       expect(typeof yaml).toBe('string');
     });
 

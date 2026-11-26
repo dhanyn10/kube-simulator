@@ -7,6 +7,11 @@ describe('Scenarios', () => {
     expect(scenarios.length).toBeGreaterThan(0);
   });
 
+  it('should provide scenarios in all three difficulty tiers', () => {
+    const tiers = new Set(scenarios.map((scenario) => scenario.difficulty));
+    expect(tiers).toEqual(new Set(['Basic', 'Intermediate', 'Advanced']));
+  });
+
   it('should be sorted by level weight', () => {
     const levelWeight = {
       'Basic': 0,
@@ -26,6 +31,8 @@ describe('Scenarios', () => {
       expect(scenario.id).toBeDefined();
       expect(scenario.name).toBeDefined();
       expect(scenario.level).toBeDefined();
+      expect(scenario.difficulty).toBeDefined();
+      expect(['Basic', 'Intermediate', 'Advanced']).toContain(scenario.difficulty);
       expect(scenario.description).toBeDefined();
       expect(scenario.data).toBeDefined();
       expect(Array.isArray(scenario.data.nodes)).toBe(true);
@@ -67,6 +74,7 @@ describe('Scenarios', () => {
     const matched = reloadedScenarios.find(s => s.id === 'pvc-fallback-level');
     expect(matched).toBeDefined();
     expect(matched?.level).toBe('Intermediate');
+    expect(matched?.difficulty).toBe('Intermediate');
     expect(matched?.data.nodes).toEqual([]);
 
     vi.doUnmock('@/scenarios/pvc-scenarios.json');

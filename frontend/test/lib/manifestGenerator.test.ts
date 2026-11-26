@@ -139,16 +139,23 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).not.toContain('restartPolicy: Always');
   });
 
-  it('handles default container image when image setting is disabled or image is empty', () => {
+  it('omits the container image when image setting is disabled or image is empty', () => {
     const nodes = [
       {
         id: 'pod1',
         type: 'Pod',
         data: { label: 'Default Image Pod', yamlSettings: { image: false }, image: 'custom:tag' },
       },
+      {
+        id: 'pod2',
+        type: 'Pod',
+        data: { label: 'Empty Image Pod', image: '' },
+      },
     ];
     const yamlOutput = generateYamlClientSide(nodes, []);
-    expect(yamlOutput).toContain('image: nginx:latest');
+    expect(yamlOutput).not.toContain('image:');
+    expect(yamlOutput).not.toContain('nginx:latest');
+    expect(yamlOutput).not.toContain('imagePullPolicy');
   });
 
   it('generates Service, ConfigMap, Secret, PVC and Namespace manifests with custom settings', () => {
@@ -313,7 +320,7 @@ describe('manifestGenerator test suite', () => {
 
     const yamlOutput = generateYamlClientSide(nodes, edges);
     expect(yamlOutput).toContain('ingressClassName: traefik');
-    expect(yamlOutput).toContain('traefik.ingress.kubernetes.io/router.entrypoints: web,websecure');
+    expect(yamlOutput).not.toContain('traefik.ingress.kubernetes.io/router.entrypoints');
     expect(yamlOutput).not.toContain('nginx.ingress.kubernetes.io/rewrite-target');
     expect(yamlOutput).toContain('path: /api');
     expect(yamlOutput).toContain('name: api-service');
@@ -956,7 +963,7 @@ describe('manifestGenerator test suite', () => {
     expect(hpaDocRS.spec.minReplicas).toBe(1);
     expect(hpaDocRS.spec.maxReplicas).toBe(10);
 
-    // 4. Standalone unattached HPA fallback to Deployment / tbd-deployment
+    // 4. Standalone unattached HPA is skipped because it has no scalable target
     const nodesStandalone = [
       {
         id: 'hpa-unattached',
@@ -967,14 +974,10 @@ describe('manifestGenerator test suite', () => {
     const yamlStandalone = generateYamlClientSide(nodesStandalone, []);
     const docsStandalone = yaml.loadAll(yamlStandalone) as any[];
 
-    const hpaDocUnattached = docsStandalone.find((d) => d?.kind === 'HorizontalPodAutoscaler');
-    expect(hpaDocUnattached.spec.scaleTargetRef).toEqual({
-      apiVersion: 'apps/v1',
-      kind: 'Deployment',
-      name: 'tbd-deployment',
-    });
+    expect(docsStandalone.find((d) => d?.kind === 'HorizontalPodAutoscaler')).toBeUndefined();
+    expect(yamlStandalone).not.toContain('tbd-deployment');
 
-    // 5. HPA with disabled yamlSettings
+    // 5. HPA with disabled yamlSettings omits the corresponding fields
     const nodesDisabled = [
       {
         id: 'hpa-disabled',
@@ -992,13 +995,16 @@ describe('manifestGenerator test suite', () => {
           },
         },
       },
+      { id: 'dep-disabled-target', type: 'Deployment', data: { label: 'disabled-target', replicas: 2 } },
     ];
-    const yamlDisabled = generateYamlClientSide(nodesDisabled, []);
+    const yamlDisabled = generateYamlClientSide(nodesDisabled, [
+      { id: 'e-disabled', source: 'hpa-disabled', target: 'dep-disabled-target' },
+    ]);
     const docsDisabled = yaml.loadAll(yamlDisabled) as any[];
 
     const hpaDocDisabled = docsDisabled.find((d) => d?.kind === 'HorizontalPodAutoscaler');
-    expect(hpaDocDisabled.spec.minReplicas).toBe(1);
-    expect(hpaDocDisabled.spec.maxReplicas).toBe(10);
+    expect(hpaDocDisabled.spec.minReplicas).toBeUndefined();
+    expect(hpaDocDisabled.spec.maxReplicas).toBeUndefined();
     expect(hpaDocDisabled.spec.metrics).toBeUndefined();
 
     // 6. HPA within a Namespace
@@ -1008,10 +1014,18 @@ describe('manifestGenerator test suite', () => {
         id: 'hpa-in-ns',
         type: 'HPA',
         parentId: 'ns-prod',
-        data: { label: 'prod-hpa' },
+        data: { label: 'prod-hpa', targetCPU: 70 },
+      },
+      {
+        id: 'dep-in-ns',
+        type: 'Deployment',
+        parentId: 'ns-prod',
+        data: { label: 'prod-api', replicas: 2 },
       },
     ];
-    const yamlNs = generateYamlClientSide(nodesNs, []);
+    const yamlNs = generateYamlClientSide(nodesNs, [
+      { id: 'e-ns', source: 'hpa-in-ns', target: 'dep-in-ns' },
+    ]);
     const docsNs = yaml.loadAll(yamlNs) as any[];
 
     const hpaDocNs = docsNs.find((d) => d?.kind === 'HorizontalPodAutoscaler');
@@ -1514,7 +1528,7 @@ describe('manifestGenerator test suite', () => {
     expect(isVct).toBe(false);
   });
 
-  it('handles findHpaScaleTarget when target node is not a workload kind', () => {
+  it('skips an HPA when the connected target is not a scalable workload kind', () => {
     const nodes = [
       {
         id: 'hpa-1',
@@ -1536,8 +1550,8 @@ describe('manifestGenerator test suite', () => {
       { id: 'hpa-to-svc', source: 'hpa-1', target: 'svc-target' },
     ];
     const yamlOutput = generateYamlClientSide(nodes, edges);
-    expect(yamlOutput).toContain('HorizontalPodAutoscaler');
-    expect(yamlOutput).toContain('name: tbd-deployment');
+    expect(yamlOutput).not.toContain('HorizontalPodAutoscaler');
+    expect(yamlOutput).not.toContain('tbd-deployment');
   });
 
   it('handles buildAttachedHpaManifest fallback branches', () => {
@@ -1582,11 +1596,12 @@ describe('manifestGenerator test suite', () => {
 
     const bareHpa = hpaDocs.find((d) => d?.metadata?.name === 'pod-bare-id-hpa');
     expect(bareHpa).toBeDefined();
-    expect(bareHpa.spec.scaleTargetRef.kind).toBe('Deployment');
+    expect(bareHpa.spec.scaleTargetRef.apiVersion).toBe('v1');
+    expect(bareHpa.spec.scaleTargetRef.kind).toBe('Pod');
     expect(bareHpa.spec.scaleTargetRef.name).toBe('pod-bare-id');
     expect(bareHpa.spec.minReplicas).toBe(1);
     expect(bareHpa.spec.maxReplicas).toBe(10);
-    expect(bareHpa.spec.metrics[0].resource.target.averageUtilization).toBe(80);
+    expect(bareHpa.spec.metrics).toBeUndefined();
 
     const appHpa = hpaDocs.find((d) => d?.metadata?.name === 'my-app-hpa');
     expect(appHpa).toBeDefined();
@@ -1673,5 +1688,256 @@ describe('manifestGenerator test suite', () => {
     const ssWithSanitized = ssDocs.find((d) => d?.metadata?.name === 'my-special-app');
     expect(ssWithSanitized).toBeDefined();
     expect(ssWithSanitized?.spec?.serviceName).toBe('svc-sanitized-label');
+  });
+
+  it('does not emit HorizontalPodAutoscaler targeting Namespace when Namespace node holds data.hpas', () => {
+    const nodes = [
+      {
+        id: 'ns-1',
+        type: 'Namespace',
+        data: {
+          label: 'production',
+          hpas: [{ id: 'hpa-1', name: 'api-hpa', minReplicas: 2, maxReplicas: 5, targetCPU: 70 }],
+        },
+      },
+      {
+        id: 'dep-1',
+        type: 'Deployment',
+        parentId: 'ns-1',
+        data: {
+          label: 'api-deployment',
+          replicas: 2,
+          hpas: [{ id: 'hpa-1', name: 'api-hpa', minReplicas: 2, maxReplicas: 5, targetCPU: 70 }],
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const hpaDocs = docs.filter((d) => d?.kind === 'HorizontalPodAutoscaler');
+
+    expect(hpaDocs).toHaveLength(1);
+    expect(hpaDocs[0].metadata).toEqual({ name: 'api-hpa', namespace: 'production' });
+    expect(hpaDocs[0].spec.scaleTargetRef.kind).toBe('Deployment');
+    expect(hpaDocs[0].spec.scaleTargetRef.name).toBe('api-deployment');
+  });
+
+  it('does not emit duplicate ConfigMap, Secret, or HPA manifests from Namespace or child Pod nodes', () => {
+    const nodes = [
+      {
+        id: 'ns-1',
+        type: 'Namespace',
+        data: {
+          label: 'production',
+          configMaps: [{ id: 'cm-1', name: 'app-config', configData: [{ key: 'PORT', value: '8080' }] }],
+          secrets: [{ id: 'sec-1', name: 'app-secret', secretData: [{ key: 'TOKEN', value: 'abc' }] }],
+        },
+      },
+      {
+        id: 'dep-1',
+        type: 'Deployment',
+        parentId: 'ns-1',
+        data: {
+          label: 'api-deployment',
+          replicas: 1,
+          configMaps: [{ id: 'cm-1', name: 'app-config', configData: [{ key: 'PORT', value: '8080' }] }],
+          secrets: [{ id: 'sec-1', name: 'app-secret', secretData: [{ key: 'TOKEN', value: 'abc' }] }],
+          hpas: [{ id: 'hpa-1', name: 'api-hpa', minReplicas: 1, maxReplicas: 3, targetCPU: 80 }],
+        },
+      },
+      {
+        id: 'pod-child-1',
+        type: 'Pod',
+        parentId: 'dep-1',
+        data: {
+          label: 'api-deployment-abc-xyz',
+          configMaps: [{ id: 'cm-1', name: 'app-config', configData: [{ key: 'PORT', value: '8080' }] }],
+          secrets: [{ id: 'sec-1', name: 'app-secret', secretData: [{ key: 'TOKEN', value: 'abc' }] }],
+          hpas: [{ id: 'hpa-1', name: 'api-hpa', minReplicas: 1, maxReplicas: 3, targetCPU: 80 }],
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+
+    expect(docs.filter((d) => d?.kind === 'ConfigMap')).toHaveLength(1);
+    expect(docs.filter((d) => d?.kind === 'Secret')).toHaveLength(1);
+    expect(docs.filter((d) => d?.kind === 'HorizontalPodAutoscaler')).toHaveLength(1);
+  });
+
+  it('does not invent resource requests for an attached HPA and does not add Ingress annotations', () => {
+    const nodes = [
+      {
+        id: 'dep-hpa',
+        type: 'Deployment',
+        data: {
+          label: 'api-deployment',
+          replicas: 2,
+          image: 'python:3.11-slim',
+          hpas: [{ id: 'hpa-1', name: 'api-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 80 }],
+        },
+      },
+      {
+        id: 'ing-1',
+        type: 'Ingress',
+        data: {
+          label: 'prod-ingress',
+          ingressClassName: 'nginx',
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const depDoc = docs.find((d) => d?.kind === 'Deployment');
+    const ingDoc = docs.find((d) => d?.kind === 'Ingress');
+
+    expect(depDoc.spec.template.spec.containers[0].resources).toBeUndefined();
+    expect(ingDoc.metadata.annotations).toBeUndefined();
+    expect(ingDoc.spec.ingressClassName).toBe('nginx');
+  });
+
+  it('honors yaml toggles for service targetPort, externalTrafficPolicy, ingress path/backendService, and data resources', () => {
+    const nodes = [
+      {
+        id: 'svc-toggle',
+        type: 'Service',
+        data: {
+          label: 'toggle-service',
+          serviceType: 'NodePort',
+          port: 80,
+          targetPort: 8080,
+          nodePort: 30080,
+          externalTrafficPolicy: 'Local',
+          yamlSettings: { targetPort: false, externalTrafficPolicy: false },
+        },
+      },
+      {
+        id: 'ing-toggle',
+        type: 'Ingress',
+        data: {
+          label: 'toggle-ingress',
+          ingressHost: 'toggle.local',
+          ingressPath: '/api',
+          ingressClassName: 'nginx',
+          backendServiceName: 'toggle-service',
+          yamlSettings: { path: false, backendService: false },
+        },
+      },
+      {
+        id: 'cm-toggle',
+        type: 'ConfigMap',
+        data: {
+          label: 'toggle-cm',
+          configData: [{ key: 'KEY', value: 'VALUE' }],
+          yamlSettings: { data: false },
+        },
+      },
+      {
+        id: 'sec-toggle',
+        type: 'Secret',
+        data: {
+          label: 'toggle-secret',
+          configData: [{ key: 'PASS', value: 'secret' }],
+          yamlSettings: { data: false },
+        },
+      },
+    ];
+
+    const docs = yaml.loadAll(generateYamlClientSide(nodes, [])) as any[];
+    const svcDoc = docs.find((d) => d?.kind === 'Service');
+    const ingDoc = docs.find((d) => d?.kind === 'Ingress');
+    const cmDoc = docs.find((d) => d?.kind === 'ConfigMap');
+    const secDoc = docs.find((d) => d?.kind === 'Secret');
+
+    expect(svcDoc.spec.ports[0].targetPort).toBeUndefined();
+    expect(svcDoc.spec.ports[0].nodePort).toBe(30080);
+    expect(svcDoc.spec.externalTrafficPolicy).toBeUndefined();
+
+    expect(ingDoc.spec.rules[0].http.paths[0].path).toBeUndefined();
+    expect(ingDoc.spec.rules[0].http.paths[0].backend).toBeUndefined();
+    expect(ingDoc.spec.rules[0].http.paths[0].pathType).toBe('Prefix');
+
+    expect(cmDoc.data).toBeUndefined();
+    expect(secDoc.stringData).toBeUndefined();
+  });
+
+  it('keeps a zero replica count from the canvas instead of coercing it to one', () => {
+    const nodes = [
+      { id: 'dep-zero', type: 'Deployment', data: { label: 'zero-replicas', replicas: 0, image: 'nginx' } },
+      { id: 'ss-zero', type: 'StatefulSet', data: { label: 'zero-replicas-ss', replicas: 0, image: 'nginx' } },
+    ];
+
+    const docs = yaml.loadAll(generateYamlClientSide(nodes, [])) as any[];
+    const depDoc = docs.find((d) => d?.kind === 'Deployment');
+    const ssDoc = docs.find((d) => d?.kind === 'StatefulSet');
+
+    expect(depDoc.spec.replicas).toBe(0);
+    expect(ssDoc.spec.replicas).toBe(0);
+  });
+
+  it('produces valid Kubernetes manifests verified by kubeconform when available', async () => {
+    const { execFileSync } = await import('node:child_process');
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+
+    let kubeconformBin = 'kubeconform';
+    try {
+      execFileSync(kubeconformBin, ['-v'], { stdio: 'ignore' });
+    } catch {
+      const goPath = execFileSync('go', ['env', 'GOPATH'], { encoding: 'utf8' }).trim();
+      const candidate = path.join(goPath, 'bin', process.platform === 'win32' ? 'kubeconform.exe' : 'kubeconform');
+      if (!fs.existsSync(candidate)) return;
+      kubeconformBin = candidate;
+    }
+
+    const nodes = [
+      { id: 'ns-1', type: 'Namespace', data: { label: 'production' } },
+      {
+        id: 'dep-1',
+        type: 'Deployment',
+        parentId: 'ns-1',
+        data: {
+          label: 'api-deployment',
+          replicas: 2,
+          image: 'python:3.11-slim',
+          port: 8080,
+          hpas: [{ id: 'hpa-1', name: 'api-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 80 }],
+          configMaps: [{ id: 'cm-1', name: 'app-config', configData: [{ key: 'ENV', value: 'prod' }] }],
+          secrets: [{ id: 'sec-1', name: 'app-secret', secretData: [{ key: 'KEY', value: 'val' }] }],
+        },
+      },
+      {
+        id: 'svc-1',
+        type: 'Service',
+        parentId: 'ns-1',
+        data: { label: 'api-service', serviceType: 'ClusterIP', port: 80, targetPort: 8080 },
+      },
+      {
+        id: 'ing-1',
+        type: 'Ingress',
+        parentId: 'ns-1',
+        data: { label: 'prod-ingress', ingressClassName: 'nginx', ingressHost: 'api.example.com' },
+      },
+      {
+        id: 'pvc-1',
+        type: 'PVC',
+        parentId: 'ns-1',
+        data: { label: 'data-pvc', storageCapacity: '5Gi' },
+      },
+    ];
+    const edges = [
+      { id: 'e1', source: 'svc-1', target: 'dep-1' },
+      { id: 'e2', source: 'ing-1', target: 'svc-1' },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    const out = execFileSync(kubeconformBin, ['-strict', '-summary'], {
+      input: yamlOutput,
+      encoding: 'utf8',
+    });
+    expect(out).toContain('Invalid: 0');
+    expect(out).toContain('Errors: 0');
   });
 });
