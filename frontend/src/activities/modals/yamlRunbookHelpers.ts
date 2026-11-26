@@ -87,6 +87,8 @@ interface LocalTestPort {
   readonly serviceName: string;
   readonly namespace?: string;
   readonly port: number;
+  readonly nodePort?: number;
+  readonly serviceType?: 'ClusterIP' | 'NodePort' | 'LoadBalancer';
 }
 
 interface IngressRoute {
@@ -232,6 +234,11 @@ const getContainers = (doc: ManifestDocument): ManifestContainer[] | undefined =
 const isIngressControllerSelector = (selector: ManifestLabelSelector | undefined): boolean =>
   selector?.['app.kubernetes.io/name'] === 'ingress-nginx';
 
+const resolveServiceType = (type?: string): 'ClusterIP' | 'NodePort' | 'LoadBalancer' => {
+  if (type === 'LoadBalancer' || type === 'NodePort') return type;
+  return 'ClusterIP';
+};
+
 const buildServiceWarnings = (
   services: ManifestDocument[],
   workloads: ManifestDocument[],
@@ -243,6 +250,7 @@ const buildServiceWarnings = (
     const name = service.metadata?.name || 'unnamed-service';
     const flag = namespaceFlag(service.metadata?.namespace);
     const servicePorts = service.spec?.ports || [];
+    const serviceType = resolveServiceType(service.spec?.type);
 
     servicePorts.forEach((item) => {
       if (typeof item.port === 'number' && item.port > 0) {
@@ -250,6 +258,8 @@ const buildServiceWarnings = (
           serviceName: name,
           namespace: service.metadata?.namespace,
           port: item.port,
+          nodePort: typeof item.nodePort === 'number' && item.nodePort > 0 ? item.nodePort : undefined,
+          serviceType,
         });
       }
     });
@@ -507,6 +517,55 @@ const buildIngressTargetNotes = (
   });
 };
 
+const buildServiceRoutingNotes = (appTargets: LocalTestTarget[]): string[] => {
+  const notes: string[] = [];
+  appTargets.forEach((target) => {
+    const { serviceName, port, nodePort, serviceType } = target.item;
+    if (serviceType === 'LoadBalancer') {
+      notes.push(
+        `Service ${serviceName} is a LoadBalancer: Docker Desktop binds port ${port} directly to http://localhost:${port}. You can open it without port-forward (or run the port-forward fallback command if port ${port} is occupied).`
+      );
+    } else if (serviceType === 'NodePort') {
+      if (nodePort) {
+        notes.push(
+          `Service ${serviceName} is a NodePort: Docker Desktop exposes port ${nodePort} directly on localhost. You can open http://localhost:${nodePort} directly without port-forward.`
+        );
+      } else {
+        notes.push(
+          `Service ${serviceName} is a NodePort without an explicit nodePort. Docker Desktop assigns a dynamic port (30000-32767). Run "kubectl get svc ${serviceName}" to find the port, or use the port-forward command below.`
+        );
+      }
+    }
+  });
+  return notes;
+};
+
+const collectAppUrls = (appTargets: LocalTestTarget[]): string[] => {
+  const urls: string[] = [];
+  const addUrl = (url: string) => {
+    if (!urls.includes(url)) urls.push(url);
+  };
+
+  appTargets.forEach((target) => {
+    const { port, nodePort, serviceType } = target.item;
+    if (serviceType === 'LoadBalancer') {
+      addUrl(`http://localhost:${port}`);
+      if (target.localPort !== port) {
+        addUrl(`http://localhost:${target.localPort}`);
+      }
+    } else if (serviceType === 'NodePort') {
+      if (nodePort) {
+        addUrl(`http://localhost:${nodePort}`);
+      }
+      addUrl(`http://localhost:${target.localPort}`);
+    } else {
+      addUrl(`http://localhost:${target.localPort}`);
+    }
+  });
+
+  return urls;
+};
+
 const buildPortForwardStep = (
   ports: LocalTestPort[],
   ingressServiceNames: string[],
@@ -528,8 +587,12 @@ const buildPortForwardStep = (
 
   const appTargets = targets.filter((target) => !target.isIngress);
   const ingressTargets = targets.filter((target) => target.isIngress);
-  const urls = appTargets.map((target) => `http://localhost:${target.localPort}`);
+  const urls = collectAppUrls(appTargets);
   const notes: string[] = [];
+
+  buildServiceRoutingNotes(appTargets).forEach((note) => {
+    if (!notes.includes(note)) notes.push(note);
+  });
 
   ingressTargets.forEach((target) => {
     buildIngressTargetNotes(target, ingressRoutes).forEach((note) => {
@@ -549,10 +612,18 @@ const buildPortForwardStep = (
     if (!notes.includes(note)) notes.push(note);
   });
 
+  const hasDirectRouting = appTargets.some(
+    (t) => t.item.serviceType === 'LoadBalancer' || t.item.serviceType === 'NodePort'
+  );
+
+  const description = hasDirectRouting
+    ? 'Docker Desktop natively routes LoadBalancer and NodePort services to localhost without port-forward. For ClusterIP services (or as fallback), keep the command running in its own terminal. Stop with Ctrl+C.'
+    : 'Keep each command running in its own terminal. The number before the colon is the local port; if it is busy, change it (for example 8081:80). Stop with Ctrl+C. Use the localhost link below for a direct test; the Ingress link needs the hosts-file note.';
+
   return {
     id: 'port-forward',
     title: 'Open the app in your browser',
-    description: 'Keep each command running in its own terminal. The number before the colon is the local port; if it is busy, change it (for example 8081:80). Stop with Ctrl+C. Use the localhost link below for a direct test; the Ingress link needs the hosts-file note.',
+    description,
     commands,
     urls,
     notes: notes.length > 0 ? notes : undefined,

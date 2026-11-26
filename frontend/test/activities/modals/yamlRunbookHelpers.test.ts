@@ -70,6 +70,51 @@ describe('buildYamlRunbook', () => {
     expect(step?.urls).toEqual(['http://localhost:8080']);
   });
 
+  it('provides native direct URLs and notes for LoadBalancer services in Docker Desktop', () => {
+    const content = READY_YAML.replace(
+      'spec:\n  selector:',
+      'spec:\n  type: LoadBalancer\n  selector:'
+    );
+    const step = stepById(buildYamlRunbook(content), 'port-forward');
+
+    expect(step?.urls).toEqual(['http://localhost:80', 'http://localhost:8080']);
+    expect(step?.commands).toEqual([
+      { command: 'kubectl port-forward svc/web-svc 8080:80' },
+    ]);
+    expect(step?.description).toContain('Docker Desktop natively routes LoadBalancer and NodePort services');
+    const note = step?.notes?.join(' ') || '';
+    expect(note).toContain('Service web-svc is a LoadBalancer');
+    expect(note).toContain('http://localhost:80');
+  });
+
+  it('provides native direct URL for NodePort services with explicit nodePort', () => {
+    const content = READY_YAML.replace(
+      'spec:\n  selector:',
+      'spec:\n  type: NodePort\n  selector:'
+    ).replace(
+      '      targetPort: 80',
+      '      targetPort: 80\n      nodePort: 30080'
+    );
+    const step = stepById(buildYamlRunbook(content), 'port-forward');
+
+    expect(step?.urls).toEqual(['http://localhost:30080', 'http://localhost:8080']);
+    const note = step?.notes?.join(' ') || '';
+    expect(note).toContain('Service web-svc is a NodePort');
+    expect(note).toContain('http://localhost:30080');
+  });
+
+  it('explains dynamic port assignment for NodePort services without explicit nodePort', () => {
+    const content = READY_YAML.replace(
+      'spec:\n  selector:',
+      'spec:\n  type: NodePort\n  selector:'
+    );
+    const step = stepById(buildYamlRunbook(content), 'port-forward');
+
+    expect(step?.urls).toEqual(['http://localhost:8080']);
+    const note = step?.notes?.join(' ') || '';
+    expect(note).toContain('dynamic port (30000-32767)');
+  });
+
   it('creates a namespace step that ignores system namespaces and sorts the rest', () => {
     const content = [
       'apiVersion: v1',
