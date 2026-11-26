@@ -141,6 +141,7 @@ export const PVCConfig = ({
               colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
             )}
           >
+            <option value="hostpath">HostPath (Docker Desktop Default)</option>
             <option value="standard">Standard (HDD)</option>
             <option value="ssd">Fast (SSD)</option>
             <option value="cloud-nfs">Cloud Storage (NFS)</option>

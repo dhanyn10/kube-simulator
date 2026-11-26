@@ -53,6 +53,7 @@ const getStepTabClass = (stage: YamlStage, target: YamlStage, isDark: boolean): 
 };
 
 function YamlModalStepper({ stage, onSelectStage, isDark }: Readonly<YamlModalStepperProps>) {
+  const isDeployActive = stage === 'deploy' || stage === 'localhost';
   return (
     <div
       className={cn(
@@ -81,19 +82,35 @@ function YamlModalStepper({ stage, onSelectStage, isDark }: Readonly<YamlModalSt
           getStepTabClass(stage, 'manifest', isDark)
         )}
       >
-        <span>2. Manifest & Apply</span>
+        <span>2. Manifest</span>
       </button>
       <ArrowRight size={12} className="text-slate-500 shrink-0" />
       <button
         type="button"
-        data-testid="yaml-tab-localhost"
-        onClick={() => onSelectStage('localhost')}
+        data-testid="yaml-tab-deploy"
+        onClick={() => onSelectStage('deploy')}
         className={cn(
           'px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shrink-0 text-xs font-semibold cursor-pointer',
-          getStepTabClass(stage, 'localhost', isDark)
+          isDeployActive
+            ? isDark
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-blue-600 text-white shadow-sm'
+            : getStepTabClass(stage, 'deploy', isDark)
         )}
       >
-        <span>3. Test at Localhost</span>
+        <span>3. Deploy & Test</span>
+      </button>
+      <ArrowRight size={12} className="text-slate-500 shrink-0" />
+      <button
+        type="button"
+        data-testid="yaml-tab-cleanup"
+        onClick={() => onSelectStage('cleanup')}
+        className={cn(
+          'px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shrink-0 text-xs font-semibold cursor-pointer',
+          getStepTabClass(stage, 'cleanup', isDark)
+        )}
+      >
+        <span>4. Cleanup</span>
       </button>
     </div>
   );
@@ -272,115 +289,137 @@ function YamlManifestSidebar({
 interface YamlModalFooterProps {
   stage: YamlStage;
   hasRunbook: boolean;
-  copied: boolean;
   isDark: boolean;
   onClose: () => void;
   onSelectStage: (stage: YamlStage) => void;
-  onCopy: () => void;
 }
 
 function YamlModalFooter({
   stage,
   hasRunbook,
-  copied,
   isDark,
   onClose,
   onSelectStage,
-  onCopy,
 }: Readonly<YamlModalFooterProps>) {
+  const isCleanup = hasRunbook && stage === 'cleanup';
+
   return (
     <div
       data-testid="yaml-modal-footer"
       className="flex items-center justify-between w-full"
     >
-      <button
-        type="button"
-        onClick={onClose}
-        className={cn(
-          "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
-          isDark
-            ? "border-slate-700 hover:bg-slate-800 text-slate-300"
-            : "border-slate-300 hover:bg-slate-100 text-slate-700"
-        )}
-      >
-        Close
-      </button>
-
-      <div className="flex items-center gap-2">
-        {hasRunbook && stage === 'manifest' && (
-          <button
-            type="button"
-            data-testid="yaml-btn-back"
-            onClick={() => onSelectStage('prerequisites')}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border flex items-center gap-1.5 cursor-pointer",
-              isDark
-                ? "border-slate-700 hover:bg-slate-800 text-slate-300"
-                : "border-slate-300 hover:bg-slate-100 text-slate-700"
-            )}
-          >
-            <ArrowLeft size={13} />
-            <span>Prerequisites</span>
-          </button>
-        )}
-
-        {hasRunbook && stage === 'localhost' && (
-          <button
-            type="button"
-            data-testid="yaml-btn-back"
-            onClick={() => onSelectStage('manifest')}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border flex items-center gap-1.5 cursor-pointer",
-              isDark
-                ? "border-slate-700 hover:bg-slate-800 text-slate-300"
-                : "border-slate-300 hover:bg-slate-100 text-slate-700"
-            )}
-          >
-            <ArrowLeft size={13} />
-            <span>Manifest & Apply</span>
-          </button>
-        )}
-
-        {hasRunbook && stage === 'prerequisites' && (
-          <button
-            type="button"
-            data-testid="yaml-runbook-view-manifest"
-            onClick={() => onSelectStage('manifest')}
-            className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-          >
-            <span>Next: View YAML</span>
-            <ArrowRight size={13} />
-          </button>
-        )}
-
-        {hasRunbook && stage === 'manifest' && (
-          <button
-            type="button"
-            data-testid="yaml-btn-next-localhost"
-            onClick={() => onSelectStage('localhost')}
-            className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-          >
-            <span>Next: Test at Localhost</span>
-            <ArrowRight size={13} />
-          </button>
-        )}
-
+      {isCleanup ? (
         <button
           type="button"
-          data-testid="yaml-modal-copy-btn"
-          onClick={onCopy}
-          className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-        >
-          {copied ? (
-            <span className="flex items-center gap-1.5 animate-in fade-in zoom-in duration-200">
-              <CheckCircle2 size={13} />
-              Copied!
-            </span>
-          ) : (
-            <span>{stage === 'manifest' ? 'Copy' : 'Copy YAML'}</span>
+          data-testid="yaml-btn-back"
+          onClick={() => onSelectStage('deploy')}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border flex items-center gap-1.5 cursor-pointer",
+            isDark
+              ? "border-slate-700 hover:bg-slate-800 text-slate-300"
+              : "border-slate-300 hover:bg-slate-100 text-slate-700"
           )}
+        >
+          <ArrowLeft size={13} />
+          <span>Deploy & Test</span>
         </button>
-      </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onClose}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
+            isDark
+              ? "border-slate-700 hover:bg-slate-800 text-slate-300"
+              : "border-slate-300 hover:bg-slate-100 text-slate-700"
+          )}
+        >
+          Close
+        </button>
+      )}
+
+      {isCleanup ? (
+        <button
+          type="button"
+          data-testid="yaml-modal-close-btn"
+          onClick={onClose}
+          className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all active:scale-95 cursor-pointer"
+        >
+          Close
+        </button>
+      ) : (
+        <div className="flex items-center gap-2">
+          {hasRunbook && stage === 'manifest' && (
+            <button
+              type="button"
+              data-testid="yaml-btn-back"
+              onClick={() => onSelectStage('prerequisites')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border flex items-center gap-1.5 cursor-pointer",
+                isDark
+                  ? "border-slate-700 hover:bg-slate-800 text-slate-300"
+                  : "border-slate-300 hover:bg-slate-100 text-slate-700"
+              )}
+            >
+              <ArrowLeft size={13} />
+              <span>Prerequisites</span>
+            </button>
+          )}
+
+          {hasRunbook && (stage === 'deploy' || stage === 'localhost') && (
+            <button
+              type="button"
+              data-testid="yaml-btn-back"
+              onClick={() => onSelectStage('manifest')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border flex items-center gap-1.5 cursor-pointer",
+                isDark
+                  ? "border-slate-700 hover:bg-slate-800 text-slate-300"
+                  : "border-slate-300 hover:bg-slate-100 text-slate-700"
+              )}
+            >
+              <ArrowLeft size={13} />
+              <span>Manifest</span>
+            </button>
+          )}
+
+          {hasRunbook && stage === 'prerequisites' && (
+            <button
+              type="button"
+              data-testid="yaml-runbook-view-manifest"
+              onClick={() => onSelectStage('manifest')}
+              className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>Next: View Manifest</span>
+              <ArrowRight size={13} />
+            </button>
+          )}
+
+          {hasRunbook && stage === 'manifest' && (
+            <button
+              type="button"
+              data-testid="yaml-btn-next-localhost"
+              onClick={() => onSelectStage('deploy')}
+              className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>Next: Deploy & Test</span>
+              <ArrowRight size={13} />
+            </button>
+          )}
+
+          {hasRunbook && (stage === 'deploy' || stage === 'localhost') && (
+            <button
+              type="button"
+              data-testid="yaml-btn-next-cleanup"
+              onClick={() => onSelectStage('cleanup')}
+              className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>Next: Cleanup</span>
+              <ArrowRight size={13} />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -401,7 +440,8 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
   const runbook = React.useMemo(() => buildYamlRunbook(formattedContent), [formattedContent]);
   const activeStage = runbook.length > 0 ? stage : 'manifest';
   const prereqSteps = React.useMemo(() => getStepsByStage(runbook, 'prerequisites'), [runbook]);
-  const localhostSteps = React.useMemo(() => getStepsByStage(runbook, 'localhost'), [runbook]);
+  const deploySteps = React.useMemo(() => getStepsByStage(runbook, 'deploy'), [runbook]);
+  const cleanupSteps = React.useMemo(() => getStepsByStage(runbook, 'cleanup'), [runbook]);
   const browserWarnings = React.useMemo(
     () => runbook.find((step) => step.id === 'browser-test-warnings')?.notes || [],
     [runbook]
@@ -509,11 +549,9 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
         <YamlModalFooter
           stage={activeStage}
           hasRunbook={runbook.length > 0}
-          copied={copied}
           isDark={isDark}
           onClose={onClose}
           onSelectStage={setStage}
-          onCopy={handleCopy}
         />
       }
     >
@@ -532,20 +570,59 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
         />
       )}
 
-      {activeStage === 'localhost' && runbook.length > 0 && (
+      {(activeStage === 'deploy' || activeStage === 'localhost') && runbook.length > 0 && (
         <YamlRunbook
-          steps={localhostSteps}
+          steps={deploySteps}
           colorMode={colorMode}
           copiedCommandId={copiedCommandId}
           onCopyCommand={handleCopyPrereq}
-          title="3. Test at Localhost"
-          description="Verify your pods, forward the Service port to test the application in your browser, and clean up when you are done."
+          title="3. Deploy & Test"
+          description="Apply your infra.yaml manifest, verify that pods and services are running, and test the application at localhost."
+        />
+      )}
+
+      {activeStage === 'cleanup' && runbook.length > 0 && (
+        <YamlRunbook
+          steps={cleanupSteps}
+          colorMode={colorMode}
+          copiedCommandId={copiedCommandId}
+          onCopyCommand={handleCopyPrereq}
+          title="4. Cleanup & Teardown"
+          description="Delete deployed application resources, stop active port-forwards, and revert cluster add-ons when you are done."
         />
       )}
 
       {activeStage === 'manifest' && (
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
           {/* Main YAML Viewer */}
+          <div className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
+            {/* Sticky Copy Button at Top-Right of YAML Block */}
+            <div className="absolute top-3 right-3 z-10">
+              <button
+                type="button"
+                data-testid="yaml-modal-copy-btn"
+                onClick={handleCopy}
+                className={cn(
+                  'px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-md border backdrop-blur-md transition-all active:scale-95 cursor-pointer',
+                  isDark
+                    ? 'bg-slate-900/90 hover:bg-slate-800 text-slate-200 border-slate-700/80 hover:border-slate-600'
+                    : 'bg-white/95 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
+                )}
+              >
+                {copied ? (
+                  <>
+                    <CheckCircle2 size={13} className="text-emerald-500" />
+                    <span className="text-emerald-500 font-medium">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={13} />
+                    <span>Copy YAML</span>
+                  </>
+                )}
+              </button>
+            </div>
+
             <div
               ref={viewerRef}
               data-testid="yaml-code-viewer"
@@ -589,6 +666,7 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
                 ))}
               </div>
             )}
+            </div>
           </div>
 
           {/* Right Sidebar */}
@@ -605,7 +683,7 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
             copiedCommandId={copiedCommandId}
             onCopyCommand={handleCopyPrereq}
             onDownloadYaml={handleDownloadYaml}
-            onGoToLocalhost={() => setStage('localhost')}
+            onGoToLocalhost={() => setStage('deploy')}
           />
         </div>
       )}

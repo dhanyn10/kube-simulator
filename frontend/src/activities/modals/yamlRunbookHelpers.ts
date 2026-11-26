@@ -9,9 +9,9 @@ export interface YamlRunbookCommand {
 }
 
 /**
- * Stages in the 3-step deployment and verification workflow.
+ * Stages in the 4-step deployment, verification, and cleanup workflow (matching CI/CD pipeline stages).
  */
-export type YamlStage = 'prerequisites' | 'manifest' | 'localhost';
+export type YamlStage = 'prerequisites' | 'manifest' | 'deploy' | 'cleanup' | 'localhost';
 
 /**
  * One numbered, user-facing step in the YAML deployment runbook.
@@ -443,6 +443,20 @@ const buildIngressStep = (ingressClass: string): YamlRunbookStep => {
 
 const buildStorageStep = (storageClasses: string[]): YamlRunbookStep | null => {
   if (storageClasses.length === 0) return null;
+
+  const nonHostpath = storageClasses.filter((sc) => sc !== 'hostpath');
+  const notes: string[] = [];
+
+  if (nonHostpath.length > 0) {
+    notes.push(
+      `Docker Desktop only provides the "hostpath" StorageClass by default. If ${nonHostpath.join(', ')} is not provisioned on your cluster, PVCs will remain Pending. Change storageClassName to "hostpath" on your PVC / StatefulSet cards, or create matching StorageClasses.`
+    );
+  } else {
+    notes.push(
+      'Docker Desktop provides the "hostpath" StorageClass out of the box, so PVCs will bind immediately.'
+    );
+  }
+
   return {
     id: 'storage-classes',
     title: 'Make sure the StorageClass exists',
@@ -450,6 +464,7 @@ const buildStorageStep = (storageClasses: string[]): YamlRunbookStep | null => {
     commands: [
       { command: `kubectl get storageclass ${storageClasses.join(' ')}` },
     ],
+    notes,
     requiresSetup: true,
     stage: 'prerequisites',
   };
@@ -476,7 +491,7 @@ const buildVerifyStep = (
     commands: targets.map((namespace) => ({
       command: `kubectl get all${suffix}${namespaceFlag(namespace)}`,
     })),
-    stage: 'localhost',
+    stage: 'deploy',
   };
 };
 
@@ -489,7 +504,7 @@ const buildBrowserWarningStep = (warnings: string[]): YamlRunbookStep | null => 
     commands: [],
     notes: warnings,
     tone: 'warning',
-    stage: 'localhost',
+    stage: 'deploy',
   };
 };
 
@@ -641,17 +656,84 @@ const buildPortForwardStep = (
     commands,
     urls,
     notes: notes.length > 0 ? notes : undefined,
-    stage: 'localhost',
+    stage: 'deploy',
   };
 };
 
 const buildCleanupStep = (): YamlRunbookStep => ({
   id: 'cleanup',
-  title: 'Clean up resources when finished',
-  description: 'When you are done testing, run this command to delete the resources created from infra.yaml.',
+  title: 'Clean up application workloads',
+  description:
+    'Stop running port-forward processes with Ctrl+C, then run this command to delete the resources created from infra.yaml.',
   commands: [{ command: 'kubectl delete -f infra.yaml' }],
-  stage: 'localhost',
+  notes: [
+    'Stop port-forward: Press Ctrl+C in any terminal running kubectl port-forward.',
+    'Local manifest: Delete or archive infra.yaml in your terminal folder once cleanup is complete.',
+  ],
+  stage: 'cleanup',
 });
+
+const buildTeardownPrerequisitesStep = (
+  namespaces: string[],
+  ingressClasses: string[],
+  hasHpa: boolean,
+  ingressRoutes: IngressRoute[]
+): YamlRunbookStep | null => {
+  const hasPrerequisites =
+    namespaces.length > 0 || ingressClasses.length > 0 || hasHpa || ingressRoutes.length > 0;
+  if (!hasPrerequisites) return null;
+
+  const commands: YamlRunbookCommand[] = [];
+
+  ingressClasses.forEach((ingressClass) => {
+    if (ingressClass === 'traefik') {
+      commands.push({ command: 'helm uninstall traefik' });
+    } else {
+      commands.push({
+        command:
+          'kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0/deploy/static/provider/cloud/deploy.yaml',
+      });
+    }
+  });
+
+  if (hasHpa) {
+    commands.push({
+      command:
+        'kubectl delete -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml',
+    });
+  }
+
+  namespaces.forEach((namespace) => {
+    commands.push({ command: `kubectl delete namespace ${namespace}` });
+  });
+
+  const notes: string[] = [];
+
+  if (ingressRoutes.length > 0) {
+    const hosts = Array.from(new Set(ingressRoutes.map((r) => r.host))).join(', ');
+    notes.push(
+      `Hosts file cleanup: Remove entries for "${hosts}" from your hosts file (Windows: C:\\Windows\\System32\\drivers\\etc\\hosts, macOS/Linux: /etc/hosts).`
+    );
+  }
+
+  notes.push(
+    'Add-on retention: Ingress controllers and Metrics Server can be left installed if you plan to run more Kubernetes tests. Only run the uninstall commands above if you want to free up laptop memory.'
+  );
+
+  notes.push(
+    'Full Docker Desktop reset: To wipe all cluster state and restore a factory-clean cluster, go to Docker Desktop Settings > Kubernetes > click "Reset Kubernetes Cluster".'
+  );
+
+  return {
+    id: 'teardown-prerequisites',
+    title: 'Revert cluster prerequisites & system changes (Optional)',
+    description:
+      'Return your Docker Desktop cluster and host system to their original state. Skip this step if you prefer keeping add-ons for future tests.',
+    commands,
+    notes,
+    stage: 'cleanup',
+  };
+};
 
 const buildSaveManifestStep = (): YamlRunbookStep => ({
   id: 'save-manifest',
@@ -666,14 +748,19 @@ const buildApplyManifestStep = (): YamlRunbookStep => ({
   title: 'Apply the manifest',
   description: 'Run this command from the same folder that contains infra.yaml. Make sure the prerequisite steps above are already completed.',
   commands: [{ command: 'kubectl apply -f infra.yaml' }],
-  stage: 'manifest',
+  stage: 'deploy',
 });
 
 /**
  * Filter runbook steps by their corresponding workflow stage.
  */
 export const getStepsByStage = (steps: YamlRunbookStep[], stage: YamlStage): YamlRunbookStep[] =>
-  steps.filter((step) => step.stage === stage);
+  steps.filter(
+    (step) =>
+      step.stage === stage ||
+      (stage === 'deploy' && step.stage === 'localhost') ||
+      (stage === 'localhost' && step.stage === 'deploy')
+  );
 
 /**
  * Builds a step-by-step kubectl runbook from the generated multi-document YAML.
@@ -694,6 +781,7 @@ export const buildYamlRunbook = (yamlContent: string): YamlRunbookStep[] => {
   const ingressClasses = collectIngressClasses(documents);
   const storageClasses = collectStorageClasses(documents);
   const readiness = analyzeLocalTestReadiness(documents);
+  const hasHpa = documents.some((doc) => doc.kind === 'HorizontalPodAutoscaler');
 
   const candidates: Array<YamlRunbookStep | null> = [
     buildDockerDesktopContextStep(),
@@ -712,6 +800,12 @@ export const buildYamlRunbook = (yamlContent: string): YamlRunbookStep[] => {
       readiness.nonHttpImages
     ),
     buildCleanupStep(),
+    buildTeardownPrerequisitesStep(
+      namespaces,
+      ingressClasses,
+      hasHpa,
+      readiness.ingressRoutes
+    ),
   ];
 
   return candidates.filter((step): step is YamlRunbookStep => step !== null);

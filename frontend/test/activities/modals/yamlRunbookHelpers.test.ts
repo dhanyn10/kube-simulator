@@ -222,6 +222,25 @@ describe('buildYamlRunbook', () => {
 
     expect(step).toBeDefined();
     expect(step?.commands[0].command).toBe('kubectl get storageclass fast-ssd standard');
+    expect(step?.notes?.join(' ')).toContain('Docker Desktop only provides the "hostpath" StorageClass by default');
+    expect(step?.notes?.join(' ')).toContain('fast-ssd, standard');
+  });
+
+  it('confirms immediate binding when manifest uses hostpath StorageClass', () => {
+    const content = [
+      'apiVersion: v1',
+      'kind: PersistentVolumeClaim',
+      'metadata:',
+      '  name: data',
+      'spec:',
+      '  storageClassName: hostpath',
+    ].join('\n');
+
+    const step = stepById(buildYamlRunbook(content), 'storage-classes');
+
+    expect(step).toBeDefined();
+    expect(step?.commands[0].command).toBe('kubectl get storageclass hostpath');
+    expect(step?.notes?.join(' ')).toContain('out of the box');
   });
 
   it('includes namespace and extra resource types in verification commands', () => {
@@ -391,13 +410,61 @@ describe('buildYamlRunbook', () => {
     expect(notes).toContain('Reduce replicas');
   });
 
-  it('partitions runbook steps cleanly across the 3 workflow stages', () => {
+  it('partitions runbook steps cleanly across the 4 workflow stages (CI/CD pipeline)', () => {
     const steps = buildYamlRunbook(READY_YAML);
     expect(stepById(steps, 'docker-desktop-context')?.stage).toBe('prerequisites');
     expect(stepById(steps, 'save-manifest')?.stage).toBe('manifest');
-    expect(stepById(steps, 'apply-manifest')?.stage).toBe('manifest');
-    expect(stepById(steps, 'verify-resources')?.stage).toBe('localhost');
-    expect(stepById(steps, 'port-forward')?.stage).toBe('localhost');
-    expect(stepById(steps, 'cleanup')?.stage).toBe('localhost');
+    expect(stepById(steps, 'apply-manifest')?.stage).toBe('deploy');
+    expect(stepById(steps, 'verify-resources')?.stage).toBe('deploy');
+    expect(stepById(steps, 'port-forward')?.stage).toBe('deploy');
+    expect(stepById(steps, 'cleanup')?.stage).toBe('cleanup');
+    expect(stepById(steps, 'teardown-prerequisites')).toBeUndefined();
+    expect(stepById(steps, 'cleanup')?.notes?.join(' ')).toContain('Ctrl+C');
+  });
+
+  it('generates symmetric teardown steps for Ingress, HPA, custom namespaces, and hosts file', () => {
+    const content = [
+      READY_YAML.replace('  name: web-svc', '  name: web-svc\n  namespace: production'),
+      '---',
+      'apiVersion: autoscaling/v2',
+      'kind: HorizontalPodAutoscaler',
+      'metadata:',
+      '  name: web-hpa',
+      '  namespace: production',
+      '---',
+      'apiVersion: networking.k8s.io/v1',
+      'kind: Ingress',
+      'metadata:',
+      '  name: web-ingress',
+      '  namespace: production',
+      'spec:',
+      '  ingressClassName: nginx',
+      '  rules:',
+      '    - host: demo.example.local',
+      '      http:',
+      '        paths:',
+      '          - path: /',
+      '            pathType: Prefix',
+      '            backend:',
+      '              service:',
+      '                name: web-svc',
+      '                port:',
+      '                  number: 80',
+    ].join('\n');
+
+    const steps = buildYamlRunbook(content);
+    const teardown = stepById(steps, 'teardown-prerequisites');
+
+    expect(teardown).toBeDefined();
+    expect(teardown?.stage).toBe('cleanup');
+    expect(teardown?.commands).toEqual([
+      { command: 'kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0/deploy/static/provider/cloud/deploy.yaml' },
+      { command: 'kubectl delete -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml' },
+      { command: 'kubectl delete namespace production' },
+    ]);
+    const notes = teardown?.notes?.join(' ') || '';
+    expect(notes).toContain('demo.example.local');
+    expect(notes).toContain('hosts file');
+    expect(notes).toContain('Reset Kubernetes Cluster');
   });
 });
