@@ -311,13 +311,13 @@ describe('utils', () => {
   describe('toWindowsDisplayPath', () => {
     it('converts forward-slashed paths into Windows backslashed paths without using String.raw or escape backslashes', () => {
       const result = toWindowsDisplayPath('C:/Windows/System32/drivers/etc/hosts');
-      const expected = ['C:', 'Windows', 'System32', 'drivers', 'etc', 'hosts'].join(String.fromCharCode(92));
+      const expected = ['C:', 'Windows', 'System32', 'drivers', 'etc', 'hosts'].join(String.fromCodePoint(92));
       expect(result).toBe(expected);
     });
 
     it('joins multiple path segments with Windows backslashes', () => {
       const result = toWindowsDisplayPath('C:', 'Program Files', 'Docker');
-      const expected = ['C:', 'Program Files', 'Docker'].join(String.fromCharCode(92));
+      const expected = ['C:', 'Program Files', 'Docker'].join(String.fromCodePoint(92));
       expect(result).toBe(expected);
     });
 

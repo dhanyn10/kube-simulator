@@ -372,9 +372,9 @@ export function beautifyYaml(raw: string): string {
 }
 
 /**
- * Character code for backslash `\` (92) without writing literal escape sequences.
+ * Code point for backslash `\` (92) without writing literal escape sequences.
  */
-const BACKSLASH_CHAR = String.fromCharCode(92);
+const BACKSLASH_CHAR = String.fromCodePoint(92);
 
 /**
  * Formats a Windows path by joining segments with a backslash delimiter (`\`)
