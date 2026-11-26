@@ -18,10 +18,15 @@ describe('YamlModal', () => {
     });
   });
 
-  it('renders content correctly', () => {
+  it('renders content correctly with unified modal header and subtitle', () => {
     render(<YamlModal content={content} colorMode="dark" onClose={mockOnClose} />);
-    expect(screen.getByText('Kubernetes Manifest Output')).toBeDefined();
+    expect(screen.getByText('Kubernetes Manifest Output')).toBeInTheDocument();
+    expect(screen.getByText(/Preview, customize add-ons, and deploy/i)).toBeInTheDocument();
     expect(screen.getByTestId('yaml-tab-runbook')).toBeInTheDocument();
+
+    const container = document.querySelector('.modal-container');
+    expect(container).toHaveClass('max-w-3xl');
+
     fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
     expect(screen.getByText(/apiVersion: v1/)).toBeDefined();
   });
@@ -305,7 +310,7 @@ spec:
       '    - port: 80',
     ].join('\n');
 
-    it('shows ordered namespace, metrics-server, and ingress steps before the manifest', () => {
+    it('shows ordered namespace, metrics-server, and ingress steps before the manifest', async () => {
       render(<YamlModal content={yamlWithPrereqs} colorMode="dark" onClose={mockOnClose} />);
 
       // Stage 1: Prerequisites
@@ -317,12 +322,16 @@ spec:
 
       expect(screen.getByText(/kubectl create namespace production/)).toBeInTheDocument();
 
-      fireEvent.click(screen.getByTestId('yaml-runbook-copy-create-namespaces-0'));
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('yaml-runbook-copy-create-namespaces-0'));
+      });
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
         expect.stringContaining('kubectl create namespace production')
       );
 
-      fireEvent.click(screen.getByTestId('yaml-runbook-copy-ingress-nginx-0'));
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('yaml-runbook-copy-ingress-nginx-0'));
+      });
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
         expect.stringContaining('ingress-nginx')
       );
@@ -332,7 +341,9 @@ spec:
       expect(screen.getByTestId('yaml-download-btn')).toBeInTheDocument();
       expect(screen.getByTestId('yaml-runbook-copy-apply-manifest-0')).toBeInTheDocument();
 
-      fireEvent.click(screen.getByTestId('yaml-runbook-copy-apply-manifest-0'));
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('yaml-runbook-copy-apply-manifest-0'));
+      });
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('kubectl apply -f infra.yaml');
 
       // Stage 3: Localhost & Warnings
@@ -412,6 +423,30 @@ spec:
 
       // Docker Desktop notice
       expect(screen.getByText(/Enable Kubernetes/)).toBeInTheDocument();
+    });
+
+    it('handles right-click context menu on the modal dialog', () => {
+      render(<YamlModal content={readyYaml} colorMode="dark" onClose={mockOnClose} />);
+
+      const dialog = screen.getByRole('dialog', { hidden: true });
+      fireEvent.contextMenu(dialog, { clientX: 120, clientY: 150 });
+
+      const contextMenu = document.querySelector('.modal-context-menu');
+      expect(contextMenu).toBeInTheDocument();
+      expect(within(contextMenu as HTMLElement).getByText('Change Theme')).toBeInTheDocument();
+      expect(within(contextMenu as HTMLElement).getByText('Close')).toBeInTheDocument();
+    });
+
+    it('catches download errors gracefully when createObjectURL throws', () => {
+      globalThis.URL.createObjectURL = vi.fn().mockImplementation(() => {
+        throw new Error('Object URL creation failed');
+      });
+
+      render(<YamlModal content={readyYaml} colorMode="dark" onClose={mockOnClose} />);
+      fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
+
+      const downloadBtn = screen.getByTestId('yaml-download-btn');
+      expect(() => fireEvent.click(downloadBtn)).not.toThrow();
     });
   });
 });
