@@ -443,7 +443,7 @@ const buildPodOrDeploymentManifest = (
     kind: 'Pod',
     metadata: {
       ...metadata,
-      labels: { ...(metadata?.labels || {}), app: name },
+      labels: { ...metadata?.labels, app: name },
     },
     spec: podSpec,
   };
@@ -1036,6 +1036,11 @@ const buildAttachedSecretManifest = (
   };
 };
 
+const getHpaWorkloadKind = (node: any, podReplicas: number): string => {
+  if (node.type !== 'Pod') return node.type;
+  return podReplicas > 1 ? 'Deployment' : 'Pod';
+};
+
 const buildAttachedHpaManifest = (
   hpaItem: any,
   node: any,
@@ -1051,8 +1056,7 @@ const buildAttachedHpaManifest = (
   }
 
   const podReplicas = Number(node.data?.replicas ?? 1);
-  const workloadKind =
-    node.type === 'Pod' ? (podReplicas > 1 ? 'Deployment' : 'Pod') : node.type;
+  const workloadKind = getHpaWorkloadKind(node, podReplicas);
   const workloadApiVersion = workloadKind === 'Pod' ? 'v1' : 'apps/v1';
   const workloadName = sanitizeName(node.data?.label) || node.id;
 

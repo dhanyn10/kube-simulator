@@ -45,6 +45,13 @@ interface YamlModalStepperProps {
   isDark: boolean;
 }
 
+const getStepTabClass = (stage: YamlStage, target: YamlStage, isDark: boolean): string => {
+  if (stage === target) return 'bg-blue-600 text-white shadow-sm';
+  return isDark
+    ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60';
+};
+
 function YamlModalStepper({ stage, onSelectStage, isDark }: Readonly<YamlModalStepperProps>) {
   return (
     <div
@@ -59,11 +66,7 @@ function YamlModalStepper({ stage, onSelectStage, isDark }: Readonly<YamlModalSt
         onClick={() => onSelectStage('prerequisites')}
         className={cn(
           'px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shrink-0 text-xs font-semibold cursor-pointer',
-          stage === 'prerequisites'
-            ? 'bg-blue-600 text-white shadow-sm'
-            : isDark
-              ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+          getStepTabClass(stage, 'prerequisites', isDark)
         )}
       >
         <span>1. Prerequisites</span>
@@ -75,11 +78,7 @@ function YamlModalStepper({ stage, onSelectStage, isDark }: Readonly<YamlModalSt
         onClick={() => onSelectStage('manifest')}
         className={cn(
           'px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shrink-0 text-xs font-semibold cursor-pointer',
-          stage === 'manifest'
-            ? 'bg-blue-600 text-white shadow-sm'
-            : isDark
-              ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+          getStepTabClass(stage, 'manifest', isDark)
         )}
       >
         <span>2. Manifest & Apply</span>
@@ -91,11 +90,7 @@ function YamlModalStepper({ stage, onSelectStage, isDark }: Readonly<YamlModalSt
         onClick={() => onSelectStage('localhost')}
         className={cn(
           'px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shrink-0 text-xs font-semibold cursor-pointer',
-          stage === 'localhost'
-            ? 'bg-blue-600 text-white shadow-sm'
-            : isDark
-              ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+          getStepTabClass(stage, 'localhost', isDark)
         )}
       >
         <span>3. Test at Localhost</span>
@@ -451,7 +446,7 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
         a.download = 'infra.yaml';
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        a.remove();
         URL.revokeObjectURL(url);
       }
     } catch (err) {

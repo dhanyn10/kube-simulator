@@ -17,18 +17,23 @@ type GenContext struct {
 	nsMap         map[string]string // nodeId -> namespaceName
 }
 
-// Generate converts frontend nodes and edges JSON strings into a unified JSON array string of Kubernetes resource objects.
-func Generate(nodesJson, edgesJson string) string {
+// parseCanvasInput decodes the canvas payload and returns an error message on failure.
+func parseCanvasInput(nodesJson, edgesJson string) ([]k8s.FrontendNode, []k8s.FrontendEdge, string) {
 	var nodes []k8s.FrontendNode
-	var edges []k8s.FrontendEdge
-
 	if err := json.Unmarshal([]byte(nodesJson), &nodes); err != nil {
-		return fmt.Sprintf("Error parsing nodes: %v", err)
-	}
-	if err := json.Unmarshal([]byte(edgesJson), &edges); err != nil {
-		return fmt.Sprintf("Error parsing edges: %v", err)
+		return nil, nil, fmt.Sprintf("Error parsing nodes: %v", err)
 	}
 
+	var edges []k8s.FrontendEdge
+	if err := json.Unmarshal([]byte(edgesJson), &edges); err != nil {
+		return nil, nil, fmt.Sprintf("Error parsing edges: %v", err)
+	}
+
+	return nodes, edges, ""
+}
+
+// buildGenContext indexes nodes and edges for relationship lookups during generation.
+func buildGenContext(nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) *GenContext {
 	ctx := &GenContext{
 		nodes:         nodes,
 		edges:         edges,
@@ -49,21 +54,40 @@ func Generate(nodesJson, edgesJson string) string {
 		ctx.targetEdgeMap[edge.Target] = append(ctx.targetEdgeMap[edge.Target], edge)
 	}
 
+	return ctx
+}
+
+// generateNodeWithAttachedResources emits a node manifest plus its attached HPAs.
+func generateNodeWithAttachedResources(node k8s.FrontendNode, ctx *GenContext) []interface{} {
+	obj := generateNodeObject(node, ctx)
+	manifests := make([]interface{}, 0, 1+len(node.Data.Hpas))
+	if obj != nil {
+		manifests = append(manifests, obj)
+	}
+	if node.Type == "Namespace" || (node.Type == "Pod" && obj == nil) {
+		return manifests
+	}
+
+	for _, hpaItem := range node.Data.Hpas {
+		hpaObj := generateAttachedHPA(hpaItem, node, ctx)
+		if hpaObj != nil {
+			manifests = append(manifests, hpaObj)
+		}
+	}
+	return manifests
+}
+
+// Generate converts frontend nodes and edges JSON strings into a unified JSON array string of Kubernetes resource objects.
+func Generate(nodesJson, edgesJson string) string {
+	nodes, edges, parseError := parseCanvasInput(nodesJson, edgesJson)
+	if parseError != "" {
+		return parseError
+	}
+
+	ctx := buildGenContext(nodes, edges)
 	var manifests []interface{}
 	for _, node := range nodes {
-		obj := generateNodeObject(node, ctx)
-		if obj != nil {
-			manifests = append(manifests, obj)
-		}
-		if node.Type == "Namespace" || (node.Type == "Pod" && obj == nil) {
-			continue
-		}
-		for _, hpaItem := range node.Data.Hpas {
-			hpaObj := generateAttachedHPA(hpaItem, node, ctx)
-			if hpaObj != nil {
-				manifests = append(manifests, hpaObj)
-			}
-		}
+		manifests = append(manifests, generateNodeWithAttachedResources(node, ctx)...)
 	}
 
 	jsonData, err := json.Marshal(manifests)

@@ -450,7 +450,7 @@ const buildVerifyStep = (
     title: 'Verify that the resources are running',
     description: 'Wait a few seconds, then check that pods and services are created. If a pod is not Running, use kubectl describe pod <pod-name> to see the reason.',
     commands: targets.map((namespace) => ({
-      command: `kubectl get all${suffix}${namespace ? ` -n ${namespace}` : ''}`,
+      command: `kubectl get all${suffix}${namespaceFlag(namespace)}`,
     })),
     stage: 'localhost',
   };
@@ -475,8 +475,10 @@ interface LocalTestTarget {
   readonly isIngress: boolean;
 }
 
+const getAppLocalPort = (port: number): number => (port === 80 ? 8080 : port);
+
 const assignLocalPort = (port: number, isIngress: boolean, used: Set<number>): number => {
-  let candidate = isIngress ? 80 : (port === 80 ? 8080 : port);
+  let candidate = isIngress ? 80 : getAppLocalPort(port);
   while (used.has(candidate)) {
     candidate += 1;
   }
@@ -501,7 +503,7 @@ const buildIngressTargetNotes = (
 
   return routes.map((route) => {
     const url = `http://${route.host}${route.path}`;
-    return `Add "127.0.0.1 ${route.host}" to your hosts file (Windows: C:\\Windows\\System32\\drivers\\etc\\hosts, macOS/Linux: /etc/hosts), then open ${url}. Opening http://localhost:${target.localPort} gives nginx 404 because the Host header does not match the Ingress rule.`;
+    return String.raw`Add "127.0.0.1 ${route.host}" to your hosts file (Windows: C:\Windows\System32\drivers\etc\hosts, macOS/Linux: /etc/hosts), then open ${url}. Opening http://localhost:${target.localPort} gives nginx 404 because the Host header does not match the Ingress rule.`;
   });
 };
 
@@ -566,6 +568,22 @@ const buildCleanupStep = (): YamlRunbookStep => ({
   stage: 'localhost',
 });
 
+const buildSaveManifestStep = (): YamlRunbookStep => ({
+  id: 'save-manifest',
+  title: 'Save or download infra.yaml',
+  description: 'Download infra.yaml or copy the manifest content into a file named infra.yaml in your terminal working folder.',
+  commands: [],
+  stage: 'manifest',
+});
+
+const buildApplyManifestStep = (): YamlRunbookStep => ({
+  id: 'apply-manifest',
+  title: 'Apply the manifest',
+  description: 'Run this command from the same folder that contains infra.yaml. Make sure the prerequisite steps above are already completed.',
+  commands: [{ command: 'kubectl apply -f infra.yaml' }],
+  stage: 'manifest',
+});
+
 /**
  * Filter runbook steps by their corresponding workflow stage.
  */
@@ -592,51 +610,24 @@ export const buildYamlRunbook = (yamlContent: string): YamlRunbookStep[] => {
   const storageClasses = collectStorageClasses(documents);
   const readiness = analyzeLocalTestReadiness(documents);
 
-  const steps: YamlRunbookStep[] = [buildDockerDesktopContextStep()];
+  const candidates: Array<YamlRunbookStep | null> = [
+    buildDockerDesktopContextStep(),
+    buildNamespaceStep(namespaces),
+    buildHpaStep(documents),
+    ...ingressClasses.map((ingressClass) => buildIngressStep(ingressClass)),
+    buildStorageStep(storageClasses),
+    buildSaveManifestStep(),
+    buildApplyManifestStep(),
+    buildVerifyStep(documents, namespaces),
+    buildBrowserWarningStep(readiness.warnings),
+    buildPortForwardStep(
+      readiness.ports,
+      readiness.ingressServiceNames,
+      readiness.ingressRoutes,
+      readiness.nonHttpImages
+    ),
+    buildCleanupStep(),
+  ];
 
-  const namespaceStep = buildNamespaceStep(namespaces);
-  if (namespaceStep) steps.push(namespaceStep);
-
-  const hpaStep = buildHpaStep(documents);
-  if (hpaStep) steps.push(hpaStep);
-
-  ingressClasses.forEach((ingressClass) => {
-    steps.push(buildIngressStep(ingressClass));
-  });
-
-  const storageStep = buildStorageStep(storageClasses);
-  if (storageStep) steps.push(storageStep);
-
-  steps.push({
-    id: 'save-manifest',
-    title: 'Save or download infra.yaml',
-    description: 'Download infra.yaml or copy the manifest content into a file named infra.yaml in your terminal working folder.',
-    commands: [],
-    stage: 'manifest',
-  });
-
-  steps.push({
-    id: 'apply-manifest',
-    title: 'Apply the manifest',
-    description: 'Run this command from the same folder that contains infra.yaml. Make sure the prerequisite steps above are already completed.',
-    commands: [{ command: 'kubectl apply -f infra.yaml' }],
-    stage: 'manifest',
-  });
-
-  steps.push(buildVerifyStep(documents, namespaces));
-
-  const warningStep = buildBrowserWarningStep(readiness.warnings);
-  if (warningStep) steps.push(warningStep);
-
-  const portForwardStep = buildPortForwardStep(
-    readiness.ports,
-    readiness.ingressServiceNames,
-    readiness.ingressRoutes,
-    readiness.nonHttpImages
-  );
-  if (portForwardStep) steps.push(portForwardStep);
-
-  steps.push(buildCleanupStep());
-
-  return steps;
+  return candidates.filter((step): step is YamlRunbookStep => step !== null);
 };

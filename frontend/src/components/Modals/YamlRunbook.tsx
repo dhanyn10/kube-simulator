@@ -11,6 +11,16 @@ interface YamlRunbookProps {
   readonly description?: string;
 }
 
+const getStepContainerClass = (tone: YamlRunbookStep['tone'], isDark: boolean): string => {
+  if (tone === 'warning') {
+    return isDark ? 'bg-amber-500/10 border-amber-500/40' : 'bg-amber-50 border-amber-300';
+  }
+  return isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200';
+};
+
+const getStepBadgeClass = (tone: YamlRunbookStep['tone']): string =>
+  tone === 'warning' ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white';
+
 /**
  * Renders the ordered kubectl instructions shown before the generated YAML.
  */
@@ -48,22 +58,14 @@ export function YamlRunbook({
               data-testid={`yaml-runbook-step-${step.id}`}
               className={cn(
                 'rounded-xl border p-4 flex flex-col gap-3',
-                step.tone === 'warning'
-                  ? isDark
-                    ? 'bg-amber-500/10 border-amber-500/40'
-                    : 'bg-amber-50 border-amber-300'
-                  : isDark
-                    ? 'bg-slate-900/80 border-slate-800'
-                    : 'bg-white border-slate-200'
+                getStepContainerClass(step.tone, isDark)
               )}
             >
               <div className="flex items-start gap-3">
                 <span
                   className={cn(
                     'w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold',
-                    step.tone === 'warning'
-                      ? 'bg-amber-500 text-white'
-                      : isDark ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
+                    getStepBadgeClass(step.tone)
                   )}
                 >
                   {step.tone === 'warning' ? <AlertTriangle size={12} /> : stepIndex + 1}
