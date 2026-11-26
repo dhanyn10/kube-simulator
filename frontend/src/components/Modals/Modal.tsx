@@ -6,6 +6,8 @@ import { useFlowStore } from '@/store';
 import { useOutsideContextMenu } from '@/hooks/useOutsideContextMenu';
 import { useContextMenuPosition } from '@/lib/contextMenuUtils';
 
+type ColorMode = 'dark' | 'light';
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,7 +22,112 @@ interface ModalProps {
   alignClass?: string;
   disableScroll?: boolean;
   compactHeader?: boolean;
+  headerExtra?: React.ReactNode;
+  closeLabel?: string;
+  disablePadding?: boolean;
 }
+
+const getContainerClass = (
+  colorMode: ColorMode,
+  widthClass: string,
+  maxHeightClass: string
+): string =>
+  cn(
+    "modal-container animate-in fade-in zoom-in duration-200",
+    widthClass,
+    maxHeightClass,
+    colorMode === 'dark'
+      ? "bg-slate-900 border-slate-800 text-slate-100"
+      : "bg-white border-slate-200 text-slate-800"
+  );
+
+const getHeaderClass = (compactHeader: boolean): string =>
+  cn("border-b flex items-center justify-between shrink-0", compactHeader ? "p-3 px-4" : "p-6");
+
+const getTitleClass = (compactHeader: boolean): string =>
+  cn("font-bold leading-tight", compactHeader ? "text-base" : "text-xl");
+
+const getSubtitleClass = (compactHeader: boolean): string =>
+  cn("text-slate-500 font-medium", compactHeader ? "text-[10px] leading-tight" : "text-xs");
+
+const getContentPaddingClass = (disablePadding: boolean, compactHeader: boolean): string => {
+  if (disablePadding) return "flex flex-col";
+  return compactHeader ? "p-4" : "p-6";
+};
+
+const getContentClass = (
+  disablePadding: boolean,
+  compactHeader: boolean,
+  disableScroll: boolean
+): string =>
+  cn(
+    "flex-1 min-h-0",
+    getContentPaddingClass(disablePadding, compactHeader),
+    !disableScroll && "overflow-y-auto custom-scrollbar"
+  );
+
+const getIconSize = (compactHeader: boolean): number => (compactHeader ? 18 : 24);
+const getCloseIconSize = (compactHeader: boolean): number => (compactHeader ? 16 : 20);
+
+interface ModalContextMenuProps {
+  readonly colorMode: ColorMode;
+  readonly position: { readonly top: number; readonly left: number };
+  readonly menuRef: React.RefObject<HTMLDivElement | null>;
+  readonly onToggleTheme: () => void;
+  readonly onCloseMenu: () => void;
+}
+
+/**
+ * Theme/close context menu shown on right click inside a modal.
+ */
+const ModalContextMenu = ({
+  colorMode,
+  position,
+  menuRef,
+  onToggleTheme,
+  onCloseMenu,
+}: Readonly<ModalContextMenuProps>) => {
+  const isDark = colorMode === 'dark';
+
+  return (
+    <div
+      ref={menuRef}
+      style={{ top: position.top, left: position.left }}
+      className={cn(
+        "modal-context-menu",
+        isDark
+          ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
+          : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"
+      )}
+    >
+      <button
+        type="button"
+        onClick={onToggleTheme}
+        className={cn(
+          "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors",
+          isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+        )}
+      >
+        {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-slate-600" />}
+        <span>Change Theme</span>
+      </button>
+
+      <div className={cn("my-1 border-t", isDark ? "border-slate-800" : "border-slate-100")} />
+
+      <button
+        type="button"
+        onClick={onCloseMenu}
+        className={cn(
+          "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-rose-400 hover:text-rose-300",
+          isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"
+        )}
+      >
+        <X size={14} />
+        <span>Close</span>
+      </button>
+    </div>
+  );
+};
 
 /**
  * Presentational Modal dialog wrapper: renders header (title, subtitle, icon) + children + footer
@@ -42,9 +149,12 @@ export const Modal = ({
   maxHeightClass = "h-[80vh]",
   alignClass = "items-center",
   disableScroll = false,
-  compactHeader = true
+  compactHeader = true,
+  headerExtra,
+  closeLabel = "Close",
+  disablePadding = false,
 }: ModalProps) => {
-  const colorMode = useFlowStore((state) => state.colorMode);
+  const colorMode = useFlowStore((state) => state.colorMode) as ColorMode;
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -70,6 +180,16 @@ export const Modal = ({
     setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
+  const handleToggleTheme = () => {
+    toggleColorMode();
+    closeContextMenu();
+  };
+
+  const handleCloseFromMenu = () => {
+    closeContextMenu();
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -86,48 +206,38 @@ export const Modal = ({
         aria-hidden="true"
         tabIndex={-1}
       />
-      <div
-        className={cn(
-          "modal-container animate-in fade-in zoom-in duration-200",
-          widthClass,
-          maxHeightClass,
-          colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
-        )}
-      >
+      <div className={getContainerClass(colorMode, widthClass, maxHeightClass)}>
         {/* Header */}
-        <div className={cn(
-          "border-b flex items-center justify-between shrink-0",
-          compactHeader ? "p-3 px-4" : "p-6"
-        )}>
+        <div className={getHeaderClass(compactHeader)}>
           <div className="flex items-center gap-3">
-            <Icon className={iconColorClass} size={compactHeader ? 18 : 24} />
+            <Icon className={iconColorClass} size={getIconSize(compactHeader)} />
             <div>
-              <h2 className={cn("font-bold leading-tight", compactHeader ? "text-base" : "text-xl")}>{title}</h2>
-              {subtitle && <p className={cn("text-slate-500 font-medium", compactHeader ? "text-[10px] leading-tight" : "text-xs")}>{subtitle}</p>}
+              <div className="flex items-center gap-2">
+                <h2 className={getTitleClass(compactHeader)}>{title}</h2>
+                {headerExtra}
+              </div>
+              {subtitle && <p className={getSubtitleClass(compactHeader)}>{subtitle}</p>}
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="p-1.5 hover:bg-slate-500/10 rounded-full transition-colors outline-none focus:ring-2 focus:ring-blue-500/50"
-            aria-label="Close"
+            aria-label={closeLabel}
+            title={closeLabel}
           >
-            <X size={compactHeader ? 16 : 20} />
+            <X size={getCloseIconSize(compactHeader)} />
           </button>
         </div>
 
         {/* Content */}
-        <div className={cn(
-          "flex-1 min-h-0",
-          compactHeader ? "p-4" : "p-6",
-          !disableScroll && "overflow-y-auto custom-scrollbar"
-        )}>
+        <div className={getContentClass(disablePadding, compactHeader, disableScroll)}>
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="p-4 border-t bg-slate-500/5 shrink-0">
+          <div className="p-3 px-4 border-t bg-slate-500/5 shrink-0">
             {footer}
           </div>
         )}
@@ -135,52 +245,13 @@ export const Modal = ({
 
       {/* Unified Context Menu */}
       {contextMenu && (
-        <div
-          ref={contextMenuRef}
-          style={{ top: position.top, left: position.left }}
-          className={cn(
-            "modal-context-menu",
-            colorMode === 'dark'
-              ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
-              : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"
-          )}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              toggleColorMode();
-              setContextMenu(null);
-            }}
-            className={cn(
-              "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors",
-              colorMode === 'dark'
-                ? "hover:bg-slate-800 text-slate-200"
-                : "hover:bg-slate-100 text-slate-700"
-            )}
-          >
-            {colorMode === 'dark' ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-slate-600" />}
-            <span>Change Theme</span>
-          </button>
-
-          <div className={cn("my-1 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")} />
-
-          <button
-            type="button"
-            onClick={() => {
-              setContextMenu(null);
-              onClose();
-            }}
-            className={cn(
-              "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-rose-400 hover:text-rose-300",
-              colorMode === 'dark'
-                ? "hover:bg-slate-800"
-                : "hover:bg-slate-100"
-            )}
-          >
-            <X size={14} />
-            <span>Close</span>
-          </button>
-        </div>
+        <ModalContextMenu
+          colorMode={colorMode}
+          position={position}
+          menuRef={contextMenuRef}
+          onToggleTheme={handleToggleTheme}
+          onCloseMenu={handleCloseFromMenu}
+        />
       )}
     </dialog>,
     document.body

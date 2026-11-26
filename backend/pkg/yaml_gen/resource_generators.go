@@ -855,6 +855,11 @@ func generateHPA(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) 
 
 // generateAttachedHPA constructs an HPA manifest from an attached HpaItem on a workload node.
 func generateAttachedHPA(item k8s.HpaItem, node k8s.FrontendNode, ctx *GenContext) interface{} {
+	switch node.Type {
+	case "Deployment", "StatefulSet", "ReplicaSet", "Pod":
+	default:
+		return nil
+	}
 	hpaName := sanitizeName(item.Name)
 	if hpaName == "" {
 		hpaName = fmt.Sprintf("%s-hpa", sanitizeName(node.Data.Label))

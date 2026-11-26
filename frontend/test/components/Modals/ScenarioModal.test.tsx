@@ -74,6 +74,14 @@ describe('ScenarioModal', () => {
     expect(useFlowStore.getState().nodes).toHaveLength(1);
   });
 
+  it('groups scenarios into Basic, Intermediate, and Advanced tiers', () => {
+    render(<ScenarioModal isOpen={true} onClose={() => {}} />);
+
+    expect(screen.getByTestId('scenario-tier-basic')).toBeInTheDocument();
+    expect(screen.getByTestId('scenario-tier-intermediate')).toBeInTheDocument();
+    expect(screen.getByTestId('scenario-tier-advanced')).toBeInTheDocument();
+  });
+
   it('renders scenarios with Advanced level badges and handles fallback level styles', () => {
     render(<ScenarioModal isOpen={true} onClose={() => {}} />);
 

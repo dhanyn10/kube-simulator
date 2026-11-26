@@ -1,5 +1,23 @@
 import yaml from 'js-yaml';
+import type { Pod, Service, ConfigMap, Secret, PersistentVolumeClaim, Namespace } from 'kubernetes-types/core/v1';
+import type { Deployment, StatefulSet, ReplicaSet } from 'kubernetes-types/apps/v1';
+import type { Ingress } from 'kubernetes-types/networking/v1';
+import type { HorizontalPodAutoscaler } from 'kubernetes-types/autoscaling/v2';
 import { sanitizeSlug, parseCPU, parseMemory } from './utils';
+import { logger } from './logger';
+
+export type K8sManifest =
+  | Pod
+  | Service
+  | ConfigMap
+  | Secret
+  | PersistentVolumeClaim
+  | Namespace
+  | Deployment
+  | StatefulSet
+  | ReplicaSet
+  | Ingress
+  | HorizontalPodAutoscaler;
 
 const sanitizeName = (label: string): string => {
   if (!label) return '';
@@ -208,15 +226,16 @@ const createPodSpec = (
 ) => {
   const targetIDs = [nodeID];
   const containerName = sanitizeName(data.label);
-  const image = data.yamlSettings?.image !== false && data.image ? data.image : 'nginx:latest';
 
   const resources = getResourceConfig(data, targetIDs, targetEdgeMap, sourceEdgeMap, nodeMap);
 
   const container: any = {
     name: containerName,
-    image,
-    imagePullPolicy: 'IfNotPresent',
   };
+
+  if (data.yamlSettings?.image !== false && data.image) {
+    container.image = data.image;
+  }
 
   const env = getEnvFromNodeAndConnections(data, nodeID, targetEdgeMap, nodeMap);
   if (env) {
@@ -318,7 +337,7 @@ const buildStatefulSetManifest = (
   sourceEdgeMap: Map<string, any[]>,
   nodeMap: Map<string, any>
 ) => {
-  const replicas = Number(node.data.replicas || 1);
+  const replicas = Number(node.data.replicas ?? 1);
   const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap, true);
 
   const outgoing = sourceEdgeMap.get(node.id) || [];
@@ -391,7 +410,7 @@ const buildPodOrDeploymentManifest = (
   sourceEdgeMap: Map<string, any[]>,
   nodeMap: Map<string, any>
 ) => {
-  const replicas = Number(node.data?.replicas || 1);
+  const replicas = Number(node.data?.replicas ?? 1);
 
   if (node.type === 'StatefulSet' || node.data?.workloadType === 'StatefulSet') {
     return buildStatefulSetManifest(node, metadata, name, targetEdgeMap, sourceEdgeMap, nodeMap);
@@ -422,7 +441,10 @@ const buildPodOrDeploymentManifest = (
   return {
     apiVersion: 'v1',
     kind: 'Pod',
-    metadata,
+    metadata: {
+      ...metadata,
+      labels: { ...metadata?.labels, app: name },
+    },
     spec: podSpec,
   };
 };
@@ -554,8 +576,10 @@ const buildServiceManifest = (
   const portObject: Record<string, any> = {
     protocol: 'TCP',
     port: Number(node.data.port || 80),
-    targetPort: Number(node.data.targetPort || node.data.port || 80),
   };
+  if (node.data.yamlSettings?.targetPort !== false && node.data.targetPort) {
+    portObject.targetPort = Number(node.data.targetPort);
+  }
   if (nodePort !== undefined) {
     portObject.nodePort = nodePort;
   }
@@ -585,24 +609,81 @@ const buildServiceManifest = (
           ? selectorObject
           : undefined,
       externalTrafficPolicy:
-        (serviceType === 'LoadBalancer' || serviceType === 'NodePort') && node.data.externalTrafficPolicy
+        node.data.yamlSettings?.externalTrafficPolicy !== false &&
+        (serviceType === 'LoadBalancer' || serviceType === 'NodePort') &&
+        node.data.externalTrafficPolicy
           ? node.data.externalTrafficPolicy
           : undefined,
     },
   };
 };
 
-const buildIngressAnnotations = (ingressClassName: string): Record<string, string> => {
-  if (ingressClassName === 'traefik') {
-    return {
-      'traefik.ingress.kubernetes.io/router.entrypoints': 'web,websecure',
-      'kubernetes.io/ingress.class': 'traefik',
+const buildIngressPathEntry = (
+  rule: { path?: string; pathType?: string; serviceName?: string; servicePort?: number },
+  defaultServiceName: string,
+  defaultServicePort: number,
+  includePath: boolean,
+  includeBackend: boolean
+) => {
+  const entry: Record<string, any> = {
+    pathType: rule.pathType || 'Prefix',
+  };
+  if (includePath) {
+    entry.path = rule.path || '/';
+  }
+  if (includeBackend) {
+    entry.backend = {
+      service: {
+        name: sanitizeName(rule.serviceName || defaultServiceName),
+        port: { number: Number(rule.servicePort || defaultServicePort) },
+      },
     };
   }
-  return {
-    'nginx.ingress.kubernetes.io/rewrite-target': '/',
-    'kubernetes.io/ingress.class': ingressClassName,
-  };
+  return entry;
+};
+
+const buildIngressRulePaths = (
+  nodeData: any,
+  connectedServices: Array<{ name: string; port: number }>,
+  defaultServiceName: string,
+  defaultServicePort: number
+): any[] => {
+  const includePath = nodeData?.yamlSettings?.path !== false;
+  const includeBackend = nodeData?.yamlSettings?.backendService !== false;
+
+  if (Array.isArray(nodeData?.ingressPaths) && nodeData.ingressPaths.length > 0) {
+    return nodeData.ingressPaths.map((rule: any) =>
+      buildIngressPathEntry(rule, defaultServiceName, defaultServicePort, includePath, includeBackend)
+    );
+  }
+  if (connectedServices.length > 1) {
+    return connectedServices.map((svc) =>
+      buildIngressPathEntry(
+        {
+          path: `/${svc.name.replace(/-service$/, '')}`,
+          serviceName: svc.name,
+          servicePort: svc.port,
+        },
+        defaultServiceName,
+        defaultServicePort,
+        includePath,
+        includeBackend
+      )
+    );
+  }
+  return [
+    buildIngressPathEntry(
+      {
+        path: nodeData?.ingressPath || '/',
+        serviceName: defaultServiceName,
+        servicePort: defaultServicePort,
+      },
+      defaultServiceName,
+      defaultServicePort,
+      includePath,
+      includeBackend
+    ),
+  ];
 };
 
 const collectConnectedIngressServices = (
@@ -622,50 +703,6 @@ const collectConnectedIngressServices = (
     }
   }
   return connectedServices;
-};
-
-const buildIngressRulePaths = (
-  nodeData: any,
-  connectedServices: Array<{ name: string; port: number }>,
-  defaultServiceName: string,
-  defaultServicePort: number
-): any[] => {
-  if (Array.isArray(nodeData?.ingressPaths) && nodeData.ingressPaths.length > 0) {
-    return nodeData.ingressPaths.map((rule: any) => ({
-      path: rule.path || '/',
-      pathType: rule.pathType || 'Prefix',
-      backend: {
-        service: {
-          name: sanitizeName(rule.serviceName || defaultServiceName),
-          port: { number: Number(rule.servicePort || defaultServicePort) },
-        },
-      },
-    }));
-  }
-  if (connectedServices.length > 1) {
-    return connectedServices.map((svc) => ({
-      path: `/${svc.name.replace(/-service$/, '')}`,
-      pathType: 'Prefix',
-      backend: {
-        service: {
-          name: svc.name,
-          port: { number: svc.port },
-        },
-      },
-    }));
-  }
-  return [
-    {
-      path: nodeData?.ingressPath || '/',
-      pathType: 'Prefix',
-      backend: {
-        service: {
-          name: sanitizeName(defaultServiceName),
-          port: { number: defaultServicePort },
-        },
-      },
-    },
-  ];
 };
 
 const buildIngressManifest = (
@@ -688,10 +725,7 @@ const buildIngressManifest = (
   return {
     apiVersion: 'networking.k8s.io/v1',
     kind: 'Ingress',
-    metadata: {
-      ...metadata,
-      annotations: buildIngressAnnotations(ingressClassName),
-    },
+    metadata,
     spec: {
       ingressClassName,
       rules: [
@@ -707,34 +741,44 @@ const buildIngressManifest = (
 };
 
 const buildConfigMapManifest = (node: any, metadata: any) => {
+  const manifest: Record<string, any> = {
+    apiVersion: 'v1',
+    kind: 'ConfigMap',
+    metadata,
+  };
+  if (node.data.yamlSettings?.data === false) {
+    return manifest;
+  }
+
   const configData: Record<string, string> = {};
   if (Array.isArray(node.data.configData)) {
     node.data.configData.forEach((kv: any) => {
       if (kv.key) configData[kv.key] = kv.value || '';
     });
   }
-  return {
-    apiVersion: 'v1',
-    kind: 'ConfigMap',
-    metadata,
-    data: configData,
-  };
+  manifest.data = configData;
+  return manifest;
 };
 
 const buildSecretManifest = (node: any, metadata: any) => {
+  const manifest: Record<string, any> = {
+    apiVersion: 'v1',
+    kind: 'Secret',
+    metadata,
+    type: 'Opaque',
+  };
+  if (node.data.yamlSettings?.data === false) {
+    return manifest;
+  }
+
   const stringData: Record<string, string> = {};
   if (Array.isArray(node.data.configData)) {
     node.data.configData.forEach((kv: any) => {
       if (kv.key) stringData[kv.key] = kv.value || '';
     });
   }
-  return {
-    apiVersion: 'v1',
-    kind: 'Secret',
-    metadata,
-    type: 'Opaque',
-    stringData,
-  };
+  manifest.stringData = stringData;
+  return manifest;
 };
 
 const buildPvcManifest = (node: any, metadata: any) => ({
@@ -804,8 +848,8 @@ const findHpaScaleTarget = (
 const buildHpaMetrics = (data: any) => {
   const metrics: any[] = [];
 
-  if (data?.yamlSettings?.targetCPU !== false) {
-    const targetCpuUtilization = data?.targetCPU != null ? Number(data.targetCPU) : 50;
+  if (data?.yamlSettings?.targetCPU !== false && data?.targetCPU != null) {
+    const targetCpuUtilization = Number(data.targetCPU);
     metrics.push({
       type: 'Resource',
       resource: {
@@ -841,30 +885,28 @@ const buildHpaManifest = (
   sourceEdgeMap: Map<string, any[]>
 ) => {
   const targetWorkload = findHpaScaleTarget(node.id, nodeMap, sourceEdgeMap);
-  let workloadKind = 'Deployment';
-  let workloadName = 'tbd-deployment';
-
-  if (targetWorkload) {
-    workloadKind = targetWorkload.type;
-    workloadName = sanitizeName(targetWorkload.data?.label) || targetWorkload.id;
+  if (!targetWorkload) {
+    logger.warn(
+      `[YAML Export] Skipped HPA "${node.data?.label || node.id}": no Deployment, StatefulSet, or ReplicaSet target is connected.`
+    );
+    return null;
   }
 
-  let minReplicas = node.data?.minReplicas ?? 1;
-  let maxReplicas = node.data?.maxReplicas ?? 10;
-  if (node.data?.yamlSettings?.replicas === false) {
-    minReplicas = 1;
-    maxReplicas = 10;
-  }
+  const workloadKind = targetWorkload.type;
+  const workloadName = sanitizeName(targetWorkload.data?.label) || targetWorkload.id;
 
-  const spec: Record<string, any> = {
+  const spec = {
     scaleTargetRef: {
       apiVersion: 'apps/v1',
       kind: workloadKind,
       name: workloadName,
     },
-    minReplicas,
-    maxReplicas,
-  };
+  } as HorizontalPodAutoscaler['spec'];
+
+  if (node.data?.yamlSettings?.replicas !== false) {
+    spec.minReplicas = node.data?.minReplicas ?? 1;
+    spec.maxReplicas = node.data?.maxReplicas ?? 10;
+  }
 
   const metrics = buildHpaMetrics(node.data);
   if (metrics.length > 0) {
@@ -872,8 +914,8 @@ const buildHpaManifest = (
   }
 
   return {
-    apiVersion: 'autoscaling/v2',
-    kind: 'HorizontalPodAutoscaler',
+    apiVersion: 'autoscaling/v2' as const,
+    kind: 'HorizontalPodAutoscaler' as const,
     metadata,
     spec,
   };
@@ -884,7 +926,7 @@ const buildNodeManifest = (
   nodeMap: Map<string, any>,
   sourceEdgeMap: Map<string, any[]>,
   targetEdgeMap: Map<string, any[]>
-) => {
+): K8sManifest | null => {
   if (!node.type || !node.data?.label || node.type === 'Internet') return null;
 
   if (node.type === 'Pod' && node.parentId) {
@@ -909,22 +951,22 @@ const buildNodeManifest = (
         targetEdgeMap,
         sourceEdgeMap,
         nodeMap
-      );
+      ) as K8sManifest;
     case 'Service':
-      return buildServiceManifest(node, metadata, name, nodeMap, sourceEdgeMap, targetEdgeMap);
+      return buildServiceManifest(node, metadata, name, nodeMap, sourceEdgeMap, targetEdgeMap) as K8sManifest;
     case 'Ingress':
-      return buildIngressManifest(node, metadata, nodeMap, sourceEdgeMap);
+      return buildIngressManifest(node, metadata, nodeMap, sourceEdgeMap) as K8sManifest;
     case 'Namespace':
       return { apiVersion: 'v1', kind: 'Namespace', metadata: { name } };
     case 'ConfigMap':
-      return buildConfigMapManifest(node, metadata);
+      return buildConfigMapManifest(node, metadata) as K8sManifest;
     case 'Secret':
-      return buildSecretManifest(node, metadata);
+      return buildSecretManifest(node, metadata) as K8sManifest;
     case 'PVC':
       if (isStatefulSetVolumeClaimTemplate(node.id, nodeMap, targetEdgeMap, sourceEdgeMap)) {
         return null;
       }
-      return buildPvcManifest(node, metadata);
+      return buildPvcManifest(node, metadata) as K8sManifest;
     case 'HPA':
       return buildHpaManifest(node, metadata, nodeMap, sourceEdgeMap);
     default:
@@ -936,7 +978,7 @@ const buildAttachedConfigMapManifest = (
   cmItem: any,
   node: any,
   nodeMap: Map<string, any>
-) => {
+): ConfigMap | null => {
   if (!cmItem) return null;
   const name = sanitizeName(cmItem.name) || 'configmap';
   const namespace = getNamespace(node, nodeMap);
@@ -966,7 +1008,7 @@ const buildAttachedSecretManifest = (
   secretItem: any,
   node: any,
   nodeMap: Map<string, any>
-) => {
+): Secret | null => {
   if (!secretItem) return null;
   const name = sanitizeName(secretItem.name) || 'secret';
   const namespace = getNamespace(node, nodeMap);
@@ -986,20 +1028,26 @@ const buildAttachedSecretManifest = (
   }
 
   return {
-    apiVersion: 'v1',
-    kind: 'Secret',
+    apiVersion: 'v1' as const,
+    kind: 'Secret' as const,
     metadata,
     type: 'Opaque',
     stringData,
   };
 };
 
+const getHpaWorkloadKind = (node: any, podReplicas: number): string => {
+  if (node.type !== 'Pod') return node.type;
+  return podReplicas > 1 ? 'Deployment' : 'Pod';
+};
+
 const buildAttachedHpaManifest = (
   hpaItem: any,
   node: any,
   nodeMap: Map<string, any>
-) => {
+): HorizontalPodAutoscaler | null => {
   if (!hpaItem) return null;
+  if (!HPA_SCALE_TARGET_TYPES.has(node.type) && node.type !== 'Pod') return null;
   const hpaName = sanitizeName(hpaItem.name) || `${sanitizeName(node.data?.label || node.id)}-hpa`;
   const namespace = getNamespace(node, nodeMap);
   const metadata: Record<string, string> = { name: hpaName };
@@ -1007,15 +1055,19 @@ const buildAttachedHpaManifest = (
     metadata.namespace = namespace;
   }
 
-  const workloadKind = node.type === 'Pod' ? 'Deployment' : node.type;
+  const podReplicas = Number(node.data?.replicas ?? 1);
+  const workloadKind = getHpaWorkloadKind(node, podReplicas);
+  const workloadApiVersion = workloadKind === 'Pod' ? 'v1' : 'apps/v1';
   const workloadName = sanitizeName(node.data?.label) || node.id;
 
   const minReplicas = Math.max(1, Number(hpaItem.minReplicas) || 1);
   const maxReplicas = Math.max(minReplicas, Number(hpaItem.maxReplicas) || 10);
-  const targetCpu = Math.max(1, Number(hpaItem.targetCPU) || 80);
+  const targetCpu = Number(hpaItem.targetCPU);
 
-  const metrics: any[] = [
-    {
+  const metrics: any[] = [];
+
+  if (Number.isFinite(targetCpu) && targetCpu > 0) {
+    metrics.push({
       type: 'Resource',
       resource: {
         name: 'cpu',
@@ -1024,8 +1076,8 @@ const buildAttachedHpaManifest = (
           averageUtilization: targetCpu,
         },
       },
-    },
-  ];
+    });
+  }
 
   if (hpaItem.targetMemory != null && Number(hpaItem.targetMemory) > 0) {
     metrics.push({
@@ -1040,20 +1092,24 @@ const buildAttachedHpaManifest = (
     });
   }
 
-  return {
-    apiVersion: 'autoscaling/v2',
-    kind: 'HorizontalPodAutoscaler',
-    metadata,
-    spec: {
-      scaleTargetRef: {
-        apiVersion: 'apps/v1',
-        kind: workloadKind,
-        name: workloadName,
-      },
-      minReplicas,
-      maxReplicas,
-      metrics,
+  const spec: HorizontalPodAutoscaler['spec'] = {
+    scaleTargetRef: {
+      apiVersion: workloadApiVersion,
+      kind: workloadKind,
+      name: workloadName,
     },
+    minReplicas,
+    maxReplicas,
+  };
+  if (metrics.length > 0) {
+    spec.metrics = metrics;
+  }
+
+  return {
+    apiVersion: 'autoscaling/v2' as const,
+    kind: 'HorizontalPodAutoscaler' as const,
+    metadata,
+    spec,
   };
 };
 
@@ -1068,12 +1124,21 @@ export const generateYamlClientSide = (nodes: any[], edges: any[]): string => {
   const nodeMap = new Map<string, any>(nodes.map((n) => [n.id, n]));
   const { sourceEdgeMap, targetEdgeMap } = buildEdgeMaps(edges);
 
-  const manifests: any[] = [];
+  const manifests: K8sManifest[] = [];
   nodes.forEach((node) => {
     const manifest = buildNodeManifest(node, nodeMap, sourceEdgeMap, targetEdgeMap);
     if (manifest) {
       manifests.push(manifest);
     }
+
+    const isNonNamespaceChildPod =
+      node.type === 'Pod' &&
+      Boolean(node.parentId) &&
+      nodeMap.get(node.parentId)?.type !== 'Namespace';
+    if (node.type === 'Namespace' || isNonNamespaceChildPod) {
+      return;
+    }
+
     if (Array.isArray(node.data?.configMaps)) {
       node.data.configMaps.forEach((cmItem: any) => {
         const attachedCmManifest = buildAttachedConfigMapManifest(cmItem, node, nodeMap);

@@ -638,16 +638,6 @@ export class WailsBackendGateway extends BaseBackendGateway {
   // --- DockerHub & YAML Operations ---
 
   async generateYaml(nodesJson: string, edgesJson: string): Promise<string> {
-    if (typeof this.app?.GenerateYaml === 'function') {
-      try {
-        const jsonStr = await this.app.GenerateYaml(nodesJson, edgesJson);
-        if (jsonStr !== undefined && jsonStr !== null) {
-          return this.convertJsonManifestsToYaml(jsonStr);
-        }
-      } catch {
-        // fallback
-      }
-    }
     return this.generateYamlClientSideFallback(nodesJson, edgesJson);
   }
 
