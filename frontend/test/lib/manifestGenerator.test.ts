@@ -288,15 +288,14 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput1).toContain('name: backend-service');
     expect(yamlOutput1).toContain('number: 8080');
 
-    // 2. Ingress with no backendServiceName and no outgoing edge -> defaults to app-service
+    // 2. Ingress with no backendServiceName and no outgoing edge -> does not invent phantom app-service
     const nodes2 = [
       { id: 'ing2', type: 'Ingress', data: { label: 'Fallback Ingress' } }
     ];
 
     const yamlOutput2 = generateYamlClientSide(nodes2, []);
-    expect(yamlOutput2).toContain('name: app-service');
+    expect(yamlOutput2).not.toContain('app-service');
     expect(yamlOutput2).toContain('host: example.local');
-    expect(yamlOutput2).toContain('path: /');
   });
 
   it('covers multi-service Ingress routing and custom ingressClassName', () => {
@@ -575,8 +574,8 @@ describe('manifestGenerator test suite', () => {
     const docs = yaml.loadAll(yamlOutput) as any[];
 
     expect(docs).toHaveLength(2);
-    expect(docs[0].kind).toBe('Deployment');
-    expect(docs[1].kind).toBe('ConfigMap');
+    expect(docs[0].kind).toBe('ConfigMap');
+    expect(docs[1].kind).toBe('Deployment');
     expect(yamlOutput).toContain('---');
   });
 
@@ -1940,4 +1939,177 @@ describe('manifestGenerator test suite', () => {
     expect(out).toContain('Invalid: 0');
     expect(out).toContain('Errors: 0');
   }, 120_000);
+
+  it('guarantees topological sorting: Namespace -> Role -> ConfigMap -> PVC -> Workload -> Service -> Ingress -> HPA', () => {
+    // Reverse insertion order to prove topological sorting
+    const nodes = [
+      { id: 'hpa1', type: 'HPA', data: { label: 'web-hpa', targetWorkload: 'web-deploy', targetCPU: 75 } },
+      { id: 'ing1', type: 'Ingress', data: { label: 'web-ingress', backendServiceName: 'web-svc' } },
+      { id: 'svc1', type: 'Service', data: { label: 'web-svc', selector: 'web-deploy' } },
+      { id: 'dep1', type: 'Deployment', data: { label: 'web-deploy', replicas: 2, image: 'nginx:alpine' } },
+      { id: 'pvc1', type: 'PVC', data: { label: 'web-pvc', storageCapacity: '10Gi' } },
+      { id: 'cm1', type: 'ConfigMap', data: { label: 'web-cm', configData: [{ key: 'K', value: 'V' }] } },
+      { id: 'role1', type: 'Role', data: { label: 'web-role', rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get', 'list'] }] } },
+      { id: 'ns1', type: 'Namespace', data: { label: 'prod-ns' } },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+
+    const kinds = docs.map((d) => d.kind);
+    expect(kinds).toEqual([
+      'Namespace',
+      'ClusterRole',
+      'ConfigMap',
+      'PersistentVolumeClaim',
+      'Deployment',
+      'Service',
+      'Ingress',
+      'HorizontalPodAutoscaler',
+    ]);
+  });
+
+  it('generates Role and RoleBinding manifests for Role node with assigned users', () => {
+    const nodes = [
+      { id: 'ns1', type: 'Namespace', data: { label: 'sec-ns' } },
+      {
+        id: 'r1',
+        type: 'Role',
+        parentId: 'ns1',
+        data: {
+          label: 'pod-reader',
+          assignedUsers: ['alice', 'bob'],
+          rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get', 'watch', 'list'] }],
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+
+    const roleDoc = docs.find((d) => d.kind === 'Role');
+    expect(roleDoc).toBeDefined();
+    expect(roleDoc.metadata.name).toBe('pod-reader');
+    expect(roleDoc.metadata.namespace).toBe('sec-ns');
+    expect(roleDoc.rules[0].resources).toContain('pods');
+
+    const bindingDoc = docs.find((d) => d.kind === 'RoleBinding');
+    expect(bindingDoc).toBeDefined();
+    expect(bindingDoc.metadata.name).toBe('pod-reader-binding');
+    expect(bindingDoc.metadata.namespace).toBe('sec-ns');
+    expect(bindingDoc.roleRef.name).toBe('pod-reader');
+    expect(bindingDoc.subjects).toHaveLength(2);
+    expect(bindingDoc.subjects[0].name).toBe('alice');
+    expect(bindingDoc.subjects[1].name).toBe('bob');
+  });
+
+  it('generates attached roles and roleBindings on workload nodes', () => {
+    const nodes = [
+      {
+        id: 'dep1',
+        type: 'Deployment',
+        data: {
+          label: 'api-workload',
+          image: 'nginx:alpine',
+          roles: [
+            {
+              id: 'role-item-1',
+              name: 'api-admin-role',
+              rules: [{ apiGroups: ['apps'], resources: ['deployments'], verbs: ['*'] }],
+            },
+          ],
+          roleBindings: [
+            {
+              id: 'rb-item-1',
+              name: 'api-admin-binding',
+              roleRef: 'api-admin-role',
+              subjects: [{ kind: 'User', name: 'admin-user' }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+
+    const roleDoc = docs.find((d) => d.kind === 'ClusterRole' && d.metadata.name === 'api-admin-role');
+    expect(roleDoc).toBeDefined();
+    expect(roleDoc.rules[0].resources).toContain('deployments');
+
+    const bindingDoc = docs.find((d) => d.kind === 'RoleBinding' && d.metadata.name === 'api-admin-binding');
+    expect(bindingDoc).toBeDefined();
+    expect(bindingDoc.roleRef.name).toBe('api-admin-role');
+    expect(bindingDoc.subjects[0].name).toBe('admin-user');
+  });
+
+  it('correctly resolves Service selector to parent Deployment when connected to child Pod', () => {
+    const nodes = [
+      { id: 'dep1', type: 'Deployment', data: { label: 'frontend-web', image: 'nginx:alpine', replicas: 2 } },
+      { id: 'pod1', type: 'Pod', parentId: 'dep1', data: { label: 'frontend-web-pod-0' } },
+      { id: 'svc1', type: 'Service', data: { label: 'frontend-service', port: 80 } },
+    ];
+    // Service connects directly to child Pod on canvas
+    const edges = [{ id: 'e1', source: 'svc1', target: 'pod1' }];
+
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+
+    const svcDoc = docs.find((d) => d.kind === 'Service');
+    expect(svcDoc).toBeDefined();
+    // Must target parent Deployment's app label, NEVER the child pod label!
+    expect(svcDoc.spec.selector).toEqual({ app: 'frontend-web' });
+  });
+
+  it('correctly resolves Service selector when edge is drawn in reverse (Workload -> Service)', () => {
+    const nodes = [
+      { id: 'dep1', type: 'Deployment', data: { label: 'backend-api', image: 'nginx:alpine' } },
+      { id: 'svc1', type: 'Service', data: { label: 'backend-service', port: 8080 } },
+    ];
+    // User dragged Workload -> Service
+    const edges = [{ id: 'e1', source: 'dep1', target: 'svc1' }];
+
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+
+    const svcDoc = docs.find((d) => d.kind === 'Service');
+    expect(svcDoc).toBeDefined();
+    expect(svcDoc.spec.selector).toEqual({ app: 'backend-api' });
+  });
+
+  it('deduplicates identical manifests cleanly', () => {
+    const nodes = [
+      // Standalone ConfigMap node
+      { id: 'cm1', type: 'ConfigMap', data: { label: 'shared-config', configData: [{ key: 'ENV', value: 'prod' }] } },
+      // Pod attaching the same ConfigMap name
+      {
+        id: 'pod1',
+        type: 'Pod',
+        data: {
+          label: 'worker-pod',
+          image: 'busybox',
+          configMaps: [{ id: 'cm-att', name: 'shared-config', configData: [{ key: 'ENV', value: 'prod' }] }],
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+
+    // Must only have 1 ConfigMap manifest, not duplicate
+    const cmDocs = docs.filter((d) => d.kind === 'ConfigMap');
+    expect(cmDocs).toHaveLength(1);
+    expect(cmDocs[0].metadata.name).toBe('shared-config');
+  });
+
+  it('does NOT generate phantom app-service when Ingress is unlinked on canvas', () => {
+    const nodes = [
+      { id: 'ing1', type: 'Ingress', data: { label: 'standalone-ingress', ingressHost: 'my.domain.com' } },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).not.toContain('app-service');
+    expect(yamlOutput).not.toContain('tbd-service');
+    expect(yamlOutput).toContain('host: my.domain.com');
+  });
 });

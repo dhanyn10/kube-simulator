@@ -3,6 +3,7 @@ import type { Pod, Service, ConfigMap, Secret, PersistentVolumeClaim, Namespace 
 import type { Deployment, StatefulSet, ReplicaSet } from 'kubernetes-types/apps/v1';
 import type { Ingress } from 'kubernetes-types/networking/v1';
 import type { HorizontalPodAutoscaler } from 'kubernetes-types/autoscaling/v2';
+import type { Role, ClusterRole, RoleBinding, ClusterRoleBinding } from 'kubernetes-types/rbac/v1';
 import { sanitizeSlug, parseCPU, parseMemory } from './utils';
 import { logger } from './logger';
 
@@ -17,7 +18,11 @@ export type K8sManifest =
   | StatefulSet
   | ReplicaSet
   | Ingress
-  | HorizontalPodAutoscaler;
+  | HorizontalPodAutoscaler
+  | Role
+  | ClusterRole
+  | RoleBinding
+  | ClusterRoleBinding;
 
 const sanitizeName = (label: string): string => {
   if (!label) return '';
@@ -233,8 +238,9 @@ const createPodSpec = (
     name: containerName,
   };
 
-  if (data.yamlSettings?.image !== false && data.image) {
-    container.image = data.image;
+  const containerImage = data.image !== undefined ? data.image : 'nginx:alpine';
+  if (data.yamlSettings?.image !== false && containerImage) {
+    container.image = containerImage;
   }
 
   const env = getEnvFromNodeAndConnections(data, nodeID, targetEdgeMap, nodeMap);
@@ -490,11 +496,26 @@ const isTargetingIngress = (
   return false;
 };
 
+const resolveWorkloadAppLabel = (target: any, nodeMap: Map<string, any>): string | null => {
+  if (!target) return null;
+  if (target.type === 'Pod' && target.parentId) {
+    const parent = nodeMap.get(target.parentId);
+    if (parent && ['Deployment', 'StatefulSet', 'ReplicaSet'].includes(parent.type)) {
+      return target.data?.label ? sanitizeName(parent.data?.label || parent.id) : null;
+    }
+  }
+  if (['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(target.type)) {
+    return target.data?.label ? sanitizeName(target.data.label) : null;
+  }
+  return null;
+};
+
 const determineServiceSelector = (
   node: any,
   name: string,
   nodeMap: Map<string, any>,
-  sourceEdgeMap: Map<string, any[]>
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap?: Map<string, any[]>
 ): Record<string, string> => {
   if (isTargetingIngress(node, nodeMap, sourceEdgeMap)) {
     return {
@@ -506,13 +527,25 @@ const determineServiceSelector = (
   if (node.data?.selector) {
     return { app: sanitizeName(node.data.selector) };
   }
+
   const outgoing = sourceEdgeMap.get(node.id) || [];
   for (const e of outgoing) {
-    const target = nodeMap.get(e.target);
-    if (target && ['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(target.type)) {
-      return { app: sanitizeName(target.data?.label || name) };
+    const resolved = resolveWorkloadAppLabel(nodeMap.get(e.target), nodeMap);
+    if (resolved) {
+      return { app: resolved };
     }
   }
+
+  if (targetEdgeMap) {
+    const incoming = targetEdgeMap.get(node.id) || [];
+    for (const e of incoming) {
+      const resolved = resolveWorkloadAppLabel(nodeMap.get(e.source), nodeMap);
+      if (resolved) {
+        return { app: resolved };
+      }
+    }
+  }
+
   return { app: sanitizeName(name) };
 };
 
@@ -584,7 +617,7 @@ const buildServiceManifest = (
     portObject.nodePort = nodePort;
   }
 
-  const selectorObject = determineServiceSelector(node, name, nodeMap, sourceEdgeMap);
+  const selectorObject = determineServiceSelector(node, name, nodeMap, sourceEdgeMap, targetEdgeMap);
 
   const isStatefulTarget = isServiceTargetingStatefulSet(node, nodeMap, sourceEdgeMap, targetEdgeMap);
 
@@ -689,19 +722,29 @@ const buildIngressRulePaths = (
 const collectConnectedIngressServices = (
   nodeId: string,
   nodeMap: Map<string, any>,
-  sourceEdgeMap: Map<string, any[]>
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap?: Map<string, any[]>
 ): Array<{ name: string; port: number }> => {
-  const outgoing = sourceEdgeMap.get(nodeId) || [];
   const connectedServices: Array<{ name: string; port: number }> = [];
-  for (const e of outgoing) {
-    const target = nodeMap.get(e.target);
-    if (target?.type !== 'Service') continue;
-    const sName = sanitizeName(target?.data?.label || '');
+
+  const addService = (target: any) => {
+    if (target?.type !== 'Service') return;
+    const sName = sanitizeName(target?.data?.label || target?.id || '');
     const sPort = Number(target?.data?.port || 80);
     if (sName && !connectedServices.some((s) => s.name === sName)) {
       connectedServices.push({ name: sName, port: sPort });
     }
+  };
+
+  for (const e of sourceEdgeMap.get(nodeId) || []) {
+    addService(nodeMap.get(e.target));
   }
+  if (targetEdgeMap) {
+    for (const e of targetEdgeMap.get(nodeId) || []) {
+      addService(nodeMap.get(e.source));
+    }
+  }
+
   return connectedServices;
 };
 
@@ -709,18 +752,28 @@ const buildIngressManifest = (
   node: any,
   metadata: any,
   nodeMap: Map<string, any>,
-  sourceEdgeMap: Map<string, any[]>
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap?: Map<string, any[]>
 ) => {
-  const connectedServices = collectConnectedIngressServices(node.id, nodeMap, sourceEdgeMap);
+  const connectedServices = collectConnectedIngressServices(node.id, nodeMap, sourceEdgeMap, targetEdgeMap);
   const configuredServiceName = node.data?.backendServiceName || node.data?.serviceName || '';
-  const serviceName = configuredServiceName || connectedServices[0]?.name || 'app-service';
+  const serviceName = configuredServiceName || connectedServices[0]?.name || '';
   const servicePort = configuredServiceName
     ? Number(node.data?.servicePort || 80)
     : Number(connectedServices[0]?.port || node.data?.servicePort || 80);
 
   const host = (node.data?.ingressHost as string)?.trim().toLowerCase() || 'example.local';
   const ingressClassName = node.data?.ingressClassName || 'nginx';
-  const paths = buildIngressRulePaths(node.data, connectedServices, serviceName, servicePort);
+  const hasConfiguredPaths = Array.isArray(node.data?.ingressPaths) && node.data.ingressPaths.length > 0;
+  const shouldBuildPaths = hasConfiguredPaths || Boolean(serviceName);
+  const paths = shouldBuildPaths
+    ? buildIngressRulePaths(node.data, connectedServices, serviceName || 'service', servicePort)
+    : [];
+
+  const rule: any = { host };
+  if (paths.length > 0) {
+    rule.http = { paths };
+  }
 
   return {
     apiVersion: 'networking.k8s.io/v1',
@@ -728,14 +781,7 @@ const buildIngressManifest = (
     metadata,
     spec: {
       ingressClassName,
-      rules: [
-        {
-          host,
-          http: {
-            paths,
-          },
-        },
-      ],
+      rules: [rule],
     },
   };
 };
@@ -833,7 +879,8 @@ const HPA_SCALE_TARGET_TYPES = new Set(['Deployment', 'StatefulSet', 'ReplicaSet
 const findHpaScaleTarget = (
   hpaId: string,
   nodeMap: Map<string, any>,
-  sourceEdgeMap: Map<string, any[]>
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap?: Map<string, any[]>
 ) => {
   const outgoing = sourceEdgeMap.get(hpaId) || [];
   for (const edge of outgoing) {
@@ -842,6 +889,32 @@ const findHpaScaleTarget = (
       return target;
     }
   }
+
+  if (targetEdgeMap) {
+    const incoming = targetEdgeMap.get(hpaId) || [];
+    for (const edge of incoming) {
+      const source = nodeMap.get(edge.source);
+      if (source && HPA_SCALE_TARGET_TYPES.has(source.type)) {
+        return source;
+      }
+    }
+  }
+
+  const hpaNode = nodeMap.get(hpaId);
+  const explicitTarget = hpaNode?.data?.targetWorkload || hpaNode?.data?.scaleTargetName;
+  if (explicitTarget) {
+    for (const n of nodeMap.values()) {
+      if (
+        HPA_SCALE_TARGET_TYPES.has(n.type) &&
+        (n.id === explicitTarget ||
+          n.data?.label === explicitTarget ||
+          sanitizeName(n.data?.label || '') === sanitizeName(explicitTarget))
+      ) {
+        return n;
+      }
+    }
+  }
+
   return null;
 };
 
@@ -882,9 +955,10 @@ const buildHpaManifest = (
   node: any,
   metadata: any,
   nodeMap: Map<string, any>,
-  sourceEdgeMap: Map<string, any[]>
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap?: Map<string, any[]>
 ) => {
-  const targetWorkload = findHpaScaleTarget(node.id, nodeMap, sourceEdgeMap);
+  const targetWorkload = findHpaScaleTarget(node.id, nodeMap, sourceEdgeMap, targetEdgeMap);
   if (!targetWorkload) {
     logger.warn(
       `[YAML Export] Skipped HPA "${node.data?.label || node.id}": no Deployment, StatefulSet, or ReplicaSet target is connected.`
@@ -955,7 +1029,7 @@ const buildNodeManifest = (
     case 'Service':
       return buildServiceManifest(node, metadata, name, nodeMap, sourceEdgeMap, targetEdgeMap) as K8sManifest;
     case 'Ingress':
-      return buildIngressManifest(node, metadata, nodeMap, sourceEdgeMap) as K8sManifest;
+      return buildIngressManifest(node, metadata, nodeMap, sourceEdgeMap, targetEdgeMap) as K8sManifest;
     case 'Namespace':
       return { apiVersion: 'v1', kind: 'Namespace', metadata: { name } };
     case 'ConfigMap':
@@ -968,7 +1042,9 @@ const buildNodeManifest = (
       }
       return buildPvcManifest(node, metadata) as K8sManifest;
     case 'HPA':
-      return buildHpaManifest(node, metadata, nodeMap, sourceEdgeMap);
+      return buildHpaManifest(node, metadata, nodeMap, sourceEdgeMap, targetEdgeMap);
+    case 'Role':
+      return buildRoleManifest(node, metadata) as K8sManifest;
     default:
       return null;
   }
@@ -1113,6 +1189,204 @@ const buildAttachedHpaManifest = (
   };
 };
 
+const buildRoleManifest = (node: any, metadata: any): Role | ClusterRole => {
+  const isClusterRole = node.data?.roleKind === 'ClusterRole' || (!metadata.namespace && node.data?.roleKind !== 'Role');
+  const kind: 'Role' | 'ClusterRole' = isClusterRole ? 'ClusterRole' : 'Role';
+
+  const rawRules = Array.isArray(node.data?.rules) && node.data.rules.length > 0
+    ? node.data.rules
+    : [{ apiGroups: [''], resources: ['pods'], verbs: ['get', 'list', 'watch'] }];
+
+  const rules = rawRules.map((r: any) => ({
+    apiGroups: Array.isArray(r.apiGroups) ? r.apiGroups : [''],
+    resources: Array.isArray(r.resources) ? r.resources : ['pods'],
+    verbs: Array.isArray(r.verbs) ? r.verbs : ['get', 'list'],
+  }));
+
+  const roleMeta = { ...metadata };
+  if (isClusterRole) {
+    delete roleMeta.namespace;
+  }
+
+  return {
+    apiVersion: 'rbac.authorization.k8s.io/v1' as const,
+    kind,
+    metadata: roleMeta,
+    rules,
+  } as Role | ClusterRole;
+};
+
+const extractRoleSubjects = (rawAssignedUsers?: any[], rawSubjects?: any[]): any[] => {
+  const subjects: any[] = [];
+  if (Array.isArray(rawAssignedUsers)) {
+    rawAssignedUsers.forEach((u: string) => {
+      if (u) subjects.push({ kind: 'User', name: u, apiGroup: 'rbac.authorization.k8s.io' });
+    });
+  }
+  if (Array.isArray(rawSubjects)) {
+    rawSubjects.forEach((s: any) => {
+      if (typeof s === 'string' && s) {
+        subjects.push({ kind: 'User', name: s, apiGroup: 'rbac.authorization.k8s.io' });
+      } else if (s?.name) {
+        subjects.push({
+          kind: s.kind || 'User',
+          name: s.name,
+          apiGroup: s.kind === 'ServiceAccount' ? '' : 'rbac.authorization.k8s.io',
+          ...(s.namespace ? { namespace: s.namespace } : {}),
+        });
+      }
+    });
+  }
+  return subjects;
+};
+
+const buildRoleBindingManifestForNode = (node: any, roleName: string, metadata: any): RoleBinding | ClusterRoleBinding | null => {
+  const subjects = extractRoleSubjects(node.data?.assignedUsers, node.data?.subjects);
+  if (subjects.length === 0) return null;
+
+  const isClusterRole = node.data?.roleKind === 'ClusterRole' || (!metadata.namespace && node.data?.roleKind !== 'Role');
+  const bindingKind: 'RoleBinding' | 'ClusterRoleBinding' = isClusterRole && !metadata.namespace ? 'ClusterRoleBinding' : 'RoleBinding';
+  const roleKind: 'Role' | 'ClusterRole' = isClusterRole ? 'ClusterRole' : 'Role';
+  const bindingName = `${roleName}-binding`;
+
+  const bindingMeta: any = { name: bindingName };
+  if (metadata.namespace && bindingKind === 'RoleBinding') {
+    bindingMeta.namespace = metadata.namespace;
+  }
+
+  return {
+    apiVersion: 'rbac.authorization.k8s.io/v1' as const,
+    kind: bindingKind,
+    metadata: bindingMeta,
+    subjects,
+    roleRef: {
+      kind: roleKind,
+      name: roleName,
+      apiGroup: 'rbac.authorization.k8s.io',
+    },
+  } as RoleBinding | ClusterRoleBinding;
+};
+
+const buildAttachedRoleManifest = (
+  roleItem: any,
+  node: any,
+  nodeMap: Map<string, any>
+): Role | ClusterRole | null => {
+  if (!roleItem) return null;
+  const roleName = sanitizeName(roleItem.name) || 'attached-role';
+  const namespace = getNamespace(node, nodeMap);
+  const isClusterRole = roleItem.roleKind === 'ClusterRole' || (!namespace && roleItem.roleKind !== 'Role');
+  const kind: 'Role' | 'ClusterRole' = isClusterRole ? 'ClusterRole' : 'Role';
+
+  const metadata: any = { name: roleName };
+  if (namespace && !isClusterRole) {
+    metadata.namespace = namespace;
+  }
+
+  const rawRules = Array.isArray(roleItem.rules) && roleItem.rules.length > 0
+    ? roleItem.rules
+    : [{ apiGroups: [''], resources: ['pods'], verbs: ['get', 'list', 'watch'] }];
+
+  const rules = rawRules.map((r: any) => ({
+    apiGroups: Array.isArray(r.apiGroups) ? r.apiGroups : [''],
+    resources: Array.isArray(r.resources) ? r.resources : ['pods'],
+    verbs: Array.isArray(r.verbs) ? r.verbs : ['get', 'list'],
+  }));
+
+  return {
+    apiVersion: 'rbac.authorization.k8s.io/v1' as const,
+    kind,
+    metadata,
+    rules,
+  } as Role | ClusterRole;
+};
+
+const buildAttachedRoleBindingManifest = (
+  rbItem: any,
+  node: any,
+  nodeMap: Map<string, any>
+) => {
+  if (!rbItem) return null;
+  const bindingName = sanitizeName(rbItem.name) || 'attached-role-binding';
+  const namespace = rbItem.namespace || getNamespace(node, nodeMap);
+  const roleRefName = sanitizeName(rbItem.roleRef) || 'attached-role';
+
+  const subjects = extractRoleSubjects(undefined, rbItem.subjects);
+  if (subjects.length === 0) {
+    subjects.push({ kind: 'User', name: 'app-user', apiGroup: 'rbac.authorization.k8s.io' });
+  }
+
+  const metadata: any = { name: bindingName };
+  if (namespace) {
+    metadata.namespace = namespace;
+  }
+
+  return {
+    apiVersion: 'rbac.authorization.k8s.io/v1' as const,
+    kind: 'RoleBinding' as const,
+    metadata,
+    subjects,
+    roleRef: {
+      kind: 'Role',
+      name: roleRefName,
+      apiGroup: 'rbac.authorization.k8s.io',
+    },
+  };
+};
+
+const KIND_ORDER: Record<string, number> = {
+  Namespace: 1,
+  CustomResourceDefinition: 2,
+  ClusterRole: 10,
+  Role: 11,
+  ClusterRoleBinding: 12,
+  RoleBinding: 13,
+  ConfigMap: 20,
+  Secret: 21,
+  StorageClass: 25,
+  PersistentVolume: 26,
+  PersistentVolumeClaim: 27,
+  LimitRange: 28,
+  ResourceQuota: 29,
+  Deployment: 30,
+  StatefulSet: 31,
+  ReplicaSet: 32,
+  DaemonSet: 33,
+  Pod: 34,
+  Job: 35,
+  CronJob: 36,
+  Service: 40,
+  Ingress: 50,
+  HorizontalPodAutoscaler: 60,
+};
+
+const sortAndDeduplicateManifests = (manifests: any[]): any[] => {
+  const seen = new Set<string>();
+  const deduplicated: any[] = [];
+
+  for (const m of manifests) {
+    if (!m || !m.kind) continue;
+    const ns = m.metadata?.namespace || '';
+    const name = m.metadata?.name || '';
+    const key = `${m.kind}/${ns}/${name}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduplicated.push(m);
+    }
+  }
+
+  deduplicated.sort((a, b) => {
+    const orderA = KIND_ORDER[a.kind] ?? 99;
+    const orderB = KIND_ORDER[b.kind] ?? 99;
+    if (orderA !== orderB) return orderA - orderB;
+    const nameA = a.metadata?.name || '';
+    const nameB = b.metadata?.name || '';
+    return nameA.localeCompare(nameB);
+  });
+
+  return deduplicated;
+};
+
 /**
  * Generates multi-document Kubernetes YAML manifests client-side from the current canvas nodes and edges.
  *
@@ -1131,6 +1405,16 @@ export const generateYamlClientSide = (nodes: any[], edges: any[]): string => {
       manifests.push(manifest);
     }
 
+    if (node.type === 'Role') {
+      const binding = buildRoleBindingManifestForNode(node, sanitizeName(node.data?.label || node.id), {
+        name: sanitizeName(node.data?.label || node.id),
+        namespace: getNamespace(node, nodeMap),
+      });
+      if (binding) {
+        manifests.push(binding);
+      }
+    }
+
     const isNonNamespaceChildPod =
       node.type === 'Pod' &&
       Boolean(node.parentId) &&
@@ -1139,6 +1423,18 @@ export const generateYamlClientSide = (nodes: any[], edges: any[]): string => {
       return;
     }
 
+    if (Array.isArray(node.data?.roles)) {
+      node.data.roles.forEach((r: any) => {
+        const rm = buildAttachedRoleManifest(r, node, nodeMap);
+        if (rm) manifests.push(rm);
+      });
+    }
+    if (Array.isArray(node.data?.roleBindings)) {
+      node.data.roleBindings.forEach((rb: any) => {
+        const rbm = buildAttachedRoleBindingManifest(rb, node, nodeMap);
+        if (rbm) manifests.push(rbm);
+      });
+    }
     if (Array.isArray(node.data?.configMaps)) {
       node.data.configMaps.forEach((cmItem: any) => {
         const attachedCmManifest = buildAttachedConfigMapManifest(cmItem, node, nodeMap);
@@ -1165,7 +1461,8 @@ export const generateYamlClientSide = (nodes: any[], edges: any[]): string => {
     }
   });
 
-  if (manifests.length === 0) return '';
+  const sortedManifests = sortAndDeduplicateManifests(manifests);
+  if (sortedManifests.length === 0) return '';
 
-  return manifests.map((obj) => yaml.dump(obj, { indent: 2, noRefs: true, lineWidth: -1 }).trim()).join('\n---\n');
+  return sortedManifests.map((obj) => yaml.dump(obj, { indent: 2, noRefs: true, lineWidth: -1 }).trim()).join('\n---\n');
 };
