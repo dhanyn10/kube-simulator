@@ -24,9 +24,21 @@ export type K8sManifest =
   | RoleBinding
   | ClusterRoleBinding;
 
+const WORKLOAD_TYPES = new Set(['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet']);
+
 const sanitizeName = (label: string): string => {
   if (!label) return '';
   return sanitizeSlug(label);
+};
+
+/**
+ * Sanitizes a ConfigMap or Secret key to conform to Kubernetes key naming conventions
+ * (alphanumeric characters, '-', '_' or '.').
+ */
+export const sanitizeConfigKey = (key: string): string => {
+  if (!key) return '';
+  const sanitized = key.trim().replace(/[^a-zA-Z0-9_.-]/g, '_');
+  return sanitized.replace(/_+/g, '_');
 };
 
 const buildEdgeMaps = (edges: any[]) => {
@@ -128,14 +140,15 @@ const getEnvFromAttachedConfigMaps = (
     const cmName = sanitizeName(cm.name) || 'configmap';
     if (!Array.isArray(cm.configData)) return;
     cm.configData.forEach((item: any) => {
-      if (item.key && !seenKeys.has(item.key)) {
-        seenKeys.add(item.key);
+      const key = sanitizeConfigKey(item?.key);
+      if (key && !seenKeys.has(key)) {
+        seenKeys.add(key);
         env.push({
-          name: item.key,
+          name: key,
           valueFrom: {
             configMapKeyRef: {
               name: cmName,
-              key: item.key,
+              key,
             },
           },
         });
@@ -155,14 +168,15 @@ const getEnvFromAttachedSecrets = (
     const items = sec.secretData || sec.configData;
     if (!Array.isArray(items)) return;
     items.forEach((item: any) => {
-      if (item.key && !seenKeys.has(item.key)) {
-        seenKeys.add(item.key);
+      const key = sanitizeConfigKey(item?.key);
+      if (key && !seenKeys.has(key)) {
+        seenKeys.add(key);
         env.push({
-          name: item.key,
+          name: key,
           valueFrom: {
             secretKeyRef: {
               name: secName,
-              key: item.key,
+              key,
             },
           },
         });
@@ -186,20 +200,21 @@ const getEnvFromConnectedNode = (
   if (!Array.isArray(items)) return;
 
   items.forEach((item: any) => {
-    if (!item.key || seenKeys.has(item.key)) return;
-    seenKeys.add(item.key);
+    const key = sanitizeConfigKey(item?.key);
+    if (!key || seenKeys.has(key)) return;
+    seenKeys.add(key);
     env.push({
-      name: item.key,
+      name: key,
       valueFrom: isCm
-        ? { configMapKeyRef: { name: resourceName, key: item.key } }
-        : { secretKeyRef: { name: resourceName, key: item.key } },
+        ? { configMapKeyRef: { name: resourceName, key } }
+        : { secretKeyRef: { name: resourceName, key } },
     });
   });
 };
 
 const getEnvFromNodeAndConnections = (
   data: any,
-  nodeID: string,
+  targetIDs: string[],
   targetEdgeMap: Map<string, any[]>,
   nodeMap: Map<string, any>
 ): any[] | undefined => {
@@ -213,37 +228,146 @@ const getEnvFromNodeAndConnections = (
     getEnvFromAttachedSecrets(data.secrets, seenKeys, env);
   }
 
-  const incoming = targetEdgeMap.get(nodeID) || [];
-  incoming.forEach((edge) => {
-    getEnvFromConnectedNode(nodeMap.get(edge.source), seenKeys, env);
+  targetIDs.forEach((id) => {
+    const incoming = targetEdgeMap.get(id) || [];
+    incoming.forEach((edge) => {
+      getEnvFromConnectedNode(nodeMap.get(edge.source), seenKeys, env);
+    });
   });
 
   return env.length > 0 ? env : undefined;
 };
 
+const getConnectedPvcNodes = (
+  targetIDs: string[],
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap: Map<string, any[]>,
+  nodeMap: Map<string, any>
+): any[] => {
+  const pvcNodes: any[] = [];
+  const seenIds = new Set<string>();
+
+  const addIfPvc = (n: any) => {
+    if (n?.type === 'PVC' && !seenIds.has(n.id)) {
+      seenIds.add(n.id);
+      pvcNodes.push(n);
+    }
+  };
+
+  targetIDs.forEach((id) => {
+    const outgoing = sourceEdgeMap.get(id) || [];
+    outgoing.forEach((e) => addIfPvc(nodeMap.get(e.target)));
+
+    const incoming = targetEdgeMap.get(id) || [];
+    incoming.forEach((e) => addIfPvc(nodeMap.get(e.source)));
+  });
+
+  return pvcNodes;
+};
+
+const getVolumeConfigForWorkload = (
+  pvcNodes: any[]
+): { volumes?: any[]; volumeMounts?: any[] } => {
+  if (pvcNodes.length === 0) return {};
+
+  const volumes: any[] = [];
+  const volumeMounts: any[] = [];
+
+  pvcNodes.forEach((pvcNode, index) => {
+    const pvcName = sanitizeName(pvcNode.data?.label || 'data') || `data-${index}`;
+    const volName = `vol-${pvcName}`;
+    const mountPath = pvcNodes.length === 1 ? '/data' : `/data-${index}`;
+
+    volumes.push({
+      name: volName,
+      persistentVolumeClaim: {
+        claimName: pvcName,
+      },
+    });
+
+    volumeMounts.push({
+      name: volName,
+      mountPath,
+    });
+  });
+
+  return { volumes, volumeMounts };
+};
+
+const getWorkloadTargetIDs = (node: any, nodeMap: Map<string, any>): string[] => {
+  const targetIDs = [node.id];
+  for (const n of nodeMap.values()) {
+    if (n.parentId === node.id && n.type === 'Pod') {
+      targetIDs.push(n.id);
+    }
+  }
+  return targetIDs;
+};
+
+const getWorkloadEffectiveData = (node: any, nodeMap: Map<string, any>): any => {
+  const data = { ...node.data };
+  for (const n of nodeMap.values()) {
+    if (n.parentId === node.id && n.type === 'Pod') {
+      if (!data.image && n.data?.image) {
+        data.image = n.data.image;
+      }
+      if (!data.port && n.data?.port) {
+        data.port = n.data.port;
+      }
+      break;
+    }
+  }
+  return data;
+};
+
+const resolveContainerImage = (data: any): string | undefined => {
+  const image = data.image !== undefined ? data.image : 'nginx:alpine';
+  return data.yamlSettings?.image !== false && image ? image : undefined;
+};
+
+const resolveRestartPolicy = (data: any, isController: boolean): string => {
+  if (data.yamlSettings?.restartPolicy === false) return '';
+  if (!isController && data.restartPolicy) return data.restartPolicy;
+  return 'Always';
+};
+
+const applyVolumeConfig = (
+  spec: any,
+  container: any,
+  targetIDs: string[],
+  targetEdgeMap: Map<string, any[]>,
+  sourceEdgeMap: Map<string, any[]>,
+  nodeMap: Map<string, any>
+): void => {
+  const pvcNodes = getConnectedPvcNodes(targetIDs, sourceEdgeMap, targetEdgeMap, nodeMap);
+  const { volumes, volumeMounts } = getVolumeConfigForWorkload(pvcNodes);
+  if (volumeMounts && volumeMounts.length > 0) {
+    container.volumeMounts = volumeMounts;
+  }
+  if (volumes && volumes.length > 0) {
+    spec.volumes = volumes;
+  }
+};
+
 const createPodSpec = (
   data: any,
-  nodeID: string,
+  targetIDs: string[],
   targetEdgeMap: Map<string, any[]>,
   sourceEdgeMap: Map<string, any[]>,
   nodeMap: Map<string, any>,
-  isController = false
+  isController = false,
+  skipVolumes = false
 ) => {
-  const targetIDs = [nodeID];
-  const containerName = sanitizeName(data.label);
-
-  const resources = getResourceConfig(data, targetIDs, targetEdgeMap, sourceEdgeMap, nodeMap);
-
   const container: any = {
-    name: containerName,
+    name: sanitizeName(data.label) || 'main',
   };
 
-  const containerImage = data.image !== undefined ? data.image : 'nginx:alpine';
-  if (data.yamlSettings?.image !== false && containerImage) {
+  const containerImage = resolveContainerImage(data);
+  if (containerImage) {
     container.image = containerImage;
   }
 
-  const env = getEnvFromNodeAndConnections(data, nodeID, targetEdgeMap, nodeMap);
+  const env = getEnvFromNodeAndConnections(data, targetIDs, targetEdgeMap, nodeMap);
   if (env) {
     container.env = env;
   }
@@ -251,23 +375,22 @@ const createPodSpec = (
   if (data.port) {
     container.ports = [{ containerPort: Number(data.port) }];
   }
+
+  const resources = getResourceConfig(data, targetIDs, targetEdgeMap, sourceEdgeMap, nodeMap);
   if (resources) {
     container.resources = resources;
-  }
-
-  let restartPolicy = 'Always';
-  if (!isController && data.restartPolicy) {
-    restartPolicy = data.restartPolicy;
-  }
-  if (data.yamlSettings?.restartPolicy === false) {
-    restartPolicy = '';
   }
 
   const spec: any = {
     containers: [container],
   };
+  const restartPolicy = resolveRestartPolicy(data, isController);
   if (restartPolicy) {
     spec.restartPolicy = restartPolicy;
+  }
+
+  if (!skipVolumes) {
+    applyVolumeConfig(spec, container, targetIDs, targetEdgeMap, sourceEdgeMap, nodeMap);
   }
 
   return spec;
@@ -344,25 +467,28 @@ const buildStatefulSetManifest = (
   nodeMap: Map<string, any>
 ) => {
   const replicas = Number(node.data.replicas ?? 1);
-  const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap, true);
+  const targetIDs = getWorkloadTargetIDs(node, nodeMap);
+  const effectiveData = getWorkloadEffectiveData(node, nodeMap);
+  const podSpec = createPodSpec(
+    effectiveData,
+    targetIDs,
+    targetEdgeMap,
+    sourceEdgeMap,
+    nodeMap,
+    true,
+    true
+  );
 
-  const outgoing = sourceEdgeMap.get(node.id) || [];
-  const pvcNodes: any[] = [];
-  outgoing.forEach((e) => {
-    const target = nodeMap.get(e.target);
-    if (target?.type === 'PVC') {
-      pvcNodes.push(target);
-    }
-  });
+  const pvcNodes = getConnectedPvcNodes(targetIDs, sourceEdgeMap, targetEdgeMap, nodeMap);
 
   let volumeClaimTemplates: any[] | undefined;
   if (pvcNodes.length > 0) {
     const vctVolumeMounts: any[] = [];
     volumeClaimTemplates = pvcNodes.map((pvcNode, index) => {
-      const pvcName = sanitizeName(pvcNode.data?.label || 'data');
+      const pvcName = sanitizeName(pvcNode.data?.label || 'data') || `data-${index}`;
       vctVolumeMounts.push({
         name: pvcName,
-        mountPath: `/data-${index}`,
+        mountPath: pvcNodes.length === 1 ? '/data' : `/data-${index}`,
       });
       return {
         apiVersion: 'v1',
@@ -391,16 +517,21 @@ const buildStatefulSetManifest = (
     nodeMap
   );
 
+  const stsLabels = metadata?.labels ? { ...metadata.labels, app: name } : { app: name };
+
   return {
     apiVersion: 'apps/v1',
     kind: 'StatefulSet',
-    metadata,
+    metadata: {
+      ...metadata,
+      labels: stsLabels,
+    },
     spec: {
       serviceName,
       replicas,
       selector: { matchLabels: { app: name } },
       template: {
-        metadata: { labels: { app: name } },
+        metadata: { labels: stsLabels },
         spec: podSpec,
       },
       volumeClaimTemplates,
@@ -425,19 +556,36 @@ const buildPodOrDeploymentManifest = (
   const isDeployment = node.type === 'Deployment' || (node.type !== 'Pod' && node.data?.workloadType === 'Deployment');
   const isReplicaSet = node.type === 'ReplicaSet' || node.data?.workloadType === 'ReplicaSet';
   const isController = isDeployment || isReplicaSet || replicas > 1;
-  const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap, isController);
+
+  const targetIDs = getWorkloadTargetIDs(node, nodeMap);
+  const effectiveData = getWorkloadEffectiveData(node, nodeMap);
+  const podSpec = createPodSpec(
+    effectiveData,
+    targetIDs,
+    targetEdgeMap,
+    sourceEdgeMap,
+    nodeMap,
+    isController,
+    false
+  );
+
+  const workloadLabels = metadata?.labels ? { ...metadata.labels, app: name } : { app: name };
+  const workloadMetadata = {
+    ...metadata,
+    labels: workloadLabels,
+  };
 
   if (isController) {
     const kind = isReplicaSet ? 'ReplicaSet' : 'Deployment';
     return {
       apiVersion: 'apps/v1',
       kind,
-      metadata,
+      metadata: workloadMetadata,
       spec: {
         replicas,
         selector: { matchLabels: { app: name } },
         template: {
-          metadata: { labels: { app: name } },
+          metadata: { labels: workloadLabels },
           spec: podSpec,
         },
       },
@@ -447,10 +595,7 @@ const buildPodOrDeploymentManifest = (
   return {
     apiVersion: 'v1',
     kind: 'Pod',
-    metadata: {
-      ...metadata,
-      labels: { ...metadata?.labels, app: name },
-    },
+    metadata: workloadMetadata,
     spec: podSpec,
   };
 };
@@ -501,7 +646,7 @@ const resolveWorkloadAppLabel = (target: any, nodeMap: Map<string, any>): string
   if (target.type === 'Pod' && target.parentId) {
     const parent = nodeMap.get(target.parentId);
     if (parent && ['Deployment', 'StatefulSet', 'ReplicaSet'].includes(parent.type)) {
-      return target.data?.label ? sanitizeName(parent.data?.label || parent.id) : null;
+      return sanitizeName(parent.data?.label || parent.id) || null;
     }
   }
   if (['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(target.type)) {
@@ -561,38 +706,159 @@ const isStatefulWorkloadNode = (n: any, nodeMap: Map<string, any>): boolean => {
   return false;
 };
 
+const hasStatefulWorkloadInEdges = (
+  edges: any[],
+  nodeMap: Map<string, any>,
+  endpoint: 'source' | 'target'
+): boolean =>
+  edges.some((edge) => isStatefulWorkloadNode(nodeMap.get(edge[endpoint]), nodeMap));
+
+const matchesStatefulSelector = (
+  candidate: any,
+  selector: string,
+  sanitizedSelector: string
+): boolean =>
+  candidate.id === selector ||
+  candidate.data?.label === selector ||
+  candidate.data?.baseName === selector ||
+  sanitizeName(candidate.data?.label || candidate.data?.baseName || '') === sanitizedSelector;
+
 const isServiceTargetingStatefulSet = (
   node: any,
   nodeMap: Map<string, any>,
   sourceEdgeMap: Map<string, any[]>,
   targetEdgeMap?: Map<string, any[]>
 ): boolean => {
-  const outgoing = sourceEdgeMap.get(node.id) || [];
-  for (const e of outgoing) {
-    if (isStatefulWorkloadNode(nodeMap.get(e.target), nodeMap)) {
-      return true;
-    }
+  if (hasStatefulWorkloadInEdges(sourceEdgeMap.get(node.id) || [], nodeMap, 'target')) {
+    return true;
   }
-  const incoming = targetEdgeMap?.get(node.id) || [];
-  for (const e of incoming) {
-    if (isStatefulWorkloadNode(nodeMap.get(e.source), nodeMap)) {
-      return true;
-    }
+  if (hasStatefulWorkloadInEdges(targetEdgeMap?.get(node.id) || [], nodeMap, 'source')) {
+    return true;
   }
+
   const selector = node.data?.selector;
   if (!selector) return false;
-  const sanitizedSel = sanitizeName(selector);
-  for (const n of nodeMap.values()) {
-    if (isStatefulWorkloadNode(n, nodeMap)) {
-      const match =
-        n.id === selector ||
-        n.data?.label === selector ||
-        n.data?.baseName === selector ||
-        sanitizeName(n.data?.label || n.data?.baseName || '') === sanitizedSel;
-      if (match) return true;
+
+  const sanitizedSelector = sanitizeName(selector);
+  return Array.from(nodeMap.values()).some(
+    (candidate) =>
+      isStatefulWorkloadNode(candidate, nodeMap) &&
+      matchesStatefulSelector(candidate, selector, sanitizedSelector)
+  );
+};
+
+const matchesNodeReference = (
+  candidate: any,
+  reference: string,
+  sanitizedReference: string
+): boolean =>
+  candidate.id === reference ||
+  candidate.data?.label === reference ||
+  sanitizeName(candidate.data?.label || '') === sanitizedReference;
+
+const findNodeInEdgesByType = (
+  edges: any[],
+  nodeMap: Map<string, any>,
+  endpoint: 'source' | 'target',
+  types: Set<string>
+): any => {
+  for (const edge of edges) {
+    const candidate = nodeMap.get(edge[endpoint]);
+    if (candidate && types.has(candidate.type)) {
+      return candidate;
     }
   }
-  return false;
+  return null;
+};
+
+const findConnectedWorkloadForService = (
+  node: any,
+  nodeMap: Map<string, any>,
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap?: Map<string, any[]>
+): any => {
+  const outgoingWorkload = findNodeInEdgesByType(
+    sourceEdgeMap.get(node.id) || [],
+    nodeMap,
+    'target',
+    WORKLOAD_TYPES
+  );
+  if (outgoingWorkload) return outgoingWorkload;
+
+  if (targetEdgeMap) {
+    const incomingWorkload = findNodeInEdgesByType(
+      targetEdgeMap.get(node.id) || [],
+      nodeMap,
+      'source',
+      WORKLOAD_TYPES
+    );
+    if (incomingWorkload) return incomingWorkload;
+  }
+
+  const selector = node.data?.selector;
+  if (!selector) return null;
+
+  const sanitizedSelector = sanitizeName(selector);
+  return (
+    Array.from(nodeMap.values()).find(
+      (candidate) =>
+        WORKLOAD_TYPES.has(candidate.type) &&
+        matchesNodeReference(candidate, selector, sanitizedSelector)
+    ) ?? null
+  );
+};
+
+const resolveWorkloadPort = (workload: any, nodeMap: Map<string, any>): number | undefined => {
+  if (!workload) return undefined;
+  if (workload.data?.port && !Number.isNaN(Number(workload.data.port))) {
+    return Number(workload.data.port);
+  }
+  for (const n of nodeMap.values()) {
+    if (n.parentId === workload.id && n.type === 'Pod' && n.data?.port) {
+      const p = Number(n.data.port);
+      if (!Number.isNaN(p)) return p;
+    }
+  }
+  return undefined;
+};
+
+const resolveServiceTargetPort = (
+  node: any,
+  servicePort: number,
+  nodeMap: Map<string, any>,
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap?: Map<string, any[]>
+): number | undefined => {
+  if (node.data.yamlSettings?.targetPort === false) return undefined;
+
+  const explicitTargetPort = node.data.targetPort ? Number(node.data.targetPort) : undefined;
+  if (explicitTargetPort !== undefined) return explicitTargetPort;
+
+  const connectedWorkload = findConnectedWorkloadForService(node, nodeMap, sourceEdgeMap, targetEdgeMap);
+  const workloadPort = resolveWorkloadPort(connectedWorkload, nodeMap);
+  if (workloadPort !== undefined && workloadPort !== servicePort) return workloadPort;
+  return undefined;
+};
+
+const resolveServiceTypeAndClusterIP = (
+  data: any,
+  serviceType: string,
+  isStatefulTarget: boolean
+): { specType: string; clusterIP?: string } => {
+  const isHeadless = serviceType === 'Headless';
+  const isStatefulClusterIP = isStatefulTarget && (serviceType === 'ClusterIP' || !serviceType);
+  if (isHeadless || isStatefulClusterIP) {
+    return { specType: 'ClusterIP', clusterIP: 'None' };
+  }
+  return { specType: serviceType, clusterIP: data.clusterIP };
+};
+
+const resolveExternalTrafficPolicy = (data: any, serviceType: string): string | undefined => {
+  const isNodePortType = serviceType === 'LoadBalancer' || serviceType === 'NodePort';
+  if (data.yamlSettings?.externalTrafficPolicy === false || !isNodePortType || !data.externalTrafficPolicy) {
+    return undefined;
+  }
+  return data.externalTrafficPolicy;
 };
 
 const buildServiceManifest = (
@@ -610,24 +876,25 @@ const buildServiceManifest = (
     protocol: 'TCP',
     port: Number(node.data.port || 80),
   };
-  if (node.data.yamlSettings?.targetPort !== false && node.data.targetPort) {
-    portObject.targetPort = Number(node.data.targetPort);
+
+  const targetPort = resolveServiceTargetPort(
+    node,
+    portObject.port,
+    nodeMap,
+    sourceEdgeMap,
+    targetEdgeMap
+  );
+
+  if (targetPort !== undefined) {
+    portObject.targetPort = targetPort;
   }
   if (nodePort !== undefined) {
     portObject.nodePort = nodePort;
   }
 
   const selectorObject = determineServiceSelector(node, name, nodeMap, sourceEdgeMap, targetEdgeMap);
-
   const isStatefulTarget = isServiceTargetingStatefulSet(node, nodeMap, sourceEdgeMap, targetEdgeMap);
-
-  let specType: string | undefined = serviceType;
-  let clusterIP: string | undefined = node.data.clusterIP;
-
-  if (serviceType === 'Headless' || (isStatefulTarget && (serviceType === 'ClusterIP' || !serviceType))) {
-    specType = 'ClusterIP';
-    clusterIP = 'None';
-  }
+  const { specType, clusterIP } = resolveServiceTypeAndClusterIP(node.data, serviceType, isStatefulTarget);
 
   return {
     apiVersion: 'v1',
@@ -641,12 +908,7 @@ const buildServiceManifest = (
         node.data.yamlSettings?.selector !== false
           ? selectorObject
           : undefined,
-      externalTrafficPolicy:
-        node.data.yamlSettings?.externalTrafficPolicy !== false &&
-        (serviceType === 'LoadBalancer' || serviceType === 'NodePort') &&
-        node.data.externalTrafficPolicy
-          ? node.data.externalTrafficPolicy
-          : undefined,
+      externalTrafficPolicy: resolveExternalTrafficPolicy(node.data, serviceType),
     },
   };
 };
@@ -799,7 +1061,8 @@ const buildConfigMapManifest = (node: any, metadata: any) => {
   const configData: Record<string, string> = {};
   if (Array.isArray(node.data.configData)) {
     node.data.configData.forEach((kv: any) => {
-      if (kv.key) configData[kv.key] = kv.value || '';
+      const key = sanitizeConfigKey(kv?.key);
+      if (key) configData[key] = kv.value || '';
     });
   }
   manifest.data = configData;
@@ -818,9 +1081,14 @@ const buildSecretManifest = (node: any, metadata: any) => {
   }
 
   const stringData: Record<string, string> = {};
-  if (Array.isArray(node.data.configData)) {
-    node.data.configData.forEach((kv: any) => {
-      if (kv.key) stringData[kv.key] = kv.value || '';
+  const items = Array.isArray(node.data?.secretData) && node.data.secretData.length > 0
+    ? node.data.secretData
+    : node.data?.configData;
+
+  if (Array.isArray(items)) {
+    items.forEach((kv: any) => {
+      const key = sanitizeConfigKey(kv?.key);
+      if (key) stringData[key] = kv.value || '';
     });
   }
   manifest.stringData = stringData;
@@ -855,18 +1123,26 @@ export const isStatefulSetVolumeClaimTemplate = (
   targetEdgeMap: Map<string, any[]>,
   sourceEdgeMap?: Map<string, any[]>
 ): boolean => {
+  const isStatefulNode = (n: any): boolean => {
+    if (!n) return false;
+    if (n.type === 'StatefulSet' || n.data?.workloadType === 'StatefulSet') return true;
+    if (n.parentId) {
+      const parent = nodeMap.get(n.parentId);
+      if (parent?.type === 'StatefulSet' || parent?.data?.workloadType === 'StatefulSet') return true;
+    }
+    return false;
+  };
+
   const incoming = targetEdgeMap.get(pvcNodeId) || [];
   for (const edge of incoming) {
-    const sourceNode = nodeMap.get(edge.source);
-    if (sourceNode && (sourceNode.type === 'StatefulSet' || sourceNode.data?.workloadType === 'StatefulSet')) {
+    if (isStatefulNode(nodeMap.get(edge.source))) {
       return true;
     }
   }
   if (sourceEdgeMap) {
     const outgoing = sourceEdgeMap.get(pvcNodeId) || [];
     for (const edge of outgoing) {
-      const targetNode = nodeMap.get(edge.target);
-      if (targetNode && (targetNode.type === 'StatefulSet' || targetNode.data?.workloadType === 'StatefulSet')) {
+      if (isStatefulNode(nodeMap.get(edge.target))) {
         return true;
       }
     }
@@ -882,40 +1158,36 @@ const findHpaScaleTarget = (
   sourceEdgeMap: Map<string, any[]>,
   targetEdgeMap?: Map<string, any[]>
 ) => {
-  const outgoing = sourceEdgeMap.get(hpaId) || [];
-  for (const edge of outgoing) {
-    const target = nodeMap.get(edge.target);
-    if (target && HPA_SCALE_TARGET_TYPES.has(target.type)) {
-      return target;
-    }
-  }
+  const outgoingTarget = findNodeInEdgesByType(
+    sourceEdgeMap.get(hpaId) || [],
+    nodeMap,
+    'target',
+    HPA_SCALE_TARGET_TYPES
+  );
+  if (outgoingTarget) return outgoingTarget;
 
   if (targetEdgeMap) {
-    const incoming = targetEdgeMap.get(hpaId) || [];
-    for (const edge of incoming) {
-      const source = nodeMap.get(edge.source);
-      if (source && HPA_SCALE_TARGET_TYPES.has(source.type)) {
-        return source;
-      }
-    }
+    const incomingTarget = findNodeInEdgesByType(
+      targetEdgeMap.get(hpaId) || [],
+      nodeMap,
+      'source',
+      HPA_SCALE_TARGET_TYPES
+    );
+    if (incomingTarget) return incomingTarget;
   }
 
   const hpaNode = nodeMap.get(hpaId);
   const explicitTarget = hpaNode?.data?.targetWorkload || hpaNode?.data?.scaleTargetName;
-  if (explicitTarget) {
-    for (const n of nodeMap.values()) {
-      if (
-        HPA_SCALE_TARGET_TYPES.has(n.type) &&
-        (n.id === explicitTarget ||
-          n.data?.label === explicitTarget ||
-          sanitizeName(n.data?.label || '') === sanitizeName(explicitTarget))
-      ) {
-        return n;
-      }
-    }
-  }
+  if (!explicitTarget) return null;
 
-  return null;
+  const sanitizedTarget = sanitizeName(explicitTarget);
+  return (
+    Array.from(nodeMap.values()).find(
+      (candidate) =>
+        HPA_SCALE_TARGET_TYPES.has(candidate.type) &&
+        matchesNodeReference(candidate, explicitTarget, sanitizedTarget)
+    ) ?? null
+  );
 };
 
 const buildHpaMetrics = (data: any) => {
@@ -1066,8 +1338,9 @@ const buildAttachedConfigMapManifest = (
   const data: Record<string, string> = {};
   if (Array.isArray(cmItem.configData)) {
     cmItem.configData.forEach((item: any) => {
-      if (item.key) {
-        data[item.key] = String(item.value ?? '');
+      const key = sanitizeConfigKey(item?.key);
+      if (key) {
+        data[key] = String(item.value ?? '');
       }
     });
   }
@@ -1097,8 +1370,9 @@ const buildAttachedSecretManifest = (
   const items = secretItem.secretData || secretItem.configData;
   if (Array.isArray(items)) {
     items.forEach((item: any) => {
-      if (item.key) {
-        stringData[item.key] = String(item.value ?? '');
+      const key = sanitizeConfigKey(item?.key);
+      if (key) {
+        stringData[key] = String(item.value ?? '');
       }
     });
   }
@@ -1117,30 +1391,15 @@ const getHpaWorkloadKind = (node: any, podReplicas: number): string => {
   return podReplicas > 1 ? 'Deployment' : 'Pod';
 };
 
-const buildAttachedHpaManifest = (
-  hpaItem: any,
-  node: any,
-  nodeMap: Map<string, any>
-): HorizontalPodAutoscaler | null => {
-  if (!hpaItem) return null;
-  if (!HPA_SCALE_TARGET_TYPES.has(node.type) && node.type !== 'Pod') return null;
-  const hpaName = sanitizeName(hpaItem.name) || `${sanitizeName(node.data?.label || node.id)}-hpa`;
-  const namespace = getNamespace(node, nodeMap);
-  const metadata: Record<string, string> = { name: hpaName };
-  if (namespace) {
-    metadata.namespace = namespace;
-  }
-
-  const podReplicas = Number(node.data?.replicas ?? 1);
-  const workloadKind = getHpaWorkloadKind(node, podReplicas);
-  const workloadApiVersion = workloadKind === 'Pod' ? 'v1' : 'apps/v1';
-  const workloadName = sanitizeName(node.data?.label) || node.id;
-
+const resolveHpaReplicaBounds = (hpaItem: any): { minReplicas: number; maxReplicas: number } => {
   const minReplicas = Math.max(1, Number(hpaItem.minReplicas) || 1);
   const maxReplicas = Math.max(minReplicas, Number(hpaItem.maxReplicas) || 10);
-  const targetCpu = Number(hpaItem.targetCPU);
+  return { minReplicas, maxReplicas };
+};
 
+const buildAttachedHpaMetrics = (hpaItem: any): any[] => {
   const metrics: any[] = [];
+  const targetCpu = Number(hpaItem.targetCPU);
 
   if (Number.isFinite(targetCpu) && targetCpu > 0) {
     metrics.push({
@@ -1167,6 +1426,33 @@ const buildAttachedHpaManifest = (
       },
     });
   }
+
+  return metrics;
+};
+
+const buildAttachedHpaManifest = (
+  hpaItem: any,
+  node: any,
+  nodeMap: Map<string, any>
+): HorizontalPodAutoscaler | null => {
+  if (!hpaItem) return null;
+
+  const isSupportedTarget = HPA_SCALE_TARGET_TYPES.has(node.type) || node.type === 'Pod';
+  if (!isSupportedTarget) return null;
+
+  const hpaName = sanitizeName(hpaItem.name) || `${sanitizeName(node.data?.label || node.id)}-hpa`;
+  const namespace = getNamespace(node, nodeMap);
+  const metadata: Record<string, string> = { name: hpaName };
+  if (namespace) {
+    metadata.namespace = namespace;
+  }
+
+  const podReplicas = Number(node.data?.replicas ?? 1);
+  const workloadKind = getHpaWorkloadKind(node, podReplicas);
+  const workloadApiVersion = workloadKind === 'Pod' ? 'v1' : 'apps/v1';
+  const workloadName = sanitizeName(node.data?.label) || node.id;
+  const { minReplicas, maxReplicas } = resolveHpaReplicaBounds(hpaItem);
+  const metrics = buildAttachedHpaMetrics(hpaItem);
 
   const spec: HorizontalPodAutoscaler['spec'] = {
     scaleTargetRef: {
@@ -1216,7 +1502,25 @@ const buildRoleManifest = (node: any, metadata: any): Role | ClusterRole => {
   } as Role | ClusterRole;
 };
 
-const extractRoleSubjects = (rawAssignedUsers?: any[], rawSubjects?: any[]): any[] => {
+const buildSubjectNamespace = (
+  subject: any,
+  isServiceAccount: boolean,
+  defaultNamespace?: string
+): Record<string, string> => {
+  if (isServiceAccount) {
+    return { namespace: subject.namespace || defaultNamespace || 'default' };
+  }
+  if (!subject.namespace) {
+    return {};
+  }
+  return { namespace: subject.namespace };
+};
+
+const extractRoleSubjects = (
+  rawAssignedUsers?: any[],
+  rawSubjects?: any[],
+  defaultNamespace?: string
+): any[] => {
   const subjects: any[] = [];
   if (Array.isArray(rawAssignedUsers)) {
     rawAssignedUsers.forEach((u: string) => {
@@ -1228,11 +1532,12 @@ const extractRoleSubjects = (rawAssignedUsers?: any[], rawSubjects?: any[]): any
       if (typeof s === 'string' && s) {
         subjects.push({ kind: 'User', name: s, apiGroup: 'rbac.authorization.k8s.io' });
       } else if (s?.name) {
+        const isSa = s.kind === 'ServiceAccount';
         subjects.push({
           kind: s.kind || 'User',
           name: s.name,
-          apiGroup: s.kind === 'ServiceAccount' ? '' : 'rbac.authorization.k8s.io',
-          ...(s.namespace ? { namespace: s.namespace } : {}),
+          apiGroup: isSa ? '' : 'rbac.authorization.k8s.io',
+          ...buildSubjectNamespace(s, isSa, defaultNamespace),
         });
       }
     });
@@ -1241,7 +1546,7 @@ const extractRoleSubjects = (rawAssignedUsers?: any[], rawSubjects?: any[]): any
 };
 
 const buildRoleBindingManifestForNode = (node: any, roleName: string, metadata: any): RoleBinding | ClusterRoleBinding | null => {
-  const subjects = extractRoleSubjects(node.data?.assignedUsers, node.data?.subjects);
+  const subjects = extractRoleSubjects(node.data?.assignedUsers, node.data?.subjects, metadata?.namespace);
   if (subjects.length === 0) return null;
 
   const isClusterRole = node.data?.roleKind === 'ClusterRole' || (!metadata.namespace && node.data?.roleKind !== 'Role');
@@ -1311,7 +1616,7 @@ const buildAttachedRoleBindingManifest = (
   const namespace = rbItem.namespace || getNamespace(node, nodeMap);
   const roleRefName = sanitizeName(rbItem.roleRef) || 'attached-role';
 
-  const subjects = extractRoleSubjects(undefined, rbItem.subjects);
+  const subjects = extractRoleSubjects(undefined, rbItem.subjects, namespace);
   if (subjects.length === 0) {
     subjects.push({ kind: 'User', name: 'app-user', apiGroup: 'rbac.authorization.k8s.io' });
   }

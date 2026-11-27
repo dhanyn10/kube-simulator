@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateYamlClientSide, isStatefulSetVolumeClaimTemplate } from '@/lib/manifestGenerator';
+import { generateYamlClientSide, isStatefulSetVolumeClaimTemplate, sanitizeConfigKey } from '@/lib/manifestGenerator';
 import yaml from 'js-yaml';
 
 describe('manifestGenerator test suite', () => {
@@ -2111,5 +2111,401 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).not.toContain('app-service');
     expect(yamlOutput).not.toContain('tbd-service');
     expect(yamlOutput).toContain('host: my.domain.com');
+  });
+
+  describe('Pilihan 1 & 2: Workload Storage Volume Mounts, Secret Data, and Child Pod Hierarchy', () => {
+    it('mounts PVC into Pod when connected via edge', () => {
+      const nodes = [
+        { id: 'pod1', type: 'Pod', data: { label: 'data-logger', image: 'nginx:alpine' } },
+        { id: 'pvc1', type: 'PVC', data: { label: 'log-storage', storageCapacity: '1Gi', accessMode: 'ReadWriteOnce' } },
+      ];
+      const edges = [{ id: 'e1', source: 'pod1', target: 'pvc1' }];
+
+      const yamlOutput = generateYamlClientSide(nodes, edges);
+      const docs = yaml.loadAll(yamlOutput) as any[];
+
+      const pvcDoc = docs.find((d) => d.kind === 'PersistentVolumeClaim');
+      expect(pvcDoc).toBeDefined();
+      expect(pvcDoc.metadata.name).toBe('log-storage');
+
+      const podDoc = docs.find((d) => d.kind === 'Pod');
+      expect(podDoc).toBeDefined();
+      expect(podDoc.spec.volumes).toEqual([
+        {
+          name: 'vol-log-storage',
+          persistentVolumeClaim: {
+            claimName: 'log-storage',
+          },
+        },
+      ]);
+      expect(podDoc.spec.containers[0].volumeMounts).toEqual([
+        {
+          name: 'vol-log-storage',
+          mountPath: '/data',
+        },
+      ]);
+    });
+
+    it('mounts PVC into Deployment when connected bidirectionally (PVC -> Deployment)', () => {
+      const nodes = [
+        { id: 'dep1', type: 'Deployment', data: { label: 'web-app', replicas: 2, image: 'nginx:alpine' } },
+        { id: 'pvc1', type: 'PVC', data: { label: 'web-data', storageCapacity: '5Gi' } },
+      ];
+      // Reverse edge: source is PVC, target is Deployment
+      const edges = [{ id: 'e1', source: 'pvc1', target: 'dep1' }];
+
+      const yamlOutput = generateYamlClientSide(nodes, edges);
+      const docs = yaml.loadAll(yamlOutput) as any[];
+
+      const depDoc = docs.find((d) => d.kind === 'Deployment');
+      expect(depDoc).toBeDefined();
+      expect(depDoc.spec.template.spec.volumes).toEqual([
+        {
+          name: 'vol-web-data',
+          persistentVolumeClaim: {
+            claimName: 'web-data',
+          },
+        },
+      ]);
+      expect(depDoc.spec.template.spec.containers[0].volumeMounts).toEqual([
+        {
+          name: 'vol-web-data',
+          mountPath: '/data',
+        },
+      ]);
+    });
+
+    it('mounts multiple PVCs with indexed mountPaths /data-0 and /data-1', () => {
+      const nodes = [
+        { id: 'dep1', type: 'Deployment', data: { label: 'multi-store-app', replicas: 1, image: 'nginx:alpine' } },
+        { id: 'pvc1', type: 'PVC', data: { label: 'primary-data' } },
+        { id: 'pvc2', type: 'PVC', data: { label: 'backup-data' } },
+      ];
+      const edges = [
+        { id: 'e1', source: 'dep1', target: 'pvc1' },
+        { id: 'e2', source: 'dep1', target: 'pvc2' },
+      ];
+
+      const yamlOutput = generateYamlClientSide(nodes, edges);
+      const docs = yaml.loadAll(yamlOutput) as any[];
+
+      const depDoc = docs.find((d) => d.kind === 'Deployment');
+      expect(depDoc.spec.template.spec.volumes).toHaveLength(2);
+      expect(depDoc.spec.template.spec.containers[0].volumeMounts).toEqual([
+        { name: 'vol-primary-data', mountPath: '/data-0' },
+        { name: 'vol-backup-data', mountPath: '/data-1' },
+      ]);
+    });
+
+    it('extracts secretData into stringData for standalone Secret node', () => {
+      const nodes = [
+        {
+          id: 'sec1',
+          type: 'Secret',
+          data: {
+            label: 'app-secret',
+            secretData: [
+              { key: 'DB_USER', value: 'admin' },
+              { key: 'DB_PASS', value: 'p@ssw0rd123' },
+            ],
+          },
+        },
+      ];
+
+      const yamlOutput = generateYamlClientSide(nodes, []);
+      const docs = yaml.loadAll(yamlOutput) as any[];
+
+      const secDoc = docs.find((d) => d.kind === 'Secret');
+      expect(secDoc).toBeDefined();
+      expect(secDoc.metadata.name).toBe('app-secret');
+      expect(secDoc.type).toBe('Opaque');
+      expect(secDoc.stringData).toEqual({
+        DB_USER: 'admin',
+        DB_PASS: 'p@ssw0rd123',
+      });
+    });
+
+    it('inherits connections and config from child Pods inside a Deployment', () => {
+      const nodes = [
+        // Parent Deployment
+        { id: 'dep1', type: 'Deployment', data: { label: 'api-service', replicas: 2 } },
+        // Child Pod inside Deployment
+        {
+          id: 'pod-child-1',
+          type: 'Pod',
+          parentId: 'dep1',
+          data: { label: 'api-pod-1', image: 'custom-api:v2', port: 8080 },
+        },
+        // ConfigMap connected to child Pod
+        {
+          id: 'cm1',
+          type: 'ConfigMap',
+          data: { label: 'api-config', configData: [{ key: 'API_MODE', value: 'prod' }] },
+        },
+        // PVC connected to child Pod
+        {
+          id: 'pvc1',
+          type: 'PVC',
+          data: { label: 'api-storage', storageCapacity: '10Gi' },
+        },
+      ];
+
+      const edges = [
+        { id: 'e-cm', source: 'cm1', target: 'pod-child-1' },
+        { id: 'e-pvc', source: 'pod-child-1', target: 'pvc1' },
+      ];
+
+      const yamlOutput = generateYamlClientSide(nodes, edges);
+      const docs = yaml.loadAll(yamlOutput) as any[];
+
+      const depDoc = docs.find((d) => d.kind === 'Deployment');
+      expect(depDoc).toBeDefined();
+      // Should inherit image & port from child pod
+      expect(depDoc.spec.template.spec.containers[0].image).toBe('custom-api:v2');
+      expect(depDoc.spec.template.spec.containers[0].ports).toEqual([{ containerPort: 8080 }]);
+      // Should inherit env from ConfigMap connected to child pod
+      expect(depDoc.spec.template.spec.containers[0].env).toEqual([
+        {
+          name: 'API_MODE',
+          valueFrom: {
+            configMapKeyRef: {
+              name: 'api-config',
+              key: 'API_MODE',
+            },
+          },
+        },
+      ]);
+      // Should inherit volume mount from PVC connected to child pod
+      expect(depDoc.spec.template.spec.volumes).toEqual([
+        {
+          name: 'vol-api-storage',
+          persistentVolumeClaim: {
+            claimName: 'api-storage',
+          },
+        },
+      ]);
+      expect(depDoc.spec.template.spec.containers[0].volumeMounts).toEqual([
+        {
+          name: 'vol-api-storage',
+          mountPath: '/data',
+        },
+      ]);
+    });
+
+    it('sanitizes config keys and synchronizes them with workload container env', () => {
+      expect(sanitizeConfigKey('API KEY')).toBe('API_KEY');
+      expect(sanitizeConfigKey('DB:URL/PORT')).toBe('DB_URL_PORT');
+      expect(sanitizeConfigKey('app.properties')).toBe('app.properties');
+      expect(sanitizeConfigKey('my-key-1')).toBe('my-key-1');
+      expect(sanitizeConfigKey('')).toBe('');
+
+      const nodes = [
+        {
+          id: 'dep1',
+          type: 'Deployment',
+          data: { label: 'web-app', replicas: 1, port: 3000 },
+        },
+        {
+          id: 'cm1',
+          type: 'ConfigMap',
+          data: {
+            label: 'web-config',
+            configData: [
+              { key: 'APP PORT', value: '3000' },
+              { key: 'CACHE:HOST', value: 'redis.internal' },
+            ],
+          },
+        },
+        {
+          id: 'sec1',
+          type: 'Secret',
+          data: {
+            label: 'web-secret',
+            secretData: [{ key: 'AUTH TOKEN', value: 'secret123' }],
+          },
+        },
+      ];
+
+      const edges = [
+        { id: 'e1', source: 'cm1', target: 'dep1' },
+        { id: 'e2', source: 'sec1', target: 'dep1' },
+      ];
+
+      const yamlOutput = generateYamlClientSide(nodes, edges);
+      const docs = yaml.loadAll(yamlOutput) as any[];
+
+      const cmDoc = docs.find((d) => d.kind === 'ConfigMap');
+      expect(cmDoc.data).toEqual({
+        APP_PORT: '3000',
+        CACHE_HOST: 'redis.internal',
+      });
+
+      const secDoc = docs.find((d) => d.kind === 'Secret');
+      expect(secDoc.stringData).toEqual({
+        AUTH_TOKEN: 'secret123',
+      });
+
+      const depDoc = docs.find((d) => d.kind === 'Deployment');
+      expect(depDoc.spec.template.spec.containers[0].env).toEqual([
+        {
+          name: 'APP_PORT',
+          valueFrom: {
+            configMapKeyRef: {
+              name: 'web-config',
+              key: 'APP_PORT',
+            },
+          },
+        },
+        {
+          name: 'CACHE_HOST',
+          valueFrom: {
+            configMapKeyRef: {
+              name: 'web-config',
+              key: 'CACHE_HOST',
+            },
+          },
+        },
+        {
+          name: 'AUTH_TOKEN',
+          valueFrom: {
+            secretKeyRef: {
+              name: 'web-secret',
+              key: 'AUTH_TOKEN',
+            },
+          },
+        },
+      ]);
+    });
+
+    it('auto-aligns Service targetPort with connected workload port and sets controller root labels', () => {
+      const nodes = [
+        {
+          id: 'svc1',
+          type: 'Service',
+          data: { label: 'frontend-svc', port: 80 },
+        },
+        {
+          id: 'dep1',
+          type: 'Deployment',
+          data: { label: 'frontend-app', replicas: 2, port: 8080 },
+        },
+        {
+          id: 'sts1',
+          type: 'StatefulSet',
+          data: { label: 'database-sts', replicas: 1, port: 5432 },
+        },
+      ];
+
+      const edges = [
+        { id: 'e1', source: 'svc1', target: 'dep1' },
+      ];
+
+      const yamlOutput = generateYamlClientSide(nodes, edges);
+      const docs = yaml.loadAll(yamlOutput) as any[];
+
+      const svcDoc = docs.find((d) => d.kind === 'Service');
+      expect(svcDoc).toBeDefined();
+      expect(svcDoc.spec.ports).toEqual([
+        {
+          protocol: 'TCP',
+          port: 80,
+          targetPort: 8080,
+        },
+      ]);
+      expect(svcDoc.spec.selector).toEqual({ app: 'frontend-app' });
+
+      const depDoc = docs.find((d) => d.kind === 'Deployment');
+      expect(depDoc.metadata.labels).toEqual({ app: 'frontend-app' });
+      expect(depDoc.spec.selector).toEqual({ matchLabels: { app: 'frontend-app' } });
+      expect(depDoc.spec.template.metadata.labels).toEqual({ app: 'frontend-app' });
+
+      const stsDoc = docs.find((d) => d.kind === 'StatefulSet');
+      expect(stsDoc.metadata.labels).toEqual({ app: 'database-sts' });
+      expect(stsDoc.spec.selector).toEqual({ matchLabels: { app: 'database-sts' } });
+      expect(stsDoc.spec.template.metadata.labels).toEqual({ app: 'database-sts' });
+    });
+
+    it('correctly aligns Service selector and targetPort when connected to child Pod inside a Deployment', () => {
+      const nodes = [
+        {
+          id: 'svc1',
+          type: 'Service',
+          data: { label: 'backend-svc', port: 80 },
+        },
+        {
+          id: 'dep1',
+          type: 'Deployment',
+          data: { label: 'backend-deployment', replicas: 2 },
+        },
+        {
+          id: 'pod-child',
+          type: 'Pod',
+          parentId: 'dep1',
+          data: { label: 'backend-worker', port: 9000 },
+        },
+      ];
+
+      // Service connected to the child Pod
+      const edges = [
+        { id: 'e1', source: 'svc1', target: 'pod-child' },
+      ];
+
+      const yamlOutput = generateYamlClientSide(nodes, edges);
+      const docs = yaml.loadAll(yamlOutput) as any[];
+
+      const svcDoc = docs.find((d) => d.kind === 'Service');
+      expect(svcDoc).toBeDefined();
+      expect(svcDoc.spec.ports[0].targetPort).toBe(9000);
+      expect(svcDoc.spec.selector).toEqual({ app: 'backend-deployment' });
+    });
+
+    it('ensures ServiceAccount subjects in RoleBinding have namespace defined', () => {
+      const nodes = [
+        {
+          id: 'ns1',
+          type: 'Namespace',
+          data: { label: 'custom-ns' },
+        },
+        {
+          id: 'role1',
+          type: 'Role',
+          parentId: 'ns1',
+          data: {
+            label: 'pod-manager',
+            roleKind: 'Role',
+            assignedUsers: ['alice'],
+            subjects: [
+              { kind: 'ServiceAccount', name: 'app-service-account' },
+              { kind: 'User', name: 'bob' },
+            ],
+          },
+        },
+      ];
+
+      const yamlOutput = generateYamlClientSide(nodes, []);
+      const docs = yaml.loadAll(yamlOutput) as any[];
+
+      const rbDoc = docs.find((d) => d.kind === 'RoleBinding');
+      expect(rbDoc).toBeDefined();
+      expect(rbDoc.metadata.namespace).toBe('custom-ns');
+      expect(rbDoc.subjects).toEqual([
+        {
+          kind: 'User',
+          name: 'alice',
+          apiGroup: 'rbac.authorization.k8s.io',
+        },
+        {
+          kind: 'ServiceAccount',
+          name: 'app-service-account',
+          apiGroup: '',
+          namespace: 'custom-ns', // Fallback to RoleBinding namespace!
+        },
+        {
+          kind: 'User',
+          name: 'bob',
+          apiGroup: 'rbac.authorization.k8s.io',
+        },
+      ]);
+    });
   });
 });
