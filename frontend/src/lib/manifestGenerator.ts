@@ -24,6 +24,8 @@ export type K8sManifest =
   | RoleBinding
   | ClusterRoleBinding;
 
+const WORKLOAD_TYPES = new Set(['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet']);
+
 const sanitizeName = (label: string): string => {
   if (!label) return '';
   return sanitizeSlug(label);
@@ -318,6 +320,35 @@ const getWorkloadEffectiveData = (node: any, nodeMap: Map<string, any>): any => 
   return data;
 };
 
+const resolveContainerImage = (data: any): string | undefined => {
+  const image = data.image !== undefined ? data.image : 'nginx:alpine';
+  return data.yamlSettings?.image !== false && image ? image : undefined;
+};
+
+const resolveRestartPolicy = (data: any, isController: boolean): string => {
+  if (data.yamlSettings?.restartPolicy === false) return '';
+  if (!isController && data.restartPolicy) return data.restartPolicy;
+  return 'Always';
+};
+
+const applyVolumeConfig = (
+  spec: any,
+  container: any,
+  targetIDs: string[],
+  targetEdgeMap: Map<string, any[]>,
+  sourceEdgeMap: Map<string, any[]>,
+  nodeMap: Map<string, any>
+): void => {
+  const pvcNodes = getConnectedPvcNodes(targetIDs, sourceEdgeMap, targetEdgeMap, nodeMap);
+  const { volumes, volumeMounts } = getVolumeConfigForWorkload(pvcNodes);
+  if (volumeMounts && volumeMounts.length > 0) {
+    container.volumeMounts = volumeMounts;
+  }
+  if (volumes && volumes.length > 0) {
+    spec.volumes = volumes;
+  }
+};
+
 const createPodSpec = (
   data: any,
   targetIDs: string[],
@@ -327,16 +358,12 @@ const createPodSpec = (
   isController = false,
   skipVolumes = false
 ) => {
-  const containerName = sanitizeName(data.label) || 'main';
-
-  const resources = getResourceConfig(data, targetIDs, targetEdgeMap, sourceEdgeMap, nodeMap);
-
   const container: any = {
-    name: containerName,
+    name: sanitizeName(data.label) || 'main',
   };
 
-  const containerImage = data.image !== undefined ? data.image : 'nginx:alpine';
-  if (data.yamlSettings?.image !== false && containerImage) {
+  const containerImage = resolveContainerImage(data);
+  if (containerImage) {
     container.image = containerImage;
   }
 
@@ -348,34 +375,22 @@ const createPodSpec = (
   if (data.port) {
     container.ports = [{ containerPort: Number(data.port) }];
   }
+
+  const resources = getResourceConfig(data, targetIDs, targetEdgeMap, sourceEdgeMap, nodeMap);
   if (resources) {
     container.resources = resources;
-  }
-
-  let restartPolicy = 'Always';
-  if (!isController && data.restartPolicy) {
-    restartPolicy = data.restartPolicy;
-  }
-  if (data.yamlSettings?.restartPolicy === false) {
-    restartPolicy = '';
   }
 
   const spec: any = {
     containers: [container],
   };
+  const restartPolicy = resolveRestartPolicy(data, isController);
   if (restartPolicy) {
     spec.restartPolicy = restartPolicy;
   }
 
   if (!skipVolumes) {
-    const pvcNodes = getConnectedPvcNodes(targetIDs, sourceEdgeMap, targetEdgeMap, nodeMap);
-    const { volumes, volumeMounts } = getVolumeConfigForWorkload(pvcNodes);
-    if (volumeMounts && volumeMounts.length > 0) {
-      container.volumeMounts = volumeMounts;
-    }
-    if (volumes && volumes.length > 0) {
-      spec.volumes = volumes;
-    }
+    applyVolumeConfig(spec, container, targetIDs, targetEdgeMap, sourceEdgeMap, nodeMap);
   }
 
   return spec;
@@ -691,38 +706,69 @@ const isStatefulWorkloadNode = (n: any, nodeMap: Map<string, any>): boolean => {
   return false;
 };
 
+const hasStatefulWorkloadInEdges = (
+  edges: any[],
+  nodeMap: Map<string, any>,
+  endpoint: 'source' | 'target'
+): boolean =>
+  edges.some((edge) => isStatefulWorkloadNode(nodeMap.get(edge[endpoint]), nodeMap));
+
+const matchesStatefulSelector = (
+  candidate: any,
+  selector: string,
+  sanitizedSelector: string
+): boolean =>
+  candidate.id === selector ||
+  candidate.data?.label === selector ||
+  candidate.data?.baseName === selector ||
+  sanitizeName(candidate.data?.label || candidate.data?.baseName || '') === sanitizedSelector;
+
 const isServiceTargetingStatefulSet = (
   node: any,
   nodeMap: Map<string, any>,
   sourceEdgeMap: Map<string, any[]>,
   targetEdgeMap?: Map<string, any[]>
 ): boolean => {
-  const outgoing = sourceEdgeMap.get(node.id) || [];
-  for (const e of outgoing) {
-    if (isStatefulWorkloadNode(nodeMap.get(e.target), nodeMap)) {
-      return true;
-    }
+  if (hasStatefulWorkloadInEdges(sourceEdgeMap.get(node.id) || [], nodeMap, 'target')) {
+    return true;
   }
-  const incoming = targetEdgeMap?.get(node.id) || [];
-  for (const e of incoming) {
-    if (isStatefulWorkloadNode(nodeMap.get(e.source), nodeMap)) {
-      return true;
-    }
+  if (hasStatefulWorkloadInEdges(targetEdgeMap?.get(node.id) || [], nodeMap, 'source')) {
+    return true;
   }
+
   const selector = node.data?.selector;
   if (!selector) return false;
-  const sanitizedSel = sanitizeName(selector);
-  for (const n of nodeMap.values()) {
-    if (isStatefulWorkloadNode(n, nodeMap)) {
-      const match =
-        n.id === selector ||
-        n.data?.label === selector ||
-        n.data?.baseName === selector ||
-        sanitizeName(n.data?.label || n.data?.baseName || '') === sanitizedSel;
-      if (match) return true;
+
+  const sanitizedSelector = sanitizeName(selector);
+  return Array.from(nodeMap.values()).some(
+    (candidate) =>
+      isStatefulWorkloadNode(candidate, nodeMap) &&
+      matchesStatefulSelector(candidate, selector, sanitizedSelector)
+  );
+};
+
+const matchesNodeReference = (
+  candidate: any,
+  reference: string,
+  sanitizedReference: string
+): boolean =>
+  candidate.id === reference ||
+  candidate.data?.label === reference ||
+  sanitizeName(candidate.data?.label || '') === sanitizedReference;
+
+const findNodeInEdgesByType = (
+  edges: any[],
+  nodeMap: Map<string, any>,
+  endpoint: 'source' | 'target',
+  types: Set<string>
+): any => {
+  for (const edge of edges) {
+    const candidate = nodeMap.get(edge[endpoint]);
+    if (candidate && types.has(candidate.type)) {
+      return candidate;
     }
   }
-  return false;
+  return null;
 };
 
 const findConnectedWorkloadForService = (
@@ -730,41 +776,36 @@ const findConnectedWorkloadForService = (
   nodeMap: Map<string, any>,
   sourceEdgeMap: Map<string, any[]>,
   targetEdgeMap?: Map<string, any[]>
-): any | null => {
-  const WORKLOAD_TYPES = ['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'];
-
-  const outgoing = sourceEdgeMap.get(node.id) || [];
-  for (const e of outgoing) {
-    const target = nodeMap.get(e.target);
-    if (target && WORKLOAD_TYPES.includes(target.type)) {
-      return target;
-    }
-  }
+): any => {
+  const outgoingWorkload = findNodeInEdgesByType(
+    sourceEdgeMap.get(node.id) || [],
+    nodeMap,
+    'target',
+    WORKLOAD_TYPES
+  );
+  if (outgoingWorkload) return outgoingWorkload;
 
   if (targetEdgeMap) {
-    const incoming = targetEdgeMap.get(node.id) || [];
-    for (const e of incoming) {
-      const source = nodeMap.get(e.source);
-      if (source && WORKLOAD_TYPES.includes(source.type)) {
-        return source;
-      }
-    }
+    const incomingWorkload = findNodeInEdgesByType(
+      targetEdgeMap.get(node.id) || [],
+      nodeMap,
+      'source',
+      WORKLOAD_TYPES
+    );
+    if (incomingWorkload) return incomingWorkload;
   }
 
-  if (node.data?.selector) {
-    const sanitizedSel = sanitizeName(node.data.selector);
-    for (const n of nodeMap.values()) {
-      if (WORKLOAD_TYPES.includes(n.type)) {
-        const isMatch =
-          n.id === node.data.selector ||
-          n.data?.label === node.data.selector ||
-          sanitizeName(n.data?.label || '') === sanitizedSel;
-        if (isMatch) return n;
-      }
-    }
-  }
+  const selector = node.data?.selector;
+  if (!selector) return null;
 
-  return null;
+  const sanitizedSelector = sanitizeName(selector);
+  return (
+    Array.from(nodeMap.values()).find(
+      (candidate) =>
+        WORKLOAD_TYPES.has(candidate.type) &&
+        matchesNodeReference(candidate, selector, sanitizedSelector)
+    ) ?? null
+  );
 };
 
 const resolveWorkloadPort = (workload: any, nodeMap: Map<string, any>): number | undefined => {
@@ -779,6 +820,45 @@ const resolveWorkloadPort = (workload: any, nodeMap: Map<string, any>): number |
     }
   }
   return undefined;
+};
+
+const resolveServiceTargetPort = (
+  node: any,
+  servicePort: number,
+  nodeMap: Map<string, any>,
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap?: Map<string, any[]>
+): number | undefined => {
+  if (node.data.yamlSettings?.targetPort === false) return undefined;
+
+  const explicitTargetPort = node.data.targetPort ? Number(node.data.targetPort) : undefined;
+  if (explicitTargetPort !== undefined) return explicitTargetPort;
+
+  const connectedWorkload = findConnectedWorkloadForService(node, nodeMap, sourceEdgeMap, targetEdgeMap);
+  const workloadPort = resolveWorkloadPort(connectedWorkload, nodeMap);
+  if (workloadPort !== undefined && workloadPort !== servicePort) return workloadPort;
+  return undefined;
+};
+
+const resolveServiceTypeAndClusterIP = (
+  data: any,
+  serviceType: string,
+  isStatefulTarget: boolean
+): { specType: string; clusterIP?: string } => {
+  const isHeadless = serviceType === 'Headless';
+  const isStatefulClusterIP = isStatefulTarget && (serviceType === 'ClusterIP' || !serviceType);
+  if (isHeadless || isStatefulClusterIP) {
+    return { specType: 'ClusterIP', clusterIP: 'None' };
+  }
+  return { specType: serviceType, clusterIP: data.clusterIP };
+};
+
+const resolveExternalTrafficPolicy = (data: any, serviceType: string): string | undefined => {
+  const isNodePortType = serviceType === 'LoadBalancer' || serviceType === 'NodePort';
+  if (data.yamlSettings?.externalTrafficPolicy === false || !isNodePortType || !data.externalTrafficPolicy) {
+    return undefined;
+  }
+  return data.externalTrafficPolicy;
 };
 
 const buildServiceManifest = (
@@ -797,19 +877,13 @@ const buildServiceManifest = (
     port: Number(node.data.port || 80),
   };
 
-  const explicitTargetPort =
-    node.data.yamlSettings?.targetPort !== false && node.data.targetPort
-      ? Number(node.data.targetPort)
-      : undefined;
-
-  let targetPort = explicitTargetPort;
-  if (targetPort === undefined && node.data.yamlSettings?.targetPort !== false) {
-    const connectedWorkload = findConnectedWorkloadForService(node, nodeMap, sourceEdgeMap, targetEdgeMap);
-    const workloadPort = resolveWorkloadPort(connectedWorkload, nodeMap);
-    if (workloadPort !== undefined && workloadPort !== portObject.port) {
-      targetPort = workloadPort;
-    }
-  }
+  const targetPort = resolveServiceTargetPort(
+    node,
+    portObject.port,
+    nodeMap,
+    sourceEdgeMap,
+    targetEdgeMap
+  );
 
   if (targetPort !== undefined) {
     portObject.targetPort = targetPort;
@@ -819,16 +893,8 @@ const buildServiceManifest = (
   }
 
   const selectorObject = determineServiceSelector(node, name, nodeMap, sourceEdgeMap, targetEdgeMap);
-
   const isStatefulTarget = isServiceTargetingStatefulSet(node, nodeMap, sourceEdgeMap, targetEdgeMap);
-
-  let specType: string | undefined = serviceType;
-  let clusterIP: string | undefined = node.data.clusterIP;
-
-  if (serviceType === 'Headless' || (isStatefulTarget && (serviceType === 'ClusterIP' || !serviceType))) {
-    specType = 'ClusterIP';
-    clusterIP = 'None';
-  }
+  const { specType, clusterIP } = resolveServiceTypeAndClusterIP(node.data, serviceType, isStatefulTarget);
 
   return {
     apiVersion: 'v1',
@@ -842,12 +908,7 @@ const buildServiceManifest = (
         node.data.yamlSettings?.selector !== false
           ? selectorObject
           : undefined,
-      externalTrafficPolicy:
-        node.data.yamlSettings?.externalTrafficPolicy !== false &&
-        (serviceType === 'LoadBalancer' || serviceType === 'NodePort') &&
-        node.data.externalTrafficPolicy
-          ? node.data.externalTrafficPolicy
-          : undefined,
+      externalTrafficPolicy: resolveExternalTrafficPolicy(node.data, serviceType),
     },
   };
 };
@@ -1097,40 +1158,36 @@ const findHpaScaleTarget = (
   sourceEdgeMap: Map<string, any[]>,
   targetEdgeMap?: Map<string, any[]>
 ) => {
-  const outgoing = sourceEdgeMap.get(hpaId) || [];
-  for (const edge of outgoing) {
-    const target = nodeMap.get(edge.target);
-    if (target && HPA_SCALE_TARGET_TYPES.has(target.type)) {
-      return target;
-    }
-  }
+  const outgoingTarget = findNodeInEdgesByType(
+    sourceEdgeMap.get(hpaId) || [],
+    nodeMap,
+    'target',
+    HPA_SCALE_TARGET_TYPES
+  );
+  if (outgoingTarget) return outgoingTarget;
 
   if (targetEdgeMap) {
-    const incoming = targetEdgeMap.get(hpaId) || [];
-    for (const edge of incoming) {
-      const source = nodeMap.get(edge.source);
-      if (source && HPA_SCALE_TARGET_TYPES.has(source.type)) {
-        return source;
-      }
-    }
+    const incomingTarget = findNodeInEdgesByType(
+      targetEdgeMap.get(hpaId) || [],
+      nodeMap,
+      'source',
+      HPA_SCALE_TARGET_TYPES
+    );
+    if (incomingTarget) return incomingTarget;
   }
 
   const hpaNode = nodeMap.get(hpaId);
   const explicitTarget = hpaNode?.data?.targetWorkload || hpaNode?.data?.scaleTargetName;
-  if (explicitTarget) {
-    for (const n of nodeMap.values()) {
-      if (
-        HPA_SCALE_TARGET_TYPES.has(n.type) &&
-        (n.id === explicitTarget ||
-          n.data?.label === explicitTarget ||
-          sanitizeName(n.data?.label || '') === sanitizeName(explicitTarget))
-      ) {
-        return n;
-      }
-    }
-  }
+  if (!explicitTarget) return null;
 
-  return null;
+  const sanitizedTarget = sanitizeName(explicitTarget);
+  return (
+    Array.from(nodeMap.values()).find(
+      (candidate) =>
+        HPA_SCALE_TARGET_TYPES.has(candidate.type) &&
+        matchesNodeReference(candidate, explicitTarget, sanitizedTarget)
+    ) ?? null
+  );
 };
 
 const buildHpaMetrics = (data: any) => {
@@ -1334,30 +1391,15 @@ const getHpaWorkloadKind = (node: any, podReplicas: number): string => {
   return podReplicas > 1 ? 'Deployment' : 'Pod';
 };
 
-const buildAttachedHpaManifest = (
-  hpaItem: any,
-  node: any,
-  nodeMap: Map<string, any>
-): HorizontalPodAutoscaler | null => {
-  if (!hpaItem) return null;
-  if (!HPA_SCALE_TARGET_TYPES.has(node.type) && node.type !== 'Pod') return null;
-  const hpaName = sanitizeName(hpaItem.name) || `${sanitizeName(node.data?.label || node.id)}-hpa`;
-  const namespace = getNamespace(node, nodeMap);
-  const metadata: Record<string, string> = { name: hpaName };
-  if (namespace) {
-    metadata.namespace = namespace;
-  }
-
-  const podReplicas = Number(node.data?.replicas ?? 1);
-  const workloadKind = getHpaWorkloadKind(node, podReplicas);
-  const workloadApiVersion = workloadKind === 'Pod' ? 'v1' : 'apps/v1';
-  const workloadName = sanitizeName(node.data?.label) || node.id;
-
+const resolveHpaReplicaBounds = (hpaItem: any): { minReplicas: number; maxReplicas: number } => {
   const minReplicas = Math.max(1, Number(hpaItem.minReplicas) || 1);
   const maxReplicas = Math.max(minReplicas, Number(hpaItem.maxReplicas) || 10);
-  const targetCpu = Number(hpaItem.targetCPU);
+  return { minReplicas, maxReplicas };
+};
 
+const buildAttachedHpaMetrics = (hpaItem: any): any[] => {
   const metrics: any[] = [];
+  const targetCpu = Number(hpaItem.targetCPU);
 
   if (Number.isFinite(targetCpu) && targetCpu > 0) {
     metrics.push({
@@ -1384,6 +1426,33 @@ const buildAttachedHpaManifest = (
       },
     });
   }
+
+  return metrics;
+};
+
+const buildAttachedHpaManifest = (
+  hpaItem: any,
+  node: any,
+  nodeMap: Map<string, any>
+): HorizontalPodAutoscaler | null => {
+  if (!hpaItem) return null;
+
+  const isSupportedTarget = HPA_SCALE_TARGET_TYPES.has(node.type) || node.type === 'Pod';
+  if (!isSupportedTarget) return null;
+
+  const hpaName = sanitizeName(hpaItem.name) || `${sanitizeName(node.data?.label || node.id)}-hpa`;
+  const namespace = getNamespace(node, nodeMap);
+  const metadata: Record<string, string> = { name: hpaName };
+  if (namespace) {
+    metadata.namespace = namespace;
+  }
+
+  const podReplicas = Number(node.data?.replicas ?? 1);
+  const workloadKind = getHpaWorkloadKind(node, podReplicas);
+  const workloadApiVersion = workloadKind === 'Pod' ? 'v1' : 'apps/v1';
+  const workloadName = sanitizeName(node.data?.label) || node.id;
+  const { minReplicas, maxReplicas } = resolveHpaReplicaBounds(hpaItem);
+  const metrics = buildAttachedHpaMetrics(hpaItem);
 
   const spec: HorizontalPodAutoscaler['spec'] = {
     scaleTargetRef: {
@@ -1433,6 +1502,20 @@ const buildRoleManifest = (node: any, metadata: any): Role | ClusterRole => {
   } as Role | ClusterRole;
 };
 
+const buildSubjectNamespace = (
+  subject: any,
+  isServiceAccount: boolean,
+  defaultNamespace?: string
+): Record<string, string> => {
+  if (isServiceAccount) {
+    return { namespace: subject.namespace || defaultNamespace || 'default' };
+  }
+  if (!subject.namespace) {
+    return {};
+  }
+  return { namespace: subject.namespace };
+};
+
 const extractRoleSubjects = (
   rawAssignedUsers?: any[],
   rawSubjects?: any[],
@@ -1454,9 +1537,7 @@ const extractRoleSubjects = (
           kind: s.kind || 'User',
           name: s.name,
           apiGroup: isSa ? '' : 'rbac.authorization.k8s.io',
-          ...(isSa
-            ? { namespace: s.namespace || defaultNamespace || 'default' }
-            : (s.namespace ? { namespace: s.namespace } : {})),
+          ...buildSubjectNamespace(s, isSa, defaultNamespace),
         });
       }
     });
