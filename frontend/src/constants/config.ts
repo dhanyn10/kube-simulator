@@ -1,6 +1,6 @@
 import packageJson from '../../package.json';
 
-export const APP_VERSION: string = packageJson.version || '0.16.0';
+export const APP_VERSION: string = packageJson.version || '0.17.0';
 
 export const getNextMinorVersion = (version: string = APP_VERSION): string => {
   const parts = version.replace(/^v/i, '').split('.').map(n => Number.parseInt(n, 10) || 0);

@@ -8,7 +8,7 @@ info:
   description: "Kubernetes Infrastructure Simulator"
   copyright: "Copyright 2026"
   comments: "Kubernetes Architecture Simulator"
-  version: "0.16.0"
+  version: "0.17.0"
 
 dev_mode:
   root_path: .
