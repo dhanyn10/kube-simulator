@@ -340,6 +340,9 @@ describe('useSidebarSync', () => {
         await new Promise((r) => setTimeout(r, 20));
       });
 
+      expect(useFlowStore.getState().nodes).toHaveLength(0);
+      expect(useFlowStore.getState().isKubeIamModalOpen).toBe(false);
+
       channel.close();
       unmount();
     });
