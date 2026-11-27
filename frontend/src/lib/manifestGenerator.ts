@@ -199,7 +199,7 @@ const getEnvFromConnectedNode = (
 
 const getEnvFromNodeAndConnections = (
   data: any,
-  nodeID: string,
+  targetIDs: string[],
   targetEdgeMap: Map<string, any[]>,
   nodeMap: Map<string, any>
 ): any[] | undefined => {
@@ -213,24 +213,108 @@ const getEnvFromNodeAndConnections = (
     getEnvFromAttachedSecrets(data.secrets, seenKeys, env);
   }
 
-  const incoming = targetEdgeMap.get(nodeID) || [];
-  incoming.forEach((edge) => {
-    getEnvFromConnectedNode(nodeMap.get(edge.source), seenKeys, env);
+  targetIDs.forEach((id) => {
+    const incoming = targetEdgeMap.get(id) || [];
+    incoming.forEach((edge) => {
+      getEnvFromConnectedNode(nodeMap.get(edge.source), seenKeys, env);
+    });
   });
 
   return env.length > 0 ? env : undefined;
 };
 
+const getConnectedPvcNodes = (
+  targetIDs: string[],
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap: Map<string, any[]>,
+  nodeMap: Map<string, any>
+): any[] => {
+  const pvcNodes: any[] = [];
+  const seenIds = new Set<string>();
+
+  const addIfPvc = (n: any) => {
+    if (n?.type === 'PVC' && !seenIds.has(n.id)) {
+      seenIds.add(n.id);
+      pvcNodes.push(n);
+    }
+  };
+
+  targetIDs.forEach((id) => {
+    const outgoing = sourceEdgeMap.get(id) || [];
+    outgoing.forEach((e) => addIfPvc(nodeMap.get(e.target)));
+
+    const incoming = targetEdgeMap.get(id) || [];
+    incoming.forEach((e) => addIfPvc(nodeMap.get(e.source)));
+  });
+
+  return pvcNodes;
+};
+
+const getVolumeConfigForWorkload = (
+  pvcNodes: any[]
+): { volumes?: any[]; volumeMounts?: any[] } => {
+  if (pvcNodes.length === 0) return {};
+
+  const volumes: any[] = [];
+  const volumeMounts: any[] = [];
+
+  pvcNodes.forEach((pvcNode, index) => {
+    const pvcName = sanitizeName(pvcNode.data?.label || 'data') || `data-${index}`;
+    const volName = `vol-${pvcName}`;
+    const mountPath = pvcNodes.length === 1 ? '/data' : `/data-${index}`;
+
+    volumes.push({
+      name: volName,
+      persistentVolumeClaim: {
+        claimName: pvcName,
+      },
+    });
+
+    volumeMounts.push({
+      name: volName,
+      mountPath,
+    });
+  });
+
+  return { volumes, volumeMounts };
+};
+
+const getWorkloadTargetIDs = (node: any, nodeMap: Map<string, any>): string[] => {
+  const targetIDs = [node.id];
+  for (const n of nodeMap.values()) {
+    if (n.parentId === node.id && n.type === 'Pod') {
+      targetIDs.push(n.id);
+    }
+  }
+  return targetIDs;
+};
+
+const getWorkloadEffectiveData = (node: any, nodeMap: Map<string, any>): any => {
+  const data = { ...node.data };
+  for (const n of nodeMap.values()) {
+    if (n.parentId === node.id && n.type === 'Pod') {
+      if (!data.image && n.data?.image) {
+        data.image = n.data.image;
+      }
+      if (!data.port && n.data?.port) {
+        data.port = n.data.port;
+      }
+      break;
+    }
+  }
+  return data;
+};
+
 const createPodSpec = (
   data: any,
-  nodeID: string,
+  targetIDs: string[],
   targetEdgeMap: Map<string, any[]>,
   sourceEdgeMap: Map<string, any[]>,
   nodeMap: Map<string, any>,
-  isController = false
+  isController = false,
+  skipVolumes = false
 ) => {
-  const targetIDs = [nodeID];
-  const containerName = sanitizeName(data.label);
+  const containerName = sanitizeName(data.label) || 'main';
 
   const resources = getResourceConfig(data, targetIDs, targetEdgeMap, sourceEdgeMap, nodeMap);
 
@@ -243,7 +327,7 @@ const createPodSpec = (
     container.image = containerImage;
   }
 
-  const env = getEnvFromNodeAndConnections(data, nodeID, targetEdgeMap, nodeMap);
+  const env = getEnvFromNodeAndConnections(data, targetIDs, targetEdgeMap, nodeMap);
   if (env) {
     container.env = env;
   }
@@ -268,6 +352,17 @@ const createPodSpec = (
   };
   if (restartPolicy) {
     spec.restartPolicy = restartPolicy;
+  }
+
+  if (!skipVolumes) {
+    const pvcNodes = getConnectedPvcNodes(targetIDs, sourceEdgeMap, targetEdgeMap, nodeMap);
+    const { volumes, volumeMounts } = getVolumeConfigForWorkload(pvcNodes);
+    if (volumeMounts && volumeMounts.length > 0) {
+      container.volumeMounts = volumeMounts;
+    }
+    if (volumes && volumes.length > 0) {
+      spec.volumes = volumes;
+    }
   }
 
   return spec;
@@ -344,25 +439,28 @@ const buildStatefulSetManifest = (
   nodeMap: Map<string, any>
 ) => {
   const replicas = Number(node.data.replicas ?? 1);
-  const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap, true);
+  const targetIDs = getWorkloadTargetIDs(node, nodeMap);
+  const effectiveData = getWorkloadEffectiveData(node, nodeMap);
+  const podSpec = createPodSpec(
+    effectiveData,
+    targetIDs,
+    targetEdgeMap,
+    sourceEdgeMap,
+    nodeMap,
+    true,
+    true
+  );
 
-  const outgoing = sourceEdgeMap.get(node.id) || [];
-  const pvcNodes: any[] = [];
-  outgoing.forEach((e) => {
-    const target = nodeMap.get(e.target);
-    if (target?.type === 'PVC') {
-      pvcNodes.push(target);
-    }
-  });
+  const pvcNodes = getConnectedPvcNodes(targetIDs, sourceEdgeMap, targetEdgeMap, nodeMap);
 
   let volumeClaimTemplates: any[] | undefined;
   if (pvcNodes.length > 0) {
     const vctVolumeMounts: any[] = [];
     volumeClaimTemplates = pvcNodes.map((pvcNode, index) => {
-      const pvcName = sanitizeName(pvcNode.data?.label || 'data');
+      const pvcName = sanitizeName(pvcNode.data?.label || 'data') || `data-${index}`;
       vctVolumeMounts.push({
         name: pvcName,
-        mountPath: `/data-${index}`,
+        mountPath: pvcNodes.length === 1 ? '/data' : `/data-${index}`,
       });
       return {
         apiVersion: 'v1',
@@ -425,7 +523,18 @@ const buildPodOrDeploymentManifest = (
   const isDeployment = node.type === 'Deployment' || (node.type !== 'Pod' && node.data?.workloadType === 'Deployment');
   const isReplicaSet = node.type === 'ReplicaSet' || node.data?.workloadType === 'ReplicaSet';
   const isController = isDeployment || isReplicaSet || replicas > 1;
-  const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap, isController);
+
+  const targetIDs = getWorkloadTargetIDs(node, nodeMap);
+  const effectiveData = getWorkloadEffectiveData(node, nodeMap);
+  const podSpec = createPodSpec(
+    effectiveData,
+    targetIDs,
+    targetEdgeMap,
+    sourceEdgeMap,
+    nodeMap,
+    isController,
+    false
+  );
 
   if (isController) {
     const kind = isReplicaSet ? 'ReplicaSet' : 'Deployment';
@@ -818,8 +927,12 @@ const buildSecretManifest = (node: any, metadata: any) => {
   }
 
   const stringData: Record<string, string> = {};
-  if (Array.isArray(node.data.configData)) {
-    node.data.configData.forEach((kv: any) => {
+  const items = Array.isArray(node.data?.secretData) && node.data.secretData.length > 0
+    ? node.data.secretData
+    : node.data?.configData;
+
+  if (Array.isArray(items)) {
+    items.forEach((kv: any) => {
       if (kv.key) stringData[kv.key] = kv.value || '';
     });
   }
@@ -855,18 +968,26 @@ export const isStatefulSetVolumeClaimTemplate = (
   targetEdgeMap: Map<string, any[]>,
   sourceEdgeMap?: Map<string, any[]>
 ): boolean => {
+  const isStatefulNode = (n: any): boolean => {
+    if (!n) return false;
+    if (n.type === 'StatefulSet' || n.data?.workloadType === 'StatefulSet') return true;
+    if (n.parentId) {
+      const parent = nodeMap.get(n.parentId);
+      if (parent?.type === 'StatefulSet' || parent?.data?.workloadType === 'StatefulSet') return true;
+    }
+    return false;
+  };
+
   const incoming = targetEdgeMap.get(pvcNodeId) || [];
   for (const edge of incoming) {
-    const sourceNode = nodeMap.get(edge.source);
-    if (sourceNode && (sourceNode.type === 'StatefulSet' || sourceNode.data?.workloadType === 'StatefulSet')) {
+    if (isStatefulNode(nodeMap.get(edge.source))) {
       return true;
     }
   }
   if (sourceEdgeMap) {
     const outgoing = sourceEdgeMap.get(pvcNodeId) || [];
     for (const edge of outgoing) {
-      const targetNode = nodeMap.get(edge.target);
-      if (targetNode && (targetNode.type === 'StatefulSet' || targetNode.data?.workloadType === 'StatefulSet')) {
+      if (isStatefulNode(nodeMap.get(edge.target))) {
         return true;
       }
     }
