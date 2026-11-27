@@ -467,4 +467,167 @@ describe('buildYamlRunbook', () => {
     expect(notes).toContain('hosts file');
     expect(notes).toContain('Reset Kubernetes Cluster');
   });
+
+  describe('Pre-flight linter & visual readiness validation', () => {
+    it('warns when Ingress has no routing rules defined', () => {
+      const content = [
+        READY_YAML,
+        '---',
+        'apiVersion: networking.k8s.io/v1',
+        'kind: Ingress',
+        'metadata:',
+        '  name: empty-ingress',
+        'spec:',
+        '  rules: []',
+      ].join('\n');
+      const steps = buildYamlRunbook(content);
+      const notes = stepById(steps, 'browser-test-warnings')?.notes?.join(' ') || '';
+      expect(notes).toContain('Ingress empty-ingress has no routing rules defined');
+    });
+
+    it('warns when Ingress references a non-existent Service', () => {
+      const content = [
+        READY_YAML,
+        '---',
+        'apiVersion: networking.k8s.io/v1',
+        'kind: Ingress',
+        'metadata:',
+        '  name: broken-ingress',
+        'spec:',
+        '  rules:',
+        '    - host: app.local',
+        '      http:',
+        '        paths:',
+        '          - path: /',
+        '            pathType: Prefix',
+        '            backend:',
+        '              service:',
+        '                name: phantom-service',
+        '                port:',
+        '                  number: 80',
+      ].join('\n');
+      const steps = buildYamlRunbook(content);
+      const notes = stepById(steps, 'browser-test-warnings')?.notes?.join(' ') || '';
+      expect(notes).toContain('references Service "phantom-service", but no Service with that name exists');
+    });
+
+    it('warns when Ingress path has no backend Service configured', () => {
+      const content = [
+        READY_YAML,
+        '---',
+        'apiVersion: networking.k8s.io/v1',
+        'kind: Ingress',
+        'metadata:',
+        '  name: unlinked-ingress',
+        'spec:',
+        '  rules:',
+        '    - host: app.local',
+        '      http:',
+        '        paths:',
+        '          - path: /',
+        '            pathType: Prefix',
+      ].join('\n');
+      const steps = buildYamlRunbook(content);
+      const notes = stepById(steps, 'browser-test-warnings')?.notes?.join(' ') || '';
+      expect(notes).toContain('Ingress unlinked-ingress has no backend Service configured');
+    });
+
+    it('warns when HPA has no scaleTargetRef or targets a non-existent workload', () => {
+      const contentNoRef = [
+        READY_YAML,
+        '---',
+        'apiVersion: autoscaling/v2',
+        'kind: HorizontalPodAutoscaler',
+        'metadata:',
+        '  name: hpa-no-target',
+        'spec:',
+        '  minReplicas: 1',
+        '  maxReplicas: 5',
+      ].join('\n');
+      const stepsNoRef = buildYamlRunbook(contentNoRef);
+      const notesNoRef = stepById(stepsNoRef, 'browser-test-warnings')?.notes?.join(' ') || '';
+      expect(notesNoRef).toContain('HPA hpa-no-target has no scale target workload configured');
+
+      const contentMissingWorkload = [
+        READY_YAML,
+        '---',
+        'apiVersion: autoscaling/v2',
+        'kind: HorizontalPodAutoscaler',
+        'metadata:',
+        '  name: hpa-missing-target',
+        'spec:',
+        '  scaleTargetRef:',
+        '    apiVersion: apps/v1',
+        '    kind: Deployment',
+        '    name: ghost-deployment',
+        '  minReplicas: 1',
+        '  maxReplicas: 5',
+      ].join('\n');
+      const stepsMissing = buildYamlRunbook(contentMissingWorkload);
+      const notesMissing = stepById(stepsMissing, 'browser-test-warnings')?.notes?.join(' ') || '';
+      expect(notesMissing).toContain('HPA hpa-missing-target targets workload "ghost-deployment", but no workload with that name exists');
+    });
+
+    it('warns when Role has no rules defined', () => {
+      const content = [
+        READY_YAML,
+        '---',
+        'apiVersion: rbac.authorization.k8s.io/v1',
+        'kind: Role',
+        'metadata:',
+        '  name: empty-role',
+        'rules: []',
+      ].join('\n');
+      const steps = buildYamlRunbook(content);
+      const notes = stepById(steps, 'browser-test-warnings')?.notes?.join(' ') || '';
+      expect(notes).toContain('Role empty-role has no permission rules defined');
+    });
+
+    it('warns when RoleBinding has no subjects or points to a non-existent Role', () => {
+      const contentNoSubjects = [
+        READY_YAML,
+        '---',
+        'apiVersion: rbac.authorization.k8s.io/v1',
+        'kind: Role',
+        'metadata:',
+        '  name: my-role',
+        'rules:',
+        '  - apiGroups: [""]',
+        '    resources: ["pods"]',
+        '    verbs: ["get"]',
+        '---',
+        'apiVersion: rbac.authorization.k8s.io/v1',
+        'kind: RoleBinding',
+        'metadata:',
+        '  name: unbound-rb',
+        'roleRef:',
+        '  apiGroup: rbac.authorization.k8s.io',
+        '  kind: Role',
+        '  name: my-role',
+        'subjects: []',
+      ].join('\n');
+      const stepsNoSub = buildYamlRunbook(contentNoSubjects);
+      const notesNoSub = stepById(stepsNoSub, 'browser-test-warnings')?.notes?.join(' ') || '';
+      expect(notesNoSub).toContain('RoleBinding unbound-rb has no subjects assigned');
+
+      const contentMissingRole = [
+        READY_YAML,
+        '---',
+        'apiVersion: rbac.authorization.k8s.io/v1',
+        'kind: RoleBinding',
+        'metadata:',
+        '  name: missing-role-rb',
+        'roleRef:',
+        '  apiGroup: rbac.authorization.k8s.io',
+        '  kind: Role',
+        '  name: non-existent-role',
+        'subjects:',
+        '  - kind: ServiceAccount',
+        '    name: app-sa',
+      ].join('\n');
+      const stepsMissing = buildYamlRunbook(contentMissingRole);
+      const notesMissing = stepById(stepsMissing, 'browser-test-warnings')?.notes?.join(' ') || '';
+      expect(notesMissing).toContain('RoleBinding missing-role-rb references role "non-existent-role", but no matching Role or ClusterRole exists');
+    });
+  });
 });

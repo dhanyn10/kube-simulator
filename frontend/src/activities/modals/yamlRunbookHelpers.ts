@@ -61,6 +61,21 @@ interface ManifestDocument {
     readonly namespace?: string;
     readonly labels?: ManifestLabelSelector;
   };
+  readonly rules?: Array<{
+    readonly apiGroups?: string[];
+    readonly resources?: string[];
+    readonly verbs?: string[];
+  }>;
+  readonly roleRef?: {
+    readonly apiGroup?: string;
+    readonly kind?: string;
+    readonly name?: string;
+  };
+  readonly subjects?: Array<{
+    readonly kind?: string;
+    readonly name?: string;
+    readonly namespace?: string;
+  }>;
   readonly spec?: {
     readonly ingressClassName?: string;
     readonly storageClassName?: string;
@@ -69,6 +84,11 @@ interface ManifestDocument {
     readonly ports?: ManifestPort[];
     readonly replicas?: number;
     readonly maxReplicas?: number;
+    readonly scaleTargetRef?: {
+      readonly apiVersion?: string;
+      readonly kind?: string;
+      readonly name?: string;
+    };
     readonly template?: {
       readonly metadata?: { readonly labels?: ManifestLabelSelector };
       readonly spec?: { readonly containers?: ManifestContainer[] };
@@ -316,6 +336,136 @@ const buildWorkloadWarnings = (workloads: ManifestDocument[], warnings: string[]
   });
 };
 
+const checkIngressPaths = (
+  paths: Array<{ readonly path?: string; readonly backend?: { readonly service?: { readonly name?: string } } }>,
+  serviceNames: Set<string>,
+  ingressName: string,
+  warnings: string[]
+): boolean => {
+  let hasBackend = false;
+  for (const p of paths) {
+    const backendName = p.backend?.service?.name;
+    if (backendName) {
+      hasBackend = true;
+      if (!serviceNames.has(backendName)) {
+        warnings.push(
+          `Ingress ${ingressName} references Service "${backendName}", but no Service with that name exists in this YAML. Connect the Ingress card to a valid Service card.`
+        );
+      }
+    }
+  }
+  return hasBackend;
+};
+
+const buildIngressWarnings = (
+  documents: ManifestDocument[],
+  services: ManifestDocument[],
+  warnings: string[]
+) => {
+  const ingresses = documents.filter((doc) => doc.kind === 'Ingress');
+  if (ingresses.length === 0) return;
+
+  const serviceNames = new Set(
+    services
+      .map((s) => s.metadata?.name)
+      .filter((name): name is string => typeof name === 'string' && Boolean(name.trim()))
+  );
+
+  for (const ingress of ingresses) {
+    const name = ingress.metadata?.name || 'unnamed-ingress';
+    const rules = ingress.spec?.rules || [];
+    if (rules.length === 0) {
+      warnings.push(`Ingress ${name} has no routing rules defined. Connect it to a Service card.`);
+      continue;
+    }
+    const paths = rules.flatMap((r) => r.http?.paths || []);
+    const hasBackend = checkIngressPaths(paths, serviceNames, name, warnings);
+    if (!hasBackend) {
+      warnings.push(
+        `Ingress ${name} has no backend Service configured. Connect the Ingress card to a Service card to direct traffic.`
+      );
+    }
+  }
+};
+
+const buildHpaWarnings = (
+  documents: ManifestDocument[],
+  workloads: ManifestDocument[],
+  warnings: string[]
+) => {
+  const hpas = documents.filter((doc) => doc.kind === 'HorizontalPodAutoscaler');
+  if (hpas.length === 0) return;
+
+  const workloadNames = new Set(
+    workloads
+      .map((w) => w.metadata?.name)
+      .filter((name): name is string => typeof name === 'string' && Boolean(name.trim()))
+  );
+
+  for (const hpa of hpas) {
+    const name = hpa.metadata?.name || 'unnamed-hpa';
+    const targetName = hpa.spec?.scaleTargetRef?.name;
+    if (!targetName) {
+      warnings.push(
+        `HPA ${name} has no scale target workload configured. Connect the HPA card to a Deployment or StatefulSet card.`
+      );
+    } else if (!workloadNames.has(targetName)) {
+      warnings.push(
+        `HPA ${name} targets workload "${targetName}", but no workload with that name exists in this YAML. Connect the HPA card to a Deployment or StatefulSet card.`
+      );
+    }
+  }
+};
+
+const buildRoleWarnings = (documents: ManifestDocument[], warnings: string[]) => {
+  const roles = documents.filter((doc) => doc.kind === 'Role' || doc.kind === 'ClusterRole');
+  for (const role of roles) {
+    const name = role.metadata?.name || 'unnamed-role';
+    const rules = role.rules || [];
+    if (rules.length === 0) {
+      warnings.push(
+        `${role.kind || 'Role'} ${name} has no permission rules defined. Add at least one rule specifying apiGroups, resources, and verbs.`
+      );
+    }
+  }
+};
+
+const buildBindingWarnings = (
+  documents: ManifestDocument[],
+  roleNames: Set<string>,
+  warnings: string[]
+) => {
+  const bindings = documents.filter(
+    (doc) => doc.kind === 'RoleBinding' || doc.kind === 'ClusterRoleBinding'
+  );
+  for (const binding of bindings) {
+    const name = binding.metadata?.name || 'unnamed-binding';
+    const subjects = binding.subjects || [];
+    if (subjects.length === 0) {
+      warnings.push(
+        `${binding.kind || 'RoleBinding'} ${name} has no subjects assigned. Assign at least one ServiceAccount or user subject.`
+      );
+    }
+    const roleRefName = binding.roleRef?.name;
+    if (roleRefName && !roleNames.has(roleRefName)) {
+      warnings.push(
+        `${binding.kind || 'RoleBinding'} ${name} references role "${roleRefName}", but no matching Role or ClusterRole exists in this YAML.`
+      );
+    }
+  }
+};
+
+const buildRbacWarnings = (documents: ManifestDocument[], warnings: string[]) => {
+  buildRoleWarnings(documents, warnings);
+  const roleNames = new Set(
+    documents
+      .filter((doc) => doc.kind === 'Role' || doc.kind === 'ClusterRole')
+      .map((doc) => doc.metadata?.name)
+      .filter((name): name is string => typeof name === 'string' && Boolean(name.trim()))
+  );
+  buildBindingWarnings(documents, roleNames, warnings);
+};
+
 const addCapacityWarnings = (documents: ManifestDocument[], warnings: string[]) => {
   const safeCeiling = getLocalPodCeiling();
   const desiredPods = documents.reduce((total, doc) => {
@@ -339,7 +489,7 @@ const addCapacityWarnings = (documents: ManifestDocument[], warnings: string[]) 
   });
 };
 
-const analyzeLocalTestReadiness = (documents: ManifestDocument[]): LocalTestReadiness => {
+export const analyzeLocalTestReadiness = (documents: ManifestDocument[]): LocalTestReadiness => {
   const warnings: string[] = [];
   const ports: LocalTestPort[] = [];
   const ingressServiceNames: string[] = [];
@@ -361,6 +511,9 @@ const analyzeLocalTestReadiness = (documents: ManifestDocument[]): LocalTestRead
 
   buildServiceWarnings(services, workloads, ports, ingressServiceNames, warnings);
   buildWorkloadWarnings(workloads, warnings);
+  buildIngressWarnings(documents, services, warnings);
+  buildHpaWarnings(documents, workloads, warnings);
+  buildRbacWarnings(documents, warnings);
   addCapacityWarnings(documents, warnings);
 
   return { warnings, ports, ingressServiceNames, ingressRoutes, nonHttpImages };
