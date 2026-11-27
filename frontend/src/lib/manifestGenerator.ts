@@ -29,6 +29,16 @@ const sanitizeName = (label: string): string => {
   return sanitizeSlug(label);
 };
 
+/**
+ * Sanitizes a ConfigMap or Secret key to conform to Kubernetes key naming conventions
+ * (alphanumeric characters, '-', '_' or '.').
+ */
+export const sanitizeConfigKey = (key: string): string => {
+  if (!key) return '';
+  const sanitized = key.trim().replace(/[^a-zA-Z0-9_.-]/g, '_');
+  return sanitized.replace(/_+/g, '_');
+};
+
 const buildEdgeMaps = (edges: any[]) => {
   const sourceEdgeMap = new Map<string, any[]>();
   const targetEdgeMap = new Map<string, any[]>();
@@ -128,14 +138,15 @@ const getEnvFromAttachedConfigMaps = (
     const cmName = sanitizeName(cm.name) || 'configmap';
     if (!Array.isArray(cm.configData)) return;
     cm.configData.forEach((item: any) => {
-      if (item.key && !seenKeys.has(item.key)) {
-        seenKeys.add(item.key);
+      const key = sanitizeConfigKey(item?.key);
+      if (key && !seenKeys.has(key)) {
+        seenKeys.add(key);
         env.push({
-          name: item.key,
+          name: key,
           valueFrom: {
             configMapKeyRef: {
               name: cmName,
-              key: item.key,
+              key,
             },
           },
         });
@@ -155,14 +166,15 @@ const getEnvFromAttachedSecrets = (
     const items = sec.secretData || sec.configData;
     if (!Array.isArray(items)) return;
     items.forEach((item: any) => {
-      if (item.key && !seenKeys.has(item.key)) {
-        seenKeys.add(item.key);
+      const key = sanitizeConfigKey(item?.key);
+      if (key && !seenKeys.has(key)) {
+        seenKeys.add(key);
         env.push({
-          name: item.key,
+          name: key,
           valueFrom: {
             secretKeyRef: {
               name: secName,
-              key: item.key,
+              key,
             },
           },
         });
@@ -186,13 +198,14 @@ const getEnvFromConnectedNode = (
   if (!Array.isArray(items)) return;
 
   items.forEach((item: any) => {
-    if (!item.key || seenKeys.has(item.key)) return;
-    seenKeys.add(item.key);
+    const key = sanitizeConfigKey(item?.key);
+    if (!key || seenKeys.has(key)) return;
+    seenKeys.add(key);
     env.push({
-      name: item.key,
+      name: key,
       valueFrom: isCm
-        ? { configMapKeyRef: { name: resourceName, key: item.key } }
-        : { secretKeyRef: { name: resourceName, key: item.key } },
+        ? { configMapKeyRef: { name: resourceName, key } }
+        : { secretKeyRef: { name: resourceName, key } },
     });
   });
 };
@@ -489,16 +502,21 @@ const buildStatefulSetManifest = (
     nodeMap
   );
 
+  const stsLabels = metadata?.labels ? { ...metadata.labels, app: name } : { app: name };
+
   return {
     apiVersion: 'apps/v1',
     kind: 'StatefulSet',
-    metadata,
+    metadata: {
+      ...metadata,
+      labels: stsLabels,
+    },
     spec: {
       serviceName,
       replicas,
       selector: { matchLabels: { app: name } },
       template: {
-        metadata: { labels: { app: name } },
+        metadata: { labels: stsLabels },
         spec: podSpec,
       },
       volumeClaimTemplates,
@@ -536,17 +554,23 @@ const buildPodOrDeploymentManifest = (
     false
   );
 
+  const workloadLabels = metadata?.labels ? { ...metadata.labels, app: name } : { app: name };
+  const workloadMetadata = {
+    ...metadata,
+    labels: workloadLabels,
+  };
+
   if (isController) {
     const kind = isReplicaSet ? 'ReplicaSet' : 'Deployment';
     return {
       apiVersion: 'apps/v1',
       kind,
-      metadata,
+      metadata: workloadMetadata,
       spec: {
         replicas,
         selector: { matchLabels: { app: name } },
         template: {
-          metadata: { labels: { app: name } },
+          metadata: { labels: workloadLabels },
           spec: podSpec,
         },
       },
@@ -556,10 +580,7 @@ const buildPodOrDeploymentManifest = (
   return {
     apiVersion: 'v1',
     kind: 'Pod',
-    metadata: {
-      ...metadata,
-      labels: { ...metadata?.labels, app: name },
-    },
+    metadata: workloadMetadata,
     spec: podSpec,
   };
 };
@@ -610,7 +631,7 @@ const resolveWorkloadAppLabel = (target: any, nodeMap: Map<string, any>): string
   if (target.type === 'Pod' && target.parentId) {
     const parent = nodeMap.get(target.parentId);
     if (parent && ['Deployment', 'StatefulSet', 'ReplicaSet'].includes(parent.type)) {
-      return target.data?.label ? sanitizeName(parent.data?.label || parent.id) : null;
+      return sanitizeName(parent.data?.label || parent.id) || null;
     }
   }
   if (['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(target.type)) {
@@ -704,6 +725,62 @@ const isServiceTargetingStatefulSet = (
   return false;
 };
 
+const findConnectedWorkloadForService = (
+  node: any,
+  nodeMap: Map<string, any>,
+  sourceEdgeMap: Map<string, any[]>,
+  targetEdgeMap?: Map<string, any[]>
+): any | null => {
+  const WORKLOAD_TYPES = ['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'];
+
+  const outgoing = sourceEdgeMap.get(node.id) || [];
+  for (const e of outgoing) {
+    const target = nodeMap.get(e.target);
+    if (target && WORKLOAD_TYPES.includes(target.type)) {
+      return target;
+    }
+  }
+
+  if (targetEdgeMap) {
+    const incoming = targetEdgeMap.get(node.id) || [];
+    for (const e of incoming) {
+      const source = nodeMap.get(e.source);
+      if (source && WORKLOAD_TYPES.includes(source.type)) {
+        return source;
+      }
+    }
+  }
+
+  if (node.data?.selector) {
+    const sanitizedSel = sanitizeName(node.data.selector);
+    for (const n of nodeMap.values()) {
+      if (WORKLOAD_TYPES.includes(n.type)) {
+        const isMatch =
+          n.id === node.data.selector ||
+          n.data?.label === node.data.selector ||
+          sanitizeName(n.data?.label || '') === sanitizedSel;
+        if (isMatch) return n;
+      }
+    }
+  }
+
+  return null;
+};
+
+const resolveWorkloadPort = (workload: any, nodeMap: Map<string, any>): number | undefined => {
+  if (!workload) return undefined;
+  if (workload.data?.port && !Number.isNaN(Number(workload.data.port))) {
+    return Number(workload.data.port);
+  }
+  for (const n of nodeMap.values()) {
+    if (n.parentId === workload.id && n.type === 'Pod' && n.data?.port) {
+      const p = Number(n.data.port);
+      if (!Number.isNaN(p)) return p;
+    }
+  }
+  return undefined;
+};
+
 const buildServiceManifest = (
   node: any,
   metadata: any,
@@ -719,8 +796,23 @@ const buildServiceManifest = (
     protocol: 'TCP',
     port: Number(node.data.port || 80),
   };
-  if (node.data.yamlSettings?.targetPort !== false && node.data.targetPort) {
-    portObject.targetPort = Number(node.data.targetPort);
+
+  const explicitTargetPort =
+    node.data.yamlSettings?.targetPort !== false && node.data.targetPort
+      ? Number(node.data.targetPort)
+      : undefined;
+
+  let targetPort = explicitTargetPort;
+  if (targetPort === undefined && node.data.yamlSettings?.targetPort !== false) {
+    const connectedWorkload = findConnectedWorkloadForService(node, nodeMap, sourceEdgeMap, targetEdgeMap);
+    const workloadPort = resolveWorkloadPort(connectedWorkload, nodeMap);
+    if (workloadPort !== undefined && workloadPort !== portObject.port) {
+      targetPort = workloadPort;
+    }
+  }
+
+  if (targetPort !== undefined) {
+    portObject.targetPort = targetPort;
   }
   if (nodePort !== undefined) {
     portObject.nodePort = nodePort;
@@ -908,7 +1000,8 @@ const buildConfigMapManifest = (node: any, metadata: any) => {
   const configData: Record<string, string> = {};
   if (Array.isArray(node.data.configData)) {
     node.data.configData.forEach((kv: any) => {
-      if (kv.key) configData[kv.key] = kv.value || '';
+      const key = sanitizeConfigKey(kv?.key);
+      if (key) configData[key] = kv.value || '';
     });
   }
   manifest.data = configData;
@@ -933,7 +1026,8 @@ const buildSecretManifest = (node: any, metadata: any) => {
 
   if (Array.isArray(items)) {
     items.forEach((kv: any) => {
-      if (kv.key) stringData[kv.key] = kv.value || '';
+      const key = sanitizeConfigKey(kv?.key);
+      if (key) stringData[key] = kv.value || '';
     });
   }
   manifest.stringData = stringData;
@@ -1187,8 +1281,9 @@ const buildAttachedConfigMapManifest = (
   const data: Record<string, string> = {};
   if (Array.isArray(cmItem.configData)) {
     cmItem.configData.forEach((item: any) => {
-      if (item.key) {
-        data[item.key] = String(item.value ?? '');
+      const key = sanitizeConfigKey(item?.key);
+      if (key) {
+        data[key] = String(item.value ?? '');
       }
     });
   }
@@ -1218,8 +1313,9 @@ const buildAttachedSecretManifest = (
   const items = secretItem.secretData || secretItem.configData;
   if (Array.isArray(items)) {
     items.forEach((item: any) => {
-      if (item.key) {
-        stringData[item.key] = String(item.value ?? '');
+      const key = sanitizeConfigKey(item?.key);
+      if (key) {
+        stringData[key] = String(item.value ?? '');
       }
     });
   }
@@ -1337,7 +1433,11 @@ const buildRoleManifest = (node: any, metadata: any): Role | ClusterRole => {
   } as Role | ClusterRole;
 };
 
-const extractRoleSubjects = (rawAssignedUsers?: any[], rawSubjects?: any[]): any[] => {
+const extractRoleSubjects = (
+  rawAssignedUsers?: any[],
+  rawSubjects?: any[],
+  defaultNamespace?: string
+): any[] => {
   const subjects: any[] = [];
   if (Array.isArray(rawAssignedUsers)) {
     rawAssignedUsers.forEach((u: string) => {
@@ -1349,11 +1449,14 @@ const extractRoleSubjects = (rawAssignedUsers?: any[], rawSubjects?: any[]): any
       if (typeof s === 'string' && s) {
         subjects.push({ kind: 'User', name: s, apiGroup: 'rbac.authorization.k8s.io' });
       } else if (s?.name) {
+        const isSa = s.kind === 'ServiceAccount';
         subjects.push({
           kind: s.kind || 'User',
           name: s.name,
-          apiGroup: s.kind === 'ServiceAccount' ? '' : 'rbac.authorization.k8s.io',
-          ...(s.namespace ? { namespace: s.namespace } : {}),
+          apiGroup: isSa ? '' : 'rbac.authorization.k8s.io',
+          ...(isSa
+            ? { namespace: s.namespace || defaultNamespace || 'default' }
+            : (s.namespace ? { namespace: s.namespace } : {})),
         });
       }
     });
@@ -1362,7 +1465,7 @@ const extractRoleSubjects = (rawAssignedUsers?: any[], rawSubjects?: any[]): any
 };
 
 const buildRoleBindingManifestForNode = (node: any, roleName: string, metadata: any): RoleBinding | ClusterRoleBinding | null => {
-  const subjects = extractRoleSubjects(node.data?.assignedUsers, node.data?.subjects);
+  const subjects = extractRoleSubjects(node.data?.assignedUsers, node.data?.subjects, metadata?.namespace);
   if (subjects.length === 0) return null;
 
   const isClusterRole = node.data?.roleKind === 'ClusterRole' || (!metadata.namespace && node.data?.roleKind !== 'Role');
@@ -1432,7 +1535,7 @@ const buildAttachedRoleBindingManifest = (
   const namespace = rbItem.namespace || getNamespace(node, nodeMap);
   const roleRefName = sanitizeName(rbItem.roleRef) || 'attached-role';
 
-  const subjects = extractRoleSubjects(undefined, rbItem.subjects);
+  const subjects = extractRoleSubjects(undefined, rbItem.subjects, namespace);
   if (subjects.length === 0) {
     subjects.push({ kind: 'User', name: 'app-user', apiGroup: 'rbac.authorization.k8s.io' });
   }
