@@ -72,8 +72,8 @@ describe('scenario local deployability', () => {
       });
       expect(result).toContain('Invalid: 0');
       expect(result).toContain('Errors: 0');
-    }, 120_000);
-  });
+    });
+  }, 120_000);
 
   it('warns when a scenario template is edited beyond local PC capacity', () => {
     const template = scenarios.find((scenario) => scenario.id === 'basic-web');
