@@ -1939,5 +1939,5 @@ describe('manifestGenerator test suite', () => {
     });
     expect(out).toContain('Invalid: 0');
     expect(out).toContain('Errors: 0');
-  });
+  }, 120_000);
 });

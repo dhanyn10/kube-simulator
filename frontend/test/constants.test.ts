@@ -19,7 +19,7 @@ describe('constants', () => {
     vi.doMock('../package.json', () => ({ default: {} }));
     vi.doMock('../../package.json', () => ({ default: {} }));
     const { APP_VERSION: fallbackVersion } = await import('@/constants/config');
-    expect(fallbackVersion).toBe('0.16.0');
+    expect(fallbackVersion).toBe('0.17.0');
     vi.doUnmock('../package.json');
     vi.doUnmock('../../package.json');
     vi.resetModules();
