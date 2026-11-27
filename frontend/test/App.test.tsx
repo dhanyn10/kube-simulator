@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import '@testing-library/jest-dom';
 import App from '@/App';
 import { useFlowStore } from '@/store';
+import { getBackendGateway } from '@/gateway';
 
 // Mock utils
 vi.mock('@/lib/utils', async (importOriginal) => {
@@ -442,6 +443,393 @@ describe('App Component', () => {
     const closeMenuBtn = screen.getByTestId('global-close');
     await act(async () => {
       fireEvent.click(closeMenuBtn);
+    });
+  });
+
+  it('renders detached left and right sidebars if URL params are set', async () => {
+    const originalLocation = window.location;
+    try {
+      // 1. Detached left sidebar
+      // @ts-ignore
+      delete window.location;
+      window.location = ({ ...originalLocation, search: '?mode=sidebar-left' } as any);
+
+      let unmountFn: any;
+      await act(async () => {
+        const res = render(<App />);
+        unmountFn = res.unmount;
+      });
+      expect(screen.getByText('Components Palette')).toBeInTheDocument();
+      unmountFn();
+
+      // 2. Detached right sidebar
+      window.location = ({ ...originalLocation, search: '?mode=sidebar-right' } as any);
+      await act(async () => {
+        const res = render(<App />);
+        unmountFn = res.unmount;
+      });
+      expect(screen.getByText('Configuration & Inspector')).toBeInTheDocument();
+      unmountFn();
+    } finally {
+      window.location = (originalLocation as any);
+    }
+  });
+
+  it('tests canvas background variants for cross and dots styles', async () => {
+    useFlowStore.setState({ canvasBgVariant: 'cross' });
+    const { rerender } = render(<App />);
+    expect(screen.getByTestId('background-mock')).toBeInTheDocument();
+
+    useFlowStore.setState({ canvasBgVariant: 'dots' });
+    await act(async () => {
+      rerender(<App />);
+    });
+    expect(screen.getByTestId('background-mock')).toBeInTheDocument();
+  });
+
+  it('does not delete nodes when Delete key is pressed inside input, textarea, select, contentEditable, or modal-overlay', async () => {
+    const node = { id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'pod-1' } };
+    useFlowStore.setState({
+      nodes: [node],
+      configuringNodeId: 'n1',
+    });
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    // 1. Non-Delete key (e.g. Enter)
+    await act(async () => {
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(useFlowStore.getState().nodes).toHaveLength(1);
+
+    // 2. Focused inside an input
+    const inputEl = document.createElement('input');
+    document.body.appendChild(inputEl);
+    inputEl.focus();
+    await act(async () => {
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+    });
+    expect(useFlowStore.getState().nodes).toHaveLength(1);
+    document.body.removeChild(inputEl);
+
+    // 3. Focused inside a textarea
+    const textareaEl = document.createElement('textarea');
+    document.body.appendChild(textareaEl);
+    textareaEl.focus();
+    await act(async () => {
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+    });
+    expect(useFlowStore.getState().nodes).toHaveLength(1);
+    document.body.removeChild(textareaEl);
+
+    // 4. Focused inside a select
+    const selectEl = document.createElement('select');
+    document.body.appendChild(selectEl);
+    selectEl.focus();
+    await act(async () => {
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+    });
+    expect(useFlowStore.getState().nodes).toHaveLength(1);
+    document.body.removeChild(selectEl);
+
+    // 5. Focused inside a contentEditable element
+    const divEl = document.createElement('div');
+    divEl.tabIndex = 0;
+    divEl.contentEditable = 'true';
+    Object.defineProperty(divEl, 'isContentEditable', { value: true, configurable: true });
+    document.body.appendChild(divEl);
+    const activeElSpy = vi.spyOn(document, 'activeElement', 'get').mockReturnValue(divEl);
+    await act(async () => {
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+    });
+    expect(useFlowStore.getState().nodes).toHaveLength(1);
+    activeElSpy.mockRestore();
+    document.body.removeChild(divEl);
+
+    // 6. Focused inside a modal-overlay
+    const overlayEl = document.createElement('div');
+    overlayEl.className = 'modal-overlay';
+    const btnInModal = document.createElement('button');
+    overlayEl.appendChild(btnInModal);
+    document.body.appendChild(overlayEl);
+    btnInModal.focus();
+    await act(async () => {
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+    });
+    expect(useFlowStore.getState().nodes).toHaveLength(1);
+    document.body.removeChild(overlayEl);
+
+    // 7. configuringNodeId does not match any existing node
+    useFlowStore.setState({ configuringNodeId: 'non-existent-id' });
+    await act(async () => {
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+    });
+    expect(useFlowStore.getState().nodes).toHaveLength(1);
+  });
+
+  it('handles save with active project updating successfully or falling back to SaveModal', async () => {
+    const updateProjectSpy = vi.spyOn(getBackendGateway(), 'updateProject');
+    const addLogSpy = vi.spyOn(useFlowStore.getState(), 'addLog');
+
+    useFlowStore.setState({
+      currentProject: { id: 42, name: 'Prod Project' } as any,
+      nodes: [{ id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: {} }],
+      edges: [],
+    });
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    // 1. Success path: updateProject returns true
+    updateProjectSpy.mockResolvedValue(true);
+    await act(async () => {
+      capturedKeyboardOptions.onSave();
+    });
+
+    expect(updateProjectSpy).toHaveBeenCalledWith(42, expect.any(String));
+    expect(addLogSpy).toHaveBeenCalledWith('info', expect.stringContaining('Prod Project'), 'System');
+    expect(screen.queryByText('Save Architecture & Recent Files')).not.toBeInTheDocument();
+
+    // 2. Failure path: updateProject returns false -> opens SaveModal
+    updateProjectSpy.mockResolvedValue(false);
+    await act(async () => {
+      capturedKeyboardOptions.onSave();
+    });
+    expect(await screen.findByText('Save Architecture & Recent Files')).toBeInTheDocument();
+  });
+
+  it('handles save when currentProject is null or has id -1 by opening SaveModal', async () => {
+    useFlowStore.setState({
+      currentProject: null,
+      nodes: [],
+      edges: [],
+    });
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await act(async () => {
+      capturedKeyboardOptions.onSave();
+    });
+
+    expect(await screen.findByText('Save Architecture & Recent Files')).toBeInTheDocument();
+  });
+
+  it('handles new architecture with confirm prompt true, false, and empty canvas', async () => {
+    const setNodesSpy = vi.spyOn(useFlowStore.getState(), 'setNodes');
+    const setEdgesSpy = vi.spyOn(useFlowStore.getState(), 'setEdges');
+
+    // 1. Canvas has nodes and confirm returns false
+    useFlowStore.setState({
+      nodes: [{ id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: {} }],
+      edges: [{ id: 'e1', source: 'n1', target: 'n2' } as any],
+    });
+
+    const confirmSpy = vi.spyOn(globalThis, 'confirm');
+    confirmSpy.mockReturnValue(false);
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    // Open File dropdown and click New Architecture
+    await act(async () => {
+      fireEvent.click(screen.getByText('File'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('New Architecture'));
+    });
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(setNodesSpy).not.toHaveBeenCalled();
+
+    // 2. Canvas has nodes and confirm returns true
+    confirmSpy.mockReturnValue(true);
+    await act(async () => {
+      fireEvent.click(screen.getByText('File'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('New Architecture'));
+    });
+
+    expect(setNodesSpy).toHaveBeenCalledWith([]);
+    expect(setEdgesSpy).toHaveBeenCalledWith([]);
+
+    // 3. Canvas is empty -> no confirm prompt
+    useFlowStore.setState({ nodes: [], edges: [] });
+    confirmSpy.mockClear();
+    setNodesSpy.mockClear();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('File'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('New Architecture'));
+    });
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(setNodesSpy).toHaveBeenCalledWith([]);
+  });
+
+  it('handles keyboard shortcut grouping edge cases (single selected, zero selected)', async () => {
+    const groupSpy = vi.spyOn(useFlowStore.getState(), 'groupNodes');
+    const ungroupSpy = vi.spyOn(useFlowStore.getState(), 'ungroupNodes');
+
+    // 1 selected: onGroup does not call groupNodes
+    useFlowStore.setState({
+      nodes: [{ id: 'n1', selected: true, type: 'Pod', data: {} } as any],
+    });
+
+    let unmountFn: any;
+    await act(async () => {
+      const res = render(<App />);
+      unmountFn = res.unmount;
+    });
+
+    capturedKeyboardOptions.onGroup();
+    expect(groupSpy).not.toHaveBeenCalled();
+    unmountFn();
+
+    // 0 selected: onUngroup does not call ungroupNodes
+    useFlowStore.setState({
+      nodes: [{ id: 'n1', selected: false, type: 'Pod', data: {} } as any],
+    });
+    await act(async () => {
+      const res = render(<App />);
+      unmountFn = res.unmount;
+    });
+
+    capturedKeyboardOptions.onUngroup();
+    expect(ungroupSpy).not.toHaveBeenCalled();
+    unmountFn();
+  });
+
+  it('handles InternetProfileModal close and performUpdate callbacks in App', async () => {
+    const updateNodeDataSpy = vi.spyOn(useFlowStore.getState(), 'updateNodeData');
+
+    useFlowStore.setState({
+      isInternetProfileModalOpen: true,
+      internetProfileTargetId: 'net-target-1',
+      nodes: [{ id: 'net-target-1', type: 'Internet', data: { label: 'Internet-1' } } as any],
+    });
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    expect(screen.getByText('Select Connection Simulation Profile')).toBeInTheDocument();
+
+    // Trigger performUpdate via store action
+    useFlowStore.getState().updateNodeData('net-target-1', { customRate: 500 });
+    expect(updateNodeDataSpy).toHaveBeenCalledWith('net-target-1', { customRate: 500 });
+
+    // Close modal
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
+    });
+
+    expect(useFlowStore.getState().isInternetProfileModalOpen).toBe(false);
+    expect(useFlowStore.getState().internetProfileTargetId).toBeNull();
+  });
+
+  it('handles ResourceManager modal close callback in App', async () => {
+    useFlowStore.setState({
+      isResourceManagerOpen: true,
+      resourceManagerTargetImage: 'nginx:alpine',
+    });
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    expect(screen.getByText('Resource Manager')).toBeInTheDocument();
+
+    // Press Escape to close
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
+    });
+
+    expect(useFlowStore.getState().isResourceManagerOpen).toBe(false);
+  });
+
+  it('handles sidebars visibility when detached or hidden', async () => {
+    useFlowStore.setState({
+      isSidebarVisible: true,
+      isSidebarDetached: true, // detached -> hidden from main window
+      isRightSidebarVisible: true,
+      isRightSidebarDetached: true, // detached -> hidden from main window
+    });
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    expect(screen.queryByText('Components Palette')).not.toBeInTheDocument();
+  });
+
+  it('handles MenuBar items opening modals: Scenarios, About, Settings, and Save As', async () => {
+    await act(async () => {
+      render(<App />);
+    });
+
+    // 1. File -> Save As...
+    await act(async () => {
+      fireEvent.click(screen.getByText('File'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save As...'));
+    });
+    expect(await screen.findByText('Save Architecture & Recent Files')).toBeInTheDocument();
+
+    // Close Save modal
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
+    });
+
+    // 2. Resource -> Scenarios
+    await act(async () => {
+      fireEvent.click(screen.getByText('Resource'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('Scenarios'));
+    });
+    expect(await screen.findByText('Learning Scenarios')).toBeInTheDocument();
+
+    // Close Scenarios modal
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
+    });
+
+    // 3. File -> Settings
+    await act(async () => {
+      fireEvent.click(screen.getByText('File'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('Settings'));
+    });
+    expect(await screen.findByText('Application Settings')).toBeInTheDocument();
+
+    // Close Settings modal
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
+    });
+
+    // 4. Help -> About
+    await act(async () => {
+      fireEvent.click(screen.getByText('Help'));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('About'));
+    });
+    expect(await screen.findByText('Kube Simulator')).toBeInTheDocument();
+
+    // Close About dialog
+    await act(async () => {
+      fireEvent.keyDown(globalThis, { key: 'Escape' });
     });
   });
 });
