@@ -44,6 +44,26 @@ var infraProjectFilters = []application.FileFilter{
 	{DisplayName: "Kube Simulator Project (*.infra)", Pattern: "*.infra"},
 }
 
+type dialogPrompter interface {
+	PromptForSingleSelection() (string, error)
+}
+
+var (
+	getApplication         = application.Get
+	getScreens             = func(app *application.App) []*application.Screen { return app.Screen.GetAll() }
+	currentWindowProvider  = (*application.WindowManager).Current
+	initHistory            = func(historyService *service.HistoryService) error { return historyService.Init() }
+	initProjects           = func(projectService *service.ProjectService) error { return projectService.Init() }
+	logFilePathProvider    = logger.GetLogFilePath
+	initialFileOpenDelay   = time.Second
+	saveFileDialogProvider = func(app *application.App, options *application.SaveFileDialogOptions) dialogPrompter {
+		return app.Dialog.SaveFileWithOptions(options)
+	}
+	openFileDialogProvider = func(app *application.App, options *application.OpenFileDialogOptions) dialogPrompter {
+		return app.Dialog.OpenFileWithOptions(options)
+	}
+)
+
 func getTestFilePath() (string, bool) {
 	if appCtx != nil && appCtx.Value(isTestKey) != nil {
 		if testPath, ok := appCtx.Value(testFilePathKey).(string); ok {
@@ -113,11 +133,11 @@ func (a *App) startup(ctx context.Context) {
 	log.SetOutput(&logger.WailsWriter{Level: "info"})
 	log.SetFlags(0)
 
-	if err := a.history.Init(); err != nil {
+	if err := initHistory(a.history); err != nil {
 		logger.Fatal("Failed to initialize history manager: %v", err)
 	}
 
-	if err := a.projects.Init(); err != nil {
+	if err := initProjects(a.projects); err != nil {
 		logger.Fatal("Failed to initialize project manager: %v", err)
 	}
 
@@ -138,12 +158,12 @@ func resolveStartupScreens(ctx context.Context) []application.Screen {
 			{IsPrimary: true, Size: application.Size{Width: 1920, Height: 1080}},
 		}
 	}
-	app := application.Get()
+	app := getApplication()
 	if app == nil || app.Screen == nil {
 		return nil
 	}
 	var screens []application.Screen
-	for _, scr := range app.Screen.GetAll() {
+	for _, scr := range getScreens(app) {
 		if scr != nil {
 			screens = append(screens, *scr)
 		}
@@ -211,14 +231,14 @@ func (a *App) handleInitialFileOpen(ctx context.Context) {
 		return
 	}
 	go func() {
-		sleepDuration := 1 * time.Second
+		sleepDuration := initialFileOpenDelay
 		if ctx.Value(isTestKey) != nil {
 			sleepDuration = 5 * time.Millisecond
 		}
 		time.Sleep(sleepDuration)
 		fileData, err := os.ReadFile(a.initialFilePath)
 		if err == nil && ctx.Value(isTestKey) == nil {
-			if app := application.Get(); app != nil && app.Event != nil {
+			if app := getApplication(); app != nil && app.Event != nil {
 				app.Event.Emit("open-infra-file", string(fileData))
 			}
 		}
@@ -291,7 +311,7 @@ func (a *App) SetInitialFile(path string) {
 func (a *App) LoadFileContent(filePath string) {
 	fileData, err := os.ReadFile(filePath)
 	if err == nil {
-		if app := application.Get(); app != nil && app.Event != nil {
+		if app := getApplication(); app != nil && app.Event != nil {
 			app.Event.Emit("open-infra-file", string(fileData))
 		}
 	}
@@ -314,8 +334,8 @@ func (a *App) WriteLog(category, level, message string) bool {
 
 // OpenDevTools opens the Wails WebView developer tools; Edge shows them in a new window.
 func (a *App) OpenDevTools() {
-	if app := application.Get(); app != nil && app.Window != nil {
-		if win := app.Window.Current(); win != nil {
+	if app := getApplication(); app != nil && app.Window != nil {
+		if win := currentWindowProvider(app.Window); win != nil {
 			win.OpenDevTools()
 		}
 	}
@@ -326,7 +346,7 @@ func (a *App) OpenLogFile() bool {
 	if testPath, isTest := getTestFilePath(); isTest && testPath != "" {
 		logFilePath = testPath
 	} else {
-		logFilePath = logger.GetLogFilePath()
+		logFilePath = logFilePathProvider()
 	}
 
 	if logFilePath == "" {
@@ -367,19 +387,19 @@ func (a *App) selectProjectFileDialog(saveDialog bool, defaultFilename, title st
 	if testPath, isTest := getTestFilePath(); isTest {
 		return testPath, nil
 	}
-	app := application.Get()
+	app := getApplication()
 	if app == nil || app.Dialog == nil {
 		return "", fmt.Errorf("dialog manager unavailable")
 	}
 	if saveDialog {
-		dialog := app.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+		dialog := saveFileDialogProvider(app, &application.SaveFileDialogOptions{
 			Filename: defaultFilename,
 			Title:    title,
 			Filters:  infraProjectFilters,
 		})
 		return dialog.PromptForSingleSelection()
 	}
-	dialog := app.Dialog.OpenFileWithOptions(&application.OpenFileDialogOptions{
+	dialog := openFileDialogProvider(app, &application.OpenFileDialogOptions{
 		Title:   title,
 		Filters: infraProjectFilters,
 	})

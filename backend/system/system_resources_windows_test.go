@@ -117,3 +117,47 @@ func TestGetSystemResources_Windows(t *testing.T) {
 		t.Errorf("expected cpuUsage between 0 and 100, got %v", res["cpuUsage"])
 	}
 }
+
+func TestGetWinMemoryStats_Fallback(t *testing.T) {
+	origCall := callGlobalMemoryStatusEx
+	defer func() { callGlobalMemoryStatusEx = origCall }()
+	callGlobalMemoryStatusEx = func(*memoryStatusEx) uintptr { return 0 }
+
+	total, free := getWinMemoryStats()
+	if total != 16 {
+		t.Errorf("expected fallback total memory 16, got %d", total)
+	}
+	if free != 8.0 {
+		t.Errorf("expected fallback free memory 8.0, got %f", free)
+	}
+}
+
+func TestGetWinCpuUsage_FailedSystemCall(t *testing.T) {
+	origCall := callGetSystemTimes
+	defer func() { callGetSystemTimes = origCall }()
+	callGetSystemTimes = func(*fileTime, *fileTime, *fileTime) uintptr { return 0 }
+
+	if usage := getWinCpuUsage(); usage != 0 {
+		t.Errorf("expected zero CPU usage on failed system call, got %d", usage)
+	}
+}
+
+func TestClampCpuUsage(t *testing.T) {
+	tests := []struct {
+		name  string
+		usage int
+		want  int
+	}{
+		{name: "negative", usage: -1, want: 0},
+		{name: "above hundred", usage: 101, want: 100},
+		{name: "in range", usage: 50, want: 50},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := clampCpuUsage(tt.usage); got != tt.want {
+				t.Errorf("clampCpuUsage(%d) = %d, want %d", tt.usage, got, tt.want)
+			}
+		})
+	}
+}

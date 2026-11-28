@@ -11,6 +11,8 @@ import (
 	"build-wails/backend/logger"
 )
 
+var marshalProjectExport = json.MarshalIndent
+
 // ProjectService manages persistence, storage querying, file exports, and directory exploration.
 type ProjectService struct {
 	repo domain.ProjectRepository
@@ -142,7 +144,7 @@ func (s *ProjectService) ExportProjectFile(filePath, name, canvasContent, yamlCo
 		"yaml":   yamlContent,
 	}
 
-	fileData, err := json.MarshalIndent(data, "", "  ")
+	fileData, err := marshalProjectExport(data, "", "  ")
 	if err != nil {
 		return err
 	}

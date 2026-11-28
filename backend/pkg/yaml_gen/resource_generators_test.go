@@ -1000,3 +1000,88 @@ func TestIsMatchingServiceSelector(t *testing.T) {
 		t.Error("Expected no match for unrelated selector")
 	}
 }
+
+func testCreatePodSpecDisabledRestartPolicy(t *testing.T) {
+	data := k8s.K8sNodeData{
+		ID:            "pod-rp",
+		Label:         "policy-pod",
+		RestartPolicy: "Never",
+		YamlSettings:  map[string]bool{"restartPolicy": false},
+	}
+
+	spec := createPodSpec(data, &GenContext{})
+	if spec.RestartPolicy != "" {
+		t.Errorf("Expected restartPolicy to be omitted, got %q", spec.RestartPolicy)
+	}
+}
+
+func testBuildPodTemplateSpecDisabledRestartPolicy(t *testing.T) {
+	data := k8s.K8sNodeData{
+		ID:           "dep-rp",
+		Label:        "policy-dep",
+		YamlSettings: map[string]bool{"restartPolicy": false},
+	}
+
+	template := buildPodTemplateSpec(data, "policy-dep", &GenContext{})
+	if template.Spec.RestartPolicy != "" {
+		t.Errorf("Expected template restartPolicy to be omitted, got %q", template.Spec.RestartPolicy)
+	}
+}
+
+func testGeneratePVCExplicitAccessMode(t *testing.T) {
+	data := k8s.K8sNodeData{AccessMode: "ReadWriteMany"}
+
+	pvc := generatePVC(data, "shared-pvc", "default").(k8s.PVC)
+	if len(pvc.Spec.AccessModes) != 1 || pvc.Spec.AccessModes[0] != "ReadWriteMany" {
+		t.Errorf("Expected access mode ReadWriteMany, got %v", pvc.Spec.AccessModes)
+	}
+}
+
+func testGenerateAttachedHPAUnsupportedNode(t *testing.T) {
+	res := generateAttachedHPA(k8s.HpaItem{Name: "ignored-hpa"}, k8s.FrontendNode{ID: "svc1", Type: "Service"}, nil)
+	if res != nil {
+		t.Errorf("Expected nil HPA for unsupported node type, got %v", res)
+	}
+}
+
+func testGenerateAttachedHPANameFallback(t *testing.T) {
+	item := k8s.HpaItem{Name: "", MinReplicas: 2, MaxReplicas: 5, TargetCPU: 70}
+	node := k8s.FrontendNode{
+		ID:   "dep1",
+		Type: "Deployment",
+		Data: k8s.K8sNodeData{Label: "api-server"},
+	}
+
+	hpa := generateAttachedHPA(item, node, nil).(k8s.HPA)
+	if hpa.Metadata.Name != "api-server-hpa" {
+		t.Errorf("Expected HPA name api-server-hpa, got %q", hpa.Metadata.Name)
+	}
+}
+
+func testGenerateAttachedHPAPodDefaults(t *testing.T) {
+	item := k8s.HpaItem{Name: "pod-hpa"}
+	node := k8s.FrontendNode{ID: "pod-42", Type: "Pod"}
+
+	hpa := generateAttachedHPA(item, node, nil).(k8s.HPA)
+	if hpa.Metadata.Name != "pod-hpa" {
+		t.Errorf("Expected HPA name pod-hpa, got %q", hpa.Metadata.Name)
+	}
+	if hpa.Spec.ScaleTargetRef.Kind != "Deployment" || hpa.Spec.ScaleTargetRef.Name != "pod-42" {
+		t.Errorf("Expected scaleTargetRef Deployment/pod-42, got %s/%s", hpa.Spec.ScaleTargetRef.Kind, hpa.Spec.ScaleTargetRef.Name)
+	}
+	if hpa.Spec.MinReplicas != 1 || hpa.Spec.MaxReplicas != 10 {
+		t.Errorf("Expected default replicas 1/10, got %d/%d", hpa.Spec.MinReplicas, hpa.Spec.MaxReplicas)
+	}
+	if len(hpa.Spec.Metrics) != 1 || hpa.Spec.Metrics[0].Resource == nil || hpa.Spec.Metrics[0].Resource.Target.AverageUtilization != 80 {
+		t.Errorf("Expected default target CPU 80, got %v", hpa.Spec.Metrics)
+	}
+}
+
+func TestResourceGenerators_AdditionalBranches(t *testing.T) {
+	t.Run("Pod spec with disabled restartPolicy", testCreatePodSpecDisabledRestartPolicy)
+	t.Run("Pod template with disabled restartPolicy", testBuildPodTemplateSpecDisabledRestartPolicy)
+	t.Run("PVC with explicit access mode", testGeneratePVCExplicitAccessMode)
+	t.Run("Attached HPA on unsupported node", testGenerateAttachedHPAUnsupportedNode)
+	t.Run("Attached HPA name fallback", testGenerateAttachedHPANameFallback)
+	t.Run("Attached HPA Pod defaults", testGenerateAttachedHPAPodDefaults)
+}

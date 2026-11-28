@@ -12,6 +12,14 @@ import (
 	"github.com/dgraph-io/badger/v4"
 )
 
+var (
+	openHistoryFile   = os.Open
+	readHistoryFileAt = func(file *os.File, buf []byte, off int64) (int, error) {
+		return file.ReadAt(buf, off)
+	}
+	openBadgerDB = badger.Open
+)
+
 // HistoryLog is a type alias to domain.HistoryLog for backward compatibility.
 type HistoryLog = domain.HistoryLog
 
@@ -38,7 +46,7 @@ func isCorruptFile(path string) bool {
 		return false
 	}
 
-	file, err := os.Open(path)
+	file, err := openHistoryFile(path)
 	if err != nil {
 		return true
 	}
@@ -51,7 +59,7 @@ func isCorruptFile(path string) bool {
 	}
 
 	buf := make([]byte, readLen)
-	_, err = file.ReadAt(buf, fileSize-readLen)
+	_, err = readHistoryFileAt(file, buf, fileSize-readLen)
 	if err != nil {
 		return true
 	}
@@ -93,7 +101,7 @@ func openBadger(opts badger.Options) (db *badger.DB, err error) {
 			err = fmt.Errorf("badger open panicked: %v", recoveredErr)
 		}
 	}()
-	return badger.Open(opts)
+	return openBadgerDB(opts)
 }
 
 // Init initializes the history database directory in ~/.kube-simulator/history_db and opens the Badger database instance.

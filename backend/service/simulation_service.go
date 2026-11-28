@@ -3,8 +3,6 @@ package service
 import (
 	"encoding/json"
 	"sync"
-
-	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // Event names for simulation lifecycle broadcast.
@@ -42,7 +40,7 @@ func NewSimulationService() *SimulationService {
 }
 
 func (s *SimulationService) emitEvent(eventName string, data interface{}) {
-	app := application.Get()
+	app := getApplication()
 	if app != nil && app.Event != nil {
 		app.Event.Emit(eventName, data)
 	}

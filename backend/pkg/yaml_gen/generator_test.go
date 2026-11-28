@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"build-wails/backend/pkg/k8s"
 )
 
 func TestSanitizeName(t *testing.T) {
@@ -13,6 +15,7 @@ func TestSanitizeName(t *testing.T) {
 	}{
 		{"My Name", "my-name"},
 		{"My_Name@123!", "my-name-123"},
+		{"api___service", "api-service"},
 		{"-Start-End-", "start-end"},
 		{"Very" + strings.Repeat("Long", 20), "verylonglonglonglonglonglonglonglonglonglonglonglonglonglonglon"}, // Test length limit
 	}
@@ -556,5 +559,67 @@ func TestGenerateAttachedHPASkipsNamespaceAndChildPod(t *testing.T) {
 	}
 	if !strings.Contains(result, `"kind":"Deployment","name":"api-deployment"`) {
 		t.Errorf("Expected HPA to target api-deployment, got: %s", result)
+	}
+}
+
+type unmarshalableManifestGenerator struct{}
+
+func (unmarshalableManifestGenerator) Generate(_ k8s.K8sNodeData, _, _ string, _ *GenContext) interface{} {
+	return make(chan int)
+}
+
+type idCapturingGenerator struct {
+	capturedID string
+}
+
+func (g *idCapturingGenerator) Generate(data k8s.K8sNodeData, _, _ string, _ *GenContext) interface{} {
+	g.capturedID = data.ID
+	return nil
+}
+
+func TestGenerate_MarshalError(t *testing.T) {
+	const nodeType = "__UnmarshalableManifestTest"
+	DefaultFactory.Register(nodeType, unmarshalableManifestGenerator{})
+	defer delete(DefaultFactory.generators, nodeType)
+
+	result := Generate(`[{"id":"u1","type":"__UnmarshalableManifestTest","data":{"label":"Unmarshalable"}}]`, "[]")
+	if !strings.HasPrefix(result, "Error generating JSON:") {
+		t.Errorf("Expected JSON generation error, got: %s", result)
+	}
+}
+
+func TestGenerateNodeObject_UsesNodeIDAsFallback(t *testing.T) {
+	const nodeType = "__IDFallbackTest"
+	original, existed := DefaultFactory.GetGenerator(nodeType)
+	defer func() {
+		if existed {
+			DefaultFactory.Register(nodeType, original)
+			return
+		}
+		delete(DefaultFactory.generators, nodeType)
+	}()
+
+	capture := &idCapturingGenerator{}
+	DefaultFactory.Register(nodeType, capture)
+
+	generateNodeObject(k8s.FrontendNode{
+		ID:   "node-42",
+		Type: nodeType,
+		Data: k8s.K8sNodeData{Label: "ID Fallback"},
+	}, buildGenContext(nil, nil))
+
+	if capture.capturedID != "node-42" {
+		t.Errorf("Expected node ID to be used as data ID, got %q", capture.capturedID)
+	}
+}
+
+func TestGetNamespace_NoNamespaceParent(t *testing.T) {
+	ctx := buildGenContext([]k8s.FrontendNode{
+		{ID: "parent", Type: "Pod", Data: k8s.K8sNodeData{Label: "Parent Pod"}},
+	}, nil)
+
+	node := k8s.FrontendNode{ID: "child", ParentID: "parent"}
+	if got := getNamespace(node, ctx); got != "" {
+		t.Errorf("Expected empty namespace for non-namespace parent, got %q", got)
 	}
 }

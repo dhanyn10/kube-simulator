@@ -1,8 +1,10 @@
 package db
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/dgraph-io/badger/v4"
@@ -408,5 +410,111 @@ func TestHistoryManager_GetHistoryLogs(t *testing.T) {
 	}
 	if logs[2].ActionName != "Activity #2" {
 		t.Errorf("Expected fallback 'Activity #2', got %q", logs[2].ActionName)
+	}
+}
+
+func TestIsCorruptFile_OpenError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "open-error.sst")
+	if err := os.WriteFile(path, []byte("data"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	origOpen := openHistoryFile
+	defer func() { openHistoryFile = origOpen }()
+	openHistoryFile = func(string) (*os.File, error) { return nil, errors.New("open failed") }
+
+	if !isCorruptFile(path) {
+		t.Error("Expected a file that cannot be opened to be reported as corrupt")
+	}
+}
+
+func TestIsCorruptFile_ReadAtError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "read-error.sst")
+	if err := os.WriteFile(path, []byte("data"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	origOpen, origReadAt := openHistoryFile, readHistoryFileAt
+	defer func() {
+		openHistoryFile, readHistoryFileAt = origOpen, origReadAt
+	}()
+	openHistoryFile = os.Open
+	readHistoryFileAt = func(*os.File, []byte, int64) (int, error) {
+		return 0, errors.New("read failed")
+	}
+
+	if !isCorruptFile(path) {
+		t.Error("Expected a read failure to be reported as corrupt")
+	}
+}
+
+func TestOpenBadger_PanicIsConvertedToError(t *testing.T) {
+	origOpen := openBadgerDB
+	defer func() { openBadgerDB = origOpen }()
+	openBadgerDB = func(badger.Options) (*badger.DB, error) {
+		panic("badger exploded")
+	}
+
+	db, err := openBadger(badger.DefaultOptions(t.TempDir()))
+	if err == nil {
+		t.Fatal("Expected panic to be converted into an error")
+	}
+	if !strings.Contains(err.Error(), "badger open panicked: badger exploded") {
+		t.Errorf("Unexpected panic error: %v", err)
+	}
+	if db != nil {
+		t.Errorf("Expected nil DB after panic, got %v", db)
+	}
+}
+
+func TestHistoryManager_Init_OpenFailureRecovery(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir)
+
+	origOpen := openBadgerDB
+	defer func() { openBadgerDB = origOpen }()
+
+	t.Run("recovers after first failure", func(t *testing.T) {
+		calls := 0
+		openBadgerDB = func(badger.Options) (*badger.DB, error) {
+			calls++
+			if calls == 1 {
+				return nil, errors.New("first open failed")
+			}
+			return nil, nil
+		}
+
+		if err := NewHistoryManager().Init(); err != nil {
+			t.Fatalf("Expected Init to recover, got error: %v", err)
+		}
+		if calls != 2 {
+			t.Errorf("Expected two open attempts, got %d", calls)
+		}
+	})
+
+	t.Run("returns second failure", func(t *testing.T) {
+		calls := 0
+		openBadgerDB = func(badger.Options) (*badger.DB, error) {
+			calls++
+			return nil, errors.New("open failed")
+		}
+
+		if err := NewHistoryManager().Init(); err == nil {
+			t.Error("Expected Init to return the second open failure")
+		}
+		if calls != 2 {
+			t.Errorf("Expected two open attempts, got %d", calls)
+		}
+	})
+}
+
+func TestHistoryManager_GetHistoryLogs_MissingKeys(t *testing.T) {
+	hm, cleanup := setupHistoryTest(t)
+	defer cleanup()
+
+	hm.maxIndex = 2
+	if logs := hm.GetHistoryLogs(); len(logs) != 0 {
+		t.Errorf("Expected no logs for missing keys, got %d", len(logs))
 	}
 }

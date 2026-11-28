@@ -107,6 +107,17 @@ func TestAutosaveService_CorruptedAndEdgeCaseFiles(t *testing.T) {
 	}
 }
 
+func TestAutosaveService_GetAutosaveProfiles_MissingDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir)
+
+	profiles := NewAutosaveService().GetAutosaveProfiles()
+	if len(profiles) != 0 {
+		t.Errorf("Expected 0 profiles when autosaves directory is missing, got %d", len(profiles))
+	}
+}
+
 func TestAutosaveService_UserHomeError(t *testing.T) {
 	oldHome := os.Getenv("HOME")
 	oldUserProfile := os.Getenv("USERPROFILE")
