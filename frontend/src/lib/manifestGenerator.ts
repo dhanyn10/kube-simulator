@@ -1670,7 +1670,7 @@ const sortAndDeduplicateManifests = (manifests: any[]): any[] => {
   const deduplicated: any[] = [];
 
   for (const m of manifests) {
-    if (!m || !m.kind) continue;
+    if (!m?.kind) continue;
     const ns = m.metadata?.namespace || '';
     const name = m.metadata?.name || '';
     const key = `${m.kind}/${ns}/${name}`;
