@@ -262,6 +262,9 @@ func TestParseResourceQuantities(t *testing.T) {
 	if parseCpuMilli("invalid") != 0 {
 		t.Error("Expected 0 for invalid CPU")
 	}
+	if parseCpuMilli("not-a-numberm") != 0 {
+		t.Error("Expected 0 for invalid millicore CPU")
+	}
 
 	if parseMemoryBytes("") != 0 {
 		t.Error("Expected 0 for empty memory")
@@ -314,5 +317,15 @@ func TestResolveEffectiveResources(t *testing.T) {
 	}
 	if res := resolveEffectiveMemory("256Mi", ""); res != "256Mi" {
 		t.Errorf("Expected 256Mi, got %s", res)
+	}
+}
+
+func TestGetResourceConfig_NoRenderableValues(t *testing.T) {
+	data := k8s.K8sNodeData{
+		ResourceLimits: []k8s.ResourceLimitItem{{ID: "rl-empty", Name: "empty-limit"}},
+	}
+
+	if got := getResourceConfig(data, []string{"p1"}, nil); got != nil {
+		t.Errorf("Expected nil when no CPU or memory values are present, got %v", got)
 	}
 }
