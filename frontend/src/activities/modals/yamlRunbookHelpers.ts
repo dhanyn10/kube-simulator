@@ -319,7 +319,7 @@ const buildServiceWarnings = (
 
 const buildWorkloadWarnings = (workloads: ManifestDocument[], warnings: string[]) => {
   workloads.forEach((workload) => {
-    const kind = workload.kind || 'Workload';
+    const kind = workload.kind;
     const name = workload.metadata?.name || 'unnamed-workload';
     const containers = getContainers(workload) || [];
 
@@ -424,7 +424,7 @@ const buildRoleWarnings = (documents: ManifestDocument[], warnings: string[]) =>
     const rules = role.rules || [];
     if (rules.length === 0) {
       warnings.push(
-        `${role.kind || 'Role'} ${name} has no permission rules defined. Add at least one rule specifying apiGroups, resources, and verbs.`
+        `${role.kind} ${name} has no permission rules defined. Add at least one rule specifying apiGroups, resources, and verbs.`
       );
     }
   }
@@ -443,13 +443,13 @@ const buildBindingWarnings = (
     const subjects = binding.subjects || [];
     if (subjects.length === 0) {
       warnings.push(
-        `${binding.kind || 'RoleBinding'} ${name} has no subjects assigned. Assign at least one ServiceAccount or user subject.`
+        `${binding.kind} ${name} has no subjects assigned. Assign at least one ServiceAccount or user subject.`
       );
     }
     const roleRefName = binding.roleRef?.name;
     if (roleRefName && !roleNames.has(roleRefName)) {
       warnings.push(
-        `${binding.kind || 'RoleBinding'} ${name} references role "${roleRefName}", but no matching Role or ClusterRole exists in this YAML.`
+        `${binding.kind} ${name} references role "${roleRefName}", but no matching Role or ClusterRole exists in this YAML.`
       );
     }
   }
@@ -637,8 +637,7 @@ const buildVerifyStep = (
   const extraTypes = ['ingress', 'hpa', 'pvc'].filter((type) => {
     if (type === 'ingress') return kinds.has('Ingress');
     if (type === 'hpa') return kinds.has('HorizontalPodAutoscaler');
-    if (type === 'pvc') return kinds.has('PVC') || kinds.has('PersistentVolumeClaim');
-    return false;
+    return kinds.has('PVC') || kinds.has('PersistentVolumeClaim');
   });
   const suffix = extraTypes.length > 0 ? `,${extraTypes.join(',')}` : '';
   const targets = namespaces.length > 0 ? namespaces : [''];
@@ -791,13 +790,13 @@ const buildPortForwardStep = (
   if (urls.length === 0) {
     ingressRoutes.forEach((route) => {
       const url = `http://${route.host}${route.path}`;
-      if (!urls.includes(url)) urls.push(url);
+      urls.push(url);
     });
   }
 
   nonHttpImages.forEach((image) => {
     const note = `The image ${image} is not an HTTP server. Port-forward still opens the port, but a browser may show a blank page or connection error. Use nginx/httpd for a page, or a matching client (for example psql) for a database.`;
-    if (!notes.includes(note)) notes.push(note);
+    notes.push(note);
   });
 
   const hasDirectRouting = appTargets.some(

@@ -120,4 +120,51 @@ describe('SystemMonitorDashboard', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByTestId('system-monitor-context-menu')).toBeNull();
   });
+
+  it('renders sparklines with zero for missing or falsy metric values', () => {
+    vi.spyOn(monitoringActivities, 'useSystemMonitorDashboard').mockReturnValue({
+      metrics: {
+        'dep-zero': [
+          { timestamp: 1, cpuPercent: 0, rps: 0, latencyMs: 0, errorRate: 0 },
+          { timestamp: 2, cpuPercent: 50, rps: 0, latencyMs: 0, errorRate: 0 },
+        ],
+      },
+      deployments: [{ id: 'dep-zero', label: 'zero-svc', replicas: 1, readyReplicas: 1 }],
+      isSimulating: true,
+      isPaused: false,
+      simulationSpeed: 1,
+      canStart: true,
+      hasHpa: false,
+      hpaTarget: 80,
+      colorMode: 'dark',
+      selectedDeploymentId: 'all',
+      setSelectedDeploymentId: vi.fn(),
+      isLive: true,
+      clusterTotals: {
+        cpuPercent: 25,
+        cpuUsed: 250,
+        cpuLimit: 1000,
+        memoryPercent: 0,
+        memoryMb: 0,
+        memoryLimitMb: 1024,
+        readyPods: 1,
+        totalPods: 1,
+        rps: 0,
+        totalTrafficRpm: 0,
+        latencyMs: 0,
+        errorRate: 0,
+        podStatusSummary: { running: 1, pending: 0, failed: 0 },
+      },
+      handleStartStop: vi.fn(),
+      handlePauseResume: vi.fn(),
+      handleSpeedChange: vi.fn(),
+      handleReset: vi.fn(),
+    } as any);
+
+    const { container } = render(<SystemMonitorDashboard />);
+    const sparklines = Array.from(container.querySelectorAll('polyline'));
+    expect(sparklines).toHaveLength(2);
+    expect(sparklines[0].getAttribute('points')).toBe('0,30 120,17');
+    expect(sparklines[1].getAttribute('points')).toBe('0,30 120,30');
+  });
 });

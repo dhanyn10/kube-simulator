@@ -121,6 +121,37 @@ describe('configMapPrecedenceHelpers', () => {
         'UI'
       );
     });
+
+    it('places saved ConfigMaps with no matching id or name at the end using the default rank', () => {
+      const mockUpdateNodeData = vi.fn();
+      const mockSetSavedConfigMaps = vi.fn();
+
+      const reorderedOverviewItems = [
+        { id: 'cm-known', name: 'known-config', rawItem: { id: 'cm-known' } } as any,
+      ];
+      const savedConfigMaps = [
+        { id: 'unknown-id', name: 'unknown-name', configData: [] },
+        { id: 'cm-known', name: 'known-config', configData: [] },
+        { id: 'other-unknown', name: 'other-name', configData: [] },
+      ];
+
+      syncConfigMapPrecedenceOrder(
+        reorderedOverviewItems,
+        [],
+        mockUpdateNodeData,
+        savedConfigMaps,
+        mockSetSavedConfigMaps
+      );
+
+      const expectedOrder = [
+        { id: 'cm-known', name: 'known-config', configData: [] },
+        { id: 'unknown-id', name: 'unknown-name', configData: [] },
+        { id: 'other-unknown', name: 'other-name', configData: [] },
+      ];
+      expect(mockSetSavedConfigMaps).toHaveBeenCalledWith(expectedOrder);
+      expect(storageHelpers.saveConfigMapsToLocal).toHaveBeenCalledWith(expectedOrder);
+      expect(mockUpdateNodeData).not.toHaveBeenCalled();
+    });
   });
 
   describe('checkIsKeyOverridden (profile filter branches)', () => {
