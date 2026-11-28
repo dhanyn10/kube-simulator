@@ -79,6 +79,11 @@ describe('secretModalHelpers', () => {
       expect(item.name).toBe('sec-custom-id');
       expect(item.type).toBe('Opaque');
     });
+
+    it('falls back to generated id when a non-empty name sanitizes to an empty slug', () => {
+      const item = buildSecretItem(undefined, '!!!', undefined, []);
+      expect(item.name).toBe(item.id);
+    });
   });
 
   describe('findAllAttachedSecretComponents', () => {
@@ -157,6 +162,62 @@ describe('secretModalHelpers', () => {
       );
       expect(attached).toHaveLength(1);
       expect(attached[0].label).toBe('db-statefulset');
+    });
+
+    it('matches resourceName against node id and pod replica group label or prefix', () => {
+      const nodes = [
+        {
+          id: 'worker-node',
+          type: 'StatefulSet',
+          data: { label: 'db-statefulset' },
+        },
+        {
+          id: 'pod-a',
+          type: 'Pod',
+          data: {
+            baseName: 'api-server',
+            podHash: '8f7a2',
+            label: 'api-server-8f7a2-rep0',
+          },
+        },
+        {
+          id: 'pod-b',
+          type: 'Pod',
+          data: {
+            baseName: 'worker',
+            podHash: 'a1b2c',
+            label: 'worker-a1b2c-rep1',
+          },
+        },
+      ];
+
+      const attached = findAllAttachedSecretComponents(
+        'sec-x',
+        'x-secret',
+        nodes,
+        'worker-node,api-server-8f7a2,worker'
+      );
+
+      expect(attached.map((component) => component.id)).toEqual([
+        'worker-node',
+        'pod-group:api-server-8f7a2',
+        'pod-group:worker-a1b2c',
+      ]);
+    });
+
+    it('defaults component type to Node when the node has no type', () => {
+      const nodes = [
+        {
+          id: 'plain-node',
+          data: { secrets: [{ id: 'sec-plain' }] },
+        },
+      ];
+
+      const attached = findAllAttachedSecretComponents('sec-plain', undefined, nodes);
+
+      expect(attached).toEqual([
+        { id: 'plain-node', label: 'plain-node', type: 'Node' },
+      ]);
     });
   });
 
@@ -258,6 +319,77 @@ describe('secretModalHelpers', () => {
 
       expect(updateNodeDataMock).toHaveBeenCalledWith('deploy-1', { secrets: [newSecret] });
     });
+
+    it('attaches to nodes without a secrets array and keeps unrelated secrets', () => {
+      const updateNodeDataMock = vi.fn();
+      const oldSecret: K8sSecretItem = {
+        id: 'sec-old',
+        name: 'legacy',
+        type: 'Opaque',
+        secretData: [],
+      };
+      const otherSecret: K8sSecretItem = {
+        id: 'sec-other',
+        name: 'other',
+        type: 'Opaque',
+        secretData: [],
+      };
+      const newSecret: K8sSecretItem = {
+        id: 'sec-old',
+        name: 'renamed',
+        type: 'Opaque',
+        secretData: [],
+      };
+      const nodes = [
+        { id: 'bare-node' },
+        { id: 'legacy-node', data: { secrets: [oldSecret, otherSecret] } },
+        { id: 'unrelated-node', data: { secrets: [otherSecret] } },
+      ];
+
+      syncNodesSecret(
+        nodes,
+        undefined,
+        '',
+        'legacy',
+        newSecret,
+        new Set(['bare-node', 'legacy-node']),
+        updateNodeDataMock
+      );
+
+      expect(updateNodeDataMock).toHaveBeenCalledWith('bare-node', { secrets: [newSecret] });
+      expect(updateNodeDataMock).toHaveBeenCalledWith('legacy-node', {
+        secrets: [newSecret, otherSecret],
+      });
+      expect(updateNodeDataMock).not.toHaveBeenCalledWith('unrelated-node', expect.anything());
+    });
+
+    it('matches existing secrets by secName when targetId does not match', () => {
+      const updateNodeDataMock = vi.fn();
+      const secretItem: K8sSecretItem = {
+        id: 'sec-new',
+        name: 'name-match',
+        type: 'Opaque',
+        secretData: [],
+      };
+      const nodes = [
+        {
+          id: 'node-1',
+          data: { secrets: [{ id: 'other-sec', name: 'name-match' }] },
+        },
+      ];
+
+      syncNodesSecret(
+        nodes,
+        'missing-id',
+        'name-match',
+        undefined,
+        secretItem,
+        new Set(['node-1']),
+        updateNodeDataMock
+      );
+
+      expect(updateNodeDataMock).toHaveBeenCalledWith('node-1', { secrets: [secretItem] });
+    });
   });
 
   describe('mergeAttachedSecretComponents', () => {
@@ -354,6 +486,34 @@ describe('secretModalHelpers', () => {
       expect(updateNodeData).not.toHaveBeenCalled();
       expect(deleteSavedSecret).toHaveBeenCalledWith('sec-cluster-item');
     });
+
+    it('falls back to node id in logs and skips nodes without secrets', () => {
+      const updateNodeData = vi.fn();
+      const addLog = vi.fn();
+      const item: OverviewItem = {
+        id: 'sec-rm',
+        name: 'remove-me',
+        rawItem: { id: 'sec-rm', name: 'remove-me' },
+        ownerNode: { id: 'pod-1', label: 'web', type: 'Pod' },
+      };
+      const nodes = [
+        { id: 'no-data-node' },
+        {
+          id: 'unlabeled-node',
+          data: { secrets: [{ id: 'sec-rm', name: 'remove-me' }] },
+        },
+      ];
+
+      removeSecretFromNodeOrStore(item, nodes, updateNodeData, addLog);
+
+      expect(updateNodeData).toHaveBeenCalledWith('unlabeled-node', { secrets: [] });
+      expect(updateNodeData).not.toHaveBeenCalledWith('no-data-node', expect.anything());
+      expect(addLog).toHaveBeenCalledWith(
+        'info',
+        expect.stringContaining('from unlabeled-node'),
+        'UI'
+      );
+    });
   });
   describe('detachSecretComponent', () => {
     it('removes target secret by id or name from matched nodes and logs', () => {
@@ -390,6 +550,83 @@ describe('secretModalHelpers', () => {
         "[Secret] Removed attached component 'web-pod' from Secret 'db-secret'",
         'UI'
       );
+    });
+
+    it('matches pod replica groups, skips unrelated nodes, and handles missing secrets and labels', () => {
+      const updateNodeData = vi.fn();
+      const addLog = vi.fn();
+      const nodes = [
+        { id: 'other-node', data: { secrets: [] } },
+        {
+          id: 'pod-0',
+          type: 'Pod',
+          data: {
+            baseName: 'web',
+            podHash: 'h1',
+            label: 'web-h1-a',
+            secrets: [{ id: 'sec-1', name: 'db-secret' }],
+          },
+        },
+        {
+          id: 'pod-1',
+          type: 'Pod',
+          data: { baseName: 'web', podHash: 'h1', label: 'web-h1-b' },
+        },
+        {
+          id: 'pod-2',
+          type: 'Pod',
+          data: { baseName: 'web', podHash: 'h1' },
+        },
+      ];
+
+      detachSecretComponent({
+        nodes,
+        componentId: 'pod-group:web-h1',
+        targetSecId: 'sec-1',
+        secretName: 'db-secret',
+        oldSecName: undefined,
+        updateNodeData,
+        addLog,
+      });
+
+      expect(updateNodeData).toHaveBeenCalledWith('pod-0', { secrets: [] });
+      expect(updateNodeData).toHaveBeenCalledWith('pod-1', { secrets: [] });
+      expect(updateNodeData).toHaveBeenCalledWith('pod-2', { secrets: [] });
+      expect(updateNodeData).not.toHaveBeenCalledWith('other-node', expect.anything());
+      expect(addLog).toHaveBeenCalledWith(
+        'info',
+        "[Secret] Removed attached component 'pod-2' from Secret 'db-secret'",
+        'UI'
+      );
+    });
+
+    it('removes secrets matched only by oldSecName', () => {
+      const updateNodeData = vi.fn();
+      const nodes = [
+        {
+          id: 'pod-1',
+          data: {
+            label: 'web-pod',
+            secrets: [
+              { id: 'sec-old', name: 'legacy' },
+              { id: 'sec-keep', name: 'keep' },
+            ],
+          },
+        },
+      ];
+
+      detachSecretComponent({
+        nodes,
+        componentId: 'pod-1',
+        targetSecId: 'missing',
+        secretName: 'missing-name',
+        oldSecName: 'legacy',
+        updateNodeData,
+      });
+
+      expect(updateNodeData).toHaveBeenCalledWith('pod-1', {
+        secrets: [{ id: 'sec-keep', name: 'keep' }],
+      });
     });
   });
 
@@ -449,6 +686,171 @@ describe('secretModalHelpers', () => {
         updateNodeData,
       });
       expect(updateNodeData).not.toHaveBeenCalled();
+    });
+
+    it('attaches to pod replica groups, skips unrelated nodes, and falls back to node id', () => {
+      const updateNodeData = vi.fn();
+      const addLog = vi.fn();
+      const nodes = [
+        { id: 'other-node', data: { label: 'other', secrets: [] } },
+        {
+          id: 'pod-0',
+          type: 'Pod',
+          data: { baseName: 'web', podHash: 'h1', label: 'web-h1-a' },
+        },
+        {
+          id: 'pod-1',
+          type: 'Pod',
+          data: { baseName: 'web', podHash: 'h1' },
+        },
+      ];
+
+      attachSecretComponent({
+        nodes,
+        comp: { id: 'pod-group:web-h1', label: '', type: '' },
+        targetId: 'sec-new',
+        secretName: 'new-secret',
+        secretType: 'Opaque',
+        validData: [],
+        updateNodeData,
+        addLog,
+      });
+
+      expect(updateNodeData).toHaveBeenCalledTimes(2);
+      expect(updateNodeData).toHaveBeenNthCalledWith(1, 'pod-0', {
+        secrets: [
+          expect.objectContaining({
+            resourceName: 'web-h1-a',
+            resourceType: 'Pod',
+          }),
+        ],
+      });
+      expect(updateNodeData).toHaveBeenNthCalledWith(2, 'pod-1', {
+        secrets: [
+          expect.objectContaining({
+            resourceName: 'web-h1-a',
+            resourceType: 'Pod',
+          }),
+        ],
+      });
+      expect(updateNodeData).not.toHaveBeenCalledWith('other-node', expect.anything());
+    });
+
+    it('falls back to comp type when the node has no type', () => {
+      const updateNodeData = vi.fn();
+      const nodes = [
+        {
+          id: 'comp-1',
+          data: {
+            label: 'custom',
+            secrets: [{ id: 'keep-sec', name: 'keep' }],
+          },
+        },
+      ];
+
+      attachSecretComponent({
+        nodes,
+        comp: { id: 'comp-1', label: 'Custom Label', type: 'Deployment' },
+        targetId: 'sec-new',
+        secretName: 'new-secret',
+        secretType: 'Opaque',
+        validData: [],
+        updateNodeData,
+      });
+
+      const updatedSecrets = updateNodeData.mock.calls[0][1].secrets;
+      expect(updatedSecrets).toHaveLength(2);
+      expect(updatedSecrets[0]).toEqual({ id: 'keep-sec', name: 'keep' });
+      expect(updatedSecrets[1]).toEqual(
+        expect.objectContaining({
+          resourceName: 'Custom Label',
+          resourceType: 'Deployment',
+        })
+      );
+    });
+
+    it('defaults resource type to Node and resource name to node id when both are missing', () => {
+      const updateNodeData = vi.fn();
+      const nodes = [{ id: 'comp-2', data: {} }];
+
+      attachSecretComponent({
+        nodes,
+        comp: { id: 'comp-2', label: '', type: '' },
+        targetId: 'sec-new',
+        secretName: 'new-secret',
+        secretType: 'Opaque',
+        validData: [],
+        updateNodeData,
+      });
+
+      expect(updateNodeData).toHaveBeenCalledWith('comp-2', {
+        secrets: [
+          expect.objectContaining({
+            resourceName: 'comp-2',
+            resourceType: 'Node',
+          }),
+        ],
+      });
+    });
+
+    it('updates an existing secret matched by id while keeping unrelated secrets', () => {
+      const updateNodeData = vi.fn();
+      const nodes = [
+        {
+          id: 'deploy-1',
+          type: 'Deployment',
+          data: {
+            label: 'web',
+            secrets: [
+              { id: 'sec-1', name: 'old-name' },
+              { id: 'sec-2', name: 'keep' },
+            ],
+          },
+        },
+      ];
+
+      attachSecretComponent({
+        nodes,
+        comp: { id: 'deploy-1', label: 'web', type: 'Deployment' },
+        targetId: 'sec-1',
+        secretName: 'new-name',
+        secretType: 'Opaque',
+        validData: [],
+        updateNodeData,
+      });
+
+      const updatedSecrets = updateNodeData.mock.calls[0][1].secrets;
+      expect(updatedSecrets[0]).toEqual(
+        expect.objectContaining({ id: 'sec-1', name: 'new-name' })
+      );
+      expect(updatedSecrets[1]).toEqual({ id: 'sec-2', name: 'keep' });
+    });
+
+    it('updates an existing secret matched by name when targetId is empty', () => {
+      const updateNodeData = vi.fn();
+      const nodes = [
+        {
+          id: 'deploy-1',
+          data: {
+            label: 'web',
+            secrets: [{ id: 'sec-1', name: 'old-name' }],
+          },
+        },
+      ];
+
+      attachSecretComponent({
+        nodes,
+        comp: { id: 'deploy-1', label: 'web', type: 'Deployment' },
+        targetId: '',
+        secretName: 'old-name',
+        secretType: 'Opaque',
+        validData: [],
+        updateNodeData,
+      });
+
+      const updatedSecrets = updateNodeData.mock.calls[0][1].secrets;
+      expect(updatedSecrets).toHaveLength(1);
+      expect(updatedSecrets[0]).toEqual(expect.objectContaining({ name: 'old-name' }));
     });
   });
 

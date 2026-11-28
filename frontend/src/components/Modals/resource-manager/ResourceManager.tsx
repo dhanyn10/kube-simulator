@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Modal } from '@/components/Modals/Modal';
 import { DEFAULT_REGISTRY_IMAGES, type RegistryImageItem } from '@/constants/config';
 import { getImageCharacteristics } from '@/activities/ui/imageCharacteristicsHelpers';
+import type { K8sNodeData } from '@/types';
 
 /** Props interface for the ResourceManager modal component. */
 export interface ResourceManagerProps {
@@ -23,6 +24,21 @@ const getItemCardClass = (isTarget: boolean, colorMode: 'dark' | 'light'): strin
   return colorMode === 'dark'
     ? "bg-slate-900/60 border-slate-800/80 hover:border-slate-700"
     : "bg-white border-slate-200/80 hover:border-slate-300 shadow-sm";
+};
+
+/**
+ * Registers the image and applies it to the active configuring node when one exists.
+ */
+export const applyImageToSelectedNode = (
+  imageName: string,
+  selectedNodeId: string | null | undefined,
+  updateNodeData: (nodeId: string, newData: Partial<K8sNodeData>) => void,
+  addCustomImage: (imageName: string) => void
+): void => {
+  addCustomImage(imageName);
+  if (selectedNodeId) {
+    updateNodeData(selectedNodeId, { image: imageName, status: 'ready' });
+  }
 };
 
 /** Props for a single runtime setup image card on the Resource Manager list. */
@@ -272,10 +288,7 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
   );
 
   const handleSelectImage = (imageName: string) => {
-    addCustomImage(imageName);
-    if (selectedNodeId) {
-      updateNodeData(selectedNodeId, { image: imageName, status: 'ready' });
-    }
+    applyImageToSelectedNode(imageName, selectedNodeId, updateNodeData, addCustomImage);
     onClose();
   };
 

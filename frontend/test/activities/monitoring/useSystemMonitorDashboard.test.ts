@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useSystemMonitorDashboard } from '@/activities/monitoring/useSystemMonitorDashboard';
+import { useSystemMonitorDashboard, parseHpaToken } from '@/activities/monitoring/useSystemMonitorDashboard';
 import { getBackendGateway } from '@/gateway';
 
 describe('useSystemMonitorDashboard hook', () => {
@@ -477,5 +477,277 @@ describe('useSystemMonitorDashboard theme sync', () => {
   it('updates colorMode on THEME_SYNC broadcast message', () => {
     const { result } = renderHook(() => useSystemMonitorDashboard());
     expect(result.current.colorMode).toBeDefined();
+  });
+});
+
+describe('useSystemMonitorDashboard branch coverage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(async () => {
+    const { useFlowStore } = await import('@/store');
+    useFlowStore.setState({ nodes: [] });
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  const captureEventCallbacks = () => {
+    const gw = getBackendGateway();
+    let metricsCallback: ((json: string) => void) | undefined;
+    let snapshotCallback: ((json: string) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'metrics-update') metricsCallback = cb;
+      if (eventName === 'simulation-snapshot-updated') snapshotCallback = cb;
+      return () => {};
+    });
+    vi.spyOn(gw, 'getSimulationSnapshot').mockResolvedValue('{}');
+    return {
+      getMetricsCallback: () => metricsCallback,
+      getSnapshotCallback: () => snapshotCallback,
+    };
+  };
+
+  it('falls back to 80 when the HPA target is invalid and ignores empty hpas arrays', async () => {
+    const { useFlowStore } = await import('@/store');
+    useFlowStore.setState({
+      nodes: [
+        { id: 'hpa-1', type: 'HPA', data: { targetCPU: 'abc' }, position: { x: 0, y: 0 } },
+        { id: 'dep-1', type: 'Deployment', data: { hpas: [] }, position: { x: 0, y: 0 } },
+      ],
+    });
+
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    expect(result.current.hasHpa).toBe(true);
+    expect(result.current.hpaTarget).toBe(80);
+  });
+
+  it('reads targetCPU from an attached hpas array', async () => {
+    const { useFlowStore } = await import('@/store');
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'dep-1',
+          type: 'Deployment',
+          data: { hpas: [{ targetCPU: 65 }] },
+          position: { x: 0, y: 0 },
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    expect(result.current.hasHpa).toBe(true);
+    expect(result.current.hpaTarget).toBe(65);
+  });
+
+  it('falls back to 80 when the attached HPA target is invalid', async () => {
+    const { useFlowStore } = await import('@/store');
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'dep-1',
+          type: 'Deployment',
+          data: { hpas: [{ targetCPU: 'abc' }] },
+          position: { x: 0, y: 0 },
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    expect(result.current.hasHpa).toBe(true);
+    expect(result.current.hpaTarget).toBe(80);
+  });
+
+  it('honors explicit canStart and detects hasHpa from deployment hpas', () => {
+    const { getMetricsCallback } = captureEventCallbacks();
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      getMetricsCallback()?.(
+        JSON.stringify({
+          canStart: true,
+          deployments: [{ id: 'dep-1', label: 'web', hpas: [{ targetCPU: 90 }] }],
+        })
+      );
+    });
+
+    expect(result.current.canStart).toBe(true);
+    expect(result.current.hasHpa).toBe(true);
+  });
+
+  it('honors explicit boolean hasHpa and numeric hpaTarget', () => {
+    const { getMetricsCallback } = captureEventCallbacks();
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      getMetricsCallback()?.(JSON.stringify({ hasHpa: true, hpaTarget: 90 }));
+    });
+
+    expect(result.current.hasHpa).toBe(true);
+    expect(result.current.hpaTarget).toBe(90);
+  });
+
+  it('computes simulatedTime from a numeric minuteIndex', () => {
+    const { getMetricsCallback } = captureEventCallbacks();
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      getMetricsCallback()?.(
+        JSON.stringify({
+          deployments: [{ id: 'dep-1', label: 'web', replicas: 1 }],
+          metrics: { 'dep-1': [{ minuteIndex: 125 }] },
+        })
+      );
+    });
+
+    expect(result.current.simulatedTime).toBe('02:05');
+  });
+
+  it('updates colorMode on THEME_SYNC broadcast messages', () => {
+    let onMessage: ((event: any) => void) | null = null;
+    class MockBroadcastChannel {
+      set onmessage(cb: any) {
+        onMessage = cb;
+      }
+      postMessage() {}
+      close() {}
+    }
+    vi.stubGlobal('BroadcastChannel', MockBroadcastChannel);
+
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      onMessage?.({ data: { type: 'THEME_SYNC', colorMode: 'light' } });
+    });
+
+    expect(result.current.colorMode).toBe('light');
+  });
+
+  it('ignores snapshot events after receiving broadcast data', () => {
+    let onMessage: ((event: any) => void) | null = null;
+    class MockBroadcastChannel {
+      set onmessage(cb: any) {
+        onMessage = cb;
+      }
+      postMessage() {}
+      close() {}
+    }
+    vi.stubGlobal('BroadcastChannel', MockBroadcastChannel);
+    const { getSnapshotCallback } = captureEventCallbacks();
+
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      onMessage?.({
+        data: {
+          type: 'METRICS_UPDATE',
+          deployments: [{ id: 'broadcast', label: 'b', replicas: 1 }],
+        },
+      });
+    });
+    expect(result.current.deployments[0].id).toBe('broadcast');
+
+    act(() => {
+      getSnapshotCallback()?.(
+        JSON.stringify({ deployments: [{ id: 'snapshot', label: 's', replicas: 9 }] })
+      );
+    });
+
+    expect(result.current.deployments[0].id).toBe('broadcast');
+  });
+
+  it('ignores NaN hpaTarget from broadcast data', () => {
+    let onMessage: ((event: any) => void) | null = null;
+    class MockBroadcastChannel {
+      set onmessage(cb: any) {
+        onMessage = cb;
+      }
+      postMessage() {}
+      close() {}
+    }
+    vi.stubGlobal('BroadcastChannel', MockBroadcastChannel);
+
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      onMessage?.({ data: { type: 'METRICS_UPDATE', hpaTarget: NaN } });
+    });
+
+    expect(result.current.hpaTarget).toBe(80);
+  });
+
+  it('defers updates through requestAnimationFrame and cancels pending frames on unmount', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const frames: FrameRequestCallback[] = [];
+    const rafSpy = vi.fn((cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    });
+    const cancelSpy = vi.fn();
+    vi.stubGlobal('requestAnimationFrame', rafSpy);
+    vi.stubGlobal('cancelAnimationFrame', cancelSpy);
+
+    const { getMetricsCallback } = captureEventCallbacks();
+    const { result, unmount } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      getMetricsCallback()?.(
+        JSON.stringify({ deployments: [{ id: 'first', label: 'a', replicas: 1 }] })
+      );
+    });
+    act(() => {
+      getMetricsCallback()?.(
+        JSON.stringify({ deployments: [{ id: 'second', label: 'b', replicas: 2 }] })
+      );
+    });
+
+    expect(rafSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.deployments).toHaveLength(0);
+
+    act(() => {
+      frames[0]?.(0);
+    });
+    expect(result.current.deployments[0].id).toBe('second');
+
+    // A stray frame with no pending data is ignored.
+    act(() => {
+      frames[0]?.(0);
+    });
+
+    act(() => {
+      getMetricsCallback()?.(
+        JSON.stringify({ deployments: [{ id: 'third', label: 'c', replicas: 3 }] })
+      );
+    });
+    expect(rafSpy).toHaveBeenCalledTimes(2);
+
+    unmount();
+    expect(cancelSpy).toHaveBeenCalledWith(2);
+  });
+
+  it('parses HPA store tokens with numeric and invalid targets', () => {
+    expect(parseHpaToken('true:75')).toEqual({ hasHpa: true, target: 75 });
+    expect(parseHpaToken('false:not-a-number')).toEqual({ hasHpa: false, target: 80 });
+  });
+
+  it('updates colorMode from the gateway theme-sync event', () => {
+    const gw = getBackendGateway();
+    let themeCallback: ((mode: any) => void) | undefined;
+    vi.spyOn(gw, 'onEvent').mockImplementation((eventName, cb) => {
+      if (eventName === 'theme-sync') themeCallback = cb;
+      return () => {};
+    });
+    vi.spyOn(gw, 'getSimulationSnapshot').mockResolvedValue('{}');
+
+    const { result } = renderHook(() => useSystemMonitorDashboard());
+
+    act(() => {
+      themeCallback?.('light');
+    });
+
+    expect(result.current.colorMode).toBe('light');
   });
 });
