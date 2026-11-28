@@ -16,13 +16,39 @@ const SidebarLeftWindowName = "sidebar-left"
 // SidebarRightWindowName is the unique identifier for the detached right sidebar window.
 const SidebarRightWindowName = "sidebar-right"
 
+var (
+	getApplication = application.Get
+	currentWindow  = func(app *application.App) application.Window { return app.Window.Current() }
+	newWindow      = func(app *application.App, options application.WebviewWindowOptions) application.Window {
+		return app.Window.NewWithOptions(options)
+	}
+)
+
+func simulationWindowCloseHandler(app *application.App, win application.Window) func(*application.WindowEvent) {
+	return func(_ *application.WindowEvent) {
+		app.Window.Remove(win.ID())
+		if app.Event != nil {
+			app.Event.Emit("detached-closed")
+		}
+	}
+}
+
+func sidebarWindowCloseHandler(app *application.App, win application.Window, side string) func(*application.WindowEvent) {
+	return func(_ *application.WindowEvent) {
+		app.Window.Remove(win.ID())
+		if app.Event != nil {
+			app.Event.Emit("sidebar-detached-closed", side)
+		}
+	}
+}
+
 // GetActiveWindow returns the current active window or the first available window.
-func GetActiveWindow() application.Window {
-	app := application.Get()
+var GetActiveWindow = func() application.Window {
+	app := getApplication()
 	if app == nil || app.Window == nil {
 		return nil
 	}
-	if win := app.Window.Current(); win != nil {
+	if win := currentWindow(app); win != nil {
 		return win
 	}
 	windows := app.Window.GetAll()
@@ -62,7 +88,7 @@ func (c *WailsWindowController) Close() {
 
 // OpenSimulationWindow opens or focuses the standalone simulation monitoring window.
 func (c *WailsWindowController) OpenSimulationWindow() bool {
-	app := application.Get()
+	app := getApplication()
 	if app == nil || app.Window == nil {
 		return false
 	}
@@ -76,7 +102,7 @@ func (c *WailsWindowController) OpenSimulationWindow() bool {
 		return true
 	}
 
-	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
+	win := newWindow(app, application.WebviewWindowOptions{
 		Name:             SimulationWindowName,
 		Title:            "Kube Simulator - System Monitor",
 		Width:            900,
@@ -91,12 +117,7 @@ func (c *WailsWindowController) OpenSimulationWindow() bool {
 		return false
 	}
 
-	win.OnWindowEvent(events.Common.WindowClosing, func(_ *application.WindowEvent) {
-		app.Window.Remove(win.ID())
-		if app.Event != nil {
-			app.Event.Emit("detached-closed")
-		}
-	})
+	win.OnWindowEvent(events.Common.WindowClosing, simulationWindowCloseHandler(app, win))
 
 	win.Show()
 	win.Focus()
@@ -109,7 +130,7 @@ func (c *WailsWindowController) OpenSimulationWindow() bool {
 
 // CloseSimulationWindow closes the standalone simulation monitoring window if open.
 func (c *WailsWindowController) CloseSimulationWindow() bool {
-	app := application.Get()
+	app := getApplication()
 	if app == nil || app.Window == nil {
 		return false
 	}
@@ -134,7 +155,7 @@ func getSidebarWindowConfig(side string) (name string, title string, width int, 
 
 // OpenSidebarWindow opens or focuses a detached sidebar window ("left" or "right").
 func (c *WailsWindowController) OpenSidebarWindow(side string) bool {
-	app := application.Get()
+	app := getApplication()
 	if app == nil || app.Window == nil {
 		return false
 	}
@@ -149,7 +170,7 @@ func (c *WailsWindowController) OpenSidebarWindow(side string) bool {
 		return true
 	}
 
-	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
+	win := newWindow(app, application.WebviewWindowOptions{
 		Name:             winName,
 		Title:            title,
 		Width:            width,
@@ -164,12 +185,7 @@ func (c *WailsWindowController) OpenSidebarWindow(side string) bool {
 		return false
 	}
 
-	win.OnWindowEvent(events.Common.WindowClosing, func(_ *application.WindowEvent) {
-		app.Window.Remove(win.ID())
-		if app.Event != nil {
-			app.Event.Emit("sidebar-detached-closed", side)
-		}
-	})
+	win.OnWindowEvent(events.Common.WindowClosing, sidebarWindowCloseHandler(app, win, side))
 
 	win.Show()
 	win.Focus()
@@ -182,7 +198,7 @@ func (c *WailsWindowController) OpenSidebarWindow(side string) bool {
 
 // CloseSidebarWindow closes a detached sidebar window if open ("left" or "right").
 func (c *WailsWindowController) CloseSidebarWindow(side string) bool {
-	app := application.Get()
+	app := getApplication()
 	if app == nil || app.Window == nil {
 		return false
 	}

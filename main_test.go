@@ -233,3 +233,63 @@ func TestApp_HandleInitialFileOpen_LiveContext(t *testing.T) {
 	app.handleInitialFileOpen(context.Background())
 	time.Sleep(50 * time.Millisecond)
 }
+
+func TestMain_LifecycleWithStubbedRuntime(t *testing.T) {
+	oldCtx := appCtx
+	defer func() { appCtx = oldCtx }()
+
+	origNew, origRun, origStartup := newApplication, runApplication, startupApp
+	defer func() {
+		newApplication, runApplication, startupApp = origNew, origRun, origStartup
+	}()
+
+	var captured application.Options
+	newApplication = func(options application.Options) *application.App {
+		captured = options
+		return origNew(application.Options{})
+	}
+	runApplication = func(_ *application.App) error { return errors.New("run failed") }
+	startupApp = func(_ *App, _ context.Context) {}
+
+	main()
+
+	if captured.SingleInstance == nil || captured.SingleInstance.OnSecondInstanceLaunch == nil {
+		t.Fatal("Expected main to register the second-instance handler")
+	}
+	if captured.OnShutdown == nil {
+		t.Fatal("Expected main to register the shutdown handler")
+	}
+
+	captured.SingleInstance.OnSecondInstanceLaunch(application.SecondInstanceData{})
+	captured.OnShutdown()
+}
+
+func TestAboutDialogClickHandler_EmitsEvent(t *testing.T) {
+	app := application.New(application.Options{})
+	aboutDialogClickHandler(app)(nil)
+	emitAboutDialog(&application.App{})
+}
+
+func TestSecondInstanceLaunch_ValidInfraAndWindow(t *testing.T) {
+	app := application.New(application.Options{})
+	win := app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "Second Instance"})
+	if win == nil {
+		t.Fatal("Expected a webview window")
+	}
+
+	tmpFile := filepath.Join(t.TempDir(), "project.infra")
+	_ = os.WriteFile(tmpFile, []byte(`{"version":"1.0"}`), 0644)
+	appInstance := NewApp()
+	handler := secondInstanceLaunchHandler(appInstance, &win)
+
+	handler(application.SecondInstanceData{Args: []string{"kube-simulator", tmpFile}})
+	handler(application.SecondInstanceData{Args: []string{"kube-simulator", "notes.txt"}})
+	handler(application.SecondInstanceData{Args: []string{"kube-simulator", filepath.Join(t.TempDir(), "missing.infra")}})
+
+	var nilWindow *application.WebviewWindow
+	secondInstanceLaunchHandler(appInstance, &nilWindow)(application.SecondInstanceData{Args: []string{"kube-simulator", tmpFile}})
+}
+
+func TestShutdownApp_ClosesServices(t *testing.T) {
+	shutdownApp(NewApp())
+}

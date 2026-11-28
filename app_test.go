@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"build-wails/backend/service"
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -1186,4 +1189,174 @@ func TestApp_LoadFileContent(t *testing.T) {
 
 	// Non-existent file
 	app.LoadFileContent(filepath.Join(tmpDir, "nonexistent.infra"))
+}
+
+type stubDialog struct {
+	path string
+}
+
+func (d stubDialog) PromptForSingleSelection() (string, error) {
+	return d.path, nil
+}
+
+func TestApp_LiveWindowBranches(t *testing.T) {
+	wailsApp := application.New(application.Options{})
+	win := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{Title: "Live Window"})
+	if win == nil {
+		t.Fatal("Expected a webview window")
+	}
+
+	origActiveWindow := service.GetActiveWindow
+	defer func() { service.GetActiveWindow = origActiveWindow }()
+	service.GetActiveWindow = func() application.Window { return win }
+
+	oldCtx := appCtx
+	defer func() { appCtx = oldCtx }()
+	appCtx = context.Background()
+
+	setAppWindowTitle("Live Title")
+	_ = getActiveWindowWidth(context.Background())
+	applyWindowBounds(context.Background(), 640, 480, 10)
+
+	origInitHistory, origInitProjects := initHistory, initProjects
+	defer func() {
+		initHistory, initProjects = origInitHistory, origInitProjects
+	}()
+	initHistory = func(*service.HistoryService) error { return nil }
+	initProjects = func(*service.ProjectService) error { return nil }
+
+	NewApp().startup(context.Background())
+}
+
+func TestApp_StartupInitializationFailures(t *testing.T) {
+	oldCtx := appCtx
+	defer func() { appCtx = oldCtx }()
+
+	origInitHistory, origInitProjects := initHistory, initProjects
+	defer func() {
+		initHistory, initProjects = origInitHistory, origInitProjects
+	}()
+
+	ctx := context.WithValue(context.Background(), isTestKey, true)
+
+	initHistory = func(*service.HistoryService) error { return errors.New("history failure") }
+	initProjects = func(*service.ProjectService) error { return nil }
+	NewApp().startup(ctx)
+
+	initHistory = func(*service.HistoryService) error { return nil }
+	initProjects = func(*service.ProjectService) error { return errors.New("projects failure") }
+	NewApp().startup(ctx)
+}
+
+func TestApp_ResolveStartupScreensFromApplication(t *testing.T) {
+	wailsApp := application.New(application.Options{})
+	screen := application.Screen{IsPrimary: true, Size: application.Size{Width: 1280, Height: 720}}
+
+	origApp, origScreens := getApplication, getScreens
+	defer func() {
+		getApplication, getScreens = origApp, origScreens
+	}()
+	getApplication = func() *application.App { return wailsApp }
+	getScreens = func(_ *application.App) []*application.Screen {
+		return []*application.Screen{nil, &screen}
+	}
+
+	screens := resolveStartupScreens(context.Background())
+	if len(screens) != 1 || screens[0].Size.Width != 1280 {
+		t.Errorf("Expected one non-nil screen, got %+v", screens)
+	}
+}
+
+func TestApp_InitialFileOpenAndLoadLiveEvents(t *testing.T) {
+	wailsApp := application.New(application.Options{})
+	if wailsApp.Event == nil {
+		t.Fatal("Expected an event manager on the test application")
+	}
+
+	origApp, origDelay := getApplication, initialFileOpenDelay
+	defer func() {
+		getApplication, initialFileOpenDelay = origApp, origDelay
+	}()
+	getApplication = func() *application.App { return wailsApp }
+	initialFileOpenDelay = time.Millisecond
+
+	tmpFile := filepath.Join(t.TempDir(), "startup.infra")
+	_ = os.WriteFile(tmpFile, []byte(`{"version":"1.0"}`), 0644)
+
+	a := NewApp()
+	a.SetInitialFile(tmpFile)
+	a.handleInitialFileOpen(context.Background())
+	time.Sleep(30 * time.Millisecond)
+	a.LoadFileContent(tmpFile)
+}
+
+func TestApp_OpenDevToolsWithActiveWindow(t *testing.T) {
+	wailsApp := application.New(application.Options{})
+	win := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{Title: "DevTools"})
+	if win == nil {
+		t.Fatal("Expected a webview window")
+	}
+
+	origApp, origCurrent := getApplication, currentWindowProvider
+	defer func() {
+		getApplication, currentWindowProvider = origApp, origCurrent
+	}()
+	getApplication = func() *application.App { return wailsApp }
+	currentWindowProvider = func(_ *application.WindowManager) application.Window { return win }
+
+	NewApp().OpenDevTools()
+}
+
+func TestApp_OpenLogFileEmptyProviderPath(t *testing.T) {
+	oldCtx := appCtx
+	defer func() { appCtx = oldCtx }()
+	appCtx = context.WithValue(context.WithValue(context.Background(), isTestKey, true), testFilePathKey, "")
+
+	origProvider := logFilePathProvider
+	defer func() { logFilePathProvider = origProvider }()
+	logFilePathProvider = func() string { return "" }
+
+	if NewApp().OpenLogFile() {
+		t.Error("Expected OpenLogFile to fail with an empty log file path")
+	}
+}
+
+func TestApp_SelectProjectFileDialogLiveProviders(t *testing.T) {
+	wailsApp := application.New(application.Options{})
+	if wailsApp.Dialog == nil {
+		t.Fatal("Expected a dialog manager on the test application")
+	}
+
+	origApp, origSave, origOpen := getApplication, saveFileDialogProvider, openFileDialogProvider
+	defer func() {
+		getApplication, saveFileDialogProvider, openFileDialogProvider = origApp, origSave, origOpen
+	}()
+
+	origSave(wailsApp, &application.SaveFileDialogOptions{})
+	origOpen(wailsApp, &application.OpenFileDialogOptions{})
+	getApplication = func() *application.App { return wailsApp }
+	saveFileDialogProvider = func(_ *application.App, _ *application.SaveFileDialogOptions) dialogPrompter {
+		return stubDialog{path: "saved.infra"}
+	}
+	openFileDialogProvider = func(_ *application.App, _ *application.OpenFileDialogOptions) dialogPrompter {
+		return stubDialog{path: "opened.infra"}
+	}
+
+	oldCtx := appCtx
+	defer func() { appCtx = oldCtx }()
+	appCtx = nil
+
+	a := NewApp()
+	if path, err := a.selectProjectFileDialog(true, "default.infra", "Save"); err != nil || path != "saved.infra" {
+		t.Errorf("Unexpected save dialog result: %q, %v", path, err)
+	}
+	if path, err := a.selectProjectFileDialog(false, "", "Open"); err != nil || path != "opened.infra" {
+		t.Errorf("Unexpected open dialog result: %q, %v", path, err)
+	}
+}
+
+func TestApp_SidebarWindowDelegates(t *testing.T) {
+	a := NewApp()
+	_ = a.OpenSidebarWindow("left")
+	_ = a.CloseSidebarWindow("left")
 }

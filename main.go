@@ -15,6 +15,12 @@ var assets embed.FS
 
 var appCtx context.Context
 
+var (
+	newApplication = application.New
+	runApplication = (*application.App).Run
+	startupApp     = (*App).startup
+)
+
 func handleFileAssociation(app *App) {
 	if len(os.Args) > 1 {
 		arg := os.Args[1]
@@ -28,16 +34,57 @@ func handleFileAssociation(app *App) {
 	}
 }
 
+func emitAboutDialog(app *application.App) {
+	if app.Event != nil {
+		app.Event.Emit("openAboutDialog")
+	}
+}
+
+func aboutDialogClickHandler(app *application.App) func(*application.Context) {
+	return func(_ *application.Context) {
+		emitAboutDialog(app)
+	}
+}
+
 func setupApplicationMenu(app *application.App) *application.Menu {
 	appMenu := app.NewMenu()
 	helpMenu := appMenu.AddSubmenu("Help")
 	helpMenu.AddSeparator()
-	helpMenu.Add("About").SetAccelerator("CmdOrCtrl+A").OnClick(func(_ *application.Context) {
-		if app.Event != nil {
-			app.Event.Emit("openAboutDialog")
-		}
-	})
+	helpMenu.Add("About").SetAccelerator("CmdOrCtrl+A").OnClick(aboutDialogClickHandler(app))
 	return appMenu
+}
+
+func handleSecondInstanceLaunch(appInstance *App, mainWindow *application.WebviewWindow, data application.SecondInstanceData) {
+	if len(data.Args) > 1 {
+		arg := data.Args[1]
+		if strings.HasSuffix(strings.ToLower(arg), ".infra") {
+			if _, err := os.Stat(arg); err == nil {
+				if absPath, err := filepath.Abs(arg); err == nil {
+					appInstance.LoadFileContent(absPath)
+				}
+			}
+		}
+	}
+	if mainWindow != nil {
+		mainWindow.Restore()
+		mainWindow.Focus()
+	}
+}
+
+func secondInstanceLaunchHandler(appInstance *App, mainWindow **application.WebviewWindow) func(application.SecondInstanceData) {
+	return func(data application.SecondInstanceData) {
+		handleSecondInstanceLaunch(appInstance, *mainWindow, data)
+	}
+}
+
+func shutdownApp(appInstance *App) {
+	appInstance.shutdown(context.Background())
+}
+
+func shutdownHandler(appInstance *App) func() {
+	return func() {
+		shutdownApp(appInstance)
+	}
 }
 
 // main is the primary entry point for the Wails application.
@@ -49,7 +96,7 @@ func main() {
 
 	var mainWindow *application.WebviewWindow
 
-	wailsApp := application.New(application.Options{
+	wailsApp := newApplication(application.Options{
 		Name: "Kube Simulator",
 		Services: []application.Service{
 			application.NewService(appInstance),
@@ -58,27 +105,10 @@ func main() {
 			Handler: application.BundledAssetFileServer(assets),
 		},
 		SingleInstance: &application.SingleInstanceOptions{
-			UniqueID: "com.dhanyn.kubesimulator",
-			OnSecondInstanceLaunch: func(data application.SecondInstanceData) {
-				if len(data.Args) > 1 {
-					arg := data.Args[1]
-					if strings.HasSuffix(strings.ToLower(arg), ".infra") {
-						if _, err := os.Stat(arg); err == nil {
-							if absPath, err := filepath.Abs(arg); err == nil {
-								appInstance.LoadFileContent(absPath)
-							}
-						}
-					}
-				}
-				if mainWindow != nil {
-					mainWindow.Restore()
-					mainWindow.Focus()
-				}
-			},
+			UniqueID:               "com.dhanyn.kubesimulator",
+			OnSecondInstanceLaunch: secondInstanceLaunchHandler(appInstance, &mainWindow),
 		},
-		OnShutdown: func() {
-			appInstance.shutdown(context.Background())
-		},
+		OnShutdown: shutdownHandler(appInstance),
 	})
 
 	appMenu := setupApplicationMenu(wailsApp)
@@ -96,9 +126,9 @@ func main() {
 		},
 	})
 
-	appInstance.startup(context.Background())
+	startupApp(appInstance, context.Background())
 
-	if err := wailsApp.Run(); err != nil {
+	if err := runApplication(wailsApp); err != nil {
 		println("Error:", err.Error())
 	}
 }

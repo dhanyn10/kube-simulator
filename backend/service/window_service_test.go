@@ -268,3 +268,103 @@ func TestWindowService_WithActiveWindowBranches(t *testing.T) {
 		}
 	}
 }
+
+func TestGetActiveWindow_ReturnsCurrentWindow(t *testing.T) {
+	app := application.New(application.Options{})
+	win := app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "Current Window"})
+	if win == nil {
+		t.Fatal("Expected a webview window")
+	}
+
+	origApp, origCurrent := getApplication, currentWindow
+	defer func() {
+		getApplication, currentWindow = origApp, origCurrent
+	}()
+	getApplication = func() *application.App { return app }
+	currentWindow = func(_ *application.App) application.Window { return win }
+
+	if got := GetActiveWindow(); got != win {
+		t.Errorf("Expected GetActiveWindow to return the current window, got %v", got)
+	}
+}
+
+func TestWailsWindowController_NilApplicationBranches(t *testing.T) {
+	origApp := getApplication
+	defer func() { getApplication = origApp }()
+	getApplication = func() *application.App { return nil }
+
+	controller := &WailsWindowController{}
+	if controller.OpenSidebarWindow("left") {
+		t.Error("Expected OpenSidebarWindow to fail without an application")
+	}
+	if controller.CloseSidebarWindow("left") {
+		t.Error("Expected CloseSidebarWindow to fail without an application")
+	}
+}
+
+func TestWailsWindowController_NilSimulationWindow(t *testing.T) {
+	app := application.New(application.Options{})
+	origApp, origNew := getApplication, newWindow
+	defer func() {
+		getApplication, newWindow = origApp, origNew
+	}()
+	getApplication = func() *application.App { return app }
+	newWindow = func(_ *application.App, _ application.WebviewWindowOptions) application.Window { return nil }
+
+	if (&WailsWindowController{}).OpenSimulationWindow() {
+		t.Error("Expected OpenSimulationWindow to fail when window creation returns nil")
+	}
+}
+
+func TestWindowCloseHandlers_RemoveAndEmit(t *testing.T) {
+	app := application.New(application.Options{})
+	win := app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "Closing"})
+	if win == nil {
+		t.Fatal("Expected a webview window")
+	}
+
+	simulationWindowCloseHandler(app, win)(nil)
+	sidebarWindowCloseHandler(app, win, "left")(nil)
+}
+
+func TestWailsWindowController_SidebarWindowLifecycle(t *testing.T) {
+	app := application.New(application.Options{})
+	controller := &WailsWindowController{}
+	origApp := getApplication
+	defer func() { getApplication = origApp }()
+	getApplication = func() *application.App { return app }
+
+	windowNames := map[string]string{
+		"left":  SidebarLeftWindowName,
+		"right": SidebarRightWindowName,
+	}
+
+	for _, side := range []string{"left", "right"} {
+		if !controller.OpenSidebarWindow(side) {
+			t.Fatalf("Expected OpenSidebarWindow(%q) to create a window", side)
+		}
+		if !controller.OpenSidebarWindow(side) {
+			t.Fatalf("Expected OpenSidebarWindow(%q) to focus the existing window", side)
+		}
+		if _, exists := app.Window.GetByName(windowNames[side]); !exists {
+			t.Fatalf("Expected sidebar window %q to be registered", windowNames[side])
+		}
+
+		dummy := app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "Sidebar Close Handler"})
+		sidebarWindowCloseHandler(app, dummy, side)(nil)
+
+		if !controller.CloseSidebarWindow(side) {
+			t.Fatalf("Expected CloseSidebarWindow(%q) to close the window", side)
+		}
+		if controller.CloseSidebarWindow(side) {
+			t.Fatalf("Expected CloseSidebarWindow(%q) to fail when the window is gone", side)
+		}
+	}
+
+	origNew := newWindow
+	defer func() { newWindow = origNew }()
+	newWindow = func(_ *application.App, _ application.WebviewWindowOptions) application.Window { return nil }
+	if controller.OpenSidebarWindow("right") {
+		t.Error("Expected OpenSidebarWindow to fail when window creation returns nil")
+	}
+}
