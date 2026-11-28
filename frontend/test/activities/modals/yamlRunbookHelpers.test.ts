@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { buildYamlRunbook, getLocalPodCeiling } from '@/activities/modals/yamlRunbookHelpers';
+import yaml from 'js-yaml';
+import {
+  buildYamlRunbook,
+  getLocalPodCeiling,
+  getStepsByStage,
+  analyzeLocalTestReadiness,
+  YamlRunbookStep,
+} from '@/activities/modals/yamlRunbookHelpers';
 
 const stepById = (steps: ReturnType<typeof buildYamlRunbook>, id: string) =>
   steps.find((step) => step.id === id);
@@ -628,6 +635,262 @@ describe('buildYamlRunbook', () => {
       const stepsMissing = buildYamlRunbook(contentMissingRole);
       const notesMissing = stepById(stepsMissing, 'browser-test-warnings')?.notes?.join(' ') || '';
       expect(notesMissing).toContain('RoleBinding missing-role-rb references role "non-existent-role", but no matching Role or ClusterRole exists');
+    });
+
+    it('covers all branch conditions for workloads, services, HPA, RBAC fallbacks, and port forwards', () => {
+      // 1. Service with no ports (triggers warning: Service ... has no port) and unnamed service
+      const svcNoPortsYaml = [
+        'apiVersion: v1',
+        'kind: Service',
+        'spec:',
+        '  selector:',
+        '    app: web',
+      ].join('\n');
+      const stepsNoPort = buildYamlRunbook(svcNoPortsYaml);
+      const warnNoPort = stepById(stepsNoPort, 'browser-test-warnings')?.notes?.join(' ') || '';
+      expect(warnNoPort).toContain('Service unnamed-service has no port');
+
+      // 2. Service with non-positive port or non-number port
+      const invalidPortDoc = {
+        kind: 'Service',
+        metadata: { name: 'invalid-svc' },
+        spec: {
+          selector: { app: 'test' },
+          ports: [{ port: 0 }, { port: -1 }],
+        },
+      };
+      const readinessInvalidPort = analyzeLocalTestReadiness([invalidPortDoc]);
+      expect(readinessInvalidPort.ports).toEqual([]);
+
+      // 3. Workload without metadata name, container without image or container empty image
+      const anonDoc = {
+        kind: 'Pod',
+        spec: {
+          containers: [{ name: 'no-image' }, { image: '' }],
+        },
+      };
+      const readinessAnon = analyzeLocalTestReadiness([anonDoc as any]);
+      expect(readinessAnon.warnings.some((w) => w.includes('Pod unnamed-workload has no container image'))).toBe(true);
+
+      // 4. Ingress without metadata name, ingress rule without host, rule without http.paths, path item without path
+      const ingressWithFallbacksDoc = {
+        kind: 'Ingress',
+        spec: {
+          rules: [
+            {
+              // no host -> rule.host is undefined (Line 220: if (!rule.host) return)
+              http: { paths: [{ path: '/test' }] },
+            },
+            {
+              host: 'example.com',
+              // no http.paths -> fallbacks to [{ path: '/' }]
+            },
+            {
+              host: 'fallback.local',
+              http: {
+                paths: [
+                  {
+                    // path omitted -> item.path || '/'
+                    backend: { service: { name: 'web-svc' } },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      };
+      const readinessIngress = analyzeLocalTestReadiness([ingressWithFallbacksDoc as any]);
+      expect(readinessIngress.ingressRoutes).toContainEqual({ host: 'example.com', path: '/' });
+      expect(readinessIngress.ingressRoutes).toContainEqual({ host: 'fallback.local', path: '/' });
+
+      // 5. Ingress with rules array containing no paths
+      const ingressEmptyPathsDoc = {
+        kind: 'Ingress',
+        metadata: { name: 'empty-paths' },
+        spec: {
+          rules: [{ host: 'empty.local', http: {} }],
+        },
+      };
+      const readinessEmptyPaths = analyzeLocalTestReadiness([ingressEmptyPathsDoc as any]);
+      expect(readinessEmptyPaths.warnings.some((w) => w.includes('Ingress empty-paths has no backend Service configured'))).toBe(true);
+
+      // 6. HPA targeting existing workload (workloadNames.has(targetName) === true)
+      // and HPA with maxReplicas > safeCeiling (with name and unnamed)
+      const safeCeiling = getLocalPodCeiling();
+      const validHpaDoc = {
+        kind: 'HorizontalPodAutoscaler',
+        metadata: { name: 'valid-hpa' },
+        spec: {
+          scaleTargetRef: { kind: 'Deployment', name: 'app-deploy' },
+          maxReplicas: safeCeiling + 50,
+        },
+      };
+      const unnamedHpaHighCeiling = {
+        kind: 'HorizontalPodAutoscaler',
+        spec: {
+          scaleTargetRef: { kind: 'Deployment', name: 'app-deploy' },
+          maxReplicas: safeCeiling + 100,
+        },
+      };
+      const matchingDeployDoc = {
+        kind: 'Deployment',
+        metadata: { name: 'app-deploy' },
+        spec: {
+          replicas: 1,
+          template: { spec: { containers: [{ image: 'nginx:latest' }] } },
+        },
+      };
+      const readinessHpa = analyzeLocalTestReadiness([
+        matchingDeployDoc as any,
+        validHpaDoc as any,
+        unnamedHpaHighCeiling as any,
+      ]);
+      expect(readinessHpa.warnings.some((w) => w.includes('HPA valid-hpa has maxReplicas'))).toBe(true);
+      expect(readinessHpa.warnings.some((w) => w.includes('HPA unnamed-hpa has maxReplicas'))).toBe(true);
+
+      // 7. Role without name and without rules property
+      const emptyRoleDoc = {
+        kind: 'Role',
+      };
+      const readinessRole = analyzeLocalTestReadiness([emptyRoleDoc as any]);
+      expect(readinessRole.warnings.some((w) => w.includes('Role unnamed-role has no permission rules defined'))).toBe(true);
+
+      // 8. RoleBinding without name, subjects property, or roleRef name
+      const emptyBindingDoc = {
+        kind: 'RoleBinding',
+        roleRef: { name: 'non-existent' },
+      };
+      const readinessBinding = analyzeLocalTestReadiness([emptyBindingDoc as any]);
+      expect(readinessBinding.warnings.some((w) => w.includes('RoleBinding unnamed-binding has no subjects assigned'))).toBe(true);
+      expect(readinessBinding.warnings.some((w) => w.includes('references role "non-existent"'))).toBe(true);
+
+      // 9. LoadBalancer with port !== 80 where target.localPort === port
+      const lbPort3000Doc = {
+        kind: 'Service',
+        metadata: { name: 'lb-3000' },
+        spec: {
+          type: 'LoadBalancer',
+          selector: { app: 'web' },
+          ports: [{ port: 3000 }],
+        },
+      };
+      const matchingPod = {
+        kind: 'Pod',
+        metadata: { name: 'web-pod', labels: { app: 'web' } },
+        spec: { containers: [{ image: 'nginx:latest' }] },
+      };
+      const stepsLb = buildYamlRunbook(
+        [yaml.dump(matchingPod), yaml.dump(lbPort3000Doc)].join('\n---\n')
+      );
+      const portForwardStep = stepById(stepsLb, 'port-forward');
+      expect(portForwardStep?.urls).toContain('http://localhost:3000');
+
+      // 10. Multiple services or nonHttp images triggering deduplication in notes and urls
+      const dupImageDoc1 = {
+        kind: 'Pod',
+        metadata: { name: 'db-1', labels: { app: 'db' } },
+        spec: { containers: [{ image: 'redis:latest' }] },
+      };
+      const dupImageDoc2 = {
+        kind: 'Pod',
+        metadata: { name: 'db-2', labels: { app: 'db' } },
+        spec: { containers: [{ image: 'redis:latest' }] },
+      };
+      const svc1 = {
+        kind: 'Service',
+        metadata: { name: 'db-svc-1' },
+        spec: {
+          type: 'LoadBalancer',
+          selector: { app: 'db' },
+          ports: [{ port: 6379 }],
+        },
+      };
+      const svc2 = {
+        kind: 'Service',
+        metadata: { name: 'db-svc-2' },
+        spec: {
+          type: 'LoadBalancer',
+          selector: { app: 'db' },
+          ports: [{ port: 6379 }],
+        },
+      };
+      const stepsDup = buildYamlRunbook(
+        [
+          yaml.dump(dupImageDoc1),
+          yaml.dump(dupImageDoc2),
+          yaml.dump(svc1),
+          yaml.dump(svc2),
+        ].join('\n---\n')
+      );
+      const pfDup = stepById(stepsDup, 'port-forward');
+      expect(pfDup).toBeDefined();
+    });
+
+    it('covers PersistentVolumeClaim verification step and doc without kind', () => {
+      const pvcContent = [
+        READY_YAML,
+        '---',
+        'apiVersion: v1',
+        'kind: PersistentVolumeClaim',
+        'metadata:',
+        '  name: my-claim',
+        'spec:',
+        '  storageClassName: hostpath',
+      ].join('\n');
+      const steps = buildYamlRunbook(pvcContent);
+      const verifyCmd = stepById(steps, 'verify-resources')?.commands[0].command;
+      expect(verifyCmd).toContain('pvc');
+    });
+
+    it('covers doc without kind, image with empty base, and duplicate NodePort notes', () => {
+      // Doc without kind covers lines 472 and 498
+      const docWithoutKind = [
+        'metadata:',
+        '  name: just-metadata',
+        '---',
+        'apiVersion: v1',
+        'kind: Pod',
+        'metadata:',
+        '  name: edge-case-pod',
+        '  labels:',
+        '    app: web',
+        'spec:',
+        '  containers:',
+        '    - name: empty-base',
+        '      image: ":latest"', // line 208 empty base
+        '---',
+        'apiVersion: v1',
+        'kind: Service',
+        'metadata:',
+        '  name: multi-np-svc',
+        'spec:',
+        '  type: NodePort',
+        '  selector:',
+        '    app: web',
+        '  ports:',
+        '    - port: 8080',
+        '    - port: 8081', // triggers duplicate note on line 782
+      ].join('\n');
+
+      const steps = buildYamlRunbook(docWithoutKind);
+      const pfStep = stepById(steps, 'port-forward');
+      expect(pfStep).toBeDefined();
+    });
+
+    it('filters runbook steps by stage with getStepsByStage covering all branches', () => {
+      const mockSteps: YamlRunbookStep[] = [
+        { id: '1', title: 'Pre', description: '', commands: [], stage: 'prerequisites' },
+        { id: '2', title: 'Man', description: '', commands: [], stage: 'manifest' },
+        { id: '3', title: 'Dep', description: '', commands: [], stage: 'deploy' },
+        { id: '4', title: 'Loc', description: '', commands: [], stage: 'localhost' },
+        { id: '5', title: 'Cln', description: '', commands: [], stage: 'cleanup' },
+      ];
+
+      expect(getStepsByStage(mockSteps, 'prerequisites')).toHaveLength(1);
+      expect(getStepsByStage(mockSteps, 'manifest')).toHaveLength(1);
+      expect(getStepsByStage(mockSteps, 'deploy')).toHaveLength(2); // deploy + localhost
+      expect(getStepsByStage(mockSteps, 'localhost')).toHaveLength(2); // deploy + localhost
+      expect(getStepsByStage(mockSteps, 'cleanup')).toHaveLength(1);
     });
   });
 });
