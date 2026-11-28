@@ -26,6 +26,27 @@ describe('workloadPodsModalHelpers', () => {
       expect(resolved).toBe(parentDeployment);
     });
 
+    it('returns parent StatefulSet or ReplicaSet when a child pod is selected', () => {
+      const statefulSet = { id: 'sts-1', type: 'StatefulSet', data: {} };
+      const replicaSet = { id: 'rs-1', type: 'ReplicaSet', data: {} };
+      const statefulPod = { id: 'pod-sts', type: 'Pod', parentId: 'sts-1', data: {} };
+      const replicaPod = { id: 'pod-rs', type: 'Pod', parentId: 'rs-1', data: {} };
+
+      expect(resolveWorkloadController(statefulPod, [statefulSet, statefulPod])).toBe(statefulSet);
+      expect(resolveWorkloadController(replicaPod, [replicaSet, replicaPod])).toBe(replicaSet);
+    });
+
+    it('returns the selected pod when its parent is missing or not a workload controller', () => {
+      const service = { id: 'svc-1', type: 'Service', data: {} };
+      const orphanPod = { id: 'pod-orphan', type: 'Pod', parentId: 'missing', data: {} };
+      const podWithServiceParent = { id: 'pod-svc', type: 'Pod', parentId: 'svc-1', data: {} };
+
+      expect(resolveWorkloadController(orphanPod, [orphanPod])).toBe(orphanPod);
+      expect(resolveWorkloadController(podWithServiceParent, [service, podWithServiceParent])).toBe(
+        podWithServiceParent
+      );
+    });
+
     it('returns null when selectedNode is null or undefined', () => {
       expect(resolveWorkloadController(null, [])).toBeNull();
       expect(resolveWorkloadController(undefined, [])).toBeNull();
@@ -180,6 +201,16 @@ describe('workloadPodsModalHelpers', () => {
       expect(pods[0].replicaSuffix).toBe('myfix');
       expect(pods[1].replicaSuffix).toBe('other');
     });
+
+    it('uses an empty data object when the controller has no data', () => {
+      const controller = { id: 'dep-empty-data', type: 'Deployment' };
+      const pods = buildWorkloadPodList(controller, [controller]);
+
+      expect(pods).toHaveLength(1);
+      expect(pods[0].podName).toBe('pod');
+      expect(pods[0].podHash).toBe('1pd4l');
+      expect(pods[0].workerId).toBe('worker-1');
+    });
   });
 
   describe('getWorkerDistribution', () => {
@@ -311,6 +342,32 @@ describe('workloadPodsModalHelpers dynamic worker fallback', () => {
     const dist = getWorkerDistribution(pods);
     expect(dist).toHaveLength(5);
     expect(dist.find((d) => d.workerId === 'worker-5')?.count).toBe(1);
+  });
+
+  it('derives worker info dynamically when distribution reaches an uncached worker id', () => {
+    const dist = getWorkerDistribution(
+      [
+        {
+          index: 1,
+          podName: 'api-1pd4l-abcde',
+          podHash: '1pd4l',
+          replicaSuffix: 'abcde',
+          workerId: 'worker-42',
+          workerInfo: expect.objectContaining({ id: 'worker-42' }) as any,
+          status: 'Ready',
+        },
+      ],
+      42
+    );
+
+    expect(dist).toHaveLength(42);
+    expect(dist[41]).toEqual(
+      expect.objectContaining({
+        workerId: 'worker-42',
+        workerInfo: expect.objectContaining({ id: 'worker-42', name: 'worker-42' }),
+        count: 1,
+      })
+    );
   });
 
   it('matches child pods via data.parentId and handles non-worker-N workerId in getWorkerDistribution', () => {

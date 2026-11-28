@@ -4,7 +4,6 @@ import {
   WorkerNodeInfo,
   WORKER_NODES,
   getWorkerForIndex,
-  getWorkerNodeInfo,
 } from '@/lib/workerNodeHelpers';
 
 export interface WorkloadPodItem {
@@ -121,7 +120,7 @@ export const buildWorkloadPodList = (
     });
 
     const workerId = resolvePodWorker(i, childPods, workerCount);
-    const workerInfo = WORKER_NODES[workerId] || getWorkerNodeInfo(workerId);
+    const workerInfo = WORKER_NODES[workerId];
     const isReady = data.status === 'ready' || Boolean(data.image);
 
     let podStatus: 'Running' | 'Ready' | 'Pending' = 'Pending';
@@ -166,7 +165,7 @@ export const getWorkerDistribution = (
     const id = `worker-${i}`;
     result.push({
       workerId: id,
-      workerInfo: WORKER_NODES[id] || getWorkerNodeInfo(i),
+      workerInfo: WORKER_NODES[id],
       count: counts[id] || 0,
     });
   }

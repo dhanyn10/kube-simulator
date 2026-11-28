@@ -372,6 +372,29 @@ describe('buildYamlRunbook', () => {
     expect(step?.notes?.join(' ')).toContain('hosts file');
   });
 
+  it('deduplicates repeated ingress-controller notes for multi-port services', () => {
+    const content = [
+      'apiVersion: v1',
+      'kind: Service',
+      'metadata:',
+      '  name: ingress-svc',
+      'spec:',
+      '  selector:',
+      '    app.kubernetes.io/name: ingress-nginx',
+      '  ports:',
+      '    - port: 80',
+      '    - port: 443',
+    ].join('\n');
+
+    const step = stepById(buildYamlRunbook(content), 'port-forward');
+    const ingressNotes = (step?.notes ?? []).filter((note) =>
+      note.includes('targets the Ingress controller, but no Ingress host was found')
+    );
+
+    expect(ingressNotes).toHaveLength(1);
+    expect(ingressNotes[0]).toContain('Service ingress-svc');
+  });
+
   it('explains when a workload image cannot serve a browser page', () => {
     const content = READY_YAML.replace('nginx:latest', 'golang:1.21-alpine');
     const notes = stepById(buildYamlRunbook(content), 'port-forward')?.notes?.join(' ') || '';

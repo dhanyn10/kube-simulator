@@ -396,9 +396,8 @@ const syncInPlaceTrafficNodes = (currentNodes: Node[], updatedNodes: Node[]) => 
   }
 };
 
-const collectActiveReachableNodeIds = (internetReachableMap?: Map<string, Set<string>>): Set<string> => {
+const collectActiveReachableNodeIds = (internetReachableMap: Map<string, Set<string>>): Set<string> => {
   const activeReachableNodeIds = new Set<string>();
-  if (!internetReachableMap) return activeReachableNodeIds;
   for (const reachableSet of internetReachableMap.values()) {
     for (const id of reachableSet) {
       activeReachableNodeIds.add(id);

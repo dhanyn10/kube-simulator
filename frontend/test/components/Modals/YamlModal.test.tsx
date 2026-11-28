@@ -419,6 +419,62 @@ spec:
       expect(screen.getByTestId('yaml-runbook-step-create-namespaces')).toBeInTheDocument();
     });
 
+    it('uses light theme styles for footer back buttons in deploy and cleanup stages', () => {
+      render(<YamlModal content={yamlWithPrereqs} colorMode="light" onClose={mockOnClose} />);
+      const footer = screen.getByTestId('yaml-modal-footer');
+
+      fireEvent.click(screen.getByTestId('yaml-tab-deploy'));
+      expect(within(footer).getByTestId('yaml-btn-back').className).toContain('border-slate-300');
+
+      fireEvent.click(screen.getByTestId('yaml-tab-cleanup'));
+      expect(within(footer).getByTestId('yaml-btn-back').className).toContain('border-slate-300');
+    });
+
+    it('skips the download when URL.createObjectURL is unavailable', () => {
+      const originalCreateObjectURL = globalThis.URL.createObjectURL;
+      const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+      (globalThis.URL as any).createObjectURL = undefined;
+
+      try {
+        render(<YamlModal content={readyYaml} colorMode="dark" onClose={mockOnClose} />);
+        fireEvent.click(screen.getByTestId('yaml-tab-manifest'));
+
+        expect(() => fireEvent.click(screen.getByTestId('yaml-download-btn'))).not.toThrow();
+        expect(clickSpy).not.toHaveBeenCalled();
+      } finally {
+        (globalThis.URL as any).createObjectURL = originalCreateObjectURL;
+        clickSpy.mockRestore();
+      }
+    });
+
+    it('resets copied deployment command ids after matching and stale copy timers', async () => {
+      vi.useFakeTimers();
+
+      try {
+        render(<YamlModal content={yamlWithPrereqs} colorMode="dark" onClose={mockOnClose} />);
+        const firstCopy = screen.getByTestId('yaml-runbook-copy-create-namespaces-0');
+        const secondCopy = screen.getByTestId('yaml-runbook-copy-ingress-nginx-0');
+
+        await act(async () => {
+          fireEvent.click(firstCopy);
+        });
+        expect(firstCopy).toHaveTextContent('Copied!');
+
+        await act(async () => {
+          fireEvent.click(secondCopy);
+        });
+        expect(secondCopy).toHaveTextContent('Copied!');
+        expect(firstCopy).toHaveTextContent('Copy');
+
+        await act(async () => {
+          vi.advanceTimersByTime(2000);
+        });
+        expect(secondCopy).toHaveTextContent('Copy');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('shows port-forward and localhost URL in stage 3 when the design can be tested', () => {
       render(<YamlModal content={readyYaml} colorMode="dark" onClose={mockOnClose} />);
       fireEvent.click(screen.getByTestId('yaml-tab-deploy'));

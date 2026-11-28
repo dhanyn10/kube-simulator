@@ -227,6 +227,67 @@ describe('useSidebarSync', () => {
       unmount();
     });
 
+    it('ignores unsupported side values in attach requests without changing sidebar state', async () => {
+      setLocationSearch('');
+      const gw = getBackendGateway();
+      const closeSidebarSpy = vi.spyOn(gw, 'closeSidebarWindow').mockResolvedValue(true);
+
+      useFlowStore.setState({
+        isSidebarDetached: true,
+        isSidebarVisible: false,
+        isRightSidebarDetached: true,
+        isRightSidebarVisible: false,
+      });
+
+      const { unmount } = renderHook(() => useSidebarSync());
+
+      await act(async () => {
+        gw.emitEvent('sidebar-attach-request', 'unknown-side');
+      });
+
+      expect(closeSidebarSpy).toHaveBeenCalledWith('unknown-side');
+      expect(useFlowStore.getState().isSidebarDetached).toBe(true);
+      expect(useFlowStore.getState().isSidebarVisible).toBe(false);
+      expect(useFlowStore.getState().isRightSidebarDetached).toBe(true);
+      expect(useFlowStore.getState().isRightSidebarVisible).toBe(false);
+
+      unmount();
+    });
+
+    it('skips channel setup when globalThis is unavailable', () => {
+      const origDescriptor = Object.getOwnPropertyDescriptor(global, 'globalThis');
+      const constructChannel = vi.fn();
+      class StubBroadcastChannel {
+        constructor(...args: unknown[]) {
+          constructChannel(...args);
+        }
+      }
+      vi.stubGlobal('BroadcastChannel', StubBroadcastChannel);
+
+      try {
+        Object.defineProperty(global, 'globalThis', {
+          configurable: true,
+          get() {
+            const stack = new Error().stack || '';
+            if (stack.includes('useSidebarSync.ts')) return undefined;
+            return origDescriptor?.value ?? global;
+          },
+        });
+
+        const { result } = renderHook(() => useSidebarSync());
+
+        expect(constructChannel).not.toHaveBeenCalled();
+        expect(typeof result.current.broadcastAddNode).toBe('function');
+      } finally {
+        if (origDescriptor) {
+          Object.defineProperty(global, 'globalThis', origDescriptor);
+        } else {
+          delete (global as any).globalThis;
+        }
+        vi.unstubAllGlobals();
+      }
+    });
+
     it('handles closeSidebarWindow promise rejection safely in attachSidebarToMainWindow', async () => {
       setLocationSearch('');
       const gw = getBackendGateway();

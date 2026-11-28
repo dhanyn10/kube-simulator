@@ -1,7 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useFlowStore } from '@/store';
+import { processWorkloadSimulation, updateInternetTraffic } from '@/lib/simulation';
 import { setMetricsChannel } from '@/store/slices/simulationManager';
 import { APP_VERSION } from '@/constants/config';
+
+vi.mock('@/lib/simulation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/simulation')>();
+  return {
+    ...actual,
+    updateInternetTraffic: vi.fn(actual.updateInternetTraffic),
+    processWorkloadSimulation: vi.fn(actual.processWorkloadSimulation),
+  };
+});
 
 describe('createUiSlice', () => {
   beforeEach(() => {
@@ -1470,5 +1480,262 @@ describe('createUiSlice', () => {
     await new Promise((r) => setTimeout(r, 50));
 
     expect(useFlowStore.getState().minimapPosition).not.toBe('invalid-pos');
+  });
+
+  it('tolerates undefined saved collections when adding and deleting entries', () => {
+    useFlowStore.setState({
+      savedConfigMaps: undefined,
+      savedSecrets: undefined,
+      savedHpas: undefined,
+      savedResourceLimits: undefined,
+    } as any);
+
+    const {
+      addOrUpdateSavedConfigMap,
+      deleteSavedConfigMap,
+      addOrUpdateSavedSecret,
+      deleteSavedSecret,
+      addOrUpdateSavedHpa,
+      deleteSavedHpa,
+      addOrUpdateSavedResourceLimit,
+      deleteSavedResourceLimit,
+    } = useFlowStore.getState();
+
+    addOrUpdateSavedConfigMap({ id: 'cm-fallback', name: 'cm-fallback', configData: [] });
+    expect(useFlowStore.getState().savedConfigMaps).toEqual([
+      { id: 'cm-fallback', name: 'cm-fallback', configData: [] },
+    ]);
+    useFlowStore.setState({ savedConfigMaps: undefined } as any);
+    deleteSavedConfigMap('cm-fallback');
+    expect(useFlowStore.getState().savedConfigMaps).toEqual([]);
+
+    addOrUpdateSavedSecret({ id: 'sec-fallback', name: 'sec-fallback', type: 'Opaque', secretData: [] });
+    expect(useFlowStore.getState().savedSecrets).toEqual([
+      { id: 'sec-fallback', name: 'sec-fallback', type: 'Opaque', secretData: [] },
+    ]);
+    useFlowStore.setState({ savedSecrets: undefined } as any);
+    deleteSavedSecret('sec-fallback');
+    expect(useFlowStore.getState().savedSecrets).toEqual([]);
+
+    addOrUpdateSavedHpa({ id: 'hpa-fallback', name: 'hpa-fallback' } as any);
+    expect(useFlowStore.getState().savedHpas).toHaveLength(1);
+    useFlowStore.setState({ savedHpas: undefined } as any);
+    deleteSavedHpa('hpa-fallback');
+    expect(useFlowStore.getState().savedHpas).toEqual([]);
+
+    addOrUpdateSavedResourceLimit({ id: 'limit-fallback', name: 'limit-fallback' } as any);
+    expect(useFlowStore.getState().savedResourceLimits).toHaveLength(1);
+    useFlowStore.setState({ savedResourceLimits: undefined } as any);
+    deleteSavedResourceLimit('limit-fallback');
+    expect(useFlowStore.getState().savedResourceLimits).toEqual([]);
+  });
+
+  it('updates and deletes saved HPAs matched by id or name', () => {
+    useFlowStore.setState({
+      savedHpas: [
+        { id: 'hpa-1', name: 'hpa-one' },
+        { id: 'hpa-2', name: 'hpa-two' },
+      ],
+    } as any);
+
+    const { addOrUpdateSavedHpa, deleteSavedHpa } = useFlowStore.getState();
+    addOrUpdateSavedHpa({ id: 'hpa-1', name: 'hpa-one-updated' } as any);
+    addOrUpdateSavedHpa({ id: 'hpa-3', name: 'hpa-two' } as any);
+
+    expect(useFlowStore.getState().savedHpas.map((hpa) => hpa.id)).toEqual(['hpa-1', 'hpa-3']);
+    expect(useFlowStore.getState().savedHpas[0].name).toBe('hpa-one-updated');
+
+    deleteSavedHpa('hpa-1');
+    expect(useFlowStore.getState().savedHpas.map((hpa) => hpa.id)).toEqual(['hpa-3']);
+    deleteSavedHpa('hpa-two');
+    expect(useFlowStore.getState().savedHpas).toEqual([]);
+  });
+
+  it('updates and deletes saved resource limits matched by id or name', () => {
+    useFlowStore.setState({
+      savedResourceLimits: [
+        { id: 'limit-1', name: 'limit-one' },
+        { id: 'limit-2', name: 'limit-two' },
+      ],
+    } as any);
+
+    const { addOrUpdateSavedResourceLimit, deleteSavedResourceLimit } = useFlowStore.getState();
+    addOrUpdateSavedResourceLimit({ id: 'limit-1', name: 'limit-one-updated' } as any);
+    addOrUpdateSavedResourceLimit({ id: 'limit-3', name: 'limit-two' } as any);
+
+    expect(useFlowStore.getState().savedResourceLimits.map((limit) => limit.id)).toEqual([
+      'limit-1',
+      'limit-3',
+    ]);
+    expect(useFlowStore.getState().savedResourceLimits[0].name).toBe('limit-one-updated');
+
+    deleteSavedResourceLimit('limit-1');
+    expect(useFlowStore.getState().savedResourceLimits.map((limit) => limit.id)).toEqual(['limit-3']);
+    deleteSavedResourceLimit('limit-two');
+    expect(useFlowStore.getState().savedResourceLimits).toEqual([]);
+  });
+
+  it('falls back to one worker when the requested count rounds to a falsy value', () => {
+    const { setClusterWorkerCount } = useFlowStore.getState();
+
+    setClusterWorkerCount(0);
+
+    expect(useFlowStore.getState().clusterWorkerCount).toBe(1);
+  });
+
+  it('opens the terminal automatically when auto-open is enabled before play', () => {
+    useFlowStore.setState({ isTerminalAutoOpenOnPlay: true });
+    useFlowStore.setState({
+      nodes: [{ id: 'i-auto', type: 'Internet', data: { trafficSpeed: 1 } }] as any,
+      edges: [],
+    });
+
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    expect(useFlowStore.getState().isTerminalOpen).toBe(true);
+    stopSimulation();
+  });
+
+  it('builds terminal logs for services without a label', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i-service', type: 'Internet', data: {} },
+        { id: 'svc-1', type: 'Service', data: { serviceType: 'NodePort' } },
+      ] as any,
+      edges: [],
+    });
+
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    expect(useFlowStore.getState().terminalLogs['svc-1']?.[0]).toContain('svc/svc-1');
+    stopSimulation();
+  });
+
+  it('detects attached HPA metadata on non-HPA nodes during start and ticks', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i-hpa-meta', type: 'Internet', data: {} },
+        { id: 'svc-hpa', type: 'Service', data: { hpas: [{ id: 'attached-hpa' }] } },
+      ] as any,
+      edges: [],
+    });
+
+    vi.useFakeTimers();
+    try {
+      const { startSimulation, stopSimulation } = useFlowStore.getState();
+      startSimulation();
+      vi.advanceTimersByTime(150);
+      expect(useFlowStore.getState().isSimulating).toBe(true);
+      stopSimulation();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('posts theme sync from setColorMode when no metrics channel is available', () => {
+    setMetricsChannel(null);
+
+    try {
+      const { setColorMode } = useFlowStore.getState();
+      setColorMode('light');
+      expect(useFlowStore.getState().colorMode).toBe('light');
+      expect((globalThis as any).runtime.EventsEmit).toHaveBeenCalledWith('theme-sync', 'light');
+    } finally {
+      if (typeof (globalThis as any).BroadcastChannel !== 'undefined') {
+        setMetricsChannel(new (globalThis as any).BroadcastChannel('monitoring-data'));
+      }
+    }
+  });
+
+  it('keeps traffic changes local when updateInternetTraffic reports no changes', () => {
+    vi.mocked(updateInternetTraffic).mockImplementationOnce(() => ({ traffic: 0, hasChanges: false }));
+    useFlowStore.setState({
+      nodes: [{ id: 'i-no-change', type: 'Internet', data: { trafficSpeed: 1 } }] as any,
+      edges: [],
+      simulationSpeed: 1,
+      isPaused: false,
+    });
+
+    vi.useFakeTimers();
+    try {
+      const { startSimulation, stopSimulation } = useFlowStore.getState();
+      startSimulation();
+      vi.advanceTimersByTime(150);
+      expect(vi.mocked(updateInternetTraffic)).toHaveBeenCalled();
+      expect(useFlowStore.getState().nodes[0].data.currentTraffic).toBeUndefined();
+      stopSimulation();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('covers workload changes and Simulation warning/error context logs', () => {
+    vi.mocked(processWorkloadSimulation)
+      .mockImplementationOnce((_dep, ctx) => {
+        ctx.onLog?.('warning', 'profile warning', 'Simulation');
+        return { hasChanges: true };
+      })
+      .mockImplementationOnce((_dep, ctx) => {
+        ctx.onLog?.('error', 'profile error', 'Simulation');
+        return { hasChanges: false };
+      });
+
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i-logs', type: 'Internet', data: { trafficSpeed: 1 } },
+        { id: 'dep-logs', type: 'Deployment', data: { label: 'log-dep' } },
+      ] as any,
+      edges: [],
+      simulationSpeed: 1,
+      isPaused: false,
+    });
+
+    vi.useFakeTimers();
+    try {
+      const { startSimulation, stopSimulation } = useFlowStore.getState();
+      startSimulation();
+      vi.advanceTimersByTime(300);
+      const activityLogs = useFlowStore.getState().activityLogs.join(' ');
+      expect(activityLogs).toContain('[Simulation] profile warning');
+      expect(activityLogs).toContain('[Simulation] profile error');
+      expect(vi.mocked(processWorkloadSimulation)).toHaveBeenCalled();
+      stopSimulation();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('synchronizes traffic-only node changes in place outside test mode', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'development';
+
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i-sync', type: 'Internet', data: {} },
+        { id: 'd-sync', type: 'Deployment', data: { label: 'sync-dep', status: 'ready', image: 'nginx:latest' } },
+      ] as any,
+      edges: [{ id: 'e-sync', source: 'i-sync', target: 'd-sync' }] as any,
+      simulationSpeed: 1,
+      isPaused: false,
+    });
+    const deploymentRef = useFlowStore.getState().nodes[1];
+
+    vi.useFakeTimers();
+    try {
+      const { startSimulation, stopSimulation } = useFlowStore.getState();
+      startSimulation();
+      vi.advanceTimersByTime(900);
+      const state = useFlowStore.getState();
+      expect(state.nodes[0].data.currentTraffic).toBeGreaterThan(0);
+      expect(state.nodes[1]).toBe(deploymentRef);
+      vi.advanceTimersByTime(150);
+      expect(useFlowStore.getState().isSimulating).toBe(true);
+      stopSimulation();
+    } finally {
+      (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
+      vi.useRealTimers();
+    }
   });
 });
