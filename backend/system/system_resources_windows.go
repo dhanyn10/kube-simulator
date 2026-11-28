@@ -34,6 +34,19 @@ var (
 	prevIdleTime   uint64
 	prevKernelTime uint64
 	prevUserTime   uint64
+
+	callGlobalMemoryStatusEx = func(msx *memoryStatusEx) uintptr {
+		ret, _, _ := procGlobalMemoryStatusEx.Call(uintptr(unsafe.Pointer(msx)))
+		return ret
+	}
+	callGetSystemTimes = func(idleTime, kernelTime, userTime *fileTime) uintptr {
+		ret, _, _ := procGetSystemTimes.Call(
+			uintptr(unsafe.Pointer(idleTime)),
+			uintptr(unsafe.Pointer(kernelTime)),
+			uintptr(unsafe.Pointer(userTime)),
+		)
+		return ret
+	}
 )
 
 // fileTimeToUint64 converts a Win32 fileTime struct into a 64-bit unsigned integer timestamp.
@@ -45,7 +58,7 @@ func fileTimeToUint64(ft fileTime) uint64 {
 func getWinMemoryStats() (totalGB uint64, freeGB float64) {
 	var msx memoryStatusEx
 	msx.cbSize = uint32(unsafe.Sizeof(msx))
-	ret, _, _ := procGlobalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&msx)))
+	ret := callGlobalMemoryStatusEx(&msx)
 	if ret != 0 {
 		totalGB = (msx.ullTotalPhys + (1024 * 1024 * 1024) - 1) / (1024 * 1024 * 1024)
 		rawFree := float64(msx.ullAvailPhys) / (1024 * 1024 * 1024)
@@ -58,11 +71,7 @@ func getWinMemoryStats() (totalGB uint64, freeGB float64) {
 // getWinCpuUsage calculates current system CPU utilization percentage on Windows using GetSystemTimes.
 func getWinCpuUsage() int {
 	var idleTime, kernelTime, userTime fileTime
-	ret, _, _ := procGetSystemTimes.Call(
-		uintptr(unsafe.Pointer(&idleTime)),
-		uintptr(unsafe.Pointer(&kernelTime)),
-		uintptr(unsafe.Pointer(&userTime)),
-	)
+	ret := callGetSystemTimes(&idleTime, &kernelTime, &userTime)
 	if ret == 0 {
 		return 0
 	}
@@ -83,11 +92,7 @@ func getWinCpuUsage() int {
 		time.Sleep(50 * time.Millisecond)
 		cpuMutex.Lock()
 
-		ret, _, _ = procGetSystemTimes.Call(
-			uintptr(unsafe.Pointer(&idleTime)),
-			uintptr(unsafe.Pointer(&kernelTime)),
-			uintptr(unsafe.Pointer(&userTime)),
-		)
+		ret = callGetSystemTimes(&idleTime, &kernelTime, &userTime)
 		if ret != 0 {
 			currentIdle = fileTimeToUint64(idleTime)
 			currentKernel = fileTimeToUint64(kernelTime)
@@ -110,13 +115,16 @@ func getWinCpuUsage() int {
 
 	deltaBusy := deltaTotal - deltaIdle
 	usage := int((deltaBusy * 100) / deltaTotal)
+	return clampCpuUsage(usage)
+}
+
+func clampCpuUsage(usage int) int {
 	if usage < 0 {
 		return 0
 	}
 	if usage > 100 {
 		return 100
 	}
-
 	return usage
 }
 

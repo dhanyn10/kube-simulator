@@ -20,6 +20,10 @@ var (
 	mu          sync.Mutex
 	isTest      bool
 	logFilePath string
+
+	getLogFilePath   = GetLogFilePath
+	getUserConfigDir = os.UserConfigDir
+	getApplication   = application.Get
 )
 
 // GetLogFilePath returns the path to the physical app_logs.jsonl file
@@ -30,7 +34,7 @@ func GetLogFilePath() string {
 		return logFilePath
 	}
 
-	configDir, err := os.UserConfigDir()
+	configDir, err := getUserConfigDir()
 	if err != nil || configDir == "" {
 		configDir = os.TempDir()
 	}
@@ -48,7 +52,7 @@ func SetLogFilePath(path string) {
 }
 
 func appendToLogFile(line string) {
-	path := GetLogFilePath()
+	path := getLogFilePath()
 	if path == "" {
 		return
 	}
@@ -69,7 +73,7 @@ func AppendCategorizedLog(category, level, message string) {
 	dateTime := time.Now().Format("2006-01-02 15:04:05")
 	dateSuffix := time.Now().Format("20060102")
 
-	configDir, err := os.UserConfigDir()
+	configDir, err := getUserConfigDir()
 	if err != nil || configDir == "" {
 		configDir = os.TempDir()
 	}
@@ -107,7 +111,7 @@ func AppendCategorizedLog(category, level, message string) {
 
 		path := logFilePath
 		if path == "" {
-			configDir, err := os.UserConfigDir()
+			configDir, err := getUserConfigDir()
 			if err != nil || configDir == "" {
 				configDir = os.TempDir()
 			}
@@ -173,7 +177,7 @@ func emit(level, format string, args ...interface{}) {
 		appendToLogFile(string(jsonEntry))
 	}
 
-	if app := application.Get(); app != nil && app.Event != nil && !testingMode {
+	if app := getApplication(); app != nil && app.Event != nil && !testingMode {
 		app.Event.Emit("backend-log", map[string]string{
 			"level":   level,
 			"message": message,
