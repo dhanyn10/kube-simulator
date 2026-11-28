@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ConfigMapModal, findAllAttachedComponents, syncNodesConfigMap, mergeAttachedComponents } from '@/components/Modals/ConfigMapModal';
 import { useFlowStore } from '@/store';
@@ -826,6 +826,420 @@ describe('ConfigMapModal', () => {
       expect(tag).toBeInTheDocument();
       expect(tag).toHaveTextContent('payment-svc-8h9j0');
       expect(screen.queryByTestId('attached-component-tag-pod-rep-3')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Additional branch coverage for ConfigMapModal helpers and edge cases', () => {
+    it('covers nodeLabel fallback to node.id, node without type fallback, and group resource matching', () => {
+      // 1. Node without data.label falls back to node.id; node without type falls back to 'Node'
+      const nodesWithoutLabel = [
+        {
+          id: 'anon-pod',
+          data: {
+            configMaps: [{ id: 'cm-anon', name: 'anon-name' }],
+          },
+        },
+      ];
+      const res = findAllAttachedComponents('cm-anon', undefined, nodesWithoutLabel);
+      expect(res).toEqual([{ id: 'anon-pod', label: 'anon-pod', type: 'Node' }]);
+
+      // 2. Replica group resourceName matching: r === groupLabel, or nodeLabel.startsWith(`${r}-`)
+      const replicaNodes = [
+        {
+          id: 'rep-node-1',
+          type: 'Pod',
+          data: {
+            baseName: 'worker-group',
+            podHash: 'abc12',
+            replicaSuffix: 'suf01',
+            label: 'worker-group-abc12-suf01',
+          },
+        },
+      ];
+      // Matching by groupLabel
+      const resByGroup = findAllAttachedComponents('cm-x', 'cm-x', replicaNodes, 'worker-group-abc12');
+      expect(resByGroup).toHaveLength(1);
+
+      // Matching by prefix: r = 'worker-group' -> nodeLabel starts with 'worker-group-'
+      const resByPrefix = findAllAttachedComponents('cm-x', 'cm-x', replicaNodes, 'worker-group');
+      expect(resByPrefix).toHaveLength(1);
+
+      // Neither matching
+      const resNone = findAllAttachedComponents('cm-x', 'cm-x', replicaNodes, 'unrelated');
+      expect(resNone).toHaveLength(0);
+    });
+
+    it('covers syncNodesConfigMap edge cases: node without configMaps, renaming matching cmName and oldCmName, and keeping other CMs', () => {
+      const updateNodeData = vi.fn();
+      const otherCm = { id: 'cm-other', name: 'other-cm', configData: [] };
+      const currentCm = { id: 'cm-target', name: 'current-cm', configData: [] };
+      const updatedCm = { id: 'cm-target', name: 'new-cm', configData: [] };
+
+      const nodes = [
+        // Node without node.data.configMaps array
+        { id: 'node-empty-data', data: {} },
+        // Node containing currentCm and otherCm, attached
+        { id: 'node-has-both', data: { configMaps: [currentCm, otherCm] } },
+        // Node matching cmName, attached
+        { id: 'node-by-name', data: { configMaps: [{ id: 'cm-diff', name: 'current-cm', configData: [] }] } },
+        // Node matching oldCmName, attached
+        { id: 'node-by-old-name', data: { configMaps: [{ id: 'cm-diff2', name: 'old-cm-name', configData: [] }] } },
+      ];
+
+      const attachedIds = new Set(['node-empty-data', 'node-has-both', 'node-by-name', 'node-by-old-name']);
+      syncNodesConfigMap(nodes, 'cm-target', 'current-cm', 'old-cm-name', updatedCm, attachedIds, updateNodeData);
+
+      expect(updateNodeData).toHaveBeenCalledWith('node-empty-data', { configMaps: [updatedCm] });
+      expect(updateNodeData).toHaveBeenCalledWith('node-has-both', { configMaps: [updatedCm, otherCm] });
+      expect(updateNodeData).toHaveBeenCalledWith('node-by-name', { configMaps: [updatedCm] });
+      expect(updateNodeData).toHaveBeenCalledWith('node-by-old-name', { configMaps: [updatedCm] });
+    });
+
+    it('covers mergeAttachedComponents when component is already attached', () => {
+      const currentAttached = [{ id: 'pod-1', label: 'pod-1', type: 'Pod' }];
+      const sourceCm = {
+        id: 'cm-1',
+        name: 'cm-1',
+        configData: [],
+        resourceName: 'pod-1',
+      };
+      const nodes = [{ id: 'pod-1', type: 'Pod', data: { label: 'pod-1' } }];
+
+      const result = mergeAttachedComponents(currentAttached, sourceCm, nodes);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('pod-1');
+    });
+
+    it('covers delete from cluster-storage and when owner node is missing from canvas nodes', () => {
+      const mockUpdateNodeData = vi.fn();
+      const mockDeleteSavedConfigMap = vi.fn();
+
+      useFlowStore.setState({
+        nodes: [{ id: 'pod-existing', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'pod-existing', configMaps: [] } }],
+        savedConfigMaps: [
+          { id: 'cm-storage', name: 'storage-cm', configData: [] },
+          { id: 'cm-orphan', name: 'orphan-cm', configData: [] },
+        ],
+        updateNodeData: mockUpdateNodeData,
+        deleteSavedConfigMap: mockDeleteSavedConfigMap,
+        addLog: vi.fn(),
+      });
+
+      render(<ConfigMapModal {...defaultProps} initialViewMode="list" />);
+
+      // Delete cluster storage item (ownerNode.id === 'cluster-storage')
+      fireEvent.click(screen.getByTitle('Delete ConfigMap storage-cm'));
+      expect(mockDeleteSavedConfigMap).toHaveBeenCalledWith('cm-storage');
+      expect(mockUpdateNodeData).not.toHaveBeenCalled();
+    });
+
+    it('covers initialKey fallbacks: initialConfigMap with name only, unnamed, and targetNodeId null', () => {
+      // 1. initialConfigMap with no id, only name
+      const { unmount: unmount1 } = render(
+        <ConfigMapModal
+          {...defaultProps}
+          targetNodeId={null}
+          initialConfigMap={{ id: '', name: 'cm-only-name', configData: [] }}
+        />
+      );
+      expect(screen.getByDisplayValue('cm-only-name')).toBeInTheDocument();
+      unmount1();
+
+      // 2. initialConfigMap with no id and no name (fallback 'unnamed')
+      const { unmount: unmount2 } = render(
+        <ConfigMapModal
+          {...defaultProps}
+          targetNodeId={null}
+          initialConfigMap={{ id: '', name: '', configData: [] }}
+        />
+      );
+      unmount2();
+
+      // 3. initialConfigMap is null and targetNodeId is null (fallback 'new')
+      render(
+        <ConfigMapModal
+          {...defaultProps}
+          targetNodeId={null}
+          initialConfigMap={null}
+        />
+      );
+      expect(screen.getByRole('heading', { name: 'Attach ConfigMap' })).toBeInTheDocument();
+    });
+
+    it('covers profileItems filtering with Default Profile, non-matching profiles, and deduplication', () => {
+      useFlowStore.setState({
+        nodes: [
+          {
+            id: 'pod-a',
+            type: 'Pod',
+            position: { x: 0, y: 0 },
+            data: {
+              label: 'web-pod',
+              configMaps: [
+                { id: 'cm-a', name: 'cm-a', profileName: 'Default Profile', configData: [] },
+                { id: 'cm-b', name: 'cm-b', profileName: 'other-profile', configData: [] },
+                // duplicate item with same id and same ownerNode label
+                { id: 'cm-dup', name: 'cm-dup', profileName: 'target-profile', configData: [] },
+                { id: 'cm-dup', name: 'cm-dup', profileName: 'target-profile', configData: [] },
+              ],
+            },
+          },
+        ],
+        savedConfigMaps: [],
+      });
+
+      render(<ConfigMapModal {...defaultProps} initialViewMode="list" />);
+
+      // Navigate to target-profile precedence view
+      const profileBadge = screen.getByTestId('cm-profile-cm-dup');
+      fireEvent.click(profileBadge);
+
+      expect(screen.getByTestId('configmap-precedence-view')).toBeInTheDocument();
+      expect(screen.getByTestId('cm-id-cm-dup')).toBeInTheDocument();
+    });
+
+    it('covers editing from list when item has resourceName already populated', () => {
+      useFlowStore.setState({
+        nodes: [{ id: 'pod-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'pod-1' } }],
+        savedConfigMaps: [
+          { id: 'cm-res', name: 'res-cm', resourceName: 'pod-1', configData: [{ key: 'K', value: 'V' }] },
+        ],
+        addLog: vi.fn(),
+      });
+
+      render(<ConfigMapModal {...defaultProps} targetNodeId={null} initialViewMode="list" />);
+
+      fireEvent.click(screen.getByTitle('Edit ConfigMap res-cm'));
+      expect(screen.getByDisplayValue('res-cm')).toBeInTheDocument();
+      expect(screen.getByTestId('attached-component-tag-pod-1')).toBeInTheDocument();
+    });
+
+    it('covers removing component when multiple components remain and node has no label or configMaps', () => {
+      const mockUpdateNodeData = vi.fn();
+      useFlowStore.setState({
+        nodes: [
+          { id: 'pod-multi-1', type: 'Pod', position: { x: 0, y: 0 }, data: {} },
+          { id: 'pod-multi-2', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'pod-multi-2', configMaps: [] } },
+        ],
+        savedConfigMaps: [],
+        updateNodeData: mockUpdateNodeData,
+        addLog: vi.fn(),
+      });
+
+      render(
+        <ConfigMapModal
+          {...defaultProps}
+          targetNodeId="pod-multi-1"
+          targetNodeLabel="pod-multi-1"
+          initialConfigMap={{
+            id: 'cm-multi-test',
+            name: 'multi-cm',
+            resourceName: 'pod-multi-1, pod-multi-2',
+            configData: [{ key: 'X', value: '1' }],
+          }}
+        />
+      );
+
+      // Attach pod-multi-2 as well
+      const tagInput = screen.getByPlaceholderText(/Add more components|Attach component/i);
+      fireEvent.focus(tagInput);
+      const sugg = screen.getByTestId('tagify-suggestion-pod-multi-2');
+      fireEvent.mouseDown(sugg);
+
+      // Now remove pod-multi-1 tag, so pod-multi-2 remains (remaining.length > 0)
+      const removeBtn = screen.getByTestId('remove-component-tag-pod-multi-1');
+      fireEvent.click(removeBtn);
+
+      expect(screen.getByTestId('attached-component-tag-pod-multi-2')).toBeInTheDocument();
+    });
+
+    it('covers handleAttachComponent when node already has this configmap, and when targetNode is not found', () => {
+      const mockUpdateNodeData = vi.fn();
+      const existingCm = { id: 'cm-dup-attach', name: 'dup-cm', configData: [] };
+
+      useFlowStore.setState({
+        nodes: [
+          {
+            id: 'pod-has-cm',
+            type: 'Pod',
+            position: { x: 0, y: 0 },
+            data: {
+              label: 'pod-has-cm',
+              configMaps: [existingCm],
+            },
+          },
+        ],
+        savedConfigMaps: [],
+        updateNodeData: mockUpdateNodeData,
+        addLog: vi.fn(),
+      });
+
+      render(
+        <ConfigMapModal
+          {...defaultProps}
+          targetNodeId={null}
+          initialConfigMap={null}
+        />
+      );
+
+      // Set name to 'dup-cm'
+      const nameInput = screen.getByTestId('configmap-name-input');
+      fireEvent.change(nameInput, { target: { value: 'dup-cm' } });
+
+      // Focus tagify input and attach pod-has-cm which already has CM with name 'dup-cm'
+      const tagInput = screen.getByPlaceholderText(/Add more components|Attach component/i);
+      fireEvent.focus(tagInput);
+      const sugg = screen.getByTestId('tagify-suggestion-pod-has-cm');
+      fireEvent.mouseDown(sugg);
+
+      expect(mockUpdateNodeData).toHaveBeenCalledWith(
+        'pod-has-cm',
+        expect.objectContaining({
+          configMaps: expect.arrayContaining([
+            expect.objectContaining({ name: 'dup-cm' }),
+          ]),
+        })
+      );
+    });
+
+    it('covers Use Existing button logging fallback when targetNodeLabel and targetNodeId are null', () => {
+      useFlowStore.setState({
+        nodes: [],
+        savedConfigMaps: [{ id: 'cm-exist', name: 'exist-cm', configData: [{ key: 'A', value: '1' }] }],
+        addLog: vi.fn(),
+      });
+
+      render(
+        <ConfigMapModal
+          {...defaultProps}
+          targetNodeId={null}
+          targetNodeLabel={undefined}
+          initialConfigMap={null}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('btn-add-from-existing-cm'));
+      fireEvent.click(screen.getByTestId('import-option-exist-cm'));
+
+      expect(screen.getByDisplayValue('exist-cm')).toBeInTheDocument();
+    });
+
+    it('renders read-only ID input in light mode', () => {
+      useFlowStore.setState({ colorMode: 'light' });
+      render(
+        <ConfigMapModal
+          {...defaultProps}
+          initialConfigMap={{ id: 'cm-light-ro', name: 'light-ro-cm', configData: [] }}
+        />
+      );
+
+      const idInput = screen.getByTestId('configmap-id-input');
+      expect(idInput).toBeInTheDocument();
+      expect(idInput.className).toContain('bg-slate-100');
+    });
+
+    it('covers delete when owner node is missing from store nodes or lacks configMaps', () => {
+      const mockUpdateNodeData = vi.fn();
+      const mockDeleteSavedConfigMap = vi.fn();
+
+      useFlowStore.setState({
+        nodes: [
+          {
+            id: 'pod-no-cm-prop',
+            type: 'Pod',
+            position: { x: 0, y: 0 },
+            data: { label: 'pod-no-cm-prop' }, // no configMaps property
+          },
+        ],
+        savedConfigMaps: [
+          // Saved item pointing to an orphaned/deleted node
+          { id: 'cm-orphan-del', name: 'orphan-del-cm', resourceName: 'deleted-node-99', configData: [] },
+        ],
+        updateNodeData: mockUpdateNodeData,
+        deleteSavedConfigMap: mockDeleteSavedConfigMap,
+        addLog: vi.fn(),
+      });
+
+      render(<ConfigMapModal {...defaultProps} targetNodeId={null} initialViewMode="list" />);
+
+      fireEvent.click(screen.getByTitle('Delete ConfigMap orphan-del-cm'));
+      expect(mockDeleteSavedConfigMap).toHaveBeenCalledWith('cm-orphan-del');
+      expect(mockUpdateNodeData).not.toHaveBeenCalled();
+    });
+
+    it('covers editing from list when item has no resourceName but ownerNode is not cluster-storage', () => {
+      useFlowStore.setState({
+        nodes: [
+          {
+            id: 'pod-from-canvas',
+            type: 'Pod',
+            position: { x: 0, y: 0 },
+            data: {
+              label: 'pod-from-canvas',
+              configMaps: [{ id: 'cm-canvas', name: 'canvas-cm', configData: [] }],
+            },
+          },
+        ],
+        savedConfigMaps: [],
+        addLog: vi.fn(),
+      });
+
+      render(<ConfigMapModal {...defaultProps} targetNodeId={null} initialViewMode="list" />);
+
+      fireEvent.click(screen.getByTitle('Edit ConfigMap canvas-cm'));
+      expect(screen.getByDisplayValue('canvas-cm')).toBeInTheDocument();
+      expect(screen.getByTestId('attached-component-tag-pod-from-canvas')).toBeInTheDocument();
+    });
+
+    it('covers attaching component when node has another configmap and when node lacks label/type', () => {
+      const mockUpdateNodeData = vi.fn();
+      const otherCm = { id: 'cm-keep', name: 'keep-cm', configData: [] };
+      const thisCm = { id: 'cm-update', name: 'update-cm', configData: [] };
+
+      useFlowStore.setState({
+        nodes: [
+          {
+            id: 'node-has-two',
+            type: 'Pod',
+            position: { x: 0, y: 0 },
+            data: {
+              configMaps: [thisCm, otherCm],
+            },
+          },
+        ],
+        savedConfigMaps: [],
+        updateNodeData: mockUpdateNodeData,
+        addLog: vi.fn(),
+      });
+
+      render(
+        <ConfigMapModal
+          {...defaultProps}
+          targetNodeId={null}
+          targetNodeLabel={undefined}
+          initialConfigMap={null}
+        />
+      );
+
+      const nameInput = screen.getByTestId('configmap-name-input');
+      fireEvent.change(nameInput, { target: { value: 'update-cm' } });
+
+      // Attach node-has-two
+      const tagInput = screen.getByPlaceholderText(/Add more components|Attach component/i);
+      fireEvent.focus(tagInput);
+      const sugg = screen.getByTestId('tagify-suggestion-node-has-two');
+      fireEvent.mouseDown(sugg);
+
+      // Verify node update kept otherCm and updated thisCm
+      expect(mockUpdateNodeData).toHaveBeenCalledWith(
+        'node-has-two',
+        expect.objectContaining({
+          configMaps: expect.arrayContaining([
+            expect.objectContaining({ name: 'update-cm' }),
+            otherCm,
+          ]),
+        })
+      );
     });
   });
 });
