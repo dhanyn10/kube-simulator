@@ -1,7 +1,9 @@
 package db
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -269,4 +271,39 @@ func TestWritePhysicalAutosaveFile_Branches(t *testing.T) {
 	if _, err := os.Stat(targetFile); !os.IsNotExist(err) {
 		t.Errorf("Expected autosave file to be deleted")
 	}
+}
+
+func clearProjectHomeEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	t.Setenv("HOMEDRIVE", "")
+	t.Setenv("HOMEPATH", "")
+}
+
+type failingInfoDirEntry struct{}
+
+func (failingInfoDirEntry) Name() string               { return "broken.infra" }
+func (failingInfoDirEntry) IsDir() bool                { return false }
+func (failingInfoDirEntry) Type() fs.FileMode          { return 0 }
+func (failingInfoDirEntry) Info() (fs.FileInfo, error) { return nil, errors.New("info failed") }
+
+func TestWritePhysicalProjectFile_HomeDirError(t *testing.T) {
+	clearProjectHomeEnv(t)
+	writePhysicalProjectFile(1, "content")
+}
+
+func TestWritePhysicalAutosaveFile_HomeDirError(t *testing.T) {
+	clearProjectHomeEnv(t)
+	writePhysicalAutosaveFile("autosave-home-error", "content")
+}
+
+func TestPruneAutosaveFiles_EntryInfoError(t *testing.T) {
+	origReadDir := readAutosaveDir
+	defer func() { readAutosaveDir = origReadDir }()
+	readAutosaveDir = func(string) ([]os.DirEntry, error) {
+		return []os.DirEntry{failingInfoDirEntry{}}, nil
+	}
+
+	pruneAutosaveFiles(t.TempDir(), 5)
 }

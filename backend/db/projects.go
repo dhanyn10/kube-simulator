@@ -19,6 +19,8 @@ type Project = domain.Project
 
 const appDirName = ".kube-simulator"
 
+var readAutosaveDir = os.ReadDir
+
 // Setting represents a key-value application setting entry stored in the SQLite database.
 type Setting struct {
 	Key   string `gorm:"primaryKey" json:"key"`
@@ -90,7 +92,7 @@ type autosaveFileInfo struct {
 }
 
 func pruneAutosaveFiles(dir string, maxToKeep int) {
-	entries, err := os.ReadDir(dir)
+	entries, err := readAutosaveDir(dir)
 	if err != nil {
 		return
 	}

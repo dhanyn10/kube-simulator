@@ -166,3 +166,25 @@ func TestFindLatestRelease_Empty(t *testing.T) {
 		t.Error("Expected found=false for empty releases")
 	}
 }
+
+func TestFetchReleases_RequestConstructionError(t *testing.T) {
+	restore := SetAPIBaseURL("://invalid")
+	defer restore()
+
+	if _, err := fetchReleases(); err == nil {
+		t.Error("Expected an error for an invalid API base URL")
+	}
+}
+
+func TestFetchReleases_RequestExecutionError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	serverURL := server.URL
+	server.Close()
+
+	restore := SetAPIBaseURL(serverURL)
+	defer restore()
+
+	if _, err := fetchReleases(); err == nil {
+		t.Error("Expected an error when the API server is unavailable")
+	}
+}

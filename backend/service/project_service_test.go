@@ -362,3 +362,24 @@ func TestProjectService_HomeDirFailure(t *testing.T) {
 		t.Error("Expected false on home dir failure in OpenFileFolder")
 	}
 }
+
+func TestProjectService_GetManager_WithRealRepository(t *testing.T) {
+	svc := NewProjectService(nil)
+	if svc.GetManager() == nil {
+		t.Error("Expected GetManager to return the default project manager")
+	}
+}
+
+func TestProjectService_ExportProjectFile_MarshalError(t *testing.T) {
+	origMarshal := marshalProjectExport
+	defer func() { marshalProjectExport = origMarshal }()
+	marshalProjectExport = func(interface{}, string, string) ([]byte, error) {
+		return nil, errors.New("marshal failed")
+	}
+
+	svc := NewProjectService(nil)
+	err := svc.ExportProjectFile(filepath.Join(t.TempDir(), "project.infra"), "name", "{}", "kind: Pod")
+	if err == nil {
+		t.Error("Expected export to return the marshal error")
+	}
+}
