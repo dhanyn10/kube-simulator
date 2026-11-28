@@ -402,9 +402,12 @@ describe('useCanvasNavigation without cancelAnimationFrame', () => {
       act(() => {
         result.current.panUp(500);
       });
+      expect(rafSpy).toHaveBeenCalledTimes(1);
+
       act(() => {
         result.current.stop();
       });
+      expect(rafSpy).toHaveBeenCalledTimes(1);
     } finally {
       vi.unstubAllGlobals();
       rafSpy.mockRestore();
@@ -427,12 +430,16 @@ describe('useCanvasNavigation without cancelAnimationFrame', () => {
       act(() => {
         rafCallbacks.shift()?.(16);
       });
+      expect(rafSpy).toHaveBeenCalledTimes(2);
+
       act(() => {
         globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'w' }));
       });
       act(() => {
         rafCallbacks.shift()?.(32);
       });
+      expect(rafSpy).toHaveBeenCalledTimes(2);
+      expect(rafCallbacks).toHaveLength(0);
     } finally {
       vi.unstubAllGlobals();
       rafSpy.mockRestore();
