@@ -109,6 +109,16 @@ describe('sidebarHelpers', () => {
     expect(onAddNode).toHaveBeenCalledWith('Pod');
   });
 
+  it('opens the worker budget modal for Worker sidebar items', () => {
+    const onAddNode = vi.fn();
+    const setWorkerBudgetModalOpen = vi.fn();
+
+    executeSidebarAddNode('Worker' as any, onAddNode, { setWorkerBudgetModalOpen });
+
+    expect(setWorkerBudgetModalOpen).toHaveBeenCalledWith(true);
+    expect(onAddNode).not.toHaveBeenCalled();
+  });
+
   it('executes executeSidebarAddNode with setActiveOverviewModal for ConfigMap and Secret fallbacks and adds other nodes directly', () => {
     const onAddNode = vi.fn();
     const setActiveOverviewModal = vi.fn();
