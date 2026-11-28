@@ -2,6 +2,9 @@ package service
 
 import (
 	"testing"
+	"time"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func testSimulationInitialState(t *testing.T, svc *SimulationService) {
@@ -92,4 +95,43 @@ func TestSimulationService_Lifecycle(t *testing.T) {
 	t.Run("SetSimulationSpeed", func(t *testing.T) { testSimulationSpeed(t, svc) })
 	t.Run("StopSimulation", func(t *testing.T) { testSimulationStop(t, svc) })
 	t.Run("SnapshotCaching", func(t *testing.T) { testSimulationSnapshotCaching(t, svc) })
+}
+
+func TestSimulationService_EmitEventWithActiveApplication(t *testing.T) {
+	wailsApp := application.New(application.Options{})
+	if wailsApp.Event == nil {
+		t.Fatal("Expected an event manager on the test application")
+	}
+
+	received := make(chan string, 1)
+	wailsApp.Event.On(EventSimulationStateChange, func(event *application.CustomEvent) {
+		if payload, ok := event.Data.(string); ok {
+			received <- payload
+		}
+	})
+
+	origApp := getApplication
+	defer func() { getApplication = origApp }()
+	getApplication = func() *application.App { return wailsApp }
+
+	svc := NewSimulationService()
+	if !svc.StartSimulation(2) {
+		t.Fatal("StartSimulation failed")
+	}
+
+	select {
+	case payload := <-received:
+		if payload == "" {
+			t.Error("Expected a non-empty simulation state payload")
+		}
+	case <-time.After(time.Second):
+		t.Error("Expected simulation state event to be emitted")
+	}
+}
+
+func TestSimulationService_GetSimulationSnapshot_Uninitialized(t *testing.T) {
+	svc := &SimulationService{}
+	if got := svc.GetSimulationSnapshot(); got != "{}" {
+		t.Errorf("Expected empty snapshot fallback, got %q", got)
+	}
 }

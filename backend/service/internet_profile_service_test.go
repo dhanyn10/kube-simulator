@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -174,5 +175,31 @@ func TestInternetProfileService_HomeDirFailure(t *testing.T) {
 	}
 	if svc.DeleteProfile("Name") {
 		t.Error("Expected false on home dir error")
+	}
+}
+
+func TestInternetProfileService_GetProfiles_ReadFileError(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir)
+
+	svc := NewInternetProfileService()
+	dir, err := svc.GetProfilesDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "unreadable.json"), []byte(`{"name":"Ignored"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origRead := readProfileFile
+	defer func() { readProfileFile = origRead }()
+	readProfileFile = func(string) ([]byte, error) { return nil, errors.New("read failed") }
+
+	if profiles := svc.GetProfiles(); len(profiles) != 0 {
+		t.Errorf("Expected unreadable profile to be skipped, got %d profiles", len(profiles))
 	}
 }

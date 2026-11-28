@@ -11,6 +11,8 @@ import (
 	"build-wails/backend/logger"
 )
 
+var readProfileFile = os.ReadFile
+
 // InternetProfileService handles saving, retrieving, and deleting simulated internet traffic profiles.
 type InternetProfileService struct{}
 
@@ -52,7 +54,7 @@ func (s *InternetProfileService) GetProfiles() []domain.InternetProfile {
 			continue
 		}
 		filePath := filepath.Join(dir, entry.Name())
-		contentBytes, errRead := os.ReadFile(filePath)
+		contentBytes, errRead := readProfileFile(filePath)
 		if errRead != nil {
 			continue
 		}

@@ -204,6 +204,10 @@ func TestWindowService_GetTargetScreenHeight(t *testing.T) {
 }
 
 func TestWindowService_Actions_NilContext(t *testing.T) {
+	origApp := getApplication
+	defer func() { getApplication = origApp }()
+	getApplication = func() *application.App { return nil }
+
 	ws := NewWindowService()
 	// Should safely no-op when application.Get() is nil
 	ws.Minimize()
