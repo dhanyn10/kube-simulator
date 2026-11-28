@@ -391,3 +391,51 @@ describe('useCanvasNavigation keydown guard branches', () => {
     expect(setViewport).not.toHaveBeenCalled();
   });
 });
+
+describe('useCanvasNavigation without cancelAnimationFrame', () => {
+  it('clears the loop without cancelling when cancelAnimationFrame is unavailable', () => {
+    const rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(() => 7);
+    vi.stubGlobal('cancelAnimationFrame', undefined);
+    try {
+      const { result } = renderHook(() => useCanvasNavigation());
+
+      act(() => {
+        result.current.panUp(500);
+      });
+      act(() => {
+        result.current.stop();
+      });
+    } finally {
+      vi.unstubAllGlobals();
+      rafSpy.mockRestore();
+    }
+  });
+
+  it('stops the tick loop without cancelling when cancelAnimationFrame is unavailable', () => {
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', undefined);
+    try {
+      renderHook(() => useCanvasNavigation({ deceleration: 100000 }));
+
+      act(() => {
+        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+      });
+      act(() => {
+        rafCallbacks.shift()?.(16);
+      });
+      act(() => {
+        globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'w' }));
+      });
+      act(() => {
+        rafCallbacks.shift()?.(32);
+      });
+    } finally {
+      vi.unstubAllGlobals();
+      rafSpy.mockRestore();
+    }
+  });
+});

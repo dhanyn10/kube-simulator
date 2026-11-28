@@ -78,16 +78,17 @@ export const useConfigMapModal = ({
       setCmId(`cm-${randomSuffix}`);
     }
 
+    const itemName = item?.name || item?.id || '';
     if (item?.configData?.length) {
-      setCmName(item.name || item.id || '');
+      setCmName(itemName);
       const loadedRows = item.configData.map((entry, idx) => ({
         id: `row-${idx}-${Date.now()}`,
         key: entry.key,
         value: entry.value,
       }));
       setRows(loadedRows);
-    } else if (item?.name || item?.id) {
-      setCmName(item.name || item.id || '');
+    } else if (itemName) {
+      setCmName(itemName);
       setRows([]);
     } else {
       setCmName('');

@@ -19,7 +19,7 @@ export interface Vector2 {
   y: number;
 }
 
-export function isEditableElement(el: Element | null): boolean {
+export function isEditableElement(el: Element | null | undefined): boolean {
   if (!el) return false;
   const tagName = el.tagName?.toUpperCase();
   if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') return true;
@@ -233,7 +233,7 @@ export function useCanvasNavigation(options: UseCanvasNavigationOptions = {}) {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.defaultPrevented) return;
 
-      const active = typeof globalThis !== 'undefined' ? globalThis.document?.activeElement : null;
+      const active = globalThis.document?.activeElement;
       if (isEditableElement(active)) return;
 
       const normalizedKey = normalizeNavigationKey(event.key);

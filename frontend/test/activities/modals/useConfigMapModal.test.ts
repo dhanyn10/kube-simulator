@@ -326,6 +326,28 @@ describe('useConfigMapModal fallback name & id branches', () => {
     expect(result.current.rows).toHaveLength(0);
   });
 
+  it('falls back to an empty name when a loaded item has neither name nor id', () => {
+    const renderModal = ({ initialConfigMap }: { initialConfigMap: any }) =>
+      useConfigMapModal({
+        isOpen: true,
+        onClose: vi.fn(),
+        targetNodeId: null,
+        initialConfigMap,
+        onSave: vi.fn(),
+      });
+
+    const { result, rerender } = renderHook(renderModal, {
+      initialProps: {
+        initialConfigMap: { id: 'cm-named', name: 'named', configData: [] },
+      },
+    });
+    expect(result.current.cmName).toBe('named');
+
+    rerender({ initialConfigMap: { configData: [{ key: 'K', value: 'V' }] } });
+    expect(result.current.cmName).toBe('');
+    expect(result.current.rows).toHaveLength(1);
+  });
+
   it('covers empty name/id with configData, named-only without id, and handleSave cmId fallback', () => {
     const onSave = vi.fn();
     const { result, rerender } = renderHook(
