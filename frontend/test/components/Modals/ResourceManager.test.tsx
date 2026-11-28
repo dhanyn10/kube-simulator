@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { ResourceManager } from '@/components/Modals/resource-manager/ResourceManager';
+import { ResourceManager, applyImageToSelectedNode } from '@/components/Modals/resource-manager/ResourceManager';
 import { useFlowStore } from '@/store';
 
 describe('ResourceManager', () => {
@@ -130,5 +130,76 @@ describe('ResourceManager', () => {
     expect(
       screen.getByText('No runtime images matched "nonexistent-custom-image-xyz"')
     ).toBeInTheDocument();
+  });
+
+  it('renders light-mode copy buttons and resets the copied state after the timeout', () => {
+    vi.useFakeTimers();
+    try {
+      useFlowStore.setState({
+        colorMode: 'light',
+        configuringNodeId: null,
+      });
+
+      render(<ResourceManager isOpen={true} onClose={vi.fn()} />);
+
+      const copyButtons = screen.getAllByRole('button', { name: /^Copy$/ });
+      expect(copyButtons[0].className).toContain('bg-slate-100');
+
+      fireEvent.click(copyButtons[0]);
+      expect(screen.getAllByText('Copied')).toHaveLength(1);
+
+      const remainingCopyButtons = screen.getAllByRole('button', { name: /^Copy$/ });
+      fireEvent.click(remainingCopyButtons[0]);
+
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+
+      expect(screen.queryByText('Copied')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('applies an image only when a configuring node is selected', () => {
+    const addCustomImage = vi.fn();
+    const updateNodeData = vi.fn();
+
+    applyImageToSelectedNode('golang:1.24-alpine', null, updateNodeData, addCustomImage);
+    expect(addCustomImage).toHaveBeenCalledWith('golang:1.24-alpine');
+    expect(updateNodeData).not.toHaveBeenCalled();
+
+    applyImageToSelectedNode('golang:1.24-alpine', 'pod-1', updateNodeData, addCustomImage);
+    expect(updateNodeData).toHaveBeenCalledWith('pod-1', {
+      image: 'golang:1.24-alpine',
+      status: 'ready',
+    });
+  });
+
+  it('scrolls to and focuses the target image after opening', () => {
+    vi.useFakeTimers();
+    try {
+      const scrollIntoViewMock = vi.fn();
+      globalThis.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+      render(
+        <ResourceManager
+          isOpen={true}
+          onClose={vi.fn()}
+          targetImage="golang:1.24-alpine"
+        />
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

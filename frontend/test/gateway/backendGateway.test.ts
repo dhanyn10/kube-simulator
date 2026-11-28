@@ -612,6 +612,27 @@ describe('Clean Architecture Backend Gateway', () => {
       }
     });
 
+    it('saves settings without localStorage when app has no SaveSetting', async () => {
+      delete (globalThis as any).go;
+      delete (globalThis as any).window;
+      const origLocalStorage = globalThis.localStorage;
+      try {
+        Object.defineProperty(globalThis, 'localStorage', {
+          value: undefined,
+          configurable: true,
+          writable: true,
+        });
+        const gw = new WailsBackendGateway();
+        expect(await gw.saveSetting('missing_key', 'value')).toBe(true);
+      } finally {
+        Object.defineProperty(globalThis, 'localStorage', {
+          value: origLocalStorage,
+          configurable: true,
+          writable: true,
+        });
+      }
+    });
+
     it('clears autosaves using SaveSetting fallback when ClearAllAutosaves is missing', async () => {
       const saveSettingMock = vi.fn().mockResolvedValue(true);
       (globalThis as any).go = {
@@ -1017,7 +1038,7 @@ describe('Clean Architecture Backend Gateway', () => {
       expect(await gateway.openSidebarWindow('left')).toBe(true);
     });
 
-    it('app and runtime getters handle undefined globalThis', async () => {
+    it('app getter falls back to the wails module when globalThis is unavailable', async () => {
       const gw = new WailsBackendGateway();
       const origDescriptor = Object.getOwnPropertyDescriptor(global, 'globalThis');
       try {
@@ -1037,6 +1058,8 @@ describe('Clean Architecture Backend Gateway', () => {
       } finally {
         if (origDescriptor) {
           Object.defineProperty(global, 'globalThis', origDescriptor);
+        } else {
+          delete (global as any).globalThis;
         }
       }
     });

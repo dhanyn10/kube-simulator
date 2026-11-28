@@ -40,22 +40,19 @@ function resolveWailsTarget(
 ) {
   const root = primary || secondary || bindings || {};
   return new Proxy(root, {
-    get(target, prop) {
+    get(_target, prop) {
       if (primary && prop in primary && primary[prop] !== undefined) return primary[prop];
       if (secondary && prop in secondary && secondary[prop] !== undefined) return secondary[prop];
       if (bindings && prop in bindings && bindings[prop] !== undefined) return bindings[prop];
-      if (prop in target && target[prop] !== undefined) return target[prop];
       return getWailsFallback(wailsModule, prop);
     },
   });
 }
 
 function getRuntimeWindow(): any {
-  if (typeof globalThis !== 'undefined') {
-    const g = globalThis as any;
-    if (g.wails?.Window) return g.wails.Window;
-    if (g.window?.wails?.Window) return g.window.wails.Window;
-  }
+  const g = globalThis as any;
+  if (g.wails?.Window) return g.wails.Window;
+  if (g.window?.wails?.Window) return g.window.wails.Window;
   return Window;
 }
 
@@ -77,13 +74,10 @@ export class WailsBackendGateway extends BaseBackendGateway {
   }
 
   private get runtime(): any {
-    if (typeof globalThis !== 'undefined') {
-      const g = globalThis as any;
-      const directRuntime = g.runtime;
-      const windowRuntime = g.window?.runtime;
-      return resolveWailsTarget(directRuntime, windowRuntime, undefined, wailsRuntime);
-    }
-    return wailsRuntime;
+    const g = globalThis as any;
+    const directRuntime = g.runtime;
+    const windowRuntime = g.window?.runtime;
+    return resolveWailsTarget(directRuntime, windowRuntime, undefined, wailsRuntime);
   }
 
   // --- Project Operations ---

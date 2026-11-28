@@ -11,6 +11,23 @@ import {
   SystemMonitorColorMode,
 } from './systemMonitorTypes';
 
+export interface ParsedHpaToken {
+  readonly hasHpa: boolean;
+  readonly target: number;
+}
+
+/**
+ * Parses the primitive HPA store token (`"hasHpa:target"`) used to avoid
+ * re-renders, falling back to 80 for missing or invalid target values.
+ */
+export const parseHpaToken = (token: string): ParsedHpaToken => {
+  const [hasHpaStr, targetStr] = token.split(':');
+  return {
+    hasHpa: hasHpaStr === 'true',
+    target: Number(targetStr) || 80,
+  };
+};
+
 export const useSystemMonitorDashboard = () => {
   const [metrics, setMetrics] = useState<Record<string, SimulationMetricPoint[]>>({});
   const [deployments, setDeployments] = useState<DeploymentSummary[]>([]);
@@ -45,9 +62,7 @@ export const useSystemMonitorDashboard = () => {
     return `${exists}:${target}`;
   });
 
-  const [hasHpaStr, targetStr] = storeHpaToken.split(':');
-  const storeHasHpa = hasHpaStr === 'true';
-  const storeHpaTarget = Number(targetStr) || 80;
+  const { hasHpa: storeHasHpa, target: storeHpaTarget } = parseHpaToken(storeHpaToken);
 
   const simulatedTime = useMemo(() => {
     const firstDeploymentMetrics = Object.values(metrics)[0];
