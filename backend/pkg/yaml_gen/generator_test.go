@@ -564,7 +564,7 @@ func TestGenerateAttachedHPASkipsNamespaceAndChildPod(t *testing.T) {
 
 type unmarshalableManifestGenerator struct{}
 
-func (unmarshalableManifestGenerator) Generate(k8s.K8sNodeData, string, string, *GenContext) interface{} {
+func (unmarshalableManifestGenerator) Generate(_ k8s.K8sNodeData, _, _ string, _ *GenContext) interface{} {
 	return make(chan int)
 }
 
@@ -572,7 +572,7 @@ type idCapturingGenerator struct {
 	capturedID string
 }
 
-func (g *idCapturingGenerator) Generate(data k8s.K8sNodeData, _ string, _ string, _ *GenContext) interface{} {
+func (g *idCapturingGenerator) Generate(data k8s.K8sNodeData, _, _ string, _ *GenContext) interface{} {
 	g.capturedID = data.ID
 	return nil
 }
